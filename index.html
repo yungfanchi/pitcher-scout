@@ -1429,6 +1429,8 @@
     function enterSystem(role) {
         userRole = role;
         document.getElementById('loginScreen').style.display = 'none';
+        // Start Firebase sync immediately
+        listenFirebase();
         if (role === 'view') {
             document.getElementById('viewOnlyBanner').style.display = 'block';
             document.body.style.paddingTop = '36px';
@@ -3388,37 +3390,39 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const DB_KEY = 'pitcherScoutData';
-    let firebaseListener = null;
-    let isSyncing = false;
+    let lastSaveTime = 0;
+    let firebaseListening = false;
 
     function setSyncStatus(online) {
         const dot = document.getElementById('syncDotCircle');
         const txt = document.getElementById('syncDotText');
         if (!dot) return;
         dot.className = 'dot ' + (online ? 'online' : 'offline');
-        txt.textContent = online ? '🟢 已同步' : '🟡 離線';
+        txt.textContent = online ? '已同步' : '離線';
     }
 
-    // Monitor connection state
+    // Monitor connection
     db.ref('.info/connected').on('value', snap => {
         setSyncStatus(snap.val() === true);
     });
 
     function saveToFirebase() {
-        if (isSyncing) return;
+        lastSaveTime = Date.now();
         try {
             db.ref(DB_KEY).set(JSON.parse(JSON.stringify(allData)))
                 .then(() => setSyncStatus(true))
-                .catch(() => setSyncStatus(false));
-        } catch(e) { console.error('Firebase save error:', e); }
+                .catch(e => { console.error('FB write error:', e); setSyncStatus(false); });
+        } catch(e) { console.error('FB save error:', e); }
     }
 
     function listenFirebase() {
-        if (firebaseListener) return;
-        firebaseListener = db.ref(DB_KEY).on('value', snap => {
+        if (firebaseListening) return;
+        firebaseListening = true;
+        db.ref(DB_KEY).on('value', snap => {
+            // Ignore updates within 2s of our own save (avoid echo)
+            if (Date.now() - lastSaveTime < 2000) return;
             const data = snap.val();
             if (!data) return;
-            isSyncing = true;
             allData = data;
             if (!allData.pitcherDB) allData.pitcherDB = {};
             updateTeamList();
@@ -3426,8 +3430,7 @@
             updatePitchLog();
             updateStats();
             updateScoreboard();
-            setTimeout(() => { isSyncing = false; }, 500);
-        }, err => { console.error('Firebase listen error:', err); setSyncStatus(false); });
+        }, err => { console.error('FB listen error:', err); setSyncStatus(false); });
     }
 
     function saveToLocalStorage() {
