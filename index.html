@@ -3408,11 +3408,26 @@
         setSyncStatus(snap.val() === true);
     });
 
+    function sanitizeForFirebase(data) {
+        // Firebase keys can't contain . # $ / [ ]
+        // Encode pitcherDB keys
+        const clean = JSON.parse(JSON.stringify(data));
+        if (clean.pitcherDB) {
+            const newDB = {};
+            Object.entries(clean.pitcherDB).forEach(([key, val]) => {
+                const safeKey = key.replace(/[.#$\[\]/]/g, '_');
+                newDB[safeKey] = val;
+            });
+            clean.pitcherDB = newDB;
+        }
+        return clean;
+    }
+
     function forceSyncToFirebase() {
         const btn = event && event.target;
         if (btn) { btn.textContent = '⏳ 同步中...'; btn.disabled = true; }
         try {
-            const payload = JSON.parse(JSON.stringify(allData));
+            const payload = sanitizeForFirebase(allData);
             db.ref(DB_KEY).set(payload)
                 .then(() => {
                     setSyncStatus(true);
@@ -3421,7 +3436,7 @@
                 })
                 .catch(e => {
                     if (btn) { btn.textContent = '❌ 同步失敗'; btn.disabled = false; }
-                    alert('同步失敗：' + e.message + '\n\n請確認 Firebase 規則已設為 read/write: true');
+                    alert('同步失敗：' + e.message);
                 });
         } catch(e) {
             alert('同步錯誤：' + e.message);
@@ -3432,7 +3447,8 @@
     function saveToFirebase() {
         lastSaveTime = Date.now();
         try {
-            db.ref(DB_KEY).set(JSON.parse(JSON.stringify(allData)))
+            const payload = sanitizeForFirebase(allData);
+            db.ref(DB_KEY).set(payload)
                 .then(() => setSyncStatus(true))
                 .catch(e => { console.error('FB write error:', e.code, e.message); setSyncStatus(false); });
         } catch(e) { console.error('FB save error:', e); }
