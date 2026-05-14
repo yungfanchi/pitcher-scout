@@ -658,7 +658,9 @@
         <div class="sidebar-quick-save">
             <button onclick="backupData()" style="background:var(--ct-green);color:white;">📦 備份數據</button>
             <button onclick="document.getElementById('restoreFile').click()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,215,0,0.4);">📂 還原數據</button>
-            <button onclick="forceUpdate()" style="background:rgba(255,165,0,0.25);color:#ffd700;border:1px solid rgba(255,165,0,0.4);">🔄 強制更新系統</button>
+            <button onclick="forceSyncToFirebase()" style="background:rgba(0,180,255,0.3);color:#7dd3fc;border:1px solid rgba(0,180,255,0.4);">☁️ 強制同步雲端</button>
+            <button onclick="location.reload()" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.2);">🔄 重新整理</button>
+            <button onclick="forceUpdate()" style="background:rgba(255,165,0,0.25);color:#ffd700;border:1px solid rgba(255,165,0,0.4);">⚡ 強制更新系統</button>
             <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(event)">
             <div class="ls-warning" id="lsWarning">⚠️ 儲存空間受限，請定期備份數據</div>
         </div>
@@ -3406,12 +3408,33 @@
         setSyncStatus(snap.val() === true);
     });
 
+    function forceSyncToFirebase() {
+        const btn = event && event.target;
+        if (btn) { btn.textContent = '⏳ 同步中...'; btn.disabled = true; }
+        try {
+            const payload = JSON.parse(JSON.stringify(allData));
+            db.ref(DB_KEY).set(payload)
+                .then(() => {
+                    setSyncStatus(true);
+                    if (btn) { btn.textContent = '✅ 同步成功'; setTimeout(() => { btn.textContent = '☁️ 強制同步雲端'; btn.disabled = false; }, 2000); }
+                    alert('✅ 數據已成功同步至雲端！');
+                })
+                .catch(e => {
+                    if (btn) { btn.textContent = '❌ 同步失敗'; btn.disabled = false; }
+                    alert('同步失敗：' + e.message + '\n\n請確認 Firebase 規則已設為 read/write: true');
+                });
+        } catch(e) {
+            alert('同步錯誤：' + e.message);
+            if (btn) { btn.textContent = '☁️ 強制同步雲端'; btn.disabled = false; }
+        }
+    }
+
     function saveToFirebase() {
         lastSaveTime = Date.now();
         try {
             db.ref(DB_KEY).set(JSON.parse(JSON.stringify(allData)))
                 .then(() => setSyncStatus(true))
-                .catch(e => { console.error('FB write error:', e); setSyncStatus(false); });
+                .catch(e => { console.error('FB write error:', e.code, e.message); setSyncStatus(false); });
         } catch(e) { console.error('FB save error:', e); }
     }
 
