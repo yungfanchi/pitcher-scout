@@ -1630,6 +1630,8 @@
             const key = team.gameName || '未分類';
             if (!gameGroups[key]) gameGroups[key] = [];
             gameGroups[key].push({ team, teamIndex });
+            // Auto-expand all game groups by default
+            expandedGames.add(key);
         });
 
         Object.entries(gameGroups).forEach(([gameName, teams]) => {
@@ -3410,18 +3412,19 @@
     });
 
     function sanitizeForFirebase(data) {
-        // Firebase keys can't contain . # $ / [ ]
-        // Encode pitcherDB keys
-        const clean = JSON.parse(JSON.stringify(data));
-        if (clean.pitcherDB) {
-            const newDB = {};
-            Object.entries(clean.pitcherDB).forEach(([key, val]) => {
-                const safeKey = key.replace(/[.#$\[\]/]/g, '_');
-                newDB[safeKey] = val;
-            });
-            clean.pitcherDB = newDB;
-        }
+        // Only store teams data, skip pitcherDB (has invalid key chars)
+        // pitcherDB is rebuilt from teams on load anyway
+        const clean = {
+            teams: JSON.parse(JSON.stringify(data.teams || []))
+        };
         return clean;
+    }
+
+    function restoreFromFirebaseData(data) {
+        allData.teams = data.teams || [];
+        allData.pitcherDB = {};
+        rebuildPitcherDB();
+        try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
     }
 
     function forceSyncToFirebase() {
@@ -3456,8 +3459,11 @@
     }
 
     function listenFirebase() {
-        // 不自動監聽，避免空資料覆蓋本機數據
-        // 改為手動同步模式
+        // 停用自動監聽
+    }
+
+    function saveToFirebase() {
+        // 只在手動按按鈕時才同步
     }
 
     function pullFromFirebase() {
@@ -3465,13 +3471,11 @@
             .then(snap => {
                 const data = snap.val();
                 if (!data || !data.teams || data.teams.length === 0) {
-                    alert('雲端目前無資料，請先按「☁️ 強制同步雲端」把本機數據上傳。');
+                    alert('雲端目前無資料，請先按「☁️ 上傳至雲端」把本機數據上傳。');
                     return;
                 }
                 if (!confirm(`雲端有 ${data.teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
-                allData = data;
-                if (!allData.pitcherDB) allData.pitcherDB = {};
-                try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+                restoreFromFirebaseData(data);
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
                 alert('✅ 已從雲端拉取最新數據！');
             })
@@ -3479,9 +3483,12 @@
     }
 
     function saveToLocalStorage() {
-        // Keep localStorage as backup
-        try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
-        saveToFirebase();
+        try {
+            localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData));
+        } catch(e) {
+            const w = document.getElementById('lsWarning');
+            if (w) { w.style.display = 'block'; w.textContent = '⚠️ 自動儲存失敗，請手動備份數據'; }
+        }
     }
 
     function loadFromLocalStorage() {
