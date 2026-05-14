@@ -3458,10 +3458,13 @@
         if (firebaseListening) return;
         firebaseListening = true;
         db.ref(DB_KEY).on('value', snap => {
-            // Ignore updates within 2s of our own save (avoid echo)
-            if (Date.now() - lastSaveTime < 2000) return;
+            // Ignore updates within 3s of our own save (avoid echo)
+            if (Date.now() - lastSaveTime < 3000) return;
             const data = snap.val();
-            if (!data) return;
+            // Don't overwrite local data with empty cloud data
+            if (!data || !data.teams || data.teams.length === 0) return;
+            // Only update if cloud has more teams than local (avoid data loss)
+            if (allData.teams && data.teams.length < allData.teams.length) return;
             allData = data;
             if (!allData.pitcherDB) allData.pitcherDB = {};
             updateTeamList();
