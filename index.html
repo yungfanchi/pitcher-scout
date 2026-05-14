@@ -12,6 +12,9 @@
     <title>投手情蒐系統</title>
     <!-- PWA Manifest -->
     <link rel="manifest" href="./manifest.json">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@500;700&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
@@ -525,7 +528,12 @@
             .batter-details { grid-template-columns:1fr 1fr; }
             .dual-pitcher-cards { grid-template-columns:1fr; }
         }
-        /* ===== LOGIN SCREEN ===== */
+        /* ===== SYNC STATUS ===== */
+        #syncDot { position:fixed; top:max(8px,env(safe-area-inset-top)); right:12px; z-index:1003; display:flex; align-items:center; gap:5px; background:rgba(0,0,0,0.35); border-radius:20px; padding:4px 10px; }
+        #syncDot .dot { width:8px; height:8px; border-radius:50%; background:#fbbf24; transition:background 0.4s; }
+        #syncDot .dot.online { background:#10b981; }
+        #syncDot .dot.offline { background:#fbbf24; animation:livePulse 1.2s infinite; }
+        #syncDot span { font-size:10px; color:white; font-weight:700; }
         #loginScreen {
             position:fixed; inset:0; z-index:9999;
             background:linear-gradient(135deg,#001f3f 0%,#003d79 60%,#0051a5 100%);
@@ -579,6 +587,12 @@
 <body>
     <!-- 觀看模式提示條 -->
     <div id="viewOnlyBanner">👀 觀看模式 — 數據唯讀，無法輸入記錄</div>
+
+    <!-- 同步狀態燈 -->
+    <div id="syncDot">
+        <div class="dot offline" id="syncDotCircle"></div>
+        <span id="syncDotText">連線中...</span>
+    </div>
 
     <!-- 登入畫面 -->
     <div id="loginScreen">
@@ -1385,7 +1399,7 @@
 
     // ====== INIT ======
     // ====== 密碼設定（可自行修改）======
-    const SCOUT_PASSWORD = 'ct55';  // ← 情蒐員密碼，可改成你要的
+    const SCOUT_PASSWORD = 'ct55';  // ← 情蒐員密碼
     let userRole = null; // 'scout' | 'view'
     let selectedLoginRole = 'scout';
 
@@ -3261,8 +3275,9 @@
                 currentTeam = null; currentPitcher = null;
                 slotA = {team:null,pitcher:null}; slotB = {team:null,pitcher:null};
                 try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+                saveToFirebase();
                 updateTeamList(); updateSlotDisplay(); updateScoreboard();
-                alert('✅ 數據還原成功！');
+                alert('✅ 數據還原成功！已同步至雲端');
             } catch(e) { alert('還原失敗，請確認檔案格式正確：' + e.message); }
         };
         reader.readAsText(file);
@@ -3329,6 +3344,7 @@
     function manualSave() {
         try {
             localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData));
+            saveToFirebase();
             const w = document.getElementById('lsWarning');
             if (w) w.style.display = 'none';
             const btn = event.target;
@@ -3339,7 +3355,7 @@
         } catch(e) {
             const w = document.getElementById('lsWarning');
             if (w) { w.style.display = 'block'; w.textContent = '⚠️ 儲存失敗，請點「備份數據」下載保存'; }
-            alert('儲存失敗（可能是私密模式或空間不足），請使用「備份數據」。');
+            alert('儲存失敗，建議點「備份數據」手動下載保存。');
         }
     }
 
@@ -3359,15 +3375,78 @@
         }
     }
 
+    // ====== FIREBASE SETUP ======
+    const firebaseConfig = {
+        apiKey: "AIzaSyAFFL_qwBEGjs-EFHQJhm8_aOetsBmLEF0",
+        authDomain: "ctpitcher-cd5cf.firebaseapp.com",
+        databaseURL: "https://ctpitcher-cd5cf-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "ctpitcher-cd5cf",
+        storageBucket: "ctpitcher-cd5cf.firebasestorage.app",
+        messagingSenderId: "225631887831",
+        appId: "1:225631887831:web:1e7c2a8a9d6520f55beb92"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const DB_KEY = 'pitcherScoutData';
+    let firebaseListener = null;
+    let isSyncing = false;
+
+    function setSyncStatus(online) {
+        const dot = document.getElementById('syncDotCircle');
+        const txt = document.getElementById('syncDotText');
+        if (!dot) return;
+        dot.className = 'dot ' + (online ? 'online' : 'offline');
+        txt.textContent = online ? '🟢 已同步' : '🟡 離線';
+    }
+
+    // Monitor connection state
+    db.ref('.info/connected').on('value', snap => {
+        setSyncStatus(snap.val() === true);
+    });
+
+    function saveToFirebase() {
+        if (isSyncing) return;
+        try {
+            db.ref(DB_KEY).set(JSON.parse(JSON.stringify(allData)))
+                .then(() => setSyncStatus(true))
+                .catch(() => setSyncStatus(false));
+        } catch(e) { console.error('Firebase save error:', e); }
+    }
+
+    function listenFirebase() {
+        if (firebaseListener) return;
+        firebaseListener = db.ref(DB_KEY).on('value', snap => {
+            const data = snap.val();
+            if (!data) return;
+            isSyncing = true;
+            allData = data;
+            if (!allData.pitcherDB) allData.pitcherDB = {};
+            updateTeamList();
+            updateSlotDisplay();
+            updatePitchLog();
+            updateStats();
+            updateScoreboard();
+            setTimeout(() => { isSyncing = false; }, 500);
+        }, err => { console.error('Firebase listen error:', err); setSyncStatus(false); });
+    }
+
+    function saveToLocalStorage() {
+        // Keep localStorage as backup
+        try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+        saveToFirebase();
+    }
+
     function loadFromLocalStorage() {
+        // Load from localStorage first (instant), then Firebase will sync
         const saved = localStorage.getItem('chineseTaipeiPitcherData');
         if (saved) {
-            allData = JSON.parse(saved);
-            if (!allData.pitcherDB) allData.pitcherDB = {};
-            // If pitcherDB empty but teams have pitches, rebuild
-            if (Object.keys(allData.pitcherDB).length === 0 && allData.teams.some(t => t.pitchers.some(p => p.pitches.length > 0))) {
-                rebuildPitcherDB();
-            }
+            try {
+                allData = JSON.parse(saved);
+                if (!allData.pitcherDB) allData.pitcherDB = {};
+                if (Object.keys(allData.pitcherDB).length === 0 && allData.teams.some(t => t.pitchers.some(p => p.pitches.length > 0))) {
+                    rebuildPitcherDB();
+                }
+            } catch(e) {}
         }
         const autoSet = localStorage.getItem('autoSaveSetting');
         autoSave = autoSet === '1';
@@ -3375,6 +3454,8 @@
         if (tg) tg.checked = autoSave;
         const st = document.getElementById('autoSaveStatus');
         if (st) st.textContent = autoSave ? '開啟' : '關閉';
+        // Start listening to Firebase for real-time sync
+        listenFirebase();
     }
 
     // Close modals on outside click - use stopPropagation to prevent flash
