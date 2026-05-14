@@ -658,7 +658,8 @@
         <div class="sidebar-quick-save">
             <button onclick="backupData()" style="background:var(--ct-green);color:white;">📦 備份數據</button>
             <button onclick="document.getElementById('restoreFile').click()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,215,0,0.4);">📂 還原數據</button>
-            <button onclick="forceSyncToFirebase()" style="background:rgba(0,180,255,0.3);color:#7dd3fc;border:1px solid rgba(0,180,255,0.4);">☁️ 強制同步雲端</button>
+            <button onclick="forceSyncToFirebase()" style="background:rgba(0,180,255,0.3);color:#7dd3fc;border:1px solid rgba(0,180,255,0.4);">☁️ 上傳至雲端</button>
+            <button onclick="pullFromFirebase()" style="background:rgba(100,255,180,0.2);color:#6ee7b7;border:1px solid rgba(100,255,180,0.4);">⬇️ 從雲端下載</button>
             <button onclick="location.reload()" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.2);">🔄 重新整理</button>
             <button onclick="forceUpdate()" style="background:rgba(255,165,0,0.25);color:#ffd700;border:1px solid rgba(255,165,0,0.4);">⚡ 強制更新系統</button>
             <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(event)">
@@ -3455,24 +3456,26 @@
     }
 
     function listenFirebase() {
-        if (firebaseListening) return;
-        firebaseListening = true;
-        db.ref(DB_KEY).on('value', snap => {
-            // Ignore updates within 3s of our own save (avoid echo)
-            if (Date.now() - lastSaveTime < 3000) return;
-            const data = snap.val();
-            // Don't overwrite local data with empty cloud data
-            if (!data || !data.teams || data.teams.length === 0) return;
-            // Only update if cloud has more teams than local (avoid data loss)
-            if (allData.teams && data.teams.length < allData.teams.length) return;
-            allData = data;
-            if (!allData.pitcherDB) allData.pitcherDB = {};
-            updateTeamList();
-            updateSlotDisplay();
-            updatePitchLog();
-            updateStats();
-            updateScoreboard();
-        }, err => { console.error('FB listen error:', err); setSyncStatus(false); });
+        // 不自動監聽，避免空資料覆蓋本機數據
+        // 改為手動同步模式
+    }
+
+    function pullFromFirebase() {
+        db.ref(DB_KEY).once('value')
+            .then(snap => {
+                const data = snap.val();
+                if (!data || !data.teams || data.teams.length === 0) {
+                    alert('雲端目前無資料，請先按「☁️ 強制同步雲端」把本機數據上傳。');
+                    return;
+                }
+                if (!confirm(`雲端有 ${data.teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
+                allData = data;
+                if (!allData.pitcherDB) allData.pitcherDB = {};
+                try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+                updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+                alert('✅ 已從雲端拉取最新數據！');
+            })
+            .catch(e => alert('拉取失敗：' + e.message));
     }
 
     function saveToLocalStorage() {
