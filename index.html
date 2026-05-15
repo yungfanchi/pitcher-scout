@@ -1482,6 +1482,41 @@
         updateScoreboard();
         renderCountLights();
         renderBases();
+        setupTeamListDelegation();
+    }
+
+    function setupTeamListDelegation() {
+        const teamList = document.getElementById('teamList');
+        if (!teamList) return;
+
+        function handlePitcherAction(e) {
+            // Find closest pitcher-tag or delete button
+            const deleteBtn = e.target.closest('[data-delete-team]');
+            if (deleteBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const ti = parseInt(deleteBtn.dataset.deleteTeam);
+                const pi = parseInt(deleteBtn.dataset.deletePitcher);
+                deletePitcher(ti, pi);
+                return;
+            }
+            const tag = e.target.closest('[data-team][data-pitcher]');
+            if (tag) {
+                e.preventDefault();
+                e.stopPropagation();
+                const ti = parseInt(tag.dataset.team);
+                const pi = parseInt(tag.dataset.pitcher);
+                selectPitcherToSlot(ti, pi);
+            }
+        }
+
+        // Use touchend for mobile (faster, no 300ms delay) and click for desktop
+        teamList.addEventListener('touchend', handlePitcherAction, { passive: false });
+        teamList.addEventListener('click', function(e) {
+            // Skip if this was a touch event (already handled by touchend)
+            if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+            handlePitcherAction(e);
+        });
     }
 
     // ====== TAIWAN FLAG ======
@@ -1681,11 +1716,11 @@
                         const isActive = (slotA.team === teamIndex && slotA.pitcher === pitcherIndex) ||
                                          (slotB.team === teamIndex && slotB.pitcher === pitcherIndex);
                         return `<span class="pitcher-tag ${isActive ? 'active' : ''}"
-                                    onclick="selectPitcherToSlot(${teamIndex},${pitcherIndex})"
-                                    ontouchend="event.preventDefault();selectPitcherToSlot(${teamIndex},${pitcherIndex})">
+                                    data-team="${teamIndex}" data-pitcher="${pitcherIndex}">
                                     ${pitcher.name}${pitcher.number ? ' #'+pitcher.number : ''} ${pitcher.hand || ''}${pitcher.role ? ' ['+pitcher.role+']' : ''}
-                                    <button class="pitcher-tag-delete" onclick="event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})" ontouchend="event.preventDefault();event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})" title="刪除">×</button>
+                                    <button class="pitcher-tag-delete" data-delete-team="${teamIndex}" data-delete-pitcher="${pitcherIndex}" title="刪除">×</button>
                                 </span>`;
+                    }).join('');
                     }).join('');
 
                     const dateStr = team.date ? formatDateFull(team.date) : '';
@@ -1758,7 +1793,7 @@
             // Don't auto-advance on pitcher change; keep current batter
             // (coach decides lineup, not auto)
         }
-        if (window.innerWidth <= 768) toggleSidebar();
+        if (window.innerWidth <= 768) setTimeout(() => toggleSidebar(), 50);
     }
 
     function checkFatigue(pitches) {
