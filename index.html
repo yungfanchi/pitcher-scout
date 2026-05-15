@@ -487,6 +487,8 @@
         .sidebar-quick-save { flex-shrink:0; padding:8px 0 4px; border-top:1px solid rgba(255,215,0,0.2); margin-top:6px; }
         .sidebar-quick-save button { width:100%; padding:8px; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; margin-bottom:4px; touch-action:manipulation; }
         .ls-warning { background:#7c2d12; color:#fef3c7; font-size:11px; padding:6px 8px; border-radius:6px; margin-top:4px; display:none; line-height:1.4; }
+        .bottom-action-btn { transition:filter 0.1s, transform 0.1s !important; }
+        .bottom-action-btn:active { filter:brightness(2.2) !important; transform:scale(0.95) !important; }
 
         /* ===== RESPONSIVE ===== */
         @media (max-width:1024px) {
@@ -588,7 +590,9 @@
 </head>
 <body>
     <!-- 觀看模式提示條 -->
-    <div id="viewOnlyBanner">👀 觀看模式 — 數據唯讀，無法輸入記錄</div>
+    <div id="viewOnlyBanner" style="display:flex;align-items:center;justify-content:center;gap:10px;">
+        <span>👀 觀看模式 — 數據唯讀，無法輸入記錄</span>
+    </div>
 
     <!-- 同步狀態燈 -->
     <div id="syncDot">
@@ -656,16 +660,36 @@
             <button class="add-pitcher-btn secondary" onclick="showSinglePitcherModal()">➕ 新增單一投手</button>
         </div>
         <div class="team-list" id="teamList"></div>
-        <!-- 快速備份還原 -->
-        <div class="sidebar-quick-save">
-            <button onclick="backupData()" style="background:var(--ct-green);color:white;">📦 備份數據</button>
-            <button onclick="document.getElementById('restoreFile').click()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,215,0,0.4);">📂 還原數據</button>
-            <button onclick="forceSyncToFirebase()" style="background:rgba(0,180,255,0.3);color:#7dd3fc;border:1px solid rgba(0,180,255,0.4);">☁️ 上傳至雲端</button>
-            <button onclick="pullFromFirebase()" style="background:rgba(100,255,180,0.2);color:#6ee7b7;border:1px solid rgba(100,255,180,0.4);">⬇️ 從雲端下載</button>
-            <button onclick="location.reload()" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.2);">🔄 重新整理</button>
-            <button onclick="forceUpdate()" style="background:rgba(255,165,0,0.25);color:#ffd700;border:1px solid rgba(255,165,0,0.4);">⚡ 強制更新系統</button>
+        <!-- 情蒐員底部（快速備份還原） -->
+        <div class="sidebar-quick-save" id="scoutBottomBar">
+            <!-- 開發者選項（可折疊） -->
+            <div id="devOptionsWrapper">
+                <button onclick="toggleDevOptions()" id="devOptionsToggle" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;margin-bottom:4px;">
+                    <span>🛠️ 開發者選項</span>
+                    <span id="devOptionsArrow" style="font-size:10px;transition:transform 0.2s;display:inline-block;">▶</span>
+                </button>
+                <div id="devOptionsPanel" style="display:none;padding:4px 0 2px;">
+                    <button onclick="pullFromFirebase()" style="background:rgba(100,255,180,0.2);color:#6ee7b7;border:1px solid rgba(100,255,180,0.4);">⬇️ 從雲端下載</button>
+                    <button onclick="forceSyncToFirebase()" style="background:rgba(0,180,255,0.3);color:#7dd3fc;border:1px solid rgba(0,180,255,0.4);">☁️ 上傳至雲端</button>
+                    <button onclick="backupData()" style="background:var(--ct-green);color:white;">📦 備份數據</button>
+                    <button onclick="document.getElementById('restoreFile').click()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,215,0,0.4);">📂 還原數據</button>
+                </div>
+            </div>
+            <!-- 重新整理 + 強制更新 + 登出 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:2px;">
+                <button onclick="refreshData(this)" class="bottom-action-btn" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.2);">🔄 重整</button>
+                <button onclick="forceUpdate()" class="bottom-action-btn" style="background:rgba(255,165,0,0.25);color:#ffd700;border:1px solid rgba(255,165,0,0.4);">⚡ 更新</button>
+                <button onclick="logout()" class="bottom-action-btn" style="background:rgba(220,0,0,0.6);color:white;border:1px solid rgba(220,0,0,0.5);">🚪 登出</button>
+            </div>
             <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(event)">
             <div class="ls-warning" id="lsWarning">⚠️ 儲存空間受限，請定期備份數據</div>
+        </div>
+        <!-- 觀看者底部（重新整理 + 登出） -->
+        <div class="sidebar-quick-save" id="viewerBottomBar" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <button onclick="refreshData(this)" class="bottom-action-btn" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.2);">🔄 重新整理</button>
+                <button onclick="logout()" class="bottom-action-btn" style="background:rgba(220,0,0,0.6);color:white;border:1px solid rgba(220,0,0,0.5);">🚪 登出</button>
+            </div>
         </div>
     </div>
 
@@ -1437,11 +1461,38 @@
         // Start Firebase sync immediately
         listenFirebase();
         if (role === 'view') {
-            document.getElementById('viewOnlyBanner').style.display = 'block';
+            document.getElementById('viewOnlyBanner').style.display = 'flex';
             document.body.style.paddingTop = '36px';
             applyViewOnlyMode();
         }
         init();
+    }
+
+    function toggleDevOptions() {
+        const panel = document.getElementById('devOptionsPanel');
+        const arrow = document.getElementById('devOptionsArrow');
+        const isOpen = panel.style.display !== 'none';
+        panel.style.display = isOpen ? 'none' : 'block';
+        arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+    }
+
+    function logout() {
+        if (!confirm('確定要登出嗎？')) return;
+        userRole = null;
+        // Reset state
+        currentTeam = null; currentPitcher = null;
+        slotA = { team: null, pitcher: null };
+        slotB = { team: null, pitcher: null };
+        activeSlot = 'A';
+        // Hide view-only banner
+        document.getElementById('viewOnlyBanner').style.display = 'none';
+        document.body.style.paddingTop = '';
+        // Reset login form
+        document.getElementById('loginPw').value = '';
+        document.getElementById('loginError').textContent = '';
+        selectRole('scout');
+        // Show login screen
+        document.getElementById('loginScreen').style.display = 'flex';
     }
 
     function applyViewOnlyMode() {
@@ -1469,9 +1520,65 @@
             // Hide sidebar management sections
             const mgmt = document.querySelector('.team-management');
             if (mgmt) mgmt.style.display = 'none';
-            const save = document.querySelector('.sidebar-quick-save');
-            if (save) save.style.display = 'none';
+            // Switch bottom bar: hide scout bar, show viewer bar
+            const scoutBar = document.getElementById('scoutBottomBar');
+            if (scoutBar) scoutBar.style.display = 'none';
+            const viewerBar = document.getElementById('viewerBottomBar');
+            if (viewerBar) viewerBar.style.display = 'block';
         }, 100);
+    }
+
+    function refreshData(btn) {
+        if (btn) { btn.textContent = '⏳ 更新中...'; btn.disabled = true; }
+        // Pull latest data from Firebase and refresh all UI without reloading page
+        db.ref(DB_KEY).once('value')
+            .then(snap => {
+                const data = snap.val();
+                if (data && data.teams) {
+                    let teams = data.teams;
+                    if (!Array.isArray(teams)) teams = Object.values(teams);
+                    teams = teams.map(team => {
+                        if (!team) return team;
+                        let pitchers = team.pitchers || [];
+                        if (!Array.isArray(pitchers)) pitchers = Object.values(pitchers);
+                        pitchers = pitchers.map(pitcher => {
+                            if (!pitcher) return pitcher;
+                            let pitches = pitcher.pitches || [];
+                            if (!Array.isArray(pitches)) pitches = Object.values(pitches);
+                            return { ...pitcher, pitches };
+                        });
+                        return { ...team, pitchers };
+                    });
+                    allData.teams = teams;
+                    allData.pitcherDB = {};
+                    rebuildPitcherDB();
+                    try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+                }
+                updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+                if (btn) {
+                    const origText = btn.id === 'viewerRefreshBtn' ? '🔄 重新整理' : '🔄 重整';
+                    btn.textContent = '✅ 已更新';
+                    btn.style.background = 'rgba(16,185,129,0.5)';
+                    btn.disabled = false;
+                    setTimeout(() => {
+                        btn.textContent = origText;
+                        btn.style.background = '';
+                    }, 1500);
+                }
+            })
+            .catch(() => {
+                updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+                if (btn) {
+                    const origText = btn.id === 'viewerRefreshBtn' ? '🔄 重新整理' : '🔄 重整';
+                    btn.textContent = '📵 離線更新';
+                    btn.style.background = 'rgba(251,191,36,0.3)';
+                    btn.disabled = false;
+                    setTimeout(() => {
+                        btn.textContent = origText;
+                        btn.style.background = '';
+                    }, 1500);
+                }
+            });
     }
 
     function init() {
@@ -1490,8 +1597,12 @@
         if (!teamList) return;
 
         function handlePitcherAction(e) {
+            // e.target may be a text node on some browsers — get element
+            const target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+            if (!target) return;
+
             // Find closest pitcher-tag or delete button
-            const deleteBtn = e.target.closest('[data-delete-team]');
+            const deleteBtn = target.closest('[data-delete-team]');
             if (deleteBtn) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1500,7 +1611,7 @@
                 deletePitcher(ti, pi);
                 return;
             }
-            const tag = e.target.closest('[data-team][data-pitcher]');
+            const tag = target.closest('[data-team][data-pitcher]');
             if (tag) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1510,12 +1621,42 @@
             }
         }
 
-        // Use touchend for mobile (faster, no 300ms delay) and click for desktop
-        teamList.addEventListener('touchend', handlePitcherAction, { passive: false });
-        teamList.addEventListener('click', function(e) {
-            // Skip if this was a touch event (already handled by touchend)
-            if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-            handlePitcherAction(e);
+        // Reliable tap detection: capture target at pointerdown, fire at pointerup if no scroll
+        let tapTarget = null;
+        let tapMoved = false;
+        let tapStartX = 0, tapStartY = 0;
+
+        teamList.addEventListener('pointerdown', function(e) {
+            tapMoved = false;
+            tapStartX = e.clientX;
+            tapStartY = e.clientY;
+            // Capture the real element target at press time
+            const t = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+            tapTarget = t ? (t.closest('[data-delete-team]') || t.closest('[data-team][data-pitcher]')) : null;
+        }, { passive: true });
+
+        teamList.addEventListener('pointermove', function(e) {
+            if (Math.abs(e.clientX - tapStartX) > 8 || Math.abs(e.clientY - tapStartY) > 8) {
+                tapMoved = true;
+                tapTarget = null;
+            }
+        }, { passive: true });
+
+        teamList.addEventListener('pointerup', function(e) {
+            if (tapMoved || !tapTarget) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (tapTarget.hasAttribute('data-delete-team')) {
+                const ti = parseInt(tapTarget.dataset.deleteTeam);
+                const pi = parseInt(tapTarget.dataset.deletePitcher);
+                tapTarget = null;
+                deletePitcher(ti, pi);
+            } else if (tapTarget.hasAttribute('data-team')) {
+                const ti = parseInt(tapTarget.dataset.team);
+                const pi = parseInt(tapTarget.dataset.pitcher);
+                tapTarget = null;
+                selectPitcherToSlot(ti, pi);
+            }
         });
     }
 
@@ -1720,7 +1861,6 @@
                                     ${pitcher.name}${pitcher.number ? ' #'+pitcher.number : ''} ${pitcher.hand || ''}${pitcher.role ? ' ['+pitcher.role+']' : ''}
                                     <button class="pitcher-tag-delete" data-delete-team="${teamIndex}" data-delete-pitcher="${pitcherIndex}" title="刪除">×</button>
                                 </span>`;
-                    }).join('');
                     }).join('');
 
                     const dateStr = team.date ? formatDateFull(team.date) : '';
