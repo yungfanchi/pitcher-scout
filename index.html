@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -108,6 +109,7 @@
             background:rgba(0,61,121,0.85); color:white; padding:5px 8px; border-radius:5px;
             font-size:11px; cursor:pointer; transition:all 0.2s; border:1px solid var(--ct-gold);
             -webkit-user-select:none; user-select:none; display:inline-flex; align-items:center; gap:5px;
+            touch-action:manipulation; -webkit-tap-highlight-color:rgba(255,215,0,0.3);
         }
         .pitcher-tag:active { transform:scale(0.95); }
         .pitcher-tag.active { background:var(--ct-red); color:white; border-color:var(--ct-gold); box-shadow:0 2px 8px rgba(220,0,0,0.4); }
@@ -1679,9 +1681,10 @@
                         const isActive = (slotA.team === teamIndex && slotA.pitcher === pitcherIndex) ||
                                          (slotB.team === teamIndex && slotB.pitcher === pitcherIndex);
                         return `<span class="pitcher-tag ${isActive ? 'active' : ''}"
-                                    onclick="selectPitcherToSlot(${teamIndex},${pitcherIndex})">
+                                    onclick="selectPitcherToSlot(${teamIndex},${pitcherIndex})"
+                                    ontouchend="event.preventDefault();selectPitcherToSlot(${teamIndex},${pitcherIndex})">
                                     ${pitcher.name}${pitcher.number ? ' #'+pitcher.number : ''} ${pitcher.hand || ''}${pitcher.role ? ' ['+pitcher.role+']' : ''}
-                                    <button class="pitcher-tag-delete" onclick="event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})" title="刪除">×</button>
+                                    <button class="pitcher-tag-delete" onclick="event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})" ontouchend="event.preventDefault();event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})" title="刪除">×</button>
                                 </span>`;
                     }).join('');
 
@@ -3255,16 +3258,22 @@
     }
 
     // ====== 備份還原 ======
+    function triggerDownload(url, filename) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+    }
+
     function backupData() {
         try {
             const dataStr = JSON.stringify(allData, null, 2);
             const blob = new Blob([dataStr], {type:'application/json'});
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `投手情蒐備份_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            triggerDownload(url, `投手情蒐備份_${new Date().toISOString().split('T')[0]}.json`);
         } catch(e) { alert('備份失敗：' + e.message); }
     }
 
@@ -3306,10 +3315,7 @@
         const dataStr = JSON.stringify(allData, null, 2);
         const dataBlob = new Blob([dataStr], {type:'application/json'});
         const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `投手情蒐_全部_${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
+        triggerDownload(url, `投手情蒐_全部_${new Date().toISOString().split('T')[0]}.json`);
     }
 
     function exportCurrentPitcher() {
@@ -3320,10 +3326,7 @@
         const dataStr = JSON.stringify(exportData, null, 2);
         const dataBlob = new Blob([dataStr], {type:'application/json'});
         const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${team.name}_${pitcher.name}_${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
+        triggerDownload(url, `${team.name}_${pitcher.name}_${new Date().toISOString().split('T')[0]}.json`);
     }
 
     function importData(event) {
@@ -3421,7 +3424,23 @@
     }
 
     function restoreFromFirebaseData(data) {
-        allData.teams = data.teams || [];
+        // Firebase Realtime DB converts arrays to objects ({0:{...},1:{...}})
+        // Convert back to proper arrays at every level
+        let teams = data.teams || [];
+        if (!Array.isArray(teams)) teams = Object.values(teams);
+        teams = teams.map(team => {
+            if (!team) return team;
+            let pitchers = team.pitchers || [];
+            if (!Array.isArray(pitchers)) pitchers = Object.values(pitchers);
+            pitchers = pitchers.map(pitcher => {
+                if (!pitcher) return pitcher;
+                let pitches = pitcher.pitches || [];
+                if (!Array.isArray(pitches)) pitches = Object.values(pitches);
+                return { ...pitcher, pitches };
+            });
+            return { ...team, pitchers };
+        });
+        allData.teams = teams;
         allData.pitcherDB = {};
         rebuildPitcherDB();
         try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
@@ -3470,11 +3489,14 @@
         db.ref(DB_KEY).once('value')
             .then(snap => {
                 const data = snap.val();
-                if (!data || !data.teams || data.teams.length === 0) {
+                // Firebase may return teams as object {0:{...},1:{...}} instead of array
+                let teams = data && data.teams;
+                if (teams && !Array.isArray(teams)) teams = Object.values(teams);
+                if (!data || !teams || teams.length === 0) {
                     alert('雲端目前無資料，請先按「☁️ 上傳至雲端」把本機數據上傳。');
                     return;
                 }
-                if (!confirm(`雲端有 ${data.teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
+                if (!confirm(`雲端有 ${teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
                 restoreFromFirebaseData(data);
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
                 alert('✅ 已從雲端拉取最新數據！');
