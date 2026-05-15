@@ -1595,71 +1595,7 @@
     }
 
     function setupTeamListDelegation() {
-        const teamList = document.getElementById('teamList');
-        if (!teamList) return;
-
-        function handlePitcherAction(e) {
-            // e.target may be a text node on some browsers — get element
-            const target = e.target.nodeType === 3 ? e.target.parentElement : e.target;
-            if (!target) return;
-
-            // Find closest pitcher-tag or delete button
-            const deleteBtn = target.closest('[data-delete-team]');
-            if (deleteBtn) {
-                e.preventDefault();
-                e.stopPropagation();
-                const ti = parseInt(deleteBtn.dataset.deleteTeam);
-                const pi = parseInt(deleteBtn.dataset.deletePitcher);
-                deletePitcher(ti, pi);
-                return;
-            }
-            const tag = target.closest('[data-team][data-pitcher]');
-            if (tag) {
-                e.preventDefault();
-                e.stopPropagation();
-                const ti = parseInt(tag.dataset.team);
-                const pi = parseInt(tag.dataset.pitcher);
-                selectPitcherToSlot(ti, pi);
-            }
-        }
-
-        // Reliable tap detection: capture target at pointerdown, fire at pointerup if no scroll
-        let tapTarget = null;
-        let tapMoved = false;
-        let tapStartX = 0, tapStartY = 0;
-
-        teamList.addEventListener('pointerdown', function(e) {
-            tapMoved = false;
-            tapStartX = e.clientX;
-            tapStartY = e.clientY;
-            // Capture the real element target at press time
-            const t = e.target.nodeType === 3 ? e.target.parentElement : e.target;
-            tapTarget = t ? (t.closest('[data-delete-team]') || t.closest('[data-team][data-pitcher]')) : null;
-        }, { passive: true });
-
-        teamList.addEventListener('pointermove', function(e) {
-            if (Math.abs(e.clientX - tapStartX) > 8 || Math.abs(e.clientY - tapStartY) > 8) {
-                tapMoved = true;
-                tapTarget = null;
-            }
-        }, { passive: true });
-
-        teamList.addEventListener('pointerup', function(e) {
-            if (tapMoved || !tapTarget) return;
-            e.preventDefault();
-            e.stopPropagation();
-            if (tapTarget.hasAttribute('data-delete-team')) {
-                const ti = parseInt(tapTarget.dataset.deleteTeam);
-                const pi = parseInt(tapTarget.dataset.deletePitcher);
-                tapTarget = null;
-                deletePitcher(ti, pi);
-            } else if (tapTarget.hasAttribute('data-team')) {
-                const ti = parseInt(tapTarget.dataset.team);
-                const pi = parseInt(tapTarget.dataset.pitcher);
-                tapTarget = null;
-                selectPitcherToSlot(ti, pi);
-            }
-        });
+        // No-op: pitcher tags use inline ontouchend+onclick directly
     }
 
     // ====== TAIWAN FLAG ======
@@ -1859,9 +1795,12 @@
                         const isActive = (slotA.team === teamIndex && slotA.pitcher === pitcherIndex) ||
                                          (slotB.team === teamIndex && slotB.pitcher === pitcherIndex);
                         return `<span class="pitcher-tag ${isActive ? 'active' : ''}"
-                                    data-team="${teamIndex}" data-pitcher="${pitcherIndex}">
+                                    onclick="selectPitcherToSlot(${teamIndex},${pitcherIndex})"
+                                    ontouchend="event.preventDefault();selectPitcherToSlot(${teamIndex},${pitcherIndex})">
                                     ${pitcher.name}${pitcher.number ? ' #'+pitcher.number : ''} ${pitcher.hand || ''}${pitcher.role ? ' ['+pitcher.role+']' : ''}
-                                    <button class="pitcher-tag-delete" data-delete-team="${teamIndex}" data-delete-pitcher="${pitcherIndex}" title="刪除">×</button>
+                                    <button class="pitcher-tag-delete"
+                                        onclick="event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})"
+                                        ontouchend="event.preventDefault();event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})">×</button>
                                 </span>`;
                     }).join('');
 
@@ -1925,17 +1864,14 @@
 
         expandedTeams.add(teamIndex);
         updateSlotDisplay();
-        updateTeamList();
         updatePitchLog();
         updateStats();
         updateScoreboard();
-        // Preserve batter info; if outs occurred, auto-advance order
-        const order = parseInt(document.getElementById('batterOrder').value) || 0;
-        if (gameState.outs > 0 && order >= 1 && order <= 9) {
-            // Don't auto-advance on pitcher change; keep current batter
-            // (coach decides lineup, not auto)
-        }
-        if (window.innerWidth <= 768) setTimeout(() => toggleSidebar(), 50);
+        // Defer DOM-rebuilding operations so touch event chain completes first
+        setTimeout(() => {
+            updateTeamList();
+            if (window.innerWidth <= 768) toggleSidebar();
+        }, 0);
     }
 
     function checkFatigue(pitches) {
