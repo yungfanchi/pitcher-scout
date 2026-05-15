@@ -590,7 +590,7 @@
 </head>
 <body>
     <!-- 觀看模式提示條 -->
-    <div id="viewOnlyBanner" style="display:flex;align-items:center;justify-content:center;gap:10px;">
+    <div id="viewOnlyBanner">
         <span>👀 觀看模式 — 數據唯讀，無法輸入記錄</span>
     </div>
 
@@ -612,10 +612,10 @@
             <div class="login-sub">PITCHER SCOUTING · CHINESE TAIPEI</div>
 
             <div class="login-role-btns">
-                <button class="login-role-btn selected" id="roleScout" onclick="selectRole('scout')">
+                <button class="login-role-btn selected" id="roleScout" data-login-action="scout">
                     📝 情蒐員<br><span style="font-size:11px;font-weight:400;opacity:0.8;">記錄投球數據</span>
                 </button>
-                <button class="login-role-btn" id="roleView" onclick="selectRole('view')">
+                <button class="login-role-btn" id="roleView" data-login-action="view">
                     👀 觀看者<br><span style="font-size:11px;font-weight:400;opacity:0.8;">教練 / 選手</span>
                 </button>
             </div>
@@ -625,7 +625,7 @@
                 <input type="password" id="loginPw" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
             </div>
 
-            <button class="login-enter-btn" onclick="doLogin()">進入系統 →</button>
+            <button class="login-enter-btn" id="loginEnterBtn">進入系統 →</button>
             <div class="login-error" id="loginError"></div>
             <div class="login-hint">
                 觀看者無需密碼，直接點「觀看者」後進入<br>
@@ -1461,7 +1461,7 @@
         // Start Firebase sync immediately
         listenFirebase();
         if (role === 'view') {
-            document.getElementById('viewOnlyBanner').style.display = 'flex';
+            document.getElementById('viewOnlyBanner').style.display = 'block';
             document.body.style.paddingTop = '36px';
             applyViewOnlyMode();
         }
@@ -1591,6 +1591,34 @@
         renderBases();
         setupTeamListDelegation();
     }
+
+    // Login screen tap delegation (runs immediately, not inside init)
+    (function setupLoginDelegation() {
+        const loginBox = document.querySelector('.login-box');
+        if (!loginBox) return;
+        let loginTapTarget = null, loginTapMoved = false, loginStartX = 0, loginStartY = 0;
+        loginBox.addEventListener('pointerdown', function(e) {
+            loginTapMoved = false;
+            loginStartX = e.clientX; loginStartY = e.clientY;
+            const t = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+            loginTapTarget = t ? (t.closest('[data-login-action]') || (t.id === 'loginEnterBtn' ? t : null)) : null;
+        }, { passive: true });
+        loginBox.addEventListener('pointermove', function(e) {
+            if (Math.abs(e.clientX - loginStartX) > 8 || Math.abs(e.clientY - loginStartY) > 8) {
+                loginTapMoved = true; loginTapTarget = null;
+            }
+        }, { passive: true });
+        loginBox.addEventListener('pointerup', function(e) {
+            if (loginTapMoved || !loginTapTarget) return;
+            e.preventDefault();
+            if (loginTapTarget.dataset.loginAction) {
+                selectRole(loginTapTarget.dataset.loginAction);
+            } else if (loginTapTarget.id === 'loginEnterBtn') {
+                doLogin();
+            }
+            loginTapTarget = null;
+        });
+    })();
 
     function setupTeamListDelegation() {
         const teamList = document.getElementById('teamList');
