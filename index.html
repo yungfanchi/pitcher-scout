@@ -612,10 +612,10 @@
             <div class="login-sub">PITCHER SCOUTING · CHINESE TAIPEI</div>
 
             <div class="login-role-btns">
-                <button class="login-role-btn selected" id="roleScout" data-login-action="scout">
+                <button class="login-role-btn selected" id="roleScout" onclick="selectRole('scout')" ontouchend="event.preventDefault();selectRole('scout')">
                     📝 情蒐員<br><span style="font-size:11px;font-weight:400;opacity:0.8;">記錄投球數據</span>
                 </button>
-                <button class="login-role-btn" id="roleView" data-login-action="view">
+                <button class="login-role-btn" id="roleView" onclick="selectRole('view')" ontouchend="event.preventDefault();selectRole('view')">
                     👀 觀看者<br><span style="font-size:11px;font-weight:400;opacity:0.8;">教練 / 選手</span>
                 </button>
             </div>
@@ -625,7 +625,7 @@
                 <input type="password" id="loginPw" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
             </div>
 
-            <button class="login-enter-btn" id="loginEnterBtn" onclick="doLogin()" style="touch-action:manipulation;">進入系統 →</button>
+            <button class="login-enter-btn" id="loginEnterBtn" onclick="doLogin()" ontouchend="event.preventDefault();doLogin()" style="touch-action:manipulation;">進入系統 →</button>
             <div class="login-error" id="loginError"></div>
             <div class="login-hint">
                 觀看者無需密碼，直接點「觀看者」後進入<br>
@@ -1442,7 +1442,7 @@
 
     function doLogin() {
         // Dismiss keyboard on mobile before processing
-        document.activeElement && document.activeElement.blur();
+        try { document.activeElement && document.activeElement.blur(); } catch(e) {}
         if (selectedLoginRole === 'view') {
             enterSystem('view');
             return;
@@ -1593,30 +1593,6 @@
         renderBases();
         setupTeamListDelegation();
     }
-
-    // Login screen tap delegation (runs immediately, not inside init)
-    (function setupLoginDelegation() {
-        const loginBox = document.querySelector('.login-box');
-        if (!loginBox) return;
-        let loginTapTarget = null, loginTapMoved = false, loginStartX = 0, loginStartY = 0;
-        loginBox.addEventListener('pointerdown', function(e) {
-            loginTapMoved = false;
-            loginStartX = e.clientX; loginStartY = e.clientY;
-            const t = e.target.nodeType === 3 ? e.target.parentElement : e.target;
-            loginTapTarget = t ? t.closest('[data-login-action]') : null;
-        }, { passive: true });
-        loginBox.addEventListener('pointermove', function(e) {
-            if (Math.abs(e.clientX - loginStartX) > 8 || Math.abs(e.clientY - loginStartY) > 8) {
-                loginTapMoved = true; loginTapTarget = null;
-            }
-        }, { passive: true });
-        loginBox.addEventListener('pointerup', function(e) {
-            if (loginTapMoved || !loginTapTarget) return;
-            e.preventDefault();
-            selectRole(loginTapTarget.dataset.loginAction);
-            loginTapTarget = null;
-        });
-    })();
 
     function setupTeamListDelegation() {
         const teamList = document.getElementById('teamList');
