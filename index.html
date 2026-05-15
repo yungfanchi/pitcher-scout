@@ -1924,11 +1924,18 @@
         updatePitchLog();
         updateStats();
         updateScoreboard();
-        // Defer DOM-rebuilding operations so touch event chain completes first
         setTimeout(() => {
             updateTeamList();
-            if (window.innerWidth <= 768) toggleSidebar();
-        }, 0);
+            // On mobile, always close sidebar so user can see the slot cards
+            if (window.innerWidth <= 1024) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                if (sidebar && sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                    if (overlay) overlay.classList.remove('show');
+                }
+            }
+        }, 50);
     }
 
     function checkFatigue(pitches) {
@@ -1955,7 +1962,6 @@
     }
 
     function updateSlotDisplay() {
-        alert('slotA=' + JSON.stringify(slotA) + ' active=' + activeSlot + ' teams=' + allData.teams.length);
         ['A','B'].forEach(slot => {
             const s = slot === 'A' ? slotA : slotB;
             const contentEl = document.getElementById('slot' + slot + 'Content');
