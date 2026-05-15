@@ -627,8 +627,8 @@
         .login-error { color:#f87171; font-size:13px; margin-top:10px; min-height:18px; font-weight:700; }
         .login-hint { color:rgba(255,255,255,0.35); font-size:11px; margin-top:14px; line-height:1.6; }
         /* 模式選擇頁 */
-        #modeSelectScreen { display:none; position:fixed; inset:0; z-index:2000; background:linear-gradient(135deg,#001a3d 0%,#003d79 60%,#0051a5 100%); flex-direction:column; align-items:center; justify-content:center; }
-        .mode-card { background:rgba(255,255,255,0.07); border:2px solid rgba(255,215,0,0.3); border-radius:16px; padding:28px 32px; width:260px; text-align:center; cursor:pointer; transition:all 0.2s; touch-action:manipulation; margin:10px; }
+        #modeSelectScreen { display:none; position:fixed; inset:0; z-index:10000; background:linear-gradient(135deg,#001a3d 0%,#003d79 60%,#0051a5 100%); flex-direction:column; align-items:center; justify-content:center; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .mode-card { background:rgba(255,255,255,0.07); border:2px solid rgba(255,215,0,0.3); border-radius:16px; padding:28px 32px; width:220px; text-align:center; cursor:pointer; transition:all 0.2s; touch-action:manipulation; margin:10px; font-family:inherit; -webkit-appearance:none; appearance:none; }
         .mode-card:active { transform:scale(0.97); }
         .mode-card:hover { background:rgba(255,215,0,0.12); border-color:var(--ct-gold); }
         .mode-card-icon { font-size:48px; margin-bottom:12px; }
@@ -666,19 +666,19 @@
             <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:4px;">請選擇要進入的功能模式</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;justify-content:center;">
-            <div class="mode-card" onclick="enterSystem('scout')">
+            <button type="button" class="mode-card" onclick="enterSystem('scout')" ontouchend="event.preventDefault();enterSystem('scout')">
                 <div class="mode-card-icon">📝</div>
                 <div class="mode-card-title">投手模式</div>
                 <div class="mode-card-sub">記錄與分析投球數據</div>
-            </div>
-            <div class="mode-card disabled">
+            </button>
+            <button type="button" class="mode-card disabled" disabled>
                 <div class="mode-card-icon">⚾</div>
                 <div class="mode-card-title">打者模式</div>
                 <div class="mode-card-sub">開發中，敬請期待</div>
-            </div>
+            </button>
         </div>
         <div style="margin-top:24px;">
-            <button onclick="showModeSelect(false)" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.2);padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer;touch-action:manipulation;">← 返回登入</button>
+            <button type="button" onclick="showModeSelect(false)" ontouchend="event.preventDefault();showModeSelect(false)" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.2);padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer;touch-action:manipulation;">← 返回登入</button>
         </div>
     </div>
 
@@ -1665,8 +1665,15 @@
     }
 
     function showModeSelect(show) {
-        document.getElementById('modeSelectScreen').style.display = show ? 'flex' : 'none';
-        if (!show) document.getElementById('loginScreen').style.display = 'flex';
+        const ms = document.getElementById('modeSelectScreen');
+        const ls = document.getElementById('loginScreen');
+        if (show) {
+            ls.style.display = 'none';
+            ms.style.display = 'flex';
+        } else {
+            ms.style.display = 'none';
+            ls.style.display = 'flex';
+        }
     }
 
     function checkForUpdate() {
@@ -1823,7 +1830,7 @@
     function enterSystem(role) {
         userRole = role;
         document.getElementById('loginScreen').style.display = 'none';
-        // Start Firebase sync immediately
+        document.getElementById('modeSelectScreen').style.display = 'none';
         listenFirebase();
         if (role === 'view') {
             document.getElementById('viewOnlyBanner').style.display = 'block';
