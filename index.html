@@ -496,6 +496,8 @@
         .analysis-split-row { grid-template-columns:1fr 1fr; }
         .analysis-split-row > * { min-width:0; overflow:hidden; }
         @media (max-width:768px) { .analysis-split-row { grid-template-columns:1fr; } }
+        .analysis-two-col { grid-template-columns:1fr 1fr; }
+        @media (max-width:600px) { .analysis-two-col { grid-template-columns:1fr; } }
         .heatmap-scale-wrap { width:100%; display:flex; justify-content:center; overflow:hidden; }
         /* 對戰歷史 Modal */
         #historyModal { display:none; position:fixed; z-index:3000; inset:0; background:rgba(0,61,121,0.55); backdrop-filter:blur(4px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
@@ -1145,33 +1147,21 @@
                 </div>
             </div>
 
-            <!-- 配球模式 左50% + 進壘分析 右50% -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;" class="analysis-split-row">
-                <div class="container" style="margin:0;min-width:0;overflow:hidden;">
-                    <h2>🎲 常用球種與配球模式</h2>
-                    <!-- 球種圓餅圖 -->
-                    <div style="display:flex;justify-content:center;margin-bottom:12px;">
-                        <canvas id="pitchTypePieChart" width="200" height="200" style="max-width:200px;max-height:200px;"></canvas>
+            <!-- 配球模式（左50%）+ 壘上分析（右50%）並排 -->
+            <div class="container">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="analysis-two-col">
+                    <!-- 左：球種圓餅 + 配球模式 -->
+                    <div style="min-width:0;">
+                        <h2 style="font-size:16px;">🎲 常用球種與配球模式</h2>
+                        <div style="display:flex;justify-content:center;margin-bottom:10px;">
+                            <canvas id="pitchTypePieChart" width="160" height="160" style="max-width:160px;"></canvas>
+                        </div>
+                        <div class="pattern-analysis" id="patternAnalysis"></div>
                     </div>
-                    <div class="pattern-analysis" id="patternAnalysis"></div>
-                </div>
-                <div class="container" style="margin:0;overflow:hidden;min-width:0;">
-                    <h2>🏃 進壘位置 & 壘上分析</h2>
-                    <!-- 進壘熱圖直列 -->
-                    <div style="display:flex;flex-direction:column;gap:12px;align-items:center;">
-                        <div style="width:100%;text-align:center;">
-                            <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:6px;">好球帶熱區</div>
-                            <div style="overflow:hidden;display:flex;justify-content:center;" class="heatmap-scale-wrap">
-                                <div class="tendency-heatmap sm" id="tendencyStrikeRight" style="pointer-events:none;"></div>
-                            </div>
-                        </div>
-                        <div style="width:100%;text-align:center;">
-                            <div style="font-size:12px;font-weight:700;color:#065f46;margin-bottom:6px;">壞球區熱區</div>
-                            <div style="overflow:hidden;display:flex;justify-content:center;" class="heatmap-scale-wrap">
-                                <div class="ball-tendency-heatmap sm" id="tendencyBallRight" style="pointer-events:none;"></div>
-                            </div>
-                        </div>
-                        <div style="width:100%;" id="baseStateAnalysis"></div>
+                    <!-- 右：壘上有人/無人 + 被安打率 -->
+                    <div style="min-width:0;">
+                        <h2 style="font-size:16px;">🏃 壘上情境分析</h2>
+                        <div id="baseStateAnalysis"></div>
                     </div>
                 </div>
             </div>
@@ -3597,47 +3587,60 @@
     function updateBaseStateAnalysis(pitches) {
         const div = document.getElementById('baseStateAnalysis');
         if (!div) return;
-        // Upper zone = 1,2,3 / Lower zone = 7,8,9
         const upperZones = ['1','2','3'];
         const lowerZones = ['7','8','9'];
 
-        const calcZoneBias = (ps) => {
+        const calc = (ps) => {
+            const total = ps.length;
+            if (total === 0) return null;
             const strike = ps.filter(p => !String(p.zone).startsWith('B'));
             const upper = strike.filter(p => upperZones.includes(String(p.zone))).length;
             const lower = strike.filter(p => lowerZones.includes(String(p.zone))).length;
-            const total = strike.length;
-            if (total === 0) return null;
-            return { upper, lower, mid: total-upper-lower, total, upperPct: ((upper/total)*100).toFixed(1), lowerPct: ((lower/total)*100).toFixed(1) };
+            const mid = strike.length - upper - lower;
+            const stTotal = strike.length || 1;
+            const hits = ps.filter(p => (p.outcomes||[p.outcome]).some(o => o && (o.includes('安打') || o === '全壘打'))).length;
+            const atBats = ps.filter(p => (p.outcomes||[p.outcome]).some(o => o && (o.includes('安打') || o === '全壘打' || o.includes('出局') || o === '三振'))).length;
+            const avg = atBats > 0 ? (hits / atBats).toFixed(3) : '.000';
+            return { total, upper, lower, mid, stTotal, hits, atBats, avg,
+                upperPct: ((upper/stTotal)*100).toFixed(1),
+                midPct: ((mid/stTotal)*100).toFixed(1),
+                lowerPct: ((lower/stTotal)*100).toFixed(1) };
         };
 
         const withBase = pitches.filter(p => p.runnersOn);
         const noBase = pitches.filter(p => !p.runnersOn);
-        const bWith = calcZoneBias(withBase);
-        const bNo = calcZoneBias(noBase);
+        const bWith = calc(withBase);
+        const bNo = calc(noBase);
 
-        if (!bWith && !bNo) { div.innerHTML = '<p style="color:#9ca3af;padding:10px;">尚無資料（需記錄壘包狀態）</p>'; return; }
+        if (!bWith && !bNo) { div.innerHTML = '<p style="color:#9ca3af;padding:10px;font-size:12px;">尚無資料（需記錄壘包狀態）</p>'; return; }
 
-        const bar = (pct, color) => `<div style="height:10px;border-radius:5px;background:#e5e7eb;margin:4px 0;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:5px;transition:width 0.4s;"></div></div>`;
+        const bar = (pct, color) => `<div style="height:8px;border-radius:4px;background:#e5e7eb;margin:3px 0 6px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:4px;"></div></div>`;
 
         const renderCard = (data, label, borderColor) => {
-            if (!data) return `<div style="color:#9ca3af;font-size:12px;padding:8px;">尚無${label}資料</div>`;
-            return `<div style="border:2px solid ${borderColor};border-radius:8px;padding:10px;background:${borderColor}08;">
-                <div style="font-weight:700;color:${borderColor};margin-bottom:8px;font-size:13px;">${label} <span style="font-weight:400;color:#6b7280;font-size:11px;">(${data.total}球在好球帶)</span></div>
-                <div style="font-size:12px;color:#374151;margin-bottom:2px;">⬆️ 高球帶 (1-3)：<strong>${data.upperPct}%</strong></div>
-                ${bar(data.upperPct, '#f59e0b')}
-                <div style="font-size:12px;color:#374151;margin-bottom:2px;">➡️ 中間 (4-6)：<strong>${((data.mid/data.total)*100).toFixed(1)}%</strong></div>
-                ${bar(((data.mid/data.total)*100).toFixed(1), '#94a3b8')}
-                <div style="font-size:12px;color:#374151;margin-bottom:2px;">⬇️ 低球帶 (7-9)：<strong>${data.lowerPct}%</strong></div>
-                ${bar(data.lowerPct, '#3b82f6')}
+            if (!data) return `<div style="color:#9ca3af;font-size:12px;padding:8px;border:2px solid #e5e7eb;border-radius:8px;">尚無${label}資料</div>`;
+            return `<div style="border:2px solid ${borderColor};border-radius:8px;padding:10px;background:${borderColor}08;margin-bottom:8px;">
+                <div style="font-weight:700;color:${borderColor};margin-bottom:8px;font-size:13px;">${label}
+                    <span style="font-weight:400;color:#6b7280;font-size:11px;">（共${data.total}球）</span>
+                </div>
+                <div style="font-size:12px;color:#374151;margin-bottom:1px;">⬆️ 高球帶(1-3)：<strong>${data.upperPct}%</strong></div>
+                ${bar(data.upperPct,'#f59e0b')}
+                <div style="font-size:12px;color:#374151;margin-bottom:1px;">➡️ 中間(4-6)：<strong>${data.midPct}%</strong></div>
+                ${bar(data.midPct,'#94a3b8')}
+                <div style="font-size:12px;color:#374151;margin-bottom:1px;">⬇️ 低球帶(7-9)：<strong>${data.lowerPct}%</strong></div>
+                ${bar(data.lowerPct,'#3b82f6')}
+                <div style="font-size:12px;color:#374151;margin-top:4px;padding-top:6px;border-top:1px solid #e5e7eb;">
+                    🎯 被安打率：<strong style="color:var(--ct-red);">${data.avg}</strong>
+                    <span style="color:#9ca3af;">(${data.hits}安/${data.atBats}打席)</span>
+                </div>
             </div>`;
         };
 
         const diff = bWith && bNo ? (parseFloat(bWith.upperPct) - parseFloat(bNo.upperPct)).toFixed(1) : null;
-        const insight = diff !== null ? `<div style="background:${Math.abs(diff)>=5?'#fef3c7':'#f0fdf4'};border:1px solid ${Math.abs(diff)>=5?'#f59e0b':'#86efac'};border-radius:6px;padding:8px;font-size:12px;color:#374151;margin-top:8px;">
+        const insight = diff !== null ? `<div style="background:${Math.abs(diff)>=5?'#fef3c7':'#f0fdf4'};border:1px solid ${Math.abs(diff)>=5?'#f59e0b':'#86efac'};border-radius:6px;padding:8px;font-size:12px;color:#374151;margin-top:4px;">
             ${Math.abs(diff)>=5 ? `⚠️ 壘上有人時高球帶${diff>0?'增加':'減少'} <strong>${Math.abs(diff)}%</strong>，有明顯差異` : `✅ 壘上有無人時進壘點差異不大（${diff>0?'+':''}${diff}%）`}
         </div>` : '';
 
-        div.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${renderCard(bWith,'🏃 壘上有人','#dc2626')}${renderCard(bNo,'⬜ 壘上無人','#2563eb')}</div>${insight}`;
+        div.innerHTML = `${renderCard(bWith,'🏃 壘上有人','#dc2626')}${renderCard(bNo,'⬜ 壘上無人','#2563eb')}${insight}`;
     }
 
     // ====== 備份還原 ======
@@ -3903,7 +3906,7 @@
             const color = slot === 'A' ? '#003d79' : '#2b2b2b';
             const border = slot === 'A' ? 'var(--ct-gold)' : '#aaa';
             return `<div style="background:linear-gradient(135deg,${color},${slot==='A'?'#0051a5':'#444'});border-radius:12px;padding:16px;color:white;border:3px solid ${border};">
-                <div style="font-size:10px;opacity:0.6;letter-spacing:2px;margin-bottom:4px;">SLOT ${slot} · ${team ? team.name : ''}</div>
+                <div style="font-size:10px;opacity:0.6;letter-spacing:2px;margin-bottom:4px;">SLOT ${slot} · ${team ? (slot === 'A' ? (team.opponent || team.name) : team.name) : ''}</div>
                 <div style="font-size:24px;font-weight:900;font-family:'Oswald','Noto Sans TC',sans-serif;">${pitcher.name}</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
                     ${pitcher.number ? `<span style="background:rgba(255,255,255,0.15);padding:2px 8px;border-radius:4px;font-size:12px;">#${pitcher.number}</span>` : ''}
@@ -3954,8 +3957,8 @@
             { label:'被安打數', keyA: bA?.hits, keyB: bB?.hits, unit:'', higherBetter: false, isCount: true },
         ];
 
-        const nameA = pitcherA ? (teamA ? teamA.name + ' · ' + pitcherA.name : pitcherA.name) : 'Slot A';
-        const nameB = pitcherB ? (teamB ? teamB.name + ' · ' + pitcherB.name : pitcherB.name) : 'Slot B';
+        const nameA = pitcherA ? ((teamA ? (teamA.opponent || teamA.name) : '') + ' · ' + pitcherA.name) : 'Slot A';
+        const nameB = pitcherB ? ((teamB ? teamB.name : '') + ' · ' + pitcherB.name) : 'Slot B';
         const shortA = pitcherA ? pitcherA.name : 'A';
         const shortB = pitcherB ? pitcherB.name : 'B';
         let basicHTML = `<div style="overflow-x:auto;">
