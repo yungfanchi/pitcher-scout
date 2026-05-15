@@ -625,7 +625,7 @@
                 <input type="password" id="loginPw" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
             </div>
 
-            <button class="login-enter-btn" id="loginEnterBtn">進入系統 →</button>
+            <button class="login-enter-btn" id="loginEnterBtn" onclick="doLogin()" style="touch-action:manipulation;">進入系統 →</button>
             <div class="login-error" id="loginError"></div>
             <div class="login-hint">
                 觀看者無需密碼，直接點「觀看者」後進入<br>
@@ -1441,6 +1441,8 @@
     }
 
     function doLogin() {
+        // Dismiss keyboard on mobile before processing
+        document.activeElement && document.activeElement.blur();
         if (selectedLoginRole === 'view') {
             enterSystem('view');
             return;
@@ -1601,7 +1603,7 @@
             loginTapMoved = false;
             loginStartX = e.clientX; loginStartY = e.clientY;
             const t = e.target.nodeType === 3 ? e.target.parentElement : e.target;
-            loginTapTarget = t ? (t.closest('[data-login-action]') || (t.id === 'loginEnterBtn' ? t : null)) : null;
+            loginTapTarget = t ? t.closest('[data-login-action]') : null;
         }, { passive: true });
         loginBox.addEventListener('pointermove', function(e) {
             if (Math.abs(e.clientX - loginStartX) > 8 || Math.abs(e.clientY - loginStartY) > 8) {
@@ -1611,11 +1613,7 @@
         loginBox.addEventListener('pointerup', function(e) {
             if (loginTapMoved || !loginTapTarget) return;
             e.preventDefault();
-            if (loginTapTarget.dataset.loginAction) {
-                selectRole(loginTapTarget.dataset.loginAction);
-            } else if (loginTapTarget.id === 'loginEnterBtn') {
-                doLogin();
-            }
+            selectRole(loginTapTarget.dataset.loginAction);
             loginTapTarget = null;
         });
     })();
