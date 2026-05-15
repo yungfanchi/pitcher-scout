@@ -626,19 +626,99 @@
         .login-enter-btn:active { transform:scale(0.97); }
         .login-error { color:#f87171; font-size:13px; margin-top:10px; min-height:18px; font-weight:700; }
         .login-hint { color:rgba(255,255,255,0.35); font-size:11px; margin-top:14px; line-height:1.6; }
-        /* View-only overlay - blocks record tab interaction */
-        #viewOnlyBanner {
-            display:none; position:fixed; top:0; left:0; right:0; z-index:500;
-            background:linear-gradient(90deg,#b45309,#d97706);
-            color:white; text-align:center; padding:8px; font-size:13px; font-weight:700;
-            letter-spacing:1px;
-        }
+        /* 模式選擇頁 */
+        #modeSelectScreen { display:none; position:fixed; inset:0; z-index:2000; background:linear-gradient(135deg,#001a3d 0%,#003d79 60%,#0051a5 100%); flex-direction:column; align-items:center; justify-content:center; }
+        .mode-card { background:rgba(255,255,255,0.07); border:2px solid rgba(255,215,0,0.3); border-radius:16px; padding:28px 32px; width:260px; text-align:center; cursor:pointer; transition:all 0.2s; touch-action:manipulation; margin:10px; }
+        .mode-card:active { transform:scale(0.97); }
+        .mode-card:hover { background:rgba(255,215,0,0.12); border-color:var(--ct-gold); }
+        .mode-card-icon { font-size:48px; margin-bottom:12px; }
+        .mode-card-title { font-size:20px; font-weight:900; color:white; font-family:'Oswald','Noto Sans TC',sans-serif; letter-spacing:2px; }
+        .mode-card-sub { font-size:12px; color:rgba(255,255,255,0.5); margin-top:6px; }
+        .mode-card.disabled { opacity:0.4; cursor:not-allowed; pointer-events:none; }
+        /* 更新提示 Modal */
+        #updateModal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); align-items:flex-end; justify-content:center; }
+        #updateModal .um-box { background:white; border-radius:16px 16px 0 0; padding:24px 20px 32px; width:100%; max-width:500px; border-top:4px solid var(--ct-blue); text-align:center; }
+        /* PDF 篩選 Modal */
+        #pdfFilterModal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,61,121,0.5); backdrop-filter:blur(4px); overflow-y:auto; }
+        #pdfFilterModal .pf-box { background:white; margin:5% auto; padding:0; border-radius:14px; width:92%; max-width:560px; border-top:4px solid var(--ct-red); box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+        #pdfFilterModal .pf-header { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:2px solid #e5e7eb; }
+        #pdfFilterModal .pf-body { padding:16px 20px 20px; }
+        .pf-section { margin-bottom:14px; }
+        .pf-section h4 { font-size:13px; font-weight:700; color:var(--ct-blue-dark); margin-bottom:8px; }
+        .pf-check-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
+        .pf-check-item { display:flex; align-items:center; gap:6px; font-size:13px; padding:6px 8px; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; }
+        .pf-check-item input { accent-color:var(--ct-blue); }
+        /* View-only overlay */
+        #viewOnlyBanner { display:none; position:fixed; top:0; left:0; right:0; z-index:500; background:linear-gradient(90deg,#b45309,#d97706); color:white; text-align:center; padding:8px; font-size:13px; font-weight:700; letter-spacing:1px; }
     </style>
 </head>
 <body>
     <!-- 觀看模式提示條 -->
     <div id="viewOnlyBanner">
         <span>👀 觀看模式 — 數據唯讀，無法輸入記錄</span>
+    </div>
+
+    <!-- 模式選擇頁 -->
+    <div id="modeSelectScreen">
+        <div style="text-align:center;margin-bottom:32px;">
+            <div style="font-size:36px;">⚾</div>
+            <div style="font-size:22px;font-weight:900;color:white;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:3px;margin-top:8px;">選擇模式</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:4px;">請選擇要進入的功能模式</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;justify-content:center;">
+            <div class="mode-card" onclick="enterSystem('scout')">
+                <div class="mode-card-icon">📝</div>
+                <div class="mode-card-title">投手模式</div>
+                <div class="mode-card-sub">記錄與分析投球數據</div>
+            </div>
+            <div class="mode-card disabled">
+                <div class="mode-card-icon">⚾</div>
+                <div class="mode-card-title">打者模式</div>
+                <div class="mode-card-sub">開發中，敬請期待</div>
+            </div>
+        </div>
+        <div style="margin-top:24px;">
+            <button onclick="showModeSelect(false)" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.2);padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer;touch-action:manipulation;">← 返回登入</button>
+        </div>
+    </div>
+
+    <!-- 更新提示 Modal -->
+    <div id="updateModal">
+        <div class="um-box">
+            <div style="font-size:32px;margin-bottom:10px;">🆕</div>
+            <div style="font-size:18px;font-weight:900;color:var(--ct-blue-dark);margin-bottom:8px;">發現新版本</div>
+            <div style="font-size:13px;color:#6b7280;margin-bottom:20px;">目前已有新版本可供更新，請更新以體驗最佳服務與最新功能。</div>
+            <button onclick="doForceUpdate()" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;touch-action:manipulation;margin-bottom:10px;letter-spacing:1px;">⚡ 立即更新</button>
+            <button onclick="document.getElementById('updateModal').style.display='none'" style="width:100%;padding:10px;background:#f3f4f6;color:#6b7280;border:none;border-radius:10px;font-size:13px;cursor:pointer;touch-action:manipulation;">稍後再說</button>
+        </div>
+    </div>
+
+    <!-- PDF 篩選 Modal -->
+    <div id="pdfFilterModal">
+        <div class="pf-box">
+            <div class="pf-header">
+                <h2 style="margin:0;color:var(--ct-blue-dark);font-size:17px;">📄 篩選匯出 PDF 報告</h2>
+                <span style="font-size:24px;cursor:pointer;color:var(--ct-red);line-height:1;" onclick="closePDFFilter()">&times;</span>
+            </div>
+            <div class="pf-body">
+                <div class="pf-section">
+                    <h4>📅 日期區間</h4>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div><label style="font-size:11px;color:#6b7280;">起始日期</label><input type="date" id="pdfDateFrom" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;box-sizing:border-box;margin-top:2px;"></div>
+                        <div><label style="font-size:11px;color:#6b7280;">結束日期</label><input type="date" id="pdfDateTo" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;box-sizing:border-box;margin-top:2px;"></div>
+                    </div>
+                </div>
+                <div class="pf-section">
+                    <h4>🏟️ 賽事 / 對戰球隊</h4>
+                    <div class="pf-check-grid" id="pdfTeamChecks"></div>
+                </div>
+                <div class="pf-section">
+                    <h4>⚾ 選擇投手</h4>
+                    <div class="pf-check-grid" id="pdfPitcherChecks"></div>
+                </div>
+                <button onclick="generateFilteredPDF()" style="width:100%;padding:14px;background:var(--ct-red);color:white;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;touch-action:manipulation;margin-top:8px;">📄 產生 PDF 報告</button>
+            </div>
+        </div>
     </div>
 
     <!-- 同步狀態燈 -->
@@ -737,7 +817,7 @@
                 <button onclick="refreshData(this)" class="bottom-action-btn" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.2);">🔄 重新整理</button>
                 <button onclick="logout()" class="bottom-action-btn" style="background:rgba(220,0,0,0.6);color:white;border:1px solid rgba(220,0,0,0.5);">🚪 登出</button>
             </div>
-            <button onclick="exportReportPDF()" class="bottom-action-btn" style="width:100%;margin-top:5px;background:rgba(220,0,0,0.5);color:white;border:1px solid rgba(220,0,0,0.4);">📄 匯出報告PDF</button>
+            <button onclick="openPDFFilter()" class="bottom-action-btn" style="width:100%;margin-top:5px;background:rgba(220,0,0,0.5);color:white;border:1px solid rgba(220,0,0,0.4);">📄 匯出報告PDF</button>
         </div>
     </div>
 
@@ -1056,7 +1136,7 @@
                 <div class="record-controls" style="margin-top:12px;">
                     <button class="btn btn-danger" onclick="undoLast()">↶ 復原上一球</button>
                     <button class="btn btn-warning" onclick="clearCurrentPitcher()">🗑️ 清除當前投手記錄</button>
-                    <button class="btn" onclick="exportReportPDF()" style="background:var(--ct-red);color:white;">📄 匯出報告PDF</button>
+                    <button class="btn" onclick="openPDFFilter()" style="background:var(--ct-red);color:white;">📄 匯出報告PDF</button>
                 </div>
             </div>
 
@@ -1568,7 +1648,6 @@
     }
 
     function doLogin() {
-        // Dismiss keyboard on mobile before processing
         try { document.activeElement && document.activeElement.blur(); } catch(e) {}
         if (selectedLoginRole === 'view') {
             enterSystem('view');
@@ -1576,12 +1655,169 @@
         }
         const pw = document.getElementById('loginPw').value;
         if (pw === SCOUT_PASSWORD) {
-            enterSystem('scout');
+            document.getElementById('loginScreen').style.display = 'none';
+            showModeSelect(true);
         } else {
             document.getElementById('loginError').textContent = '❌ 密碼錯誤，請再試一次';
             document.getElementById('loginPw').value = '';
             document.getElementById('loginPw').focus();
         }
+    }
+
+    function showModeSelect(show) {
+        document.getElementById('modeSelectScreen').style.display = show ? 'flex' : 'none';
+        if (!show) document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    function checkForUpdate() {
+        if (!('serviceWorker' in navigator)) return;
+        // Only show on mobile/tablet
+        if (window.innerWidth > 1024) return;
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (!reg) return;
+            reg.update().then(() => {
+                if (reg.waiting) {
+                    document.getElementById('updateModal').style.display = 'flex';
+                }
+            });
+            reg.addEventListener('updatefound', () => {
+                const nw = reg.installing;
+                nw.addEventListener('statechange', () => {
+                    if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                        document.getElementById('updateModal').style.display = 'flex';
+                    }
+                });
+            });
+        });
+    }
+
+    function doForceUpdate() {
+        document.getElementById('updateModal').style.display = 'none';
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistration().then(reg => {
+                if (reg && reg.waiting) {
+                    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+                setTimeout(() => location.reload(true), 300);
+            });
+        } else {
+            location.reload(true);
+        }
+    }
+
+    function openPDFFilter() {
+        // Populate team checkboxes
+        const teamChecks = document.getElementById('pdfTeamChecks');
+        const pitcherChecks = document.getElementById('pdfPitcherChecks');
+        const pitcherMap = {};
+        teamChecks.innerHTML = '';
+        pitcherChecks.innerHTML = '';
+        allData.teams.forEach((team, ti) => {
+            const label = `${team.gameName||'未命名'} vs ${team.opponent||team.name}`;
+            teamChecks.innerHTML += `<label class="pf-check-item"><input type="checkbox" name="pdfTeam" value="${ti}" checked> ${label}</label>`;
+            team.pitchers.forEach((p, pi) => {
+                const key = `${ti}-${pi}`;
+                if (!pitcherMap[p.name]) {
+                    pitcherMap[p.name] = true;
+                    pitcherChecks.innerHTML += `<label class="pf-check-item"><input type="checkbox" name="pdfPitcher" value="${p.name}" checked> ${p.name}${p.number?' #'+p.number:''}</label>`;
+                }
+            });
+        });
+        // Default date range
+        const dates = allData.teams.filter(t=>t.date).map(t=>t.date).sort();
+        if (dates.length) {
+            document.getElementById('pdfDateFrom').value = dates[0];
+            document.getElementById('pdfDateTo').value = dates[dates.length-1];
+        }
+        document.getElementById('pdfFilterModal').style.display = 'block';
+    }
+
+    function closePDFFilter() {
+        document.getElementById('pdfFilterModal').style.display = 'none';
+    }
+
+    function generateFilteredPDF() {
+        const dateFrom = document.getElementById('pdfDateFrom').value;
+        const dateTo = document.getElementById('pdfDateTo').value;
+        const selTeams = [...document.querySelectorAll('input[name="pdfTeam"]:checked')].map(el => parseInt(el.value));
+        const selPitchers = [...document.querySelectorAll('input[name="pdfPitcher"]:checked')].map(el => el.value);
+
+        if (!selTeams.length || !selPitchers.length) { alert('請至少選擇一個賽事和一位投手'); return; }
+
+        // Build filtered pitch data
+        const reportSections = [];
+        allData.teams.forEach((team, ti) => {
+            if (!selTeams.includes(ti)) return;
+            if (dateFrom && team.date && team.date < dateFrom) return;
+            if (dateTo && team.date && team.date > dateTo) return;
+            team.pitchers.forEach((pitcher, pi) => {
+                if (!selPitchers.includes(pitcher.name)) return;
+                const pitches = pitcher.pitches || [];
+                if (!pitches.length) return;
+                const total = pitches.length;
+                const strikes = pitches.filter(p=>p.result==='好球').length;
+                const ks = pitches.filter(p=>(p.outcomes||[]).some(o=>o==='三振'||o==='不死三振')).length;
+                const walks = pitches.filter(p=>(p.outcomes||[]).some(o=>o==='保送')).length;
+                const speeds = pitches.filter(p=>p.speed).map(p=>p.speed);
+                const avgSpd = speeds.length?(speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(1):'--';
+                const typeMap = {};
+                pitches.forEach(p=>{if(p.type)typeMap[p.type]=(typeMap[p.type]||0)+1;});
+                const topTypes = Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).slice(0,4);
+                reportSections.push({ team, pitcher, pitches, total, strikes, ks, walks, avgSpd, topTypes });
+            });
+        });
+
+        if (!reportSections.length) { alert('所選條件無投球數據'); return; }
+
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>投手情蒐報告</title>
+        <style>
+            body{font-family:'Noto Sans TC',Arial,sans-serif;padding:20px;color:#1e3a5f;max-width:900px;margin:0 auto;}
+            h1{color:#003d79;border-bottom:3px solid #d4af37;padding-bottom:8px;font-size:22px;}
+            h2{color:#003d79;font-size:16px;margin:20px 0 8px;border-left:4px solid #d4af37;padding-left:8px;}
+            h3{color:#0051a5;font-size:14px;margin:14px 0 6px;}
+            .meta{color:#6b7280;font-size:12px;margin-bottom:12px;}
+            .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;}
+            .stat-box{background:#f0f4ff;border-radius:8px;padding:10px;text-align:center;border:1px solid #c7d7f0;}
+            .stat-val{font-size:20px;font-weight:900;color:#003d79;}
+            .stat-lbl{font-size:10px;color:#6b7280;margin-top:2px;}
+            table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;}
+            th{background:#003d79;color:white;padding:6px;text-align:left;}
+            td{padding:5px;border-bottom:1px solid #e5e7eb;}
+            tr:nth-child(even){background:#f9fafb;}
+            .section-sep{border:none;border-top:2px dashed #d4af37;margin:24px 0;}
+            .filter-info{background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 12px;font-size:11px;color:#78350f;margin-bottom:16px;}
+            .footer{margin-top:20px;font-size:10px;color:#9ca3af;text-align:right;}
+            @media print{body{padding:10px;}h1{font-size:18px;}}
+        </style></head><body>
+        <h1>⚾ 投手情蒐報告</h1>
+        <div class="filter-info">篩選條件：日期 ${dateFrom||'--'} ～ ${dateTo||'--'} ｜ ${selPitchers.join('、')}</div>
+        ${reportSections.map((s, idx) => `
+        ${idx > 0 ? '<hr class="section-sep">' : ''}
+        <h2>${s.pitcher.name}${s.pitcher.number?' #'+s.pitcher.number:''} — ${s.team.gameName||''} vs ${s.team.opponent||''}</h2>
+        <div class="meta">${s.team.date||''} ｜ ${s.pitcher.hand||''} ｜ ${s.pitcher.role||''}</div>
+        <div class="stats-grid">
+            <div class="stat-box"><div class="stat-val">${s.total}</div><div class="stat-lbl">總球數</div></div>
+            <div class="stat-box"><div class="stat-val">${((s.strikes/s.total)*100).toFixed(1)}%</div><div class="stat-lbl">好球率</div></div>
+            <div class="stat-box"><div class="stat-val">${s.avgSpd}</div><div class="stat-lbl">均速</div></div>
+            <div class="stat-box"><div class="stat-val">${s.ks}</div><div class="stat-lbl">三振</div></div>
+        </div>
+        <h3>球種分布</h3>
+        <table><tr><th>球種</th><th>球數</th><th>佔比</th></tr>
+        ${s.topTypes.map(([t,c])=>`<tr><td>${t}</td><td>${c}</td><td>${((c/s.total)*100).toFixed(1)}%</td></tr>`).join('')}
+        </table>
+        <h3>投球明細（前20球）</h3>
+        <table><tr><th>#</th><th>球種</th><th>球速</th><th>位置</th><th>結果</th><th>打擊結果</th><th>備註</th></tr>
+        ${s.pitches.slice(0,20).map((p,i)=>`<tr><td>${i+1}</td><td>${p.type||'--'}</td><td>${p.speed||'--'}</td><td>${p.zone||'--'}</td><td>${p.result||'--'}</td><td>${(p.outcomes||[]).join('/')}</td><td>${p.note||''}</td></tr>`).join('')}
+        </table>`).join('')}
+        <div class="footer">產生時間：${new Date().toLocaleString('zh-TW')} ｜ 中華台北投手情蒐系統</div>
+        </body></html>`;
+
+        closePDFFilter();
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const w = window.open(url, '_blank');
+        if (w) { setTimeout(() => { w.print(); URL.revokeObjectURL(url); }, 800); }
+        else { triggerDownload(url, `投手報告_${new Date().toISOString().split('T')[0]}.html`); }
     }
 
     function enterSystem(role) {
@@ -1721,6 +1957,7 @@
         renderCountLights();
         renderBases();
         setupTeamListDelegation();
+        setTimeout(checkForUpdate, 2000);
     }
 
     function injectDemoData() {
