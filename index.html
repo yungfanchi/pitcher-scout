@@ -110,6 +110,7 @@
             font-size:11px; cursor:pointer; transition:all 0.2s; border:1px solid var(--ct-gold);
             -webkit-user-select:none; user-select:none; display:inline-flex; align-items:center; gap:5px;
             touch-action:manipulation; -webkit-tap-highlight-color:rgba(255,215,0,0.3);
+            font-family:inherit; line-height:1.4; text-align:left; -webkit-appearance:none; appearance:none;
         }
         .pitcher-tag:active { transform:scale(0.95); }
         .pitcher-tag.active { background:var(--ct-red); color:white; border-color:var(--ct-gold); box-shadow:0 2px 8px rgba(220,0,0,0.4); }
@@ -1794,14 +1795,12 @@
                     const pitcherTags = team.pitchers.map((pitcher, pitcherIndex) => {
                         const isActive = (slotA.team === teamIndex && slotA.pitcher === pitcherIndex) ||
                                          (slotB.team === teamIndex && slotB.pitcher === pitcherIndex);
-                        return `<span class="pitcher-tag ${isActive ? 'active' : ''}"
-                                    onclick="selectPitcherToSlot(${teamIndex},${pitcherIndex})"
-                                    ontouchend="event.preventDefault();selectPitcherToSlot(${teamIndex},${pitcherIndex})">
+                        return `<button type="button" class="pitcher-tag ${isActive ? 'active' : ''}"
+                                    onclick="selectPitcherToSlot(${teamIndex},${pitcherIndex})">
                                     ${pitcher.name}${pitcher.number ? ' #'+pitcher.number : ''} ${pitcher.hand || ''}${pitcher.role ? ' ['+pitcher.role+']' : ''}
-                                    <button class="pitcher-tag-delete"
-                                        onclick="event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})"
-                                        ontouchend="event.preventDefault();event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})">×</button>
-                                </span>`;
+                                    <span class="pitcher-tag-delete"
+                                        onclick="event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})">×</span>
+                                </button>`;
                     }).join('');
 
                     const dateStr = team.date ? formatDateFull(team.date) : '';
