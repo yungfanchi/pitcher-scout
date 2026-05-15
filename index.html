@@ -1792,32 +1792,90 @@
                     const teamDiv = document.createElement('div');
                     teamDiv.className = 'team-item' + (isExpanded ? ' expanded' : '') + (isLive ? ' live-scouting' : '');
 
-                    const pitcherTags = team.pitchers.map((pitcher, pitcherIndex) => {
-                        const isActive = (slotA.team === teamIndex && slotA.pitcher === pitcherIndex) ||
-                                         (slotB.team === teamIndex && slotB.pitcher === pitcherIndex);
-                        return `<button type="button" class="pitcher-tag ${isActive ? 'active' : ''}"
-                                    onclick="selectPitcherToSlot(${teamIndex},${pitcherIndex})">
-                                    ${pitcher.name}${pitcher.number ? ' #'+pitcher.number : ''} ${pitcher.hand || ''}${pitcher.role ? ' ['+pitcher.role+']' : ''}
-                                    <span class="pitcher-tag-delete"
-                                        onclick="event.stopPropagation();deletePitcher(${teamIndex},${pitcherIndex})">×</span>
-                                </button>`;
-                    }).join('');
+                    // --- Team header ---
+                    const teamHeader = document.createElement('div');
+                    teamHeader.className = 'team-header';
+                    teamHeader.addEventListener('click', () => toggleTeamExpand(teamIndex));
 
-                    const dateStr = team.date ? formatDateFull(team.date) : '';
-                    teamDiv.innerHTML = `
-                        <div class="team-header" onclick="toggleTeamExpand(${teamIndex})">
-                            <div class="team-header-left">
-                                <span class="team-toggle-icon">▶</span>
-                                ${isLive ? '<span class="live-badge">LIVE</span>' : ''}
-                                <span class="team-name">${team.name}${team.opponent ? ' vs ' + team.opponent.split(' ')[0] : ''}</span>
-                            </div>
-                            <button class="delete-team-btn" onclick="event.stopPropagation();deleteTeam(${teamIndex})">刪除</button>
-                        </div>
-                        <div class="team-detail">
-                            ${dateStr ? `<div class="team-meta">📅 ${dateStr}</div>` : ''}
-                            <div class="pitcher-tags">${pitcherTags || '<small style="color:rgba(255,255,255,0.6);font-size:11px;">尚無投手</small>'}</div>
-                        </div>
-                    `;
+                    const headerLeft = document.createElement('div');
+                    headerLeft.className = 'team-header-left';
+                    const toggleIcon = document.createElement('span');
+                    toggleIcon.className = 'team-toggle-icon';
+                    toggleIcon.textContent = '▶';
+                    headerLeft.appendChild(toggleIcon);
+                    if (isLive) {
+                        const liveBadge = document.createElement('span');
+                        liveBadge.className = 'live-badge';
+                        liveBadge.textContent = 'LIVE';
+                        headerLeft.appendChild(liveBadge);
+                    }
+                    const teamName = document.createElement('span');
+                    teamName.className = 'team-name';
+                    teamName.textContent = team.name + (team.opponent ? ' vs ' + team.opponent.split(' ')[0] : '');
+                    headerLeft.appendChild(teamName);
+                    teamHeader.appendChild(headerLeft);
+
+                    const deleteTeamBtn = document.createElement('button');
+                    deleteTeamBtn.className = 'delete-team-btn';
+                    deleteTeamBtn.textContent = '刪除';
+                    deleteTeamBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteTeam(teamIndex); });
+                    teamHeader.appendChild(deleteTeamBtn);
+                    teamDiv.appendChild(teamHeader);
+
+                    // --- Team detail ---
+                    const teamDetail = document.createElement('div');
+                    teamDetail.className = 'team-detail';
+
+                    if (team.date) {
+                        const meta = document.createElement('div');
+                        meta.className = 'team-meta';
+                        meta.textContent = '📅 ' + formatDateFull(team.date);
+                        teamDetail.appendChild(meta);
+                    }
+
+                    const pitcherTagsDiv = document.createElement('div');
+                    pitcherTagsDiv.className = 'pitcher-tags';
+
+                    if (team.pitchers.length === 0) {
+                        const empty = document.createElement('small');
+                        empty.style.cssText = 'color:rgba(255,255,255,0.6);font-size:11px;';
+                        empty.textContent = '尚無投手';
+                        pitcherTagsDiv.appendChild(empty);
+                    } else {
+                        team.pitchers.forEach((pitcher, pitcherIndex) => {
+                            const isActive = (slotA.team === teamIndex && slotA.pitcher === pitcherIndex) ||
+                                             (slotB.team === teamIndex && slotB.pitcher === pitcherIndex);
+
+                            const tag = document.createElement('button');
+                            tag.type = 'button';
+                            tag.className = 'pitcher-tag' + (isActive ? ' active' : '');
+
+                            const label = document.createTextNode(
+                                pitcher.name +
+                                (pitcher.number ? ' #' + pitcher.number : '') +
+                                (pitcher.hand ? ' ' + pitcher.hand : '') +
+                                (pitcher.role ? ' [' + pitcher.role + ']' : '') +
+                                ' '
+                            );
+                            tag.appendChild(label);
+
+                            const delBtn = document.createElement('span');
+                            delBtn.className = 'pitcher-tag-delete';
+                            delBtn.textContent = '×';
+                            delBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                deletePitcher(teamIndex, pitcherIndex);
+                            });
+                            tag.appendChild(delBtn);
+
+                            tag.addEventListener('click', () => selectPitcherToSlot(teamIndex, pitcherIndex));
+
+                            pitcherTagsDiv.appendChild(tag);
+                        });
+                    }
+
+                    teamDetail.appendChild(pitcherTagsDiv);
+                    teamDiv.appendChild(teamDetail);
                     teamsWrapper.appendChild(teamDiv);
                 });
                 groupDiv.appendChild(teamsWrapper);
@@ -1850,7 +1908,6 @@
     }
 
     function selectPitcherToSlot(teamIndex, pitcherIndex) {
-        alert('DEBUG: 點到了 team=' + teamIndex + ' pitcher=' + pitcherIndex);
         saveToLocalStorage();
 
         if (activeSlot === 'A') {
