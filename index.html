@@ -1955,6 +1955,7 @@
     }
 
     function updateSlotDisplay() {
+        alert('slotA=' + JSON.stringify(slotA) + ' active=' + activeSlot + ' teams=' + allData.teams.length);
         ['A','B'].forEach(slot => {
             const s = slot === 'A' ? slotA : slotB;
             const contentEl = document.getElementById('slot' + slot + 'Content');
