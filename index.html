@@ -401,9 +401,11 @@
         .tendency-item { text-align:center; background:#f9fafb; padding:12px; border-radius:10px; border:2px solid var(--ct-gold); }
         .tendency-item h4 { margin-bottom:8px; font-size:13px; color:var(--ct-blue-dark); font-weight:700; }
         .tendency-heatmap { display:grid; grid-template-columns:repeat(3,60px); grid-template-rows:repeat(3,60px); gap:3px; background:var(--ct-blue-dark); padding:3px; border-radius:8px; margin:0 auto; border:2px solid var(--ct-gold); }
+        .tendency-heatmap.sm { grid-template-columns:repeat(3,44px); grid-template-rows:repeat(3,44px); }
         .tendency-heatmap .heat-cell { font-size:14px; }
         /* Ball tendency B-zone */
         .ball-tendency-heatmap { display:grid; grid-template-columns:repeat(5,36px); grid-template-rows:repeat(5,36px); gap:2px; background:var(--ct-blue-dark); padding:3px; border-radius:8px; margin:0 auto; border:2px solid var(--ct-green); }
+        .ball-tendency-heatmap.sm { grid-template-columns:repeat(5,28px); grid-template-rows:repeat(5,28px); }
         .ball-tendency-heatmap .ball-heat-cell { font-size:10px; }
         .pitch-type-label { font-size:10px; color:#7c3aed; font-weight:700; position:absolute; bottom:2px; right:2px; }
 
@@ -490,6 +492,17 @@
         .ls-warning { background:#7c2d12; color:#fef3c7; font-size:11px; padding:6px 8px; border-radius:6px; margin-top:4px; display:none; line-height:1.4; }
         .bottom-action-btn { transition:filter 0.1s, transform 0.1s !important; }
         .bottom-action-btn:active { filter:brightness(2.2) !important; transform:scale(0.95) !important; }
+        /* 分析頁左右分欄 */
+        .analysis-split-row { grid-template-columns:1fr 1fr; }
+        .analysis-split-row > * { min-width:0; overflow:hidden; }
+        @media (max-width:768px) { .analysis-split-row { grid-template-columns:1fr; } }
+        .heatmap-scale-wrap { width:100%; display:flex; justify-content:center; overflow:hidden; }
+        /* 對戰歷史 Modal */
+        #historyModal { display:none; position:fixed; z-index:3000; inset:0; background:rgba(0,61,121,0.55); backdrop-filter:blur(4px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        #historyModal .hm-box { background:white; margin:5% auto; padding:0; border-radius:14px; width:92%; max-width:600px; max-height:88vh; overflow-y:auto; border-top:4px solid var(--ct-red); border-left:3px solid var(--ct-gold); box-shadow:0 8px 32px rgba(0,61,121,0.3); }
+        #historyModal .hm-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:2px solid var(--ct-gold); position:sticky; top:0; background:white; z-index:1; }
+        #historyModal .hm-body { padding:16px 20px; }
+        #historyModal .hm-close { font-size:26px; cursor:pointer; color:var(--ct-red); line-height:1; }
 
         /* ===== RESPONSIVE ===== */
         @media (max-width:1024px) {
@@ -754,6 +767,7 @@
                 <button class="tab-btn active" onclick="switchTab(event,'record')">📝 記錄</button>
                 <button class="tab-btn" onclick="switchTab(event,'stats')">📊 統計</button>
                 <button class="tab-btn" onclick="switchTab(event,'analysis')">📈 分析</button>
+                <button class="tab-btn" onclick="switchTab(event,'compare')">⚔️ 對比</button>
             </div>
         </div>
 
@@ -1069,6 +1083,12 @@
                 <h2>⚾ 球種分布</h2>
                 <div id="pitchTypeStats"></div>
             </div>
+            <!-- 球速折線圖 -->
+            <div class="container">
+                <h2>📉 各局平均球速趨勢</h2>
+                <p style="font-size:12px;color:#6b7280;margin-bottom:10px;">依記錄順序每10球為一組計算平均球速</p>
+                <canvas id="speedLineChart" height="120"></canvas>
+            </div>
             <!-- 整合熱區圖 - 單一九宮格含好壞球 -->
             <div class="container">
                 <h2>🎯 投球位置熱區圖</h2>
@@ -1092,7 +1112,7 @@
             <div class="container">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
                     <h2 style="margin:0;border:none;padding:0;">📈 投球傾向 & 各球種分布</h2>
-                    <div style="font-size:12px;color:#6b7280;">篩選場次請於統計頁設定</div>
+                    <button onclick="showPitcherHistory()" style="padding:7px 14px;border:2px solid var(--ct-blue);border-radius:8px;background:var(--ct-blue-dark);color:var(--ct-gold);font-weight:700;font-size:13px;cursor:pointer;touch-action:manipulation;">📋 對戰歷史</button>
                 </div>
                 <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">
                     <div style="text-align:center;min-width:0;">
@@ -1110,32 +1130,52 @@
                         <div style="margin-top:6px;font-size:11px;color:#6b7280;" id="ballZoneTip">-</div>
                     </div>
                 </div>
-                <!-- 變化球標示 -->
                 <div style="margin-top:12px;" id="tendencyInsight"></div>
-                <!-- 左右打者內外角與位移分析 -->
                 <div style="margin-top:14px;">
                     <h3>左/右打者 vs 內外角與位移佔比</h3>
                     <div id="innerOuterTable"></div>
                 </div>
-                <!-- 首球習慣分析 -->
                 <div style="margin-top:14px;">
                     <h3>首球（First Pitch）習慣分析</h3>
                     <div id="firstPitchAnalysis"></div>
                 </div>
-                <!-- 兩好球決勝球傾向 -->
                 <div style="margin-top:14px;">
                     <h3>⚔️ 兩好球後決勝球傾向（2 Strikes）</h3>
                     <div id="twoStrikeAnalysis"></div>
                 </div>
             </div>
-            <div class="container">
-                <h2>🎲 常用球種與配球模式</h2>
-                <div class="pattern-analysis" id="patternAnalysis"></div>
+
+            <!-- 配球模式 左50% + 進壘分析 右50% -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;" class="analysis-split-row">
+                <div class="container" style="margin:0;min-width:0;overflow:hidden;">
+                    <h2>🎲 常用球種與配球模式</h2>
+                    <!-- 球種圓餅圖 -->
+                    <div style="display:flex;justify-content:center;margin-bottom:12px;">
+                        <canvas id="pitchTypePieChart" width="200" height="200" style="max-width:200px;max-height:200px;"></canvas>
+                    </div>
+                    <div class="pattern-analysis" id="patternAnalysis"></div>
+                </div>
+                <div class="container" style="margin:0;overflow:hidden;min-width:0;">
+                    <h2>🏃 進壘位置 & 壘上分析</h2>
+                    <!-- 進壘熱圖直列 -->
+                    <div style="display:flex;flex-direction:column;gap:12px;align-items:center;">
+                        <div style="width:100%;text-align:center;">
+                            <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:6px;">好球帶熱區</div>
+                            <div style="overflow:hidden;display:flex;justify-content:center;" class="heatmap-scale-wrap">
+                                <div class="tendency-heatmap sm" id="tendencyStrikeRight" style="pointer-events:none;"></div>
+                            </div>
+                        </div>
+                        <div style="width:100%;text-align:center;">
+                            <div style="font-size:12px;font-weight:700;color:#065f46;margin-bottom:6px;">壞球區熱區</div>
+                            <div style="overflow:hidden;display:flex;justify-content:center;" class="heatmap-scale-wrap">
+                                <div class="ball-tendency-heatmap sm" id="tendencyBallRight" style="pointer-events:none;"></div>
+                            </div>
+                        </div>
+                        <div style="width:100%;" id="baseStateAnalysis"></div>
+                    </div>
+                </div>
             </div>
-            <div class="container">
-                <h2>🏃 壘上有人 vs 無人 進壘點分析</h2>
-                <div id="baseStateAnalysis"></div>
-            </div>
+
             <div class="container">
                 <h2>⚔️ 球數領先 / 落後最常用球路</h2>
                 <p style="font-size:12px;color:#6b7280;margin-bottom:8px;">黃色=投手領先球數的習慣 / 綠色=投手落後球數的習慣</p>
@@ -1158,6 +1198,42 @@
             <div class="container">
                 <h2>📊 打擊結果統計</h2>
                 <div id="outcomeStats"></div>
+            </div>
+        </div>
+
+        <!-- 對比分頁 -->
+        <div id="compareTab" class="tab-content">
+            <div class="container">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+                    <h2 style="margin:0;border:none;padding:0;">⚔️ 投手對比分析</h2>
+                    <div style="font-size:12px;color:#6b7280;">左卡片 = Slot A（左投手）　右卡片 = Slot B（右投手）</div>
+                </div>
+                <div id="compareHeader" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;"></div>
+            </div>
+            <!-- 基礎數據對比 -->
+            <div class="container">
+                <h2>📊 基礎數據對比</h2>
+                <div id="compareBasic"></div>
+            </div>
+            <!-- 球種分布對比 -->
+            <div class="container">
+                <h2>⚾ 球種比例對比</h2>
+                <div id="comparePitchTypes"></div>
+            </div>
+            <!-- 好壞球對比 -->
+            <div class="container">
+                <h2>🎯 進壘位置熱區對比</h2>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="compareHeatmaps"></div>
+            </div>
+            <!-- 配球模式對比 -->
+            <div class="container">
+                <h2>🔗 配球模式對比</h2>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="comparePatterns"></div>
+            </div>
+            <!-- 各球種效果對比 -->
+            <div class="container">
+                <h2>📈 球種效果對比</h2>
+                <div id="compareEffectiveness"></div>
             </div>
         </div>
 
@@ -1323,6 +1399,19 @@
             <button class="btn btn-success" style="width:100%;margin-top:14px;" onclick="saveEditedPitch()">
                 ✅ 儲存修改
             </button>
+        </div>
+    </div>
+
+    <!-- 對戰歷史 Modal -->
+    <div id="historyModal">
+        <div class="hm-box">
+            <div class="hm-header">
+                <h2 style="margin:0;color:var(--ct-blue-dark);font-size:18px;">📋 對戰歷史記錄</h2>
+                <span class="hm-close" onclick="closeHistoryModal()">&times;</span>
+            </div>
+            <div class="hm-body" id="historyModalBody">
+                <p style="color:#9ca3af;">載入中...</p>
+            </div>
         </div>
     </div>
 
@@ -1601,6 +1690,8 @@
 
     function init() {
         loadFromLocalStorage();
+        // 注入測試數據（強制覆蓋，測試用）
+        injectDemoData();
         updateTeamList();
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('newTeamDate').value = today;
@@ -1610,8 +1701,94 @@
         setupTeamListDelegation();
     }
 
-    function setupTeamListDelegation() {
-        // No-op: pitcher tags use inline ontouchend+onclick directly
+    function injectDemoData() {
+        const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+        const pick = arr => arr[rnd(0,arr.length-1)];
+        const types = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
+        const strikeZones = ['1','2','3','4','5','6','7','8','9'];
+        const ballZones = ['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10','B11','B12','B13','B14','B15','B16'];
+        const hands = ['右打','左打'];
+        const outcomes = ['','','','','三振','保送','一壘安打','滾地球出局','飛球出局',''];
+
+        function makePitch(balls, strikes) {
+            const isStrike = Math.random() < 0.58;
+            const zone = isStrike ? pick(strikeZones) : pick(ballZones);
+            const type = pick(types);
+            const outcome = (strikes === 2 && Math.random() < 0.3) ? pick(['三振','不死三振']) :
+                            (balls === 3 && Math.random() < 0.3) ? '保送' :
+                            (Math.random() < 0.08) ? pick(['一壘安打','滾地球出局','飛球出局','三振']) : '';
+            return {
+                type, zone,
+                result: isStrike ? '好球' : '壞球',
+                speed: type === '快速球' ? rnd(120,138) : type === '上飄球' ? rnd(118,132) : type === '變速球' ? rnd(104,116) : rnd(108,124),
+                swing: isStrike && Math.random() < 0.35,
+                wild: !isStrike && Math.random() < 0.05,
+                foul: isStrike && Math.random() < 0.12,
+                batterHand: pick(hands),
+                batterNumber: rnd(1,35),
+                batterOrder: rnd(1,9),
+                outcomes: outcome ? [outcome] : [],
+                balls, strikes,
+                runnersOn: Math.random() < 0.4,
+                timestamp: Date.now() - rnd(0, 3600000)
+            };
+        }
+
+        function makePitches(count) {
+            const pitches = [];
+            let b = 0, s = 0;
+            for (let i = 0; i < count; i++) {
+                const p = makePitch(b, s);
+                pitches.push(p);
+                const outcome = p.outcomes[0];
+                if (outcome === '三振' || outcome === '不死三振' || outcome === '保送' || outcome === '一壘安打' || outcome === '滾地球出局' || outcome === '飛球出局') { b = 0; s = 0; }
+                else if (p.result === '好球') { s = Math.min(s+1, 2); }
+                else { b = Math.min(b+1, 3); }
+            }
+            return pitches;
+        }
+
+        // 兩個賽事，同一個投手「王大明」
+        allData.teams = [
+            {
+                gameName: '2026 世界盃青棒賽',
+                name: '中華台北', opponent: '日本',
+                date: '2026-05-10',
+                pitchers: [
+                    { name:'王大明', number:'21', hand:'右投', role:'先發', style:'速球型', pitches: makePitches(87), score: { home:2, away:5, inning:7, half:'下' } },
+                    { name:'陳志豪', number:'34', hand:'左投', role:'先發', style:'軟投變化球', pitches: makePitches(65), score: { home:2, away:5, inning:7, half:'下' } }
+                ]
+            },
+            {
+                gameName: '2026 世界盃青棒賽',
+                name: '中華台北', opponent: '韓國',
+                date: '2026-05-12',
+                pitchers: [
+                    { name:'陳志豪', number:'34', hand:'左投', role:'先發', style:'軟投變化球', pitches: makePitches(72), score: { home:3, away:1, inning:9, half:'下' } },
+                    { name:'王大明', number:'21', hand:'右投', role:'中繼', style:'速球型', pitches: makePitches(34), score: { home:3, away:1, inning:9, half:'下' } }
+                ]
+            },
+            {
+                gameName: '2025 亞青盃',
+                name: '中華台北', opponent: '美國',
+                date: '2025-09-05',
+                pitchers: [
+                    { name:'王大明', number:'21', hand:'右投', role:'先發', style:'速球型', pitches: makePitches(105), score: { home:4, away:2, inning:7, half:'上' } },
+                    { name:'林俊傑', number:'15', hand:'右投', role:'後援', style:'火球派', pitches: makePitches(28), score: { home:4, away:2, inning:7, half:'上' } }
+                ]
+            },
+            {
+                gameName: '2025 亞青盃',
+                name: '中華台北', opponent: '古巴',
+                date: '2025-09-08',
+                pitchers: [
+                    { name:'陳志豪', number:'34', hand:'左投', role:'先發', style:'軟投變化球', pitches: makePitches(95), score: { home:1, away:0, inning:8, half:'上' } },
+                    { name:'王大明', number:'21', hand:'右投', role:'後援', style:'速球型', pitches: makePitches(22), score: { home:1, away:0, inning:8, half:'上' } }
+                ]
+            }
+        ];
+        rebuildPitcherDB();
+        try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
     }
 
     // ====== TAIWAN FLAG ======
@@ -1762,9 +1939,10 @@
             const key = team.gameName || '未分類';
             if (!gameGroups[key]) gameGroups[key] = [];
             gameGroups[key].push({ team, teamIndex });
-            // Auto-expand all game groups by default
-            expandedGames.add(key);
+            // Only auto-expand on first load (if not already tracked)
+            if (!expandedGames.has('__init_done__')) expandedGames.add(key);
         });
+        expandedGames.add('__init_done__');
 
         Object.entries(gameGroups).forEach(([gameName, teams]) => {
             const isGameExpanded = expandedGames.has(gameName);
@@ -2790,7 +2968,8 @@
     function updateStats() {
         if (currentTeam === null || currentPitcher === null) {
             ['statTotal','statStrike','statBall','statSwing','statWild','statAvgSpeed','statMaxSpeed'].forEach(id => {
-                document.getElementById(id).textContent = id.includes('stat') && (id.includes('Strike')||id.includes('Ball')||id.includes('Swing')||id.includes('Wild')) ? '0%' : '0';
+                const el = document.getElementById(id);
+                if (el) el.textContent = id.includes('Strike')||id.includes('Ball')||id.includes('Swing')||id.includes('Wild') ? '0%' : '0';
             });
             return;
         }
@@ -2825,6 +3004,12 @@
         updateFirstPitchAnalysis(pitches);
         updateTwoStrikeAnalysis(pitches);
         updateBaseStateAnalysis(pitches);
+        // Charts
+        updatePitchTypePieChart(pitches);
+        updateSpeedLineChart(pitches);
+        // Right-panel heatmaps (analysis split layout)
+        updateSingleHeatmap('tendencyStrikeRight', pitches.filter(p => p.result==='好球' && !String(p.zone).startsWith('B')), 'yellow');
+        updateBallTendencyHeatmap('tendencyBallRight', pitches.filter(p => p.result==='壞球'));
     }
 
     function updateBatterStats(pitches) {
@@ -2869,21 +3054,28 @@
     // ====== HEATMAP ======
     function colorForIntensity(intensity, mode) {
         if (mode === 'yellow') {
-            if (intensity <= 0) return ['#f3f4f6','#9ca3af'];
-            if (intensity <= 0.33) return ['#fef3c7','#92400e'];
-            if (intensity <= 0.66) return ['#fde68a','#78350f'];
-            return ['#fbbf24','#7c2d12'];
+            // 好球帶：淺橘 → 深橘，數字全黑
+            if (intensity <= 0) return ['#f5f5f0','#bbb'];
+            if (intensity <= 0.2)  return ['#fde8c8','#000'];
+            if (intensity <= 0.4)  return ['#fdd09a','#000'];
+            if (intensity <= 0.6)  return ['#fdb96a','#000'];
+            if (intensity <= 0.8)  return ['#f99832','#000'];
+            return ['#e67a00','#000'];
         }
         if (mode === 'green') {
-            if (intensity <= 0) return ['#f3f4f6','#9ca3af'];
-            if (intensity <= 0.33) return ['#d1fae5','#065f46'];
-            if (intensity <= 0.66) return ['#86efac','#064e3b'];
-            return ['#10b981','#ffffff'];
+            // 壞球區：淺綠 → 深綠，數字全黑
+            if (intensity <= 0) return ['#f0f5f0','#bbb'];
+            if (intensity <= 0.2)  return ['#d4edda','#000'];
+            if (intensity <= 0.4)  return ['#9dd4ab','#000'];
+            if (intensity <= 0.6)  return ['#5cb87a','#000'];
+            if (intensity <= 0.8)  return ['#2e9e52','#000'];
+            return ['#1a7a3a','#000'];
         }
-        if (intensity <= 0) return ['#f3f4f6','#9ca3af'];
-        if (intensity <= 0.33) return ['#86efac','#065f46'];
-        if (intensity <= 0.66) return ['#fcd34d','#78350f'];
-        return ['#f87171','#7f1d1d'];
+        // fallback: unified heatmap uses zone type instead
+        if (intensity <= 0) return ['#f5f5f0','#bbb'];
+        if (intensity <= 0.33) return ['#fde8c8','#000'];
+        if (intensity <= 0.66) return ['#fdb96a','#000'];
+        return ['#e67a00','#000'];
     }
 
     function updateSingleHeatmap(elementId, pitches, mode) {
@@ -2902,7 +3094,7 @@
             cell.className = 'heat-cell';
             const count = zoneCounts[i];
             const [bg,fg] = colorForIntensity(count === 0 ? 0 : count/maxCount, mode);
-            cell.style.background = bg; cell.style.color = fg;
+            cell.style.background = bg; cell.style.color = '#000';
             cell.textContent = count; cell.style.fontWeight = '700';
             heatmap.appendChild(cell);
         }
@@ -2939,7 +3131,7 @@
                     div.className = 'ball-heat-cell';
                     const count = bCounts[cell] || 0;
                     const [bg,fg] = colorForIntensity(count === 0 ? 0 : count/maxCount, 'green');
-                    div.style.background = bg; div.style.color = fg;
+                    div.style.background = bg; div.style.color = '#000';
                     div.style.fontSize = '10px';
                     div.innerHTML = `<span style="position:absolute;top:1px;left:2px;font-size:8px;color:rgba(0,0,0,0.4);">${cell.replace('B','')}</span>${count}`;
                     div.style.position = 'relative';
@@ -2992,7 +3184,7 @@
             const intensity = count/maxVal;
             const mode = isStrike ? 'yellow' : 'green';
             const [bg,fg] = colorForIntensity(count===0?0:intensity, mode);
-            cell.style.background = bg; cell.style.color = fg;
+            cell.style.background = bg; cell.style.color = '#000';
             cell.style.fontWeight = '700';
             cell.innerHTML = `<span class="zone-label">${z}</span>${count||''}`;
             el.appendChild(cell);
@@ -3072,8 +3264,8 @@
                 }
                 const count = bCounts[cell]||0;
                 const [bg,fg] = colorForIntensity(count===0?0:count/maxCount,'green');
-                div.style.background=bg; div.style.color=fg; div.style.position='relative';
-                div.innerHTML=`<span style="position:absolute;top:1px;left:1px;font-size:7px;opacity:0.5;">${cell.replace('B','')}</span>${count}`;
+                div.style.background=bg; div.style.color='#000'; div.style.position='relative';
+                div.innerHTML=`<span style="position:absolute;top:1px;left:1px;font-size:7px;color:rgba(0,0,0,0.45);">${cell.replace('B','')}</span>${count}`;
                 heatmap.appendChild(div);
             });
         });
@@ -3492,6 +3684,189 @@
     }
 
     // ====== TABS ======
+    // ====== CHART.JS INSTANCES ======
+    let pieChartInstance = null;
+    let lineChartInstance = null;
+
+    function updatePitchTypePieChart(pitches) {
+        const canvas = document.getElementById('pitchTypePieChart');
+        if (!canvas) return;
+        const types = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
+        const counts = types.map(t => pitches.filter(p => p.type === t).length).filter((_,i) => pitches.some(p => p.type === types[i]));
+        const labels = types.filter(t => pitches.some(p => p.type === t));
+        const colors = ['#003d79','#0051a5','#10b981','#f59e0b','#7c3aed','#dc0000'];
+        if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
+        if (!labels.length) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+        pieChartInstance = new Chart(canvas, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data: counts, backgroundColor: colors.slice(0, labels.length), borderWidth: 2, borderColor: '#fff' }] },
+            options: {
+                responsive: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } }
+                }
+            }
+        });
+    }
+
+    function updateSpeedLineChart(pitches) {
+        const canvas = document.getElementById('speedLineChart');
+        if (!canvas) return;
+        const withSpeed = pitches.filter(p => p.speed);
+        if (pitches.length === 0) { if (lineChartInstance) { lineChartInstance.destroy(); lineChartInstance = null; } return; }
+        // Group by every 10 pitches
+        const groupSize = Math.max(1, Math.floor(withSpeed.length / 10));
+        const labels = [], data = [];
+        for (let i = 0; i < withSpeed.length; i += groupSize) {
+            const group = withSpeed.slice(i, i + groupSize);
+            const avg = group.reduce((s,p) => s + p.speed, 0) / group.length;
+            labels.push(`第${i+1}-${Math.min(i+groupSize, withSpeed.length)}球`);
+            data.push(parseFloat(avg.toFixed(1)));
+        }
+        if (lineChartInstance) { lineChartInstance.destroy(); lineChartInstance = null; }
+        if (!data.length) return;
+        const minSpeed = Math.min(...data) - 5;
+        const maxSpeed = Math.max(...data) + 5;
+        lineChartInstance = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: '平均球速 (km/h)',
+                    data,
+                    borderColor: '#003d79',
+                    backgroundColor: 'rgba(0,61,121,0.08)',
+                    pointBackgroundColor: data.map((v,i,arr) => v === Math.max(...arr) ? '#dc0000' : '#0051a5'),
+                    pointRadius: 5,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { min: minSpeed, max: maxSpeed, ticks: { callback: v => v + ' km/h', font: { size: 11 } } },
+                    x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
+                },
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} km/h` } } }
+            }
+        });
+    }
+
+    // ====== HISTORY MODAL ======
+    function showPitcherHistory() {
+        if (currentTeam === null || currentPitcher === null) { alert('請先選擇投手！'); return; }
+        const pitcher = allData.teams[currentTeam].pitchers[currentPitcher];
+        const key = getPitcherKey(pitcher.name, pitcher.number);
+        const db_entry = allData.pitcherDB[key];
+        document.getElementById('historyModal').style.display = 'block';
+        renderHistoryModal(pitcher, db_entry);
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('historyModal').style.display = 'none';
+    }
+
+    function renderHistoryModal(pitcher, db_entry) {
+        const body = document.getElementById('historyModalBody');
+        const allPitches = db_entry ? db_entry.pitches : pitcher.pitches;
+        if (!allPitches || allPitches.length === 0) {
+            body.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:24px;">尚無歷史數據</p>';
+            return;
+        }
+
+        // Group by gameKey
+        const byGame = {};
+        allPitches.forEach(p => {
+            const gk = p.gameKey || '未知場次';
+            if (!byGame[gk]) byGame[gk] = [];
+            byGame[gk].push(p);
+        });
+
+        // Career totals
+        const total = allPitches.length;
+        const ks = allPitches.filter(p => (p.outcomes||[p.outcome]).some(o => o==='三振'||o==='不死三振')).length;
+        const walks = allPitches.filter(p => (p.outcomes||[p.outcome]).some(o => o==='保送')).length;
+        const hits = allPitches.filter(p => (p.outcomes||[p.outcome]).some(o => o&&(o.includes('安打')||o==='全壘打'))).length;
+        const speeds = allPitches.filter(p => p.speed).map(p => p.speed);
+        const avgSpeed = speeds.length ? (speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(1) : '--';
+        const maxSpeed = speeds.length ? Math.max(...speeds) : '--';
+        const strikeRate = ((allPitches.filter(p=>p.result==='好球').length/total)*100).toFixed(1);
+
+        // Most hit pitch type
+        const hitsByType = {};
+        allPitches.filter(p => (p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'))).forEach(p => {
+            hitsByType[p.type] = (hitsByType[p.type]||0)+1;
+        });
+        const mostHitType = Object.entries(hitsByType).sort((a,b)=>b[1]-a[1])[0];
+
+        // Most used type
+        const typeCount = {};
+        allPitches.forEach(p => { if(p.type) typeCount[p.type]=(typeCount[p.type]||0)+1; });
+        const mostUsed = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+        body.innerHTML = `
+        <!-- 投手標頭 -->
+        <div style="background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));border-radius:10px;padding:14px;color:white;margin-bottom:16px;">
+            <div style="font-size:22px;font-weight:900;font-family:'Oswald','Noto Sans TC',sans-serif;">${pitcher.name}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+                ${pitcher.number ? `<span style="background:rgba(255,255,255,0.15);padding:2px 8px;border-radius:4px;font-size:12px;">#${pitcher.number}</span>` : ''}
+                ${pitcher.hand ? `<span style="background:rgba(255,255,255,0.15);padding:2px 8px;border-radius:4px;font-size:12px;">${pitcher.hand}</span>` : ''}
+                ${pitcher.role ? `<span style="background:rgba(255,215,0,0.2);padding:2px 8px;border-radius:4px;font-size:12px;color:var(--ct-gold);">${pitcher.role}</span>` : ''}
+                <span style="background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:4px;font-size:12px;">共 ${Object.keys(byGame).length} 場記錄</span>
+            </div>
+        </div>
+
+        <!-- 生涯累積 -->
+        <h3 style="color:var(--ct-blue-dark);margin-bottom:10px;">📊 生涯累積數據</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+            ${[['總球數',total+'球'],['好球率',strikeRate+'%'],['平均球速',avgSpeed+' km/h'],['最高球速',maxSpeed+' km/h'],['三振',ks+'次'],['保送',walks+'次'],['被安打',hits+'次'],['最易被打型',mostHitType?mostHitType[0]+' ('+mostHitType[1]+')':'無']].map(([l,v])=>`
+            <div style="background:#f9fafb;border-radius:8px;padding:10px;border-left:3px solid var(--ct-blue);">
+                <div style="font-size:10px;color:#6b7280;font-weight:700;margin-bottom:3px;">${l}</div>
+                <div style="font-size:15px;font-weight:900;color:var(--ct-blue-dark);">${v}</div>
+            </div>`).join('')}
+        </div>
+
+        <!-- 最常用球種 -->
+        <h3 style="color:var(--ct-blue-dark);margin-bottom:8px;">⚾ 最常用球種</h3>
+        <div style="margin-bottom:16px;">
+            ${mostUsed.map(([type,cnt],i)=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:${i===0?'#fef3c7':'#f9fafb'};border-radius:6px;margin-bottom:5px;">
+                <span style="font-weight:700;color:var(--ct-blue-dark);">${['🥇','🥈','🥉'][i]} ${type}</span>
+                <span style="color:var(--ct-red);font-weight:700;">${cnt}球 · ${((cnt/total)*100).toFixed(1)}%</span>
+            </div>`).join('')}
+        </div>
+
+        <!-- 各場次明細 -->
+        <h3 style="color:var(--ct-blue-dark);margin-bottom:10px;">📅 各場次記錄</h3>
+        ${Object.entries(byGame).map(([gk, ps]) => {
+            const gTotal = ps.length;
+            const gKs = ps.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='三振'||o==='不死三振')).length;
+            const gSpeeds = ps.filter(p=>p.speed).map(p=>p.speed);
+            const gAvg = gSpeeds.length ? (gSpeeds.reduce((a,b)=>a+b,0)/gSpeeds.length).toFixed(1) : '--';
+            const gSR = ((ps.filter(p=>p.result==='好球').length/gTotal)*100).toFixed(1);
+            const parts = gk.split('|');
+            const gameName = parts[0] || gk;
+            const dateVs = parts[1] && parts[2] ? `${parts[1]} · ${parts[2]}` : '';
+            return `<div style="border:2px solid var(--ct-gold);border-radius:10px;padding:12px;margin-bottom:10px;">
+                <div style="font-weight:900;color:var(--ct-blue-dark);font-size:14px;margin-bottom:4px;">🏟️ ${gameName}</div>
+                ${dateVs ? `<div style="font-size:11px;color:#6b7280;margin-bottom:8px;">${dateVs}</div>` : ''}
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:12px;">
+                    <div style="text-align:center;background:#f0f9ff;border-radius:6px;padding:6px;"><div style="color:#6b7280;margin-bottom:2px;">球數</div><strong>${gTotal}</strong></div>
+                    <div style="text-align:center;background:#fef3c7;border-radius:6px;padding:6px;"><div style="color:#6b7280;margin-bottom:2px;">好球率</div><strong>${gSR}%</strong></div>
+                    <div style="text-align:center;background:#d1fae5;border-radius:6px;padding:6px;"><div style="color:#6b7280;margin-bottom:2px;">三振</div><strong>${gKs}</strong></div>
+                    <div style="text-align:center;background:#ede9fe;border-radius:6px;padding:6px;"><div style="color:#6b7280;margin-bottom:2px;">均速</div><strong>${gAvg}</strong></div>
+                </div>
+            </div>`;
+        }).join('')}`;
+
+        // Close on outside click
+        document.getElementById('historyModal').onclick = function(e) {
+            if (e.target === this) closeHistoryModal();
+        };
+    }
+
     function switchTab(e, tab) {
         document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
@@ -3499,6 +3874,248 @@
         if (tab==='record') document.getElementById('recordTab').classList.add('active');
         else if (tab==='stats') { document.getElementById('statsTab').classList.add('active'); updateStats(); }
         else if (tab==='analysis') { document.getElementById('analysisTab').classList.add('active'); updateStats(); }
+        else if (tab==='compare') { document.getElementById('compareTab').classList.add('active'); updateCompare(); }
+    }
+
+    // ====== PITCHER COMPARE ======
+    function updateCompare() {
+        const hasA = slotA.team !== null && slotA.pitcher !== null && allData.teams[slotA.team];
+        const hasB = slotB.team !== null && slotB.pitcher !== null && allData.teams[slotB.team];
+
+        const noDataMsg = '<div style="text-align:center;color:#9ca3af;padding:32px;font-size:14px;">請先在左側選擇兩位投手（Slot A 和 Slot B）再進行對比</div>';
+        if (!hasA && !hasB) {
+            ['compareHeader','compareBasic','comparePitchTypes','compareHeatmaps','comparePatterns','compareEffectiveness'].forEach(id => {
+                document.getElementById(id).innerHTML = id === 'compareBasic' ? noDataMsg : '';
+            });
+            return;
+        }
+
+        const pitcherA = hasA ? allData.teams[slotA.team].pitchers[slotA.pitcher] : null;
+        const pitcherB = hasB ? allData.teams[slotB.team].pitchers[slotB.pitcher] : null;
+        const pitchesA = hasA ? getFilteredPitches(slotA.team, slotA.pitcher) : [];
+        const pitchesB = hasB ? getFilteredPitches(slotB.team, slotB.pitcher) : [];
+        const teamA = hasA ? allData.teams[slotA.team] : null;
+        const teamB = hasB ? allData.teams[slotB.team] : null;
+
+        // ---- Header cards ----
+        const makeHeader = (pitcher, team, slot, pitches) => {
+            if (!pitcher) return `<div style="background:rgba(0,0,0,0.06);border-radius:12px;padding:16px;text-align:center;border:2px dashed #d1d5db;color:#9ca3af;">Slot ${slot}<br>尚未選擇投手</div>`;
+            const color = slot === 'A' ? '#003d79' : '#2b2b2b';
+            const border = slot === 'A' ? 'var(--ct-gold)' : '#aaa';
+            return `<div style="background:linear-gradient(135deg,${color},${slot==='A'?'#0051a5':'#444'});border-radius:12px;padding:16px;color:white;border:3px solid ${border};">
+                <div style="font-size:10px;opacity:0.6;letter-spacing:2px;margin-bottom:4px;">SLOT ${slot} · ${team ? team.name : ''}</div>
+                <div style="font-size:24px;font-weight:900;font-family:'Oswald','Noto Sans TC',sans-serif;">${pitcher.name}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+                    ${pitcher.number ? `<span style="background:rgba(255,255,255,0.15);padding:2px 8px;border-radius:4px;font-size:12px;">#${pitcher.number}</span>` : ''}
+                    ${pitcher.hand ? `<span style="background:rgba(255,255,255,0.15);padding:2px 8px;border-radius:4px;font-size:12px;">${pitcher.hand}</span>` : ''}
+                    ${pitcher.role ? `<span style="background:rgba(255,215,0,0.2);padding:2px 8px;border-radius:4px;font-size:12px;color:var(--ct-gold);">${pitcher.role}</span>` : ''}
+                </div>
+                <div style="margin-top:8px;font-size:13px;opacity:0.8;">${pitches.length} 球記錄</div>
+            </div>`;
+        };
+        document.getElementById('compareHeader').innerHTML = makeHeader(pitcherA, teamA, 'A', pitchesA) + makeHeader(pitcherB, teamB, 'B', pitchesB);
+
+        // ---- Basic stats compare ----
+        const calcBasic = (pitches) => {
+            if (!pitches.length) return null;
+            const total = pitches.length;
+            const strikes = pitches.filter(p => p.result === '好球').length;
+            const balls = pitches.filter(p => p.result === '壞球').length;
+            const wilds = pitches.filter(p => p.wild).length;
+            const swings = pitches.filter(p => p.swing).length;
+            const speeds = pitches.filter(p => p.speed).map(p => p.speed);
+            const ks = pitches.filter(p => (p.outcomes||[p.outcome]).some(o => o === '三振' || o === '不死三振')).length;
+            const walks = pitches.filter(p => (p.outcomes||[p.outcome]).some(o => o === '保送')).length;
+            const hits = pitches.filter(p => (p.outcomes||[p.outcome]).some(o => o && (o.includes('安打') || o === '全壘打'))).length;
+            return {
+                total,
+                strikeRate: ((strikes/total)*100).toFixed(1),
+                ballRate: ((balls/total)*100).toFixed(1),
+                wildRate: total > 0 ? ((wilds/total)*100).toFixed(1) : '0.0',
+                swingRate: total > 0 ? ((swings/total)*100).toFixed(1) : '0.0',
+                avgSpeed: speeds.length ? (speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(1) : '--',
+                maxSpeed: speeds.length ? Math.max(...speeds) : '--',
+                ks, walks, hits
+            };
+        };
+        const bA = calcBasic(pitchesA);
+        const bB = calcBasic(pitchesB);
+
+        const rows = [
+            { label:'投球總數', keyA: bA?.total, keyB: bB?.total, unit:'球', higherBetter: false, isCount: true },
+            { label:'好球率', keyA: bA?.strikeRate, keyB: bB?.strikeRate, unit:'%', higherBetter: true },
+            { label:'壞球率', keyA: bA?.ballRate, keyB: bB?.ballRate, unit:'%', higherBetter: false },
+            { label:'暴投率', keyA: bA?.wildRate, keyB: bB?.wildRate, unit:'%', higherBetter: false },
+            { label:'揮空率', keyA: bA?.swingRate, keyB: bB?.swingRate, unit:'%', higherBetter: true },
+            { label:'平均球速', keyA: bA?.avgSpeed, keyB: bB?.avgSpeed, unit:'km/h', higherBetter: true },
+            { label:'最高球速', keyA: bA?.maxSpeed, keyB: bB?.maxSpeed, unit:'km/h', higherBetter: true },
+            { label:'三振數', keyA: bA?.ks, keyB: bB?.ks, unit:'', higherBetter: true, isCount: true },
+            { label:'保送數', keyA: bA?.walks, keyB: bB?.walks, unit:'', higherBetter: false, isCount: true },
+            { label:'被安打數', keyA: bA?.hits, keyB: bB?.hits, unit:'', higherBetter: false, isCount: true },
+        ];
+
+        const nameA = pitcherA ? (teamA ? teamA.name + ' · ' + pitcherA.name : pitcherA.name) : 'Slot A';
+        const nameB = pitcherB ? (teamB ? teamB.name + ' · ' + pitcherB.name : pitcherB.name) : 'Slot B';
+        const shortA = pitcherA ? pitcherA.name : 'A';
+        const shortB = pitcherB ? pitcherB.name : 'B';
+        let basicHTML = `<div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                    <tr style="background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;">
+                        <th style="padding:10px;text-align:left;border-radius:8px 0 0 0;">項目</th>
+                        <th style="padding:10px;text-align:center;color:var(--ct-gold);">A · ${nameA}</th>
+                        <th style="padding:10px;text-align:center;">　</th>
+                        <th style="padding:10px;text-align:center;color:#ccc;border-radius:0 8px 0 0;">B · ${nameB}</th>
+                    </tr>
+                </thead><tbody>`;
+
+        rows.forEach((row, i) => {
+            const vA = parseFloat(row.keyA);
+            const vB = parseFloat(row.keyB);
+            const hasValues = !isNaN(vA) && !isNaN(vB) && row.keyA !== '--' && row.keyB !== '--';
+            let winA = false, winB = false;
+            if (hasValues && !row.isCount) {
+                winA = row.higherBetter ? vA > vB : vA < vB;
+                winB = row.higherBetter ? vB > vA : vB < vA;
+            }
+            const bgA = winA ? 'rgba(16,185,129,0.12)' : '';
+            const bgB = winB ? 'rgba(16,185,129,0.12)' : '';
+            const boldA = winA ? 'font-weight:900;color:#065f46;' : '';
+            const boldB = winB ? 'font-weight:900;color:#065f46;' : '';
+            const dispA = row.keyA !== undefined && row.keyA !== null ? `${row.keyA}${row.unit}` : '—';
+            const dispB = row.keyB !== undefined && row.keyB !== null ? `${row.keyB}${row.unit}` : '—';
+            const rowBg = i % 2 === 0 ? '#f9fafb' : 'white';
+            basicHTML += `<tr style="background:${rowBg};">
+                <td style="padding:10px 12px;font-weight:700;color:var(--ct-blue-dark);">${row.label}</td>
+                <td style="padding:10px;text-align:center;background:${bgA};${boldA}font-size:15px;">${dispA}</td>
+                <td style="padding:10px;text-align:center;color:#d1d5db;font-size:18px;">${hasValues && winA ? '◀' : hasValues && winB ? '▶' : '—'}</td>
+                <td style="padding:10px;text-align:center;background:${bgB};${boldB}font-size:15px;">${dispB}</td>
+            </tr>`;
+        });
+        basicHTML += '</tbody></table></div>';
+        document.getElementById('compareBasic').innerHTML = basicHTML;
+
+        // ---- Pitch type compare ----
+        const calcTypes = (pitches) => {
+            const types = {};
+            pitches.forEach(p => { if (p.type) types[p.type] = (types[p.type]||0)+1; });
+            return types;
+        };
+        const typesA = calcTypes(pitchesA);
+        const typesB = calcTypes(pitchesB);
+        const allTypes = [...new Set([...Object.keys(typesA), ...Object.keys(typesB)])];
+        const totalA = pitchesA.length || 1;
+        const totalB = pitchesB.length || 1;
+
+        let typeHTML = '';
+        allTypes.forEach(type => {
+            const cntA = typesA[type] || 0;
+            const cntB = typesB[type] || 0;
+            const pctA = ((cntA/totalA)*100).toFixed(1);
+            const pctB = ((cntB/totalB)*100).toFixed(1);
+            typeHTML += `<div style="margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <span style="font-weight:700;color:var(--ct-blue-dark);font-size:14px;">${type}</span>
+                    <span style="font-size:12px;color:#6b7280;">${cntA}球 vs ${cntB}球</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;">
+                    <div>
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;">
+                            <span style="color:var(--ct-gold);font-weight:700;">A</span><span>${pctA}%</span>
+                        </div>
+                        <div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;">
+                            <div style="height:100%;width:${pctA}%;background:linear-gradient(90deg,var(--ct-blue-dark),var(--ct-blue));border-radius:5px;transition:width 0.4s;"></div>
+                        </div>
+                    </div>
+                    <div style="font-size:11px;color:#9ca3af;text-align:center;min-width:28px;">vs</div>
+                    <div>
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;">
+                            <span>${pctB}%</span><span style="color:#aaa;font-weight:700;">B</span>
+                        </div>
+                        <div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;">
+                            <div style="height:100%;width:${pctB}%;background:linear-gradient(90deg,#444,#666);border-radius:5px;transition:width 0.4s;margin-left:auto;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+        document.getElementById('comparePitchTypes').innerHTML = typeHTML || '<p style="color:#9ca3af;">尚無球種資料</p>';
+
+        // ---- Heatmaps ----
+        const makeHeatmapHTML = (pitches, label, color) => {
+            const counts = {};
+            pitches.forEach(p => { if (p.zone) counts[p.zone] = (counts[p.zone]||0)+1; });
+            const max = Math.max(...Object.values(counts), 1);
+            const zones = [['B1','B2','B3','B4','B5'],['B6','1','2','3','B7'],['B8','4','5','6','B9'],['B10','7','8','9','B11'],['B12','B13','B14','B15','B16']];
+            let grid = `<div style="text-align:center;"><div style="font-weight:700;color:${color};margin-bottom:6px;font-size:13px;">${label}</div>
+                <div style="display:grid;grid-template-columns:repeat(5,44px);grid-template-rows:repeat(5,44px);gap:2px;background:var(--ct-blue-dark);padding:3px;border-radius:8px;border:2px solid ${color};display:inline-grid;">`;
+            zones.forEach(row => row.forEach(z => {
+                const cnt = counts[z] || 0;
+                const isStrike = !z.startsWith('B');
+                const intensity = cnt === 0 ? 0 : cnt/max;
+                const [bg] = colorForIntensity(intensity, isStrike ? 'yellow' : 'green');
+                grid += `<div style="background:${bg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#000;border-radius:4px;">${cnt||''}</div>`;
+            }));
+            grid += '</div></div>';
+            return grid;
+        };
+        document.getElementById('compareHeatmaps').innerHTML =
+            makeHeatmapHTML(pitchesA, `A · ${nameA}`, 'var(--ct-gold)') +
+            makeHeatmapHTML(pitchesB, `B · ${nameB}`, '#aaa');
+
+        // ---- Patterns ----
+        const makePatterns = (pitches, label, color) => {
+            const typeCount = {};
+            pitches.forEach(p => { if (p.type) typeCount[p.type] = (typeCount[p.type]||0)+1; });
+            const total = pitches.length || 1;
+            const sorted = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+            if (!sorted.length) return `<div style="color:#9ca3af;padding:16px;text-align:center;">尚無資料</div>`;
+            return `<div style="border:2px solid ${color};border-radius:10px;padding:12px;">
+                <div style="font-weight:700;color:${color};margin-bottom:10px;font-size:13px;">${label}</div>
+                ${sorted.map(([type,cnt]) => `
+                <div style="margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;">
+                        <span style="font-weight:700;">${type}</span>
+                        <span style="color:var(--ct-red);font-weight:700;">${cnt}球 · ${((cnt/total)*100).toFixed(1)}%</span>
+                    </div>
+                    <div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
+                        <div style="height:100%;width:${((cnt/total)*100).toFixed(1)}%;background:${color};border-radius:4px;"></div>
+                    </div>
+                </div>`).join('')}
+            </div>`;
+        };
+        document.getElementById('comparePatterns').innerHTML =
+            makePatterns(pitchesA, `A · ${nameA}`, 'var(--ct-gold)') +
+            makePatterns(pitchesB, `B · ${nameB}`, '#888');
+
+        // ---- Effectiveness ----
+        const allPitchTypes = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
+        const usedTypes = allPitchTypes.filter(t => pitchesA.some(p=>p.type===t) || pitchesB.some(p=>p.type===t));
+        let effHTML = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;">
+                <th style="padding:8px;text-align:left;">球種</th>
+                <th style="padding:8px;text-align:center;color:var(--ct-gold);">${shortA} 好球率</th>
+                <th style="padding:8px;text-align:center;color:var(--ct-gold);">${shortA} 揮空率</th>
+                <th style="padding:8px;text-align:center;color:#ccc;">${shortB} 好球率</th>
+                <th style="padding:8px;text-align:center;color:#ccc;">${shortB} 揮空率</th>
+            </tr></thead><tbody>`;
+        usedTypes.forEach((type, i) => {
+            const tpA = pitchesA.filter(p=>p.type===type);
+            const tpB = pitchesB.filter(p=>p.type===type);
+            const srA = tpA.length ? ((tpA.filter(p=>p.result==='好球').length/tpA.length)*100).toFixed(1)+'%' : '—';
+            const swA = tpA.length ? ((tpA.filter(p=>p.swing).length/tpA.length)*100).toFixed(1)+'%' : '—';
+            const srB = tpB.length ? ((tpB.filter(p=>p.result==='好球').length/tpB.length)*100).toFixed(1)+'%' : '—';
+            const swB = tpB.length ? ((tpB.filter(p=>p.swing).length/tpB.length)*100).toFixed(1)+'%' : '—';
+            effHTML += `<tr style="background:${i%2===0?'#f9fafb':'white'};">
+                <td style="padding:8px 10px;font-weight:700;color:var(--ct-blue-dark);">${type}</td>
+                <td style="padding:8px;text-align:center;">${srA}</td>
+                <td style="padding:8px;text-align:center;">${swA}</td>
+                <td style="padding:8px;text-align:center;">${srB}</td>
+                <td style="padding:8px;text-align:center;">${swB}</td>
+            </tr>`;
+        });
+        effHTML += '</tbody></table></div>';
+        document.getElementById('compareEffectiveness').innerHTML = effHTML || '<p style="color:#9ca3af;">尚無資料</p>';
     }
 
     // ====== DATA MANAGEMENT ======
