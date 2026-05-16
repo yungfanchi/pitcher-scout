@@ -2378,12 +2378,21 @@
             if (statsTypePieInstance) { statsTypePieInstance.destroy(); statsTypePieInstance = null; }
             statsTypePieInstance = new Chart(canvas, {
                 type: 'doughnut',
+                plugins: [ChartDataLabels],
                 data: { labels: usedTypes, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
                 options: {
-                    responsive: false,
+                    responsive: true,
+                    maintainAspectRatio: true,
                     plugins: {
-                        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } },
-                        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } }
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } },
+                        datalabels: {
+                            display: ctx => (ctx.dataset.data[ctx.dataIndex] / pitches.length) >= 0.05,
+                            formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}\n${((value/pitches.length)*100).toFixed(1)}%`,
+                            color: '#fff',
+                            font: { weight: '700', size: 11 },
+                            textAlign: 'center'
+                        }
                     }
                 }
             });
@@ -3051,12 +3060,21 @@
         if (!allTypes.length) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); return; }
         pieChartInstance = new Chart(canvas, {
             type: 'doughnut',
+            plugins: [ChartDataLabels],
             data: { labels: allTypes, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
             options: {
-                responsive: false,
+                responsive: true,
+                maintainAspectRatio: true,
                 plugins: {
-                    legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } },
-                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } }
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } },
+                    datalabels: {
+                        display: ctx => (ctx.dataset.data[ctx.dataIndex] / pitches.length) >= 0.05,
+                        formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}\n${((value/pitches.length)*100).toFixed(1)}%`,
+                        color: '#fff',
+                        font: { weight: '700', size: 11 },
+                        textAlign: 'center'
+                    }
                 }
             }
         });

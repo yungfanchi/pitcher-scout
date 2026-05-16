@@ -22,6 +22,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -432,7 +433,7 @@
                         <strong id="currentSpeed" style="color:var(--ct-red);font-size:15px;flex-shrink:0;">--</strong>
                         <span style="font-size:12px;color:#9ca3af;flex-shrink:0;">km/h</span>
                     </div>
-                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:4px;">
                         <button class="speed-btn" onclick="setSpeed(90,this)">90</button>
                         <button class="speed-btn" onclick="setSpeed(91,this)">91</button>
                         <button class="speed-btn" onclick="setSpeed(92,this)">92</button>
@@ -443,8 +444,6 @@
                         <button class="speed-btn" onclick="setSpeed(97,this)">97</button>
                         <button class="speed-btn" onclick="setSpeed(98,this)">98</button>
                         <button class="speed-btn" onclick="setSpeed(99,this)">99</button>
-                    </div>
-                    <div class="speed-shortcuts">
                         <button class="speed-btn" onclick="setSpeed(100,this)">100</button>
                         <button class="speed-btn" onclick="setSpeed(101,this)">101</button>
                         <button class="speed-btn" onclick="setSpeed(102,this)">102</button>
@@ -649,8 +648,8 @@
                 <h2>⚾ 球種分布</h2>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;">
                     <div id="pitchTypeStats"></div>
-                    <div style="display:flex;justify-content:center;">
-                        <canvas id="statsTypePieChart" width="200" height="200" style="max-width:200px;"></canvas>
+                    <div style="position:relative;width:100%;aspect-ratio:1;">
+                        <canvas id="statsTypePieChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -718,8 +717,8 @@
                     <div style="min-width:0;">
                         <h2 style="font-size:16px;">🎲 常用球種與配球模式</h2>
                         <div class="pattern-analysis" id="patternAnalysis"></div>
-                        <div style="display:flex;justify-content:center;margin-top:16px;">
-                            <canvas id="pitchTypePieChart" width="220" height="220" style="max-width:220px;"></canvas>
+                        <div style="position:relative;width:100%;max-width:220px;aspect-ratio:1;margin:16px auto 0;">
+                            <canvas id="pitchTypePieChart"></canvas>
                         </div>
                     </div>
                     <!-- 右：壘上有人/無人 放大字體 -->
@@ -982,9 +981,10 @@
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
-                .then(reg => {
-                    // Check for updates every time page loads
-                    reg.update();
+                .then(() => {
+                    // 讓 app.js 的 checkForUpdate() 掛上 updatefound 監聽器再呼叫 update()
+                    // 避免 race condition 導致手機/平板錯過更新通知
+                    if (typeof checkForUpdate === 'function') checkForUpdate();
                 })
                 .catch(err => console.log('SW registration failed:', err));
         });
