@@ -791,8 +791,8 @@
                 </div>
                 <button onclick="addTeam()">➕ 新增球隊</button>
             </div>
-            <button class="add-pitcher-btn" onclick="showAddPitcherModal()">⚡ 新增投手對戰組合</button>
-            <button class="add-pitcher-btn secondary" onclick="showSinglePitcherModal()">➕ 新增單一投手</button>
+            <button class="add-pitcher-btn" onclick="showAddPitcherModal()" ontouchend="event.preventDefault();showAddPitcherModal()">⚡ 新增投手對戰組合</button>
+            <button class="add-pitcher-btn secondary" onclick="showSinglePitcherModal()" ontouchend="event.preventDefault();showSinglePitcherModal()">➕ 新增單一投手</button>
         </div>
         <div class="team-list" id="teamList"></div>
         <!-- 情蒐員底部（快速備份還原） -->
@@ -1447,7 +1447,8 @@
                     </div>
                 </div>
             </div>
-            <button class="btn btn-success" style="width:100%;margin-top:14px;" onclick="confirmAddPitcher()">
+            <button class="btn btn-success" style="width:100%;margin-top:14px;"
+                onclick="confirmAddPitcher()" ontouchend="event.preventDefault();confirmAddPitcher()">
                 ✅ 確認新增
             </button>
         </div>
@@ -1494,7 +1495,8 @@
                 <label>球種型態</label>
                 <input type="text" id="singlePitcherStyle" placeholder="例：速球型、軟投派、側投變化球" autocomplete="off">
             </div>
-            <button class="btn btn-success" style="width:100%;margin-top:14px;" onclick="confirmSinglePitcher()">✅ 確認新增</button>
+            <button class="btn btn-success" style="width:100%;margin-top:14px;"
+                onclick="confirmSinglePitcher()" ontouchend="event.preventDefault();confirmSinglePitcher()">✅ 確認新增</button>
         </div>
     </div>
 
@@ -2241,17 +2243,19 @@
     }
 
     function confirmAddPitcher() {
+        try { document.activeElement && document.activeElement.blur(); } catch(e) {}
         const teamIndex = parseInt(document.getElementById('modalTeamSelect').value);
+        if (isNaN(teamIndex) || !allData.teams[teamIndex]) { alert('請先選擇場次！'); return; }
+
         const nameA = document.getElementById('modalPitcherNameA').value.trim();
         const numberA = document.getElementById('modalPitcherNumberA').value.trim();
         const handA = document.getElementById('modalPitchHandA').value;
         const roleA = document.getElementById('modalPitchRoleA').value;
+        const styleA = document.getElementById('modalPitcherStyleA').value.trim();
         const nameB = document.getElementById('modalPitcherNameB').value.trim();
         const numberB = document.getElementById('modalPitcherNumberB').value.trim();
         const handB = document.getElementById('modalPitchHandB').value;
         const roleB = document.getElementById('modalPitchRoleB').value;
-
-        const styleA = document.getElementById('modalPitcherStyleA').value.trim();
         const styleB = document.getElementById('modalPitcherStyleB').value.trim();
 
         if (!nameA) { alert('請輸入投手 A 姓名！'); return; }
@@ -2265,7 +2269,14 @@
         }
 
         expandedTeams.add(teamIndex);
-        updateTeamList(); saveToLocalStorage(); closeAddPitcherModal();
+        // 同時展開該球隊所屬的賽事群組
+        const gameName = allData.teams[teamIndex].gameName || '未分類';
+        expandedGames.add(gameName);
+        updateTeamList();
+        saveToLocalStorage();
+        saveToFirebase();
+        closeAddPitcherModal();
+        alert(`✅ 投手已新增！${nameB ? '（' + nameA + ' & ' + nameB + '）' : '（' + nameA + '）'}`);
     }
 
     function showSinglePitcherModal() {
@@ -2286,7 +2297,9 @@
     }
 
     function confirmSinglePitcher() {
+        try { document.activeElement && document.activeElement.blur(); } catch(e) {}
         const teamIndex = parseInt(document.getElementById('singleModalTeamSelect').value);
+        if (isNaN(teamIndex) || !allData.teams[teamIndex]) { alert('請先選擇場次！'); return; }
         const name = document.getElementById('singlePitcherName').value.trim();
         const number = document.getElementById('singlePitcherNumber').value.trim();
         const hand = document.getElementById('singlePitchHand').value;
@@ -2295,7 +2308,18 @@
         if (!name) { alert('請輸入投手姓名！'); return; }
         allData.teams[teamIndex].pitchers.push({ name, number, hand, role, style, pitches: [], score: getDefaultScore() });
         expandedTeams.add(teamIndex);
-        updateTeamList(); saveToLocalStorage(); closeSinglePitcherModal();
+        // 同時展開該球隊所屬的賽事群組
+        const gameName = allData.teams[teamIndex].gameName || '未分類';
+        expandedGames.add(gameName);
+        updateTeamList();
+        saveToLocalStorage();
+        saveToFirebase();
+        closeSinglePitcherModal();
+        // 清空欄位
+        document.getElementById('singlePitcherName').value = '';
+        document.getElementById('singlePitcherNumber').value = '';
+        document.getElementById('singlePitchHand').value = '';
+        alert(`✅ 投手「${name}」已新增！`);
     }
 
     // ====== TEAM LIST ======
