@@ -260,24 +260,23 @@
         }
     }
 
+    let _swControllerListenerAdded = false;
     function checkForUpdate() {
         if (!('serviceWorker' in navigator)) return;
         const showModal = () => {
             const m = document.getElementById('updateModal');
-            if (m) m.style.display = 'flex';
+            if (m && m.style.display !== 'flex') m.style.display = 'flex';
         };
-        // 新 SW 接管後自動 reload（doForceUpdate 觸發 skipWaiting 後會走這裡）
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            window.location.reload();
-        });
+        // controllerchange 只掛一次，避免重複 reload
+        if (!_swControllerListenerAdded) {
+            _swControllerListenerAdded = true;
+            navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+        }
         navigator.serviceWorker.getRegistration().then(reg => {
             if (!reg) return;
-            // 已有等待中的新版本（例如重開 App）
+            // 已有 waiting 的新版本（重新開啟 App 時）
             if (reg.waiting) { showModal(); return; }
-            reg.update().then(() => {
-                if (reg.waiting) showModal();
-            });
-            // 偵測本次載入過程中發現新版本
+            // 先掛 updatefound 再呼叫 update()，避免 race condition
             reg.addEventListener('updatefound', () => {
                 const nw = reg.installing;
                 if (!nw) return;
@@ -287,6 +286,7 @@
                     }
                 });
             });
+            reg.update();
         });
     }
 
