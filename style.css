@@ -111,7 +111,7 @@
         /* ===== MAIN CONTENT ===== */
         .main-content { margin-left:300px; padding:16px; flex:1; transition:margin-left 0.3s; width:100%; position:relative; z-index:1; -webkit-overflow-scrolling:touch; overflow-x:hidden; }
         .main-content.expanded { margin-left:0; }
-        .container { background:white; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:1280px; margin-left:auto; margin-right:auto; border-top:4px solid var(--ct-red); border-left:1px solid var(--ct-gold); }
+        .container { background:white; border-radius:12px; padding:12px 16px; margin-bottom:10px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:1280px; margin-left:auto; margin-right:auto; border-top:4px solid var(--ct-red); border-left:1px solid var(--ct-gold); }
 
         h1 {
             text-align:center; background:linear-gradient(135deg,var(--ct-blue-dark) 0%,var(--ct-blue) 100%);
@@ -126,7 +126,7 @@
         h1 .h1-text { text-shadow:2px 2px 4px rgba(0,0,0,0.3); }
         h1 .h1-sub { display:block; font-size:16px; color:var(--ct-gold); letter-spacing:5px; margin-top:4px; font-weight:500; }
         h2 { color:var(--ct-blue-dark); margin-bottom:12px; font-size:18px; border-bottom:2px solid var(--ct-red); padding-bottom:7px; font-weight:700; font-family:'Oswald','Noto Sans TC',sans-serif; letter-spacing:1px; }
-        h3 { color:var(--ct-blue); margin:10px 0 7px 0; font-size:14px; font-weight:700; }
+        h3 { color:var(--ct-blue); margin:6px 0 5px 0; font-size:14px; font-weight:700; }
 
         /* ===== DUAL PITCHER CARD ===== */
         .dual-pitcher-section {
@@ -269,10 +269,11 @@
         .pitch-btn.active { background:var(--ct-blue-dark); color:white; border-color:var(--ct-gold); box-shadow:0 0 0 3px rgba(255,215,0,0.3); }
 
         /* ===== SPEED ===== */
-        .speed-input { margin:10px 0; }
-        .speed-shortcuts { display:grid; grid-template-columns:repeat(11,1fr); gap:4px; margin-top:6px; }
-        .speed-shortcuts-row2 { display:grid; grid-template-columns:repeat(10,1fr); gap:4px; margin-top:4px; }
-        .speed-btn { padding:9px 2px; border:2px solid var(--ct-blue); border-radius:6px; background:white; cursor:pointer; font-weight:700; transition:all 0.2s; color:var(--ct-blue-dark); font-size:13px; -webkit-user-select:none; user-select:none; }
+        .speed-input { margin:6px 0; }
+        .speed-shortcuts { display:flex; flex-wrap:nowrap; overflow-x:auto; gap:4px; margin-top:5px; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:2px; }
+        .speed-shortcuts::-webkit-scrollbar { display:none; }
+        .speed-shortcuts-row2 { display:none; }
+        .speed-btn { flex-shrink:0; padding:9px 8px; min-width:38px; border:2px solid var(--ct-blue); border-radius:6px; background:white; cursor:pointer; font-weight:700; transition:all 0.2s; color:var(--ct-blue-dark); font-size:13px; -webkit-user-select:none; user-select:none; }
         .speed-btn:active { transform:scale(0.95); }
         .speed-btn.active { background:var(--ct-blue-dark); color:white; border-color:var(--ct-gold); }
         .speed-input input { padding:9px; border:2px solid var(--ct-blue); border-radius:8px; font-size:16px; width:100px; margin-right:8px; font-weight:700; }
@@ -329,8 +330,8 @@
         .pitch-result-display-value.none-result { color:#9ca3af; font-style:italic; font-size:14px; }
 
         /* ===== AT BAT RESULT ===== */
-        .at-bat-result { display:flex; flex-wrap:wrap; justify-content:space-evenly; gap:8px; margin:8px 0; }
-        .outcome-btn { width:62px; height:62px; border-radius:50%; border:2px solid var(--ct-blue); background:white; cursor:pointer; transition:all 0.2s; color:var(--ct-blue-dark); -webkit-user-select:none; user-select:none; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; text-align:center; padding:0; line-height:1.2; flex-shrink:0; }
+        .at-bat-result { display:grid; grid-template-columns:repeat(auto-fill,minmax(48px,1fr)); gap:5px; margin:5px 0; }
+        .outcome-btn { height:48px; border-radius:8px; border:2px solid var(--ct-blue); background:white; cursor:pointer; transition:all 0.2s; color:var(--ct-blue-dark); -webkit-user-select:none; user-select:none; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; text-align:center; padding:0 2px; line-height:1.2; width:auto; }
         .outcome-btn:active { transform:scale(0.95); }
         .outcome-btn.selected { background:var(--ct-red); color:white; border-color:var(--ct-gold); box-shadow:0 4px 12px rgba(220,0,0,0.3); }
         .outcome-btn[data-outcome="違規打擊"] { border-color:#f97316; color:#c2410c; }
@@ -541,7 +542,7 @@
             .zone-cell { font-size:18px; font-weight:900; }
             .zone-cell.ball-zone { font-size:12px; }
             .speed-btn { padding:14px 2px; font-size:14px; font-weight:900; }
-            .outcome-btn { width:66px; height:66px; font-size:13px; }
+            .outcome-btn { height:52px; font-size:13px; }
             .zone-right-btn { padding:18px 12px; font-size:15px; font-weight:900; border-radius:10px; }
             .confirm-record-btn { padding:22px; font-size:20px; border-radius:12px; }
             .hand-btn { padding:16px; font-size:16px; }
@@ -569,7 +570,7 @@
             .zone-cell { font-size:16px; }
             .zone-cell.ball-zone { font-size:10px; }
             .pitch-btn { padding:14px 6px; font-size:16px; }
-            .outcome-btn { width:60px; height:60px; font-size:12px; }
+            .outcome-btn { height:48px; font-size:12px; }
             .zone-right-btn { padding:16px 10px; font-size:14px; }
             .confirm-record-btn { padding:20px; font-size:18px; }
         }
