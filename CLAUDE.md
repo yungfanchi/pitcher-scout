@@ -9,7 +9,7 @@
 
 - **專案名稱**：情蒐系統（Chinese Taipei Pitcher Scouting）
 - **目標用戶**：國小到國家隊的棒壘球教練、情蒐員 運動選手家長
-- **架構**：單頁 PWA，所有邏輯在 `index.html` 內（目前約 5000 行）
+- **架構**：單頁 PWA，拆分為 `index.html`（HTML 結構）、`style.css`（樣式）、`app.js`（邏輯）
 - **部署**：GitHub Pages（HTTPS），已可安裝到手機/平板桌面
 - **資料庫**：Firebase Realtime Database（雲端同步）+ localStorage（本機備份）
 
@@ -167,7 +167,7 @@ slotB = { team: null, pitcher: null }  // B 槽
 | 函式 | 功能 |
 |------|------|
 | `init()` | 初始化，載入 localStorage → Firebase |
-| `injectDemoData()` | 注入測試資料（⚠️ 上線前要移除！） |
+| `injectDemoData()` | 注入測試資料（已從 init 移除，需測試時從 console 手動呼叫） |
 | `saveToFirebase()` | 寫入 Firebase |
 | `saveToLocalStorage()` | 備份到 localStorage |
 | `updateTeamList()` | 重繪側邊欄球隊列表 |
@@ -184,9 +184,9 @@ slotB = { team: null, pitcher: null }  // B 槽
 ## 已知待優化項目（按優先序）
 
 ### 🔴 高優先
-- [ ] `injectDemoData()` 在每次 init 都會強制覆蓋真實資料，**上線前必須移除或加條件判斷**
-- [ ] 所有 CSS、JS 塞在一個 5000 行的 index.html → 需拆分為獨立檔案
-- [ ] 密碼以明文存在前端 → 需改為 Firebase Auth 或後端驗證
+- [x] `injectDemoData()` 已從 `init()` 移除，僅保留供 console 手動呼叫（測試用）
+- [x] CSS/JS 已拆分為獨立檔案（`style.css`、`app.js`）
+- [x] 密碼改用 SHA-256 雜湊儲存（Web Crypto API），向下相容舊明文帳號
 
 ### 🟡 中優先
 - [ ] 球種可讓使用者自訂（不只固定 6 種）
@@ -216,10 +216,13 @@ slotB = { team: null, pitcher: null }  // B 槽
 
 ```
 /
-├── index.html      ← 目前所有邏輯都在這（5014 行）
+├── index.html      ← HTML 結構（987 行）
+├── style.css       ← 所有 CSS 樣式（628 行）
+├── app.js          ← 所有應用邏輯（3395 行）
 ├── manifest.json   ← PWA manifest
-├── sw.js           ← Service Worker
-└── icons/          ← PWA 圖示（各尺寸）
+├── sw.js           ← Service Worker（v3，含 style.css / app.js 快取）
+├── icon-192.png    ← PWA 圖示
+└── icon-512.png    ← PWA 圖示
 ```
 
 ---
@@ -232,4 +235,4 @@ slotB = { team: null, pitcher: null }  // B 槽
 
 ---
 
-*最後更新：2026-05*
+*最後更新：2026-05-16*
