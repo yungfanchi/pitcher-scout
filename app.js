@@ -3074,8 +3074,8 @@
                     const r = arc.outerRadius;
                     const x1 = arc.x + Math.cos(mid) * r;
                     const y1 = arc.y + Math.sin(mid) * r;
-                    const x2 = arc.x + Math.cos(mid) * (r + 16);
-                    const y2 = arc.y + Math.sin(mid) * (r + 16);
+                    const x2 = arc.x + Math.cos(mid) * (r + 22);
+                    const y2 = arc.y + Math.sin(mid) * (r + 22);
                     ctx.save();
                     ctx.beginPath();
                     ctx.moveTo(x1, y1);
@@ -3093,9 +3093,9 @@
             data: { labels: types, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
-                cutout: '58%',
-                layout: { padding: 50 },
+                maintainAspectRatio: false,
+                cutout: '50%',
+                layout: { padding: 72 },
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/total)*100).toFixed(1)}%)` } },
@@ -3103,11 +3103,12 @@
                         display: ctx => (ctx.dataset.data[ctx.dataIndex] / total) >= 0.05,
                         anchor: 'end',
                         align: 'end',
-                        offset: 10,
+                        offset: 6,
                         formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}\n${((value/total)*100).toFixed(1)}%`,
                         color: ctx => ctx.dataset.backgroundColor[ctx.dataIndex],
-                        font: { weight: '700', size: 11 },
-                        textAlign: 'center'
+                        font: { weight: '700', size: 10 },
+                        textAlign: 'center',
+                        clamp: false
                     }
                 }
             }
@@ -3135,12 +3136,14 @@
             const seq = `${pitches[i-1].type}→${pitches[i].type}`;
             sequences[seq] = (sequences[seq] || 0) + 1;
         }
-        const top = Object.entries(sequences).sort((a,b) => b[1]-a[1]).slice(0, 7);
+        const top = Object.entries(sequences).sort((a,b) => b[1]-a[1]).slice(0, 5);
         if (!top.length) return;
         const total = top.reduce((s, [,c]) => s + c, 0);
-        const labels = top.map(([seq]) => seq);
+        // 縮短標籤：移除「球」字讓顯示更緊湊（快速球→快速）
+        const shorten = s => s.replace(/球/g, '');
+        const labels = top.map(([seq]) => shorten(seq));
         const counts = top.map(([,c]) => c);
-        const colors = labels.map(seq => PITCH_COLORS[seq.split('→')[0]] || '#999');
+        const colors = top.map(([seq]) => PITCH_COLORS[seq.split('→')[0]] || '#999');
         patternPieInstance = _makeDoughnut(canvas, labels, counts, colors, total);
     }
 
