@@ -273,22 +273,19 @@
     }
 
     let _swControllerListenerAdded = false;
-    function checkForUpdate() {
+    function checkForUpdate(regParam) {
         if (!('serviceWorker' in navigator)) return;
         const showModal = () => {
             const m = document.getElementById('updateModal');
             if (m && m.style.display !== 'flex') m.style.display = 'flex';
         };
-        // controllerchange 只掛一次，避免重複 reload
         if (!_swControllerListenerAdded) {
             _swControllerListenerAdded = true;
             navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
         }
-        navigator.serviceWorker.getRegistration().then(reg => {
+        const setup = (reg) => {
             if (!reg) return;
-            // 已有 waiting 的新版本（重新開啟 App 時）
             if (reg.waiting) { showModal(); return; }
-            // 先掛 updatefound 再呼叫 update()，避免 race condition
             reg.addEventListener('updatefound', () => {
                 const nw = reg.installing;
                 if (!nw) return;
@@ -299,7 +296,10 @@
                 });
             });
             reg.update();
-        });
+        };
+        // 若有直接傳入 reg 就用，否則才做非同步查詢（頁面重開時的 fallback）
+        if (regParam) { setup(regParam); }
+        else { navigator.serviceWorker.getRegistration().then(setup); }
     }
 
     function doForceUpdate() {
@@ -887,7 +887,7 @@
         renderCountLights();
         renderBases();
         setupTeamListDelegation();
-        setTimeout(checkForUpdate, 2000);
+        // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
     }
 
     function injectDemoData() {
