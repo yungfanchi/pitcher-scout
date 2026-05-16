@@ -2376,26 +2376,7 @@
             const counts = usedTypes.map(t => pitches.filter(p => p.type === t).length);
             const colors = usedTypes.map(t => PITCH_COLORS[t] || '#999');
             if (statsTypePieInstance) { statsTypePieInstance.destroy(); statsTypePieInstance = null; }
-            statsTypePieInstance = new Chart(canvas, {
-                type: 'doughnut',
-                plugins: [ChartDataLabels],
-                data: { labels: usedTypes, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } },
-                        datalabels: {
-                            display: ctx => (ctx.dataset.data[ctx.dataIndex] / pitches.length) >= 0.05,
-                            formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}\n${((value/pitches.length)*100).toFixed(1)}%`,
-                            color: '#fff',
-                            font: { weight: '700', size: 11 },
-                            textAlign: 'center'
-                        }
-                    }
-                }
-            });
+            statsTypePieInstance = _makeDoughnut(canvas, usedTypes, counts, colors, pitches.length);
         }
     }
 
@@ -3050,6 +3031,77 @@
     let statsTypePieInstance = null;
     let lineChartInstance = null;
 
+    // 共用甜甜圈圖建立函式：外置標籤 + 引導線 + 中間總球數
+    function _makeDoughnut(canvas, types, counts, colors, total) {
+        // 中間總球數文字
+        const centerTextPlugin = {
+            id: 'doughnutCenter',
+            afterDraw(chart) {
+                const { ctx, chartArea: { left, right, top, bottom } } = chart;
+                const cx = (left + right) / 2, cy = (top + bottom) / 2;
+                ctx.save();
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.font = "bold 20px 'Oswald', 'Noto Sans TC', sans-serif";
+                ctx.fillStyle = '#003d79';
+                ctx.fillText(total, cx, cy - 9);
+                ctx.font = "10px 'Noto Sans TC', sans-serif";
+                ctx.fillStyle = '#9ca3af';
+                ctx.fillText('總球數', cx, cy + 10);
+                ctx.restore();
+            }
+        };
+        // 引導線：從弧段外緣畫短線到標籤方向
+        const connectorPlugin = {
+            id: 'doughnutConnectors',
+            afterDatasetsDraw(chart) {
+                const { ctx, data } = chart;
+                const tot = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                chart.getDatasetMeta(0).data.forEach((arc, i) => {
+                    if (data.datasets[0].data[i] / tot < 0.05) return;
+                    const mid = (arc.startAngle + arc.endAngle) / 2;
+                    const r = arc.outerRadius;
+                    const x1 = arc.x + Math.cos(mid) * r;
+                    const y1 = arc.y + Math.sin(mid) * r;
+                    const x2 = arc.x + Math.cos(mid) * (r + 16);
+                    const y2 = arc.y + Math.sin(mid) * (r + 16);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = data.datasets[0].backgroundColor[i];
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    ctx.restore();
+                });
+            }
+        };
+        return new Chart(canvas, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels, centerTextPlugin, connectorPlugin],
+            data: { labels: types, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '58%',
+                layout: { padding: 50 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/total)*100).toFixed(1)}%)` } },
+                    datalabels: {
+                        display: ctx => (ctx.dataset.data[ctx.dataIndex] / total) >= 0.05,
+                        anchor: 'end',
+                        align: 'end',
+                        offset: 10,
+                        formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}\n${((value/total)*100).toFixed(1)}%`,
+                        color: ctx => ctx.dataset.backgroundColor[ctx.dataIndex],
+                        font: { weight: '700', size: 11 },
+                        textAlign: 'center'
+                    }
+                }
+            }
+        });
+    }
+
     function updatePitchTypePieChart(pitches) {
         const canvas = document.getElementById('pitchTypePieChart');
         if (!canvas) return;
@@ -3058,26 +3110,7 @@
         const colors = allTypes.map(t => PITCH_COLORS[t] || '#999');
         if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
         if (!allTypes.length) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); return; }
-        pieChartInstance = new Chart(canvas, {
-            type: 'doughnut',
-            plugins: [ChartDataLabels],
-            data: { labels: allTypes, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } },
-                    datalabels: {
-                        display: ctx => (ctx.dataset.data[ctx.dataIndex] / pitches.length) >= 0.05,
-                        formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}\n${((value/pitches.length)*100).toFixed(1)}%`,
-                        color: '#fff',
-                        font: { weight: '700', size: 11 },
-                        textAlign: 'center'
-                    }
-                }
-            }
-        });
+        pieChartInstance = _makeDoughnut(canvas, allTypes, counts, colors, pitches.length);
     }
 
     function updateSpeedLineChart(pitches) {
