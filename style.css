@@ -633,8 +633,6 @@
         /* 更新提示 Modal */
         #updateModal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); align-items:flex-end; justify-content:center; }
         #updateModal .um-box { background:white; border-radius:16px 16px 0 0; padding:24px 20px 32px; width:100%; max-width:500px; border-top:4px solid var(--ct-blue); text-align:center; }
-        /* PDF 篩選 Modal */
-        #pdfFilterModal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,61,121,0.5); backdrop-filter:blur(4px); overflow-y:auto; }
         /* ===== PDF FILTER MODAL ===== */
         #pdfFilterModal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,61,121,0.55); backdrop-filter:blur(4px); overflow-y:auto; align-items:flex-start; justify-content:center; padding:20px 16px; box-sizing:border-box; }
         #pdfFilterModal .pf-box { background:white; margin:0 auto; padding:0; border-radius:14px; width:100%; max-width:520px; border-top:4px solid var(--ct-red); box-shadow:0 8px 32px rgba(0,0,0,0.22); }

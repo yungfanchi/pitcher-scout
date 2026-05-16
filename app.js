@@ -438,65 +438,279 @@
         _buildAndOpenReport(sections, pitcherName, gameId);
     }
 
-    // 產生 HTML 報告並開新視窗列印（過渡用，之後可替換為 jsPDF）
-    function _buildAndOpenReport(sections, pitcherName, gameId) {
-        const scopeLabel = gameId === 'all'
-            ? '生涯所有場次（累計）'
-            : (() => { const t = allData.teams[parseInt(gameId)]; return t ? `${t.date || ''} ${t.gameName || ''} vs ${t.opponent || ''}` : `第 ${gameId} 場`; })();
+    // ===== 統計計算輔助（供 PDF 報告使用）=====
+    function _calcPitcherStats(pitches) {
+        const total = pitches.length;
+        if (!total) return null;
+        const oc = (p) => p.outcomes && p.outcomes.length ? p.outcomes : (p.outcome ? [p.outcome] : []);
+        const strikes = pitches.filter(p => p.result === '好球').length;
+        const swings  = pitches.filter(p => p.swing).length;
+        const wilds   = pitches.filter(p => p.wild).length;
+        const speeds  = pitches.filter(p => p.speed).map(p => p.speed);
+        const avgSpd  = speeds.length ? (speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(1) : '--';
+        const maxSpd  = speeds.length ? Math.max(...speeds) : '--';
+        const minSpd  = speeds.length ? Math.min(...speeds) : '--';
+        const ks      = pitches.filter(p => oc(p).some(o=>o==='三振'||o==='不死三振')).length;
+        const walks   = pitches.filter(p => oc(p).some(o=>o==='保送'||o==='觸身球')).length;
+        const hits    = pitches.filter(p => oc(p).some(o=>o&&(o.includes('安打')||o==='全壘打'))).length;
+        const hrs     = pitches.filter(p => oc(p).some(o=>o==='全壘打')).length;
+        // Ball type breakdown
+        const typeMap = {};
+        pitches.forEach(p => {
+            if (!p.type) return;
+            if (!typeMap[p.type]) typeMap[p.type] = { n:0, k:0, spd:[] };
+            typeMap[p.type].n++;
+            if (p.result==='好球') typeMap[p.type].k++;
+            if (p.speed) typeMap[p.type].spd.push(p.speed);
+        });
+        const typeSorted = Object.entries(typeMap).sort((a,b)=>b[1].n-a[1].n);
+        // Zone 1-9 count
+        const zoneMap = {1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0};
+        pitches.forEach(p => { const z=parseInt(p.zone); if(z>=1&&z<=9) zoneMap[z]++; });
+        const zoneMax = Math.max(...Object.values(zoneMap), 1);
+        // L/R split
+        const side = (sp) => {
+            const t=sp.length, s=sp.filter(p=>p.result==='好球').length;
+            const h=sp.filter(p=>oc(p).some(o=>o&&(o.includes('安打')||o==='全壘打'))).length;
+            const ab=sp.filter(p=>oc(p).some(o=>o&&(o.includes('安打')||o==='全壘打'||o.includes('出局')||o==='三振'))).length;
+            const k=sp.filter(p=>oc(p).some(o=>o==='三振'||o==='不死三振')).length;
+            const bb=sp.filter(p=>oc(p).some(o=>o==='保送'||o==='觸身球')).length;
+            return { t, sr:t?((s/t)*100).toFixed(1):'0', h, avg:ab?(h/ab).toFixed(3):'.000', k, bb };
+        };
+        const L = side(pitches.filter(p=>p.batterHand==='左打'));
+        const R = side(pitches.filter(p=>p.batterHand==='右打'));
+        // Count tendency (count BEFORE this pitch)
+        const grp = (ps) => {
+            const t=ps.length;
+            const m={};
+            ps.forEach(p=>{if(p.type)m[p.type]=(m[p.type]||0)+1;});
+            const top=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];
+            return { t, sr:t?((ps.filter(p=>p.result==='好球').length/t)*100).toFixed(1):'0', top:top?top[0]:'--' };
+        };
+        const ahead  = pitches.filter(p=>(p.strikes||0)>(p.balls||0));
+        const behind = pitches.filter(p=>(p.balls||0)>(p.strikes||0));
+        const even   = pitches.filter(p=>(p.balls||0)===(p.strikes||0));
+        // Outcome summary
+        const outcomeMap={};
+        pitches.forEach(p=>oc(p).forEach(o=>{if(o)outcomeMap[o]=(outcomeMap[o]||0)+1;}));
+        return { total, strikes, swings, wilds, avgSpd, maxSpd, minSpd, ks, walks, hits, hrs,
+                 typeSorted, zoneMap, zoneMax, L, R,
+                 count:{ ahead:grp(ahead), behind:grp(behind), even:grp(even) },
+                 outcomeMap };
+    }
 
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>投手情蒐報告 — ${pitcherName}</title>
-        <style>
-            body{font-family:'Noto Sans TC',Arial,sans-serif;padding:24px;color:#1e3a5f;max-width:900px;margin:0 auto;}
-            h1{color:#003d79;border-bottom:3px solid #d4af37;padding-bottom:10px;font-size:22px;margin-bottom:6px;}
-            h2{color:#003d79;font-size:15px;margin:22px 0 6px;border-left:4px solid #d4af37;padding-left:10px;background:#f0f4ff;padding:6px 10px;border-radius:0 6px 6px 0;}
-            h3{color:#0051a5;font-size:13px;margin:14px 0 5px;font-weight:700;}
-            .scope-badge{display:inline-block;background:#003d79;color:white;font-size:11px;padding:3px 10px;border-radius:20px;margin-bottom:14px;font-weight:700;}
-            .meta{color:#6b7280;font-size:12px;margin-bottom:10px;}
-            .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 14px;}
-            .stat-box{background:#f0f4ff;border-radius:8px;padding:10px;text-align:center;border:1px solid #c7d7f0;}
-            .stat-val{font-size:22px;font-weight:900;color:#003d79;}
-            .stat-lbl{font-size:10px;color:#6b7280;margin-top:2px;}
-            table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;}
-            th{background:#003d79;color:white;padding:6px 8px;text-align:left;font-weight:700;}
-            td{padding:5px 8px;border-bottom:1px solid #e5e7eb;}
+    // 好球帶熱區 HTML（3x3 彩色格）
+    function _zoneHtml(zoneMap, zoneMax) {
+        const bg=(n)=>{
+            if(!n) return '#f0f0ee';
+            const r=n/zoneMax;
+            if(r<0.25) return '#fef9c3';
+            if(r<0.5)  return '#fde047';
+            if(r<0.75) return '#f97316';
+            return '#dc2626';
+        };
+        const fg=(n)=>{ const r=n/zoneMax; return r>=0.75?'#fff':'#1e3a5f'; };
+        const cell=(z)=>`<td style="width:56px;height:52px;text-align:center;vertical-align:middle;font-weight:900;font-size:15px;background:${bg(zoneMap[z]||0)};color:${fg(zoneMap[z]||0)};border:2px solid #d1d5db;border-radius:4px;">${zoneMap[z]||0}</td>`;
+        return `<div style="text-align:center;margin:10px 0;">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:4px;">← 外角（投手視角）　內角 →</div>
+            <table style="border-collapse:separate;border-spacing:3px;margin:0 auto;"><tr>${cell(1)}${cell(2)}${cell(3)}</tr><tr>${cell(4)}${cell(5)}${cell(6)}</tr><tr>${cell(7)}${cell(8)}${cell(9)}</tr></table>
+            <div style="font-size:10px;color:#9ca3af;margin-top:4px;">數字 = 投球次數　顏色深淺 = 相對密度</div>
+        </div>`;
+    }
+
+    // ===== 主要報告產生函式 =====
+    function _buildAndOpenReport(sections, pitcherName, gameId) {
+        const isAll = gameId === 'all';
+        const pitcher = sections[0].pitcher;
+        const allPitches = sections.flatMap(s => s.pitches);
+        const st = _calcPitcherStats(allPitches);
+        if (!st) { alert('無投球數據'); return; }
+
+        const scopeLabel = isAll
+            ? `生涯累計（共 ${sections.length} 場）`
+            : [sections[0].team.date, sections[0].team.gameName, sections[0].team.opponent ? 'vs '+sections[0].team.opponent : ''].filter(Boolean).join(' ');
+
+        const css = `
+            *{box-sizing:border-box;margin:0;padding:0;}
+            body{font-family:'Noto Sans TC',Arial,sans-serif;padding:24px;color:#1e3a5f;max-width:960px;margin:0 auto;font-size:13px;}
+            h1{font-size:22px;font-weight:900;color:#003d79;border-bottom:4px solid #d4af37;padding-bottom:8px;margin-bottom:12px;}
+            .section-title{font-size:14px;font-weight:900;color:#003d79;border-left:4px solid #d4af37;padding:5px 10px;background:#f0f4ff;border-radius:0 6px 6px 0;margin:20px 0 10px;}
+            .pitcher-header{background:linear-gradient(135deg,#003d79,#0051a5);color:white;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;}
+            .ph-name{font-size:26px;font-weight:900;letter-spacing:2px;}
+            .ph-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+            .ph-badge{background:rgba(255,255,255,0.18);padding:3px 10px;border-radius:20px;font-size:12px;}
+            .ph-badge-gold{background:rgba(255,215,0,0.25);color:#fde68a;}
+            .scope-chip{background:rgba(255,255,255,0.15);font-size:12px;padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.3);white-space:nowrap;}
+            .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
+            .stat-box{background:#f0f4ff;border:1px solid #c7d7f0;border-radius:8px;padding:10px;text-align:center;}
+            .stat-val{font-size:20px;font-weight:900;color:#003d79;line-height:1.1;}
+            .stat-lbl{font-size:10px;color:#6b7280;margin-top:3px;}
+            table{width:100%;border-collapse:collapse;margin:6px 0;}
+            th{background:#003d79;color:white;padding:7px 10px;text-align:center;font-size:12px;font-weight:700;}
+            td{padding:6px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px;}
+            td.left{text-align:left;}
             tr:nth-child(even) td{background:#f9fafb;}
-            .section-sep{border:none;border-top:2px dashed #d4af37;margin:26px 0;}
-            .footer{margin-top:24px;font-size:10px;color:#9ca3af;text-align:right;border-top:1px solid #e5e7eb;padding-top:8px;}
-            @media print{body{padding:10px;} .no-print{display:none;}}
-        </style></head><body>
-        <h1>⚾ 投手情蒐報告</h1>
-        <div class="scope-badge">📊 ${scopeLabel}</div>
-        ${sections.map((s, idx) => `
-        ${idx > 0 ? '<hr class="section-sep">' : ''}
-        <h2>${s.pitcher.name}${s.pitcher.number ? ' #' + s.pitcher.number : ''}&emsp;<small style="font-size:12px;font-weight:400;">${s.team.gameName || ''} vs ${s.team.opponent || ''}</small></h2>
-        <div class="meta">${s.team.date || '日期未記錄'} ｜ ${s.pitcher.hand || '—'} ｜ ${s.pitcher.role || '—'} ｜ 球數 ${s.total}</div>
-        <div class="stats-grid">
-            <div class="stat-box"><div class="stat-val">${s.total}</div><div class="stat-lbl">總球數</div></div>
-            <div class="stat-box"><div class="stat-val">${((s.strikes / s.total) * 100).toFixed(1)}%</div><div class="stat-lbl">好球率</div></div>
-            <div class="stat-box"><div class="stat-val">${s.avgSpd}</div><div class="stat-lbl">均速 km/h</div></div>
-            <div class="stat-box"><div class="stat-val">${s.maxSpd}</div><div class="stat-lbl">最高球速</div></div>
-        </div>
-        <div class="stats-grid">
-            <div class="stat-box"><div class="stat-val">${s.ks}</div><div class="stat-lbl">三振</div></div>
-            <div class="stat-box"><div class="stat-val">${s.walks}</div><div class="stat-lbl">保送/觸身</div></div>
-            <div class="stat-box"><div class="stat-val">${s.strikes}</div><div class="stat-lbl">好球數</div></div>
-            <div class="stat-box"><div class="stat-val">${s.total - s.strikes}</div><div class="stat-lbl">壞球數</div></div>
-        </div>
-        <h3>球種分布</h3>
-        <table><tr><th>球種</th><th>球數</th><th>佔比</th></tr>
-        ${s.topTypes.map(([t, c]) => `<tr><td>${t}</td><td>${c}</td><td>${((c / s.total) * 100).toFixed(1)}%</td></tr>`).join('')}
-        </table>
-        <h3>投球明細</h3>
-        <table><tr><th>#</th><th>球種</th><th>球速</th><th>位置</th><th>結果</th><th>打擊結果</th><th>備註</th></tr>
-        ${s.pitches.map((p, i) => `<tr><td>${i + 1}</td><td>${p.type || '--'}</td><td>${p.speed || '--'}</td><td>${p.zone || '--'}</td><td>${p.result || '--'}</td><td>${(p.outcomes || []).join('/')}</td><td>${p.note || ''}</td></tr>`).join('')}
-        </table>`).join('')}
-        <div class="footer">產生時間：${new Date().toLocaleString('zh-TW')} ｜ 中華台北投手情蒐系統</div>
-        </body></html>`;
+            .bar-wrap{background:#e5e7eb;border-radius:4px;height:8px;margin-top:3px;}
+            .bar-fill{height:100%;border-radius:4px;background:#003d79;}
+            .count-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;}
+            .count-box{border:2px solid;border-radius:8px;padding:10px;text-align:center;}
+            .count-ahead{border-color:#16a34a;background:#f0fdf4;}
+            .count-even{border-color:#d4af37;background:#fffbeb;}
+            .count-behind{border-color:#dc2626;background:#fef2f2;}
+            .game-row{display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;align-items:center;padding:8px 10px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:6px;}
+            .pitch-log-table th{font-size:11px;padding:5px 6px;}
+            .pitch-log-table td{font-size:11px;padding:4px 6px;}
+            .sep{border:none;border-top:2px dashed #d4af37;margin:22px 0;}
+            .footer{margin-top:20px;font-size:10px;color:#9ca3af;text-align:right;border-top:1px solid #e5e7eb;padding-top:8px;}
+            @media print{body{padding:12px;}.section-title{break-inside:avoid;}}`;
+
+        // 球種分析 table
+        const typeTable = st.typeSorted.length ? `
+            <table><tr><th>球種</th><th>球數</th><th>佔比</th><th>好球率</th><th>均速</th><th>最高球速</th></tr>
+            ${st.typeSorted.map(([t,v])=>{
+                const pct=((v.n/st.total)*100).toFixed(1);
+                const sr=v.n?((v.k/v.n)*100).toFixed(1):'0';
+                const avg=v.spd.length?(v.spd.reduce((a,b)=>a+b,0)/v.spd.length).toFixed(1):'--';
+                const mx=v.spd.length?Math.max(...v.spd):'--';
+                return `<tr><td class="left" style="font-weight:700;">${t}</td><td>${v.n}</td><td>${pct}%</td><td>${sr}%</td><td>${avg}</td><td>${mx}</td></tr>`;
+            }).join('')}</table>` : '<p style="color:#9ca3af;padding:8px;">尚無球種記錄</p>';
+
+        // 左右打者分析
+        const splitTable = `
+            <table><tr><th>指標</th><th>對左打者 (${st.L.t}球)</th><th>對右打者 (${st.R.t}球)</th></tr>
+            <tr><td class="left">好球率</td><td>${st.L.sr}%</td><td>${st.R.sr}%</td></tr>
+            <tr><td class="left">被安打</td><td>${st.L.h}</td><td>${st.R.h}</td></tr>
+            <tr><td class="left">打擊率</td><td>${st.L.avg}</td><td>${st.R.avg}</td></tr>
+            <tr><td class="left">三振</td><td>${st.L.k}</td><td>${st.R.k}</td></tr>
+            <tr><td class="left">保送/觸身</td><td>${st.L.bb}</td><td>${st.R.bb}</td></tr>
+            </table>`;
+
+        // 球數傾向
+        const countHtml = `
+            <div class="count-row">
+                <div class="count-box count-ahead">
+                    <div style="font-size:11px;color:#16a34a;font-weight:700;margin-bottom:4px;">🟢 領先球數</div>
+                    <div style="font-size:20px;font-weight:900;color:#15803d;">${st.count.ahead.t}球</div>
+                    <div style="font-size:11px;color:#6b7280;margin-top:4px;">好球率 ${st.count.ahead.sr}%</div>
+                    <div style="font-size:11px;color:#6b7280;">主投 ${st.count.ahead.top}</div>
+                </div>
+                <div class="count-box count-even">
+                    <div style="font-size:11px;color:#92400e;font-weight:700;margin-bottom:4px;">🟡 平均球數</div>
+                    <div style="font-size:20px;font-weight:900;color:#92400e;">${st.count.even.t}球</div>
+                    <div style="font-size:11px;color:#6b7280;margin-top:4px;">好球率 ${st.count.even.sr}%</div>
+                    <div style="font-size:11px;color:#6b7280;">主投 ${st.count.even.top}</div>
+                </div>
+                <div class="count-box count-behind">
+                    <div style="font-size:11px;color:#dc2626;font-weight:700;margin-bottom:4px;">🔴 落後球數</div>
+                    <div style="font-size:20px;font-weight:900;color:#dc2626;">${st.count.behind.t}球</div>
+                    <div style="font-size:11px;color:#6b7280;margin-top:4px;">好球率 ${st.count.behind.sr}%</div>
+                    <div style="font-size:11px;color:#6b7280;">主投 ${st.count.behind.top}</div>
+                </div>
+            </div>`;
+
+        // 打擊結果統計
+        const outcomeRows = [
+            ['三振','K',st.ks],['保送/觸身','BB+HBP',st.walks],
+            ['被安打','H',st.hits],['全壘打','HR',st.hrs],
+        ].map(([l,code,n])=>`<tr><td class="left">${l}</td><td style="color:#003d79;font-weight:900;">${n}</td><td>${st.total?((n/st.total)*100).toFixed(1)+'%':'--'}</td></tr>`).join('');
+
+        // 各場次摘要（生涯模式才顯示）
+        let gamesBlock = '';
+        if (isAll && sections.length > 1) {
+            gamesBlock = `<div class="section-title">📅 各場次摘要</div>
+            <table><tr><th>日期</th><th>賽事</th><th>對手</th><th>球數</th><th>好球率</th><th>均速</th><th>三振</th></tr>
+            ${sections.map(s=>{
+                const ps=s.pitches, t=ps.length;
+                if(!t) return '';
+                const sp=ps.filter(p=>p.result==='好球').length;
+                const spd=ps.filter(p=>p.speed).map(p=>p.speed);
+                const av=spd.length?(spd.reduce((a,b)=>a+b,0)/spd.length).toFixed(1):'--';
+                const k=ps.filter(p=>(p.outcomes||[]).some(o=>o==='三振'||o==='不死三振')).length;
+                return `<tr><td>${s.team.date||'--'}</td><td class="left">${s.team.gameName||''}</td><td>${s.team.opponent||''}</td><td>${t}</td><td>${t?((sp/t)*100).toFixed(1)+'%':'--'}</td><td>${av}</td><td>${k}</td></tr>`;
+            }).join('')}</table>`;
+        }
+
+        // 逐球明細
+        const pitchLog = `<table class="pitch-log-table">
+            <tr><th>#</th><th>局</th><th>打序</th><th>球種</th><th>球速</th><th>位置</th><th>結果</th><th>揮/暴/界</th><th>打擊結果</th><th>備註</th></tr>
+            ${allPitches.map((p,i)=>`<tr>
+                <td>${i+1}</td>
+                <td>${p.inning?p.inning+(p.half==='下'?'↓':'↑'):''}</td>
+                <td>${p.batterOrder||'--'}</td>
+                <td style="font-weight:700;">${p.type||'--'}</td>
+                <td>${p.speed||'--'}</td>
+                <td>${p.zone||'--'}</td>
+                <td style="color:${p.result==='好球'?'#d97706':'#16a34a'};font-weight:700;">${p.result||'--'}</td>
+                <td>${[p.swing?'揮':'',p.wild?'暴':'',p.foul?'界':''].filter(Boolean).join('/')}</td>
+                <td>${(p.outcomes||[]).join('/')}</td>
+                <td>${p.note||''}</td>
+            </tr>`).join('')}
+            </table>`;
+
+        const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="utf-8">
+            <title>投手情蒐報告 — ${pitcherName}</title>
+            <style>${css}</style></head><body>
+            <h1>⚾ 投手情蒐報告</h1>
+
+            <div class="pitcher-header">
+                <div>
+                    <div class="ph-name">${pitcher.name}${pitcher.number?' <span style="font-size:18px;opacity:0.7;">#'+pitcher.number+'</span>':''}</div>
+                    <div class="ph-badges">
+                        ${pitcher.hand?`<span class="ph-badge">${pitcher.hand}</span>`:''}
+                        ${pitcher.role?`<span class="ph-badge ph-badge-gold">${pitcher.role}</span>`:''}
+                        <span class="ph-badge">${allPitches.length} 球</span>
+                    </div>
+                </div>
+                <div class="scope-chip">📊 ${scopeLabel}</div>
+            </div>
+
+            <div class="section-title">📊 核心統計</div>
+            <div class="stats-row">
+                <div class="stat-box"><div class="stat-val">${st.total}</div><div class="stat-lbl">總球數</div></div>
+                <div class="stat-box"><div class="stat-val">${st.total?((st.strikes/st.total)*100).toFixed(1):'0'}%</div><div class="stat-lbl">好球率</div></div>
+                <div class="stat-box"><div class="stat-val">${st.avgSpd}</div><div class="stat-lbl">平均球速 km/h</div></div>
+                <div class="stat-box"><div class="stat-val">${st.maxSpd}</div><div class="stat-lbl">最高球速</div></div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-box"><div class="stat-val">${st.ks}</div><div class="stat-lbl">三振</div></div>
+                <div class="stat-box"><div class="stat-val">${st.walks}</div><div class="stat-lbl">保送/觸身</div></div>
+                <div class="stat-box"><div class="stat-val">${st.hits}</div><div class="stat-lbl">被安打</div></div>
+                <div class="stat-box"><div class="stat-val">${st.swings}</div><div class="stat-lbl">揮棒</div></div>
+            </div>
+
+            <div class="section-title">⚾ 球種分析</div>
+            ${typeTable}
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0;">
+                <div>
+                    <div class="section-title">🎯 好球帶熱區</div>
+                    ${_zoneHtml(st.zoneMap, st.zoneMax)}
+                </div>
+                <div>
+                    <div class="section-title">📐 打擊結果統計</div>
+                    <table><tr><th>結果</th><th>次數</th><th>佔比</th></tr>${outcomeRows}</table>
+                </div>
+            </div>
+
+            <div class="section-title">👥 左右打者分析</div>
+            ${splitTable}
+
+            <div class="section-title">📈 球數傾向分析</div>
+            ${countHtml}
+
+            ${gamesBlock}
+
+            <hr class="sep">
+            <div class="section-title">📋 逐球明細（共 ${allPitches.length} 球）</div>
+            ${pitchLog}
+
+            <div class="footer">產生時間：${new Date().toLocaleString('zh-TW')} ｜ 中華台北投手情蒐系統</div>
+            </body></html>`;
 
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const w = window.open(url, '_blank');
-        if (w) { setTimeout(() => { w.print(); URL.revokeObjectURL(url); }, 800); }
+        if (w) { setTimeout(() => { w.print(); URL.revokeObjectURL(url); }, 900); }
         else { triggerDownload(url, `投手報告_${pitcherName}_${new Date().toISOString().split('T')[0]}.html`); }
     }
 
