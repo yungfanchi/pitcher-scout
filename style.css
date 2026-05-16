@@ -635,13 +635,28 @@
         #updateModal .um-box { background:white; border-radius:16px 16px 0 0; padding:24px 20px 32px; width:100%; max-width:500px; border-top:4px solid var(--ct-blue); text-align:center; }
         /* PDF 篩選 Modal */
         #pdfFilterModal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,61,121,0.5); backdrop-filter:blur(4px); overflow-y:auto; }
-        #pdfFilterModal .pf-box { background:white; margin:5% auto; padding:0; border-radius:14px; width:92%; max-width:560px; border-top:4px solid var(--ct-red); box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+        /* ===== PDF FILTER MODAL ===== */
+        #pdfFilterModal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,61,121,0.55); backdrop-filter:blur(4px); overflow-y:auto; align-items:flex-start; justify-content:center; padding:20px 16px; box-sizing:border-box; }
+        #pdfFilterModal .pf-box { background:white; margin:0 auto; padding:0; border-radius:14px; width:100%; max-width:520px; border-top:4px solid var(--ct-red); box-shadow:0 8px 32px rgba(0,0,0,0.22); }
         #pdfFilterModal .pf-header { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:2px solid #e5e7eb; }
-        #pdfFilterModal .pf-body { padding:16px 20px 20px; }
+        #pdfFilterModal .pf-body { padding:18px 20px 22px; display:flex; flex-direction:column; gap:4px; }
         .pf-section { margin-bottom:14px; }
-        .pf-section h4 { font-size:13px; font-weight:700; color:var(--ct-blue-dark); margin-bottom:8px; }
-        .pf-check-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
-        .pf-check-item { display:flex; align-items:center; gap:6px; font-size:13px; padding:6px 8px; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; }
-        .pf-check-item input { accent-color:var(--ct-blue); }
+        /* Step label */
+        .pf-step-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--ct-blue-dark); margin-bottom:10px; }
+        .pf-step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--ct-blue-dark); color:white; font-size:12px; font-weight:900; flex-shrink:0; }
+        /* Select */
+        .pf-select { width:100%; padding:10px 12px; border:2px solid #d1d5db; border-radius:10px; font-size:14px; font-weight:600; color:var(--ct-blue-dark); background:white; cursor:pointer; outline:none; transition:border-color 0.2s; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23003d79' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:32px; }
+        .pf-select:focus { border-color:var(--ct-blue); }
+        /* Radio cards */
+        .pf-radio-item { display:block; cursor:pointer; margin-bottom:8px; }
+        .pf-radio-item input[type="radio"] { display:none; }
+        .pf-radio-card { display:flex; align-items:center; gap:12px; padding:11px 14px; border:2px solid #e5e7eb; border-radius:10px; transition:all 0.2s; background:white; }
+        .pf-radio-item input:checked + .pf-radio-card { border-color:var(--ct-blue); background:#eff6ff; box-shadow:0 0 0 3px rgba(0,81,165,0.12); }
+        .pf-radio-icon { font-size:22px; flex-shrink:0; }
+        .pf-radio-title { font-size:14px; font-weight:700; color:var(--ct-blue-dark); }
+        .pf-radio-sub { font-size:11px; color:#6b7280; margin-top:2px; }
+        /* Fade-in animation */
+        .pf-fade-in { animation:pfFade 0.2s ease; }
+        @keyframes pfFade { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
         /* View-only overlay */
         #viewOnlyBanner { display:none; position:fixed; top:0; left:0; right:0; z-index:500; background:linear-gradient(90deg,#b45309,#d97706); color:white; text-align:center; padding:8px; font-size:13px; font-weight:700; letter-spacing:1px; }

@@ -304,119 +304,200 @@
         }
     }
 
+    // ====== PDF EXPORT MODAL ======
+
     function openPDFFilter() {
-        // Populate team checkboxes
-        const teamChecks = document.getElementById('pdfTeamChecks');
-        const pitcherChecks = document.getElementById('pdfPitcherChecks');
+        // 建立投手名單：name -> { number, games:[{ti, label}] }
         const pitcherMap = {};
-        teamChecks.innerHTML = '';
-        pitcherChecks.innerHTML = '';
         allData.teams.forEach((team, ti) => {
-            const label = `${team.gameName||'未命名'} vs ${team.opponent||team.name}`;
-            teamChecks.innerHTML += `<label class="pf-check-item"><input type="checkbox" name="pdfTeam" value="${ti}" checked> ${label}</label>`;
-            team.pitchers.forEach((p, pi) => {
-                const key = `${ti}-${pi}`;
-                if (!pitcherMap[p.name]) {
-                    pitcherMap[p.name] = true;
-                    pitcherChecks.innerHTML += `<label class="pf-check-item"><input type="checkbox" name="pdfPitcher" value="${p.name}" checked> ${p.name}${p.number?' #'+p.number:''}</label>`;
-                }
+            (team.pitchers || []).forEach(p => {
+                if (!p.name) return;
+                if (!pitcherMap[p.name]) pitcherMap[p.name] = { number: p.number, games: [] };
+                const label = [team.date, team.gameName, team.opponent ? 'vs ' + team.opponent : ''].filter(Boolean).join(' ');
+                pitcherMap[p.name].games.push({ ti, label });
             });
         });
-        // Default date range
-        const dates = allData.teams.filter(t=>t.date).map(t=>t.date).sort();
-        if (dates.length) {
-            document.getElementById('pdfDateFrom').value = dates[0];
-            document.getElementById('pdfDateTo').value = dates[dates.length-1];
-        }
-        document.getElementById('pdfFilterModal').style.display = 'block';
+
+        const sel = document.getElementById('pdfPitcherSelect');
+        sel.innerHTML = '<option value="">— 請選擇投手 —</option>';
+        Object.entries(pitcherMap).forEach(([name, info]) => {
+            const gameCount = info.games.length;
+            sel.innerHTML += `<option value="${name}">${name}${info.number ? ' #' + info.number : ''} (${gameCount} 場)</option>`;
+        });
+
+        // 重置 UI 狀態
+        document.getElementById('pdfScopeSection').style.display = 'none';
+        document.getElementById('pdfGameSelectWrap').style.display = 'none';
+        document.getElementById('pdfGenerateBtn').style.display = 'none';
+        const allRadio = document.querySelector('input[name="pdfScope"][value="all"]');
+        if (allRadio) allRadio.checked = true;
+
+        document.getElementById('pdfFilterModal').style.display = 'flex';
     }
 
     function closePDFFilter() {
         document.getElementById('pdfFilterModal').style.display = 'none';
     }
 
-    function generateFilteredPDF() {
-        const dateFrom = document.getElementById('pdfDateFrom').value;
-        const dateTo = document.getElementById('pdfDateTo').value;
-        const selTeams = [...document.querySelectorAll('input[name="pdfTeam"]:checked')].map(el => parseInt(el.value));
-        const selPitchers = [...document.querySelectorAll('input[name="pdfPitcher"]:checked')].map(el => el.value);
+    // 當投手選單改變時：顯示 Step 2
+    function onPDFPitcherChange() {
+        const name = document.getElementById('pdfPitcherSelect').value;
+        const scopeSection = document.getElementById('pdfScopeSection');
+        const generateBtn = document.getElementById('pdfGenerateBtn');
 
-        if (!selTeams.length || !selPitchers.length) { alert('請至少選擇一個賽事和一位投手'); return; }
+        if (!name) {
+            scopeSection.style.display = 'none';
+            generateBtn.style.display = 'none';
+            return;
+        }
 
-        // Build filtered pitch data
-        const reportSections = [];
+        // 重置 scope
+        const allRadio = document.querySelector('input[name="pdfScope"][value="all"]');
+        if (allRadio) allRadio.checked = true;
+        document.getElementById('pdfGameSelectWrap').style.display = 'none';
+
+        // 動態填入該投手的場次選單
+        _populatePDFGameSelect(name);
+
+        scopeSection.style.display = 'block';
+        generateBtn.style.display = 'block';
+    }
+
+    // 填入場次下拉選單（只列出該投手有參與的場次）
+    function _populatePDFGameSelect(pitcherName) {
+        const gameSel = document.getElementById('pdfGameSelect');
+        gameSel.innerHTML = '<option value="">— 請選擇場次 —</option>';
         allData.teams.forEach((team, ti) => {
-            if (!selTeams.includes(ti)) return;
-            if (dateFrom && team.date && team.date < dateFrom) return;
-            if (dateTo && team.date && team.date > dateTo) return;
-            team.pitchers.forEach((pitcher, pi) => {
-                if (!selPitchers.includes(pitcher.name)) return;
+            const hasPitcher = (team.pitchers || []).some(p => p.name === pitcherName);
+            if (!hasPitcher) return;
+            const label = [
+                team.date || '',
+                team.gameName || '未命名賽事',
+                team.opponent ? 'vs ' + team.opponent : ''
+            ].filter(Boolean).join('  ');
+            gameSel.innerHTML += `<option value="${ti}">${label}</option>`;
+        });
+    }
+
+    // Radio 切換：「單一場次」時顯示場次選單
+    function onPDFScopeChange() {
+        const scope = document.querySelector('input[name="pdfScope"]:checked');
+        const isSingle = scope && scope.value === 'single';
+        document.getElementById('pdfGameSelectWrap').style.display = isSingle ? 'block' : 'none';
+    }
+
+    // 點擊「產生 PDF」按鈕
+    function generatePDF() {
+        const pitcherName = document.getElementById('pdfPitcherSelect').value;
+        const scopeEl = document.querySelector('input[name="pdfScope"]:checked');
+        const scope = scopeEl ? scopeEl.value : 'all';
+        const gameIndex = scope === 'single' ? document.getElementById('pdfGameSelect').value : 'all';
+
+        if (!pitcherName) { alert('請選擇投手'); return; }
+        if (scope === 'single' && !gameIndex) { alert('請選擇場次'); return; }
+
+        exportToPDF(pitcherName, gameIndex);
+    }
+
+    // ===== 核心過濾函式（PDF 實體導出預留殼） =====
+    // pitcherName: 投手姓名字串
+    // gameId: 'all' | teamIndex 字串（對應 allData.teams 索引）
+    function exportToPDF(pitcherName, gameId) {
+        const sections = [];
+
+        allData.teams.forEach((team, ti) => {
+            if (gameId !== 'all' && String(ti) !== String(gameId)) return;
+            (team.pitchers || []).forEach(pitcher => {
+                if (pitcher.name !== pitcherName) return;
                 const pitches = pitcher.pitches || [];
                 if (!pitches.length) return;
+
+                // 計算摘要統計
                 const total = pitches.length;
-                const strikes = pitches.filter(p=>p.result==='好球').length;
-                const ks = pitches.filter(p=>(p.outcomes||[]).some(o=>o==='三振'||o==='不死三振')).length;
-                const walks = pitches.filter(p=>(p.outcomes||[]).some(o=>o==='保送')).length;
-                const speeds = pitches.filter(p=>p.speed).map(p=>p.speed);
-                const avgSpd = speeds.length?(speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(1):'--';
+                const strikes = pitches.filter(p => p.result === '好球').length;
+                const speeds = pitches.filter(p => p.speed).map(p => p.speed);
+                const avgSpd = speeds.length ? (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(1) : '--';
+                const maxSpd = speeds.length ? Math.max(...speeds) : '--';
+                const ks = pitches.filter(p => (p.outcomes || []).some(o => o === '三振' || o === '不死三振')).length;
+                const walks = pitches.filter(p => (p.outcomes || []).some(o => o === '保送' || o === '觸身球')).length;
                 const typeMap = {};
-                pitches.forEach(p=>{if(p.type)typeMap[p.type]=(typeMap[p.type]||0)+1;});
-                const topTypes = Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).slice(0,4);
-                reportSections.push({ team, pitcher, pitches, total, strikes, ks, walks, avgSpd, topTypes });
+                pitches.forEach(p => { if (p.type) typeMap[p.type] = (typeMap[p.type] || 0) + 1; });
+                const topTypes = Object.entries(typeMap).sort((a, b) => b[1] - a[1]);
+
+                sections.push({ team, pitcher, pitches, total, strikes, avgSpd, maxSpd, ks, walks, topTypes });
             });
         });
 
-        if (!reportSections.length) { alert('所選條件無投球數據'); return; }
+        // 預留殼：console 呈現過濾結果，PDF 實體導出待接套件
+        console.log(`[exportToPDF] 投手: ${pitcherName} | 場次: ${gameId === 'all' ? '全部場次' : '第 ' + gameId + ' 場'}`);
+        console.log('[exportToPDF] 過濾結果 sections:', sections);
 
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>投手情蒐報告</title>
+        if (!sections.length) { alert('所選條件無投球數據'); return; }
+
+        closePDFFilter();
+        _buildAndOpenReport(sections, pitcherName, gameId);
+    }
+
+    // 產生 HTML 報告並開新視窗列印（過渡用，之後可替換為 jsPDF）
+    function _buildAndOpenReport(sections, pitcherName, gameId) {
+        const scopeLabel = gameId === 'all'
+            ? '生涯所有場次（累計）'
+            : (() => { const t = allData.teams[parseInt(gameId)]; return t ? `${t.date || ''} ${t.gameName || ''} vs ${t.opponent || ''}` : `第 ${gameId} 場`; })();
+
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>投手情蒐報告 — ${pitcherName}</title>
         <style>
-            body{font-family:'Noto Sans TC',Arial,sans-serif;padding:20px;color:#1e3a5f;max-width:900px;margin:0 auto;}
-            h1{color:#003d79;border-bottom:3px solid #d4af37;padding-bottom:8px;font-size:22px;}
-            h2{color:#003d79;font-size:16px;margin:20px 0 8px;border-left:4px solid #d4af37;padding-left:8px;}
-            h3{color:#0051a5;font-size:14px;margin:14px 0 6px;}
-            .meta{color:#6b7280;font-size:12px;margin-bottom:12px;}
-            .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;}
+            body{font-family:'Noto Sans TC',Arial,sans-serif;padding:24px;color:#1e3a5f;max-width:900px;margin:0 auto;}
+            h1{color:#003d79;border-bottom:3px solid #d4af37;padding-bottom:10px;font-size:22px;margin-bottom:6px;}
+            h2{color:#003d79;font-size:15px;margin:22px 0 6px;border-left:4px solid #d4af37;padding-left:10px;background:#f0f4ff;padding:6px 10px;border-radius:0 6px 6px 0;}
+            h3{color:#0051a5;font-size:13px;margin:14px 0 5px;font-weight:700;}
+            .scope-badge{display:inline-block;background:#003d79;color:white;font-size:11px;padding:3px 10px;border-radius:20px;margin-bottom:14px;font-weight:700;}
+            .meta{color:#6b7280;font-size:12px;margin-bottom:10px;}
+            .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 14px;}
             .stat-box{background:#f0f4ff;border-radius:8px;padding:10px;text-align:center;border:1px solid #c7d7f0;}
-            .stat-val{font-size:20px;font-weight:900;color:#003d79;}
+            .stat-val{font-size:22px;font-weight:900;color:#003d79;}
             .stat-lbl{font-size:10px;color:#6b7280;margin-top:2px;}
             table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px;}
-            th{background:#003d79;color:white;padding:6px;text-align:left;}
-            td{padding:5px;border-bottom:1px solid #e5e7eb;}
-            tr:nth-child(even){background:#f9fafb;}
-            .section-sep{border:none;border-top:2px dashed #d4af37;margin:24px 0;}
-            .filter-info{background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 12px;font-size:11px;color:#78350f;margin-bottom:16px;}
-            .footer{margin-top:20px;font-size:10px;color:#9ca3af;text-align:right;}
-            @media print{body{padding:10px;}h1{font-size:18px;}}
+            th{background:#003d79;color:white;padding:6px 8px;text-align:left;font-weight:700;}
+            td{padding:5px 8px;border-bottom:1px solid #e5e7eb;}
+            tr:nth-child(even) td{background:#f9fafb;}
+            .section-sep{border:none;border-top:2px dashed #d4af37;margin:26px 0;}
+            .footer{margin-top:24px;font-size:10px;color:#9ca3af;text-align:right;border-top:1px solid #e5e7eb;padding-top:8px;}
+            @media print{body{padding:10px;} .no-print{display:none;}}
         </style></head><body>
         <h1>⚾ 投手情蒐報告</h1>
-        <div class="filter-info">篩選條件：日期 ${dateFrom||'--'} ～ ${dateTo||'--'} ｜ ${selPitchers.join('、')}</div>
-        ${reportSections.map((s, idx) => `
+        <div class="scope-badge">📊 ${scopeLabel}</div>
+        ${sections.map((s, idx) => `
         ${idx > 0 ? '<hr class="section-sep">' : ''}
-        <h2>${s.pitcher.name}${s.pitcher.number?' #'+s.pitcher.number:''} — ${s.team.gameName||''} vs ${s.team.opponent||''}</h2>
-        <div class="meta">${s.team.date||''} ｜ ${s.pitcher.hand||''} ｜ ${s.pitcher.role||''}</div>
+        <h2>${s.pitcher.name}${s.pitcher.number ? ' #' + s.pitcher.number : ''}&emsp;<small style="font-size:12px;font-weight:400;">${s.team.gameName || ''} vs ${s.team.opponent || ''}</small></h2>
+        <div class="meta">${s.team.date || '日期未記錄'} ｜ ${s.pitcher.hand || '—'} ｜ ${s.pitcher.role || '—'} ｜ 球數 ${s.total}</div>
         <div class="stats-grid">
             <div class="stat-box"><div class="stat-val">${s.total}</div><div class="stat-lbl">總球數</div></div>
-            <div class="stat-box"><div class="stat-val">${((s.strikes/s.total)*100).toFixed(1)}%</div><div class="stat-lbl">好球率</div></div>
-            <div class="stat-box"><div class="stat-val">${s.avgSpd}</div><div class="stat-lbl">均速</div></div>
+            <div class="stat-box"><div class="stat-val">${((s.strikes / s.total) * 100).toFixed(1)}%</div><div class="stat-lbl">好球率</div></div>
+            <div class="stat-box"><div class="stat-val">${s.avgSpd}</div><div class="stat-lbl">均速 km/h</div></div>
+            <div class="stat-box"><div class="stat-val">${s.maxSpd}</div><div class="stat-lbl">最高球速</div></div>
+        </div>
+        <div class="stats-grid">
             <div class="stat-box"><div class="stat-val">${s.ks}</div><div class="stat-lbl">三振</div></div>
+            <div class="stat-box"><div class="stat-val">${s.walks}</div><div class="stat-lbl">保送/觸身</div></div>
+            <div class="stat-box"><div class="stat-val">${s.strikes}</div><div class="stat-lbl">好球數</div></div>
+            <div class="stat-box"><div class="stat-val">${s.total - s.strikes}</div><div class="stat-lbl">壞球數</div></div>
         </div>
         <h3>球種分布</h3>
         <table><tr><th>球種</th><th>球數</th><th>佔比</th></tr>
-        ${s.topTypes.map(([t,c])=>`<tr><td>${t}</td><td>${c}</td><td>${((c/s.total)*100).toFixed(1)}%</td></tr>`).join('')}
+        ${s.topTypes.map(([t, c]) => `<tr><td>${t}</td><td>${c}</td><td>${((c / s.total) * 100).toFixed(1)}%</td></tr>`).join('')}
         </table>
-        <h3>投球明細（前20球）</h3>
+        <h3>投球明細</h3>
         <table><tr><th>#</th><th>球種</th><th>球速</th><th>位置</th><th>結果</th><th>打擊結果</th><th>備註</th></tr>
-        ${s.pitches.slice(0,20).map((p,i)=>`<tr><td>${i+1}</td><td>${p.type||'--'}</td><td>${p.speed||'--'}</td><td>${p.zone||'--'}</td><td>${p.result||'--'}</td><td>${(p.outcomes||[]).join('/')}</td><td>${p.note||''}</td></tr>`).join('')}
+        ${s.pitches.map((p, i) => `<tr><td>${i + 1}</td><td>${p.type || '--'}</td><td>${p.speed || '--'}</td><td>${p.zone || '--'}</td><td>${p.result || '--'}</td><td>${(p.outcomes || []).join('/')}</td><td>${p.note || ''}</td></tr>`).join('')}
         </table>`).join('')}
         <div class="footer">產生時間：${new Date().toLocaleString('zh-TW')} ｜ 中華台北投手情蒐系統</div>
         </body></html>`;
 
-        closePDFFilter();
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const w = window.open(url, '_blank');
         if (w) { setTimeout(() => { w.print(); URL.revokeObjectURL(url); }, 800); }
-        else { triggerDownload(url, `投手報告_${new Date().toISOString().split('T')[0]}.html`); }
+        else { triggerDownload(url, `投手報告_${pitcherName}_${new Date().toISOString().split('T')[0]}.html`); }
     }
 
     function enterSystem(role) {

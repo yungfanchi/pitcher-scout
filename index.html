@@ -87,26 +87,54 @@
     <div id="pdfFilterModal">
         <div class="pf-box">
             <div class="pf-header">
-                <h2 style="margin:0;color:var(--ct-blue-dark);font-size:17px;">📄 篩選匯出 PDF 報告</h2>
-                <span style="font-size:24px;cursor:pointer;color:var(--ct-red);line-height:1;" onclick="closePDFFilter()">&times;</span>
+                <div style="font-size:17px;font-weight:900;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;">📄 匯出 PDF 報告</div>
+                <span style="font-size:26px;cursor:pointer;color:var(--ct-red);line-height:1;touch-action:manipulation;" onclick="closePDFFilter()">&times;</span>
             </div>
             <div class="pf-body">
+
+                <!-- Step 1: 選擇投手 -->
                 <div class="pf-section">
-                    <h4>📅 日期區間</h4>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                        <div><label style="font-size:11px;color:#6b7280;">起始日期</label><input type="date" id="pdfDateFrom" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;box-sizing:border-box;margin-top:2px;"></div>
-                        <div><label style="font-size:11px;color:#6b7280;">結束日期</label><input type="date" id="pdfDateTo" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;box-sizing:border-box;margin-top:2px;"></div>
+                    <div class="pf-step-label"><span class="pf-step-num">1</span>選擇投手</div>
+                    <select id="pdfPitcherSelect" class="pf-select" onchange="onPDFPitcherChange()">
+                        <option value="">— 請選擇投手 —</option>
+                    </select>
+                </div>
+
+                <!-- Step 2: 場次範圍（選完投手才顯示） -->
+                <div class="pf-section pf-fade-in" id="pdfScopeSection" style="display:none;">
+                    <div class="pf-step-label"><span class="pf-step-num">2</span>匯出範圍</div>
+                    <label class="pf-radio-item">
+                        <input type="radio" name="pdfScope" value="all" checked onchange="onPDFScopeChange()">
+                        <div class="pf-radio-card">
+                            <div class="pf-radio-icon">📊</div>
+                            <div>
+                                <div class="pf-radio-title">所有場次（生涯累計）</div>
+                                <div class="pf-radio-sub">彙整所有場次投球數據</div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="pf-radio-item">
+                        <input type="radio" name="pdfScope" value="single" onchange="onPDFScopeChange()">
+                        <div class="pf-radio-card">
+                            <div class="pf-radio-icon">📅</div>
+                            <div>
+                                <div class="pf-radio-title">單一特定場次</div>
+                                <div class="pf-radio-sub">只匯出指定場次的數據</div>
+                            </div>
+                        </div>
+                    </label>
+                    <!-- 場次選單：選「單一場次」時出現 -->
+                    <div id="pdfGameSelectWrap" style="display:none;margin-top:10px;">
+                        <select id="pdfGameSelect" class="pf-select">
+                            <option value="">— 請選擇場次 —</option>
+                        </select>
                     </div>
                 </div>
-                <div class="pf-section">
-                    <h4>🏟️ 賽事 / 對戰球隊</h4>
-                    <div class="pf-check-grid" id="pdfTeamChecks"></div>
-                </div>
-                <div class="pf-section">
-                    <h4>⚾ 選擇投手</h4>
-                    <div class="pf-check-grid" id="pdfPitcherChecks"></div>
-                </div>
-                <button onclick="generateFilteredPDF()" style="width:100%;padding:14px;background:var(--ct-red);color:white;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;touch-action:manipulation;margin-top:8px;">📄 產生 PDF 報告</button>
+
+                <!-- 產生按鈕 -->
+                <button id="pdfGenerateBtn" onclick="generatePDF()" style="display:none;width:100%;padding:15px;background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;touch-action:manipulation;letter-spacing:1px;margin-top:4px;">
+                    📄 產生 PDF 報告
+                </button>
             </div>
         </div>
     </div>
