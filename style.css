@@ -329,8 +329,8 @@
         .pitch-result-display-value.none-result { color:#9ca3af; font-style:italic; font-size:14px; }
 
         /* ===== AT BAT RESULT ===== */
-        .at-bat-result { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
-        .outcome-btn { width:52px; height:52px; border-radius:50%; border:2px solid var(--ct-blue); background:white; cursor:pointer; transition:all 0.2s; color:var(--ct-blue-dark); -webkit-user-select:none; user-select:none; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; text-align:center; padding:0; line-height:1.2; flex-shrink:0; }
+        .at-bat-result { display:flex; flex-wrap:wrap; justify-content:space-evenly; gap:8px; margin:8px 0; }
+        .outcome-btn { width:62px; height:62px; border-radius:50%; border:2px solid var(--ct-blue); background:white; cursor:pointer; transition:all 0.2s; color:var(--ct-blue-dark); -webkit-user-select:none; user-select:none; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; text-align:center; padding:0; line-height:1.2; flex-shrink:0; }
         .outcome-btn:active { transform:scale(0.95); }
         .outcome-btn.selected { background:var(--ct-red); color:white; border-color:var(--ct-gold); box-shadow:0 4px 12px rgba(220,0,0,0.3); }
         .outcome-btn[data-outcome="違規打擊"] { border-color:#f97316; color:#c2410c; }
@@ -541,7 +541,7 @@
             .zone-cell { font-size:18px; font-weight:900; }
             .zone-cell.ball-zone { font-size:12px; }
             .speed-btn { padding:14px 2px; font-size:14px; font-weight:900; }
-            .outcome-btn { width:58px; height:58px; font-size:12px; }
+            .outcome-btn { width:66px; height:66px; font-size:13px; }
             .zone-right-btn { padding:18px 12px; font-size:15px; font-weight:900; border-radius:10px; }
             .confirm-record-btn { padding:22px; font-size:20px; border-radius:12px; }
             .hand-btn { padding:16px; font-size:16px; }
@@ -569,7 +569,7 @@
             .zone-cell { font-size:16px; }
             .zone-cell.ball-zone { font-size:10px; }
             .pitch-btn { padding:14px 6px; font-size:16px; }
-            .outcome-btn { width:52px; height:52px; font-size:11px; }
+            .outcome-btn { width:60px; height:60px; font-size:12px; }
             .zone-right-btn { padding:16px 10px; font-size:14px; }
             .confirm-record-btn { padding:20px; font-size:18px; }
         }

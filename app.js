@@ -1149,6 +1149,60 @@
         updateTeamList(); updateSlotDisplay(); updateStats(); updatePitchLog(); saveToLocalStorage();
     }
 
+    // ====== LINEUP MANAGEMENT ======
+    // index 0 unused; 1-9 = batting order slots
+    let lineup = Array.from({length: 10}, () => ({ number: '', name: '', hand: '右打' }));
+
+    function openLineupModal() {
+        const container = document.getElementById('lineupRows');
+        container.innerHTML = '';
+        for (let i = 1; i <= 9; i++) {
+            const p = lineup[i];
+            const row = document.createElement('div');
+            row.style.cssText = 'display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:6px;margin-bottom:8px;align-items:center;';
+            row.innerHTML = `
+                <div style="font-size:13px;font-weight:900;color:var(--ct-blue-dark);text-align:center;">${i}</div>
+                <input type="number" inputmode="numeric" placeholder="背號" value="${p.number}" data-order="${i}" data-field="number"
+                    style="padding:7px 6px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;"
+                    onkeydown="if(event.key==='Enter')this.blur()">
+                <input type="text" placeholder="姓名" value="${p.name}" data-order="${i}" data-field="name"
+                    style="padding:7px 6px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;"
+                    onkeydown="if(event.key==='Enter')this.blur()">
+                <select data-order="${i}" data-field="hand"
+                    style="padding:7px 4px;border:1.5px solid #d1d5db;border-radius:7px;font-size:12px;width:100%;box-sizing:border-box;">
+                    <option value="右打" ${p.hand==='右打'?'selected':''}>右打</option>
+                    <option value="左打" ${p.hand==='左打'?'selected':''}>左打</option>
+                </select>`;
+            container.appendChild(row);
+        }
+        const modal = document.getElementById('lineupModal');
+        modal.style.display = 'flex';
+    }
+
+    function closeLineupModal() {
+        document.getElementById('lineupModal').style.display = 'none';
+    }
+
+    function saveLineup() {
+        document.querySelectorAll('#lineupRows [data-order]').forEach(el => {
+            const i = parseInt(el.dataset.order);
+            lineup[i][el.dataset.field] = el.value;
+        });
+        closeLineupModal();
+        // Auto-fill current batter if order is set
+        const order = parseInt(document.getElementById('batterOrder').value);
+        if (order >= 1 && order <= 9) applyLineupToUI(order);
+    }
+
+    function applyLineupToUI(order) {
+        const p = lineup[order];
+        if (!p) return;
+        if (p.number) document.getElementById('batterNumber').value = p.number;
+        if (p.name) document.getElementById('batterName').value = p.name;
+        document.querySelectorAll('.hand-btn').forEach(b => b.classList.toggle('active', b.dataset.hand === p.hand));
+        currentPitch.batterHand = p.hand;
+    }
+
     // ====== BATTER AUTO-FILL ======
     function autofillBatterNumber() {}
 
@@ -1372,23 +1426,27 @@
     }
 
     function autoFillBatterFromOrder(order) {
+        // Priority 1: lineup pre-set data
+        const lp = lineup[order];
+        if (lp && (lp.number || lp.name)) {
+            applyLineupToUI(order);
+            return;
+        }
+        // Priority 2: most recent pitch history for this order
         if (currentTeam === null || currentPitcher === null) return;
         const pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
-        // Find most recent pitch with this order
         for (let i = pitches.length - 1; i >= 0; i--) {
             if (String(pitches[i].batterOrder) === String(order) && pitches[i].batterNumber) {
                 document.getElementById('batterNumber').value = pitches[i].batterNumber;
-                // Also restore hand
+                if (pitches[i].batterName) document.getElementById('batterName').value = pitches[i].batterName;
                 const hand = pitches[i].batterHand;
-                document.querySelectorAll('.hand-btn').forEach(b => {
-                    b.classList.toggle('active', b.dataset.hand === hand);
-                });
+                document.querySelectorAll('.hand-btn').forEach(b => b.classList.toggle('active', b.dataset.hand === hand));
                 currentPitch.batterHand = hand;
                 return;
             }
         }
-        // Not found - clear number
         document.getElementById('batterNumber').value = '';
+        document.getElementById('batterName').value = '';
     }
 
     // ====== 壘包位移引擎 ======

@@ -64,6 +64,25 @@
         </div>
     </div>
 
+    <!-- 打序設定 Modal -->
+    <div id="lineupModal" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.65);align-items:flex-start;justify-content:center;overflow-y:auto;padding:16px;box-sizing:border-box;">
+        <div style="background:white;border-radius:14px;width:100%;max-width:480px;margin:0 auto;border-top:4px solid var(--ct-blue-dark);">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:2px solid #e5e7eb;">
+                <div style="font-size:17px;font-weight:900;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;">📋 打擊順序設定</div>
+                <span onclick="closeLineupModal()" style="font-size:26px;cursor:pointer;color:var(--ct-red);line-height:1;touch-action:manipulation;">&times;</span>
+            </div>
+            <div style="padding:12px 20px 0;">
+                <div style="display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:6px;margin-bottom:6px;font-size:11px;font-weight:700;color:#6b7280;text-align:center;">
+                    <div>棒次</div><div>背號</div><div>姓名</div><div>慣用</div>
+                </div>
+                <div id="lineupRows"></div>
+            </div>
+            <div style="padding:12px 20px 20px;">
+                <button onclick="saveLineup()" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;touch-action:manipulation;letter-spacing:1px;">✅ 儲存打序</button>
+            </div>
+        </div>
+    </div>
+
     <!-- PDF 篩選 Modal -->
     <div id="pdfFilterModal">
         <div class="pf-box">
@@ -334,7 +353,10 @@
 
                     <!-- 打者資訊 直列式 -->
                     <div class="batter-info" style="display:flex;flex-direction:column;gap:6px;">
-                        <h3 style="margin:0;">👤 打者資訊</h3>
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <h3 style="margin:0;">👤 打者資訊</h3>
+                            <button onclick="openLineupModal()" style="padding:6px 10px;background:var(--ct-blue-dark);color:white;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap;letter-spacing:0.5px;">📋 設定打序</button>
+                        </div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">棒次</span>
                             <button class="order-adj-btn" onclick="adjustBatterOrder(-1)">◀</button>
@@ -346,13 +368,13 @@
                             <input type="number" id="batterNumber" placeholder="背號" inputmode="numeric" autocomplete="off" style="flex:1;padding:8px;" onchange="autofillBatterNumber()" onkeydown="if(event.key==='Enter')this.blur()">
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;">
-                            <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">姓名</span>
-                            <input type="text" id="batterName" placeholder="選填" autocomplete="off" style="flex:1;padding:8px;" onkeydown="if(event.key==='Enter')this.blur()">
-                        </div>
-                        <div style="display:flex;align-items:center;gap:6px;">
-                            <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">打手</span>
+                            <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">慣用</span>
                             <button class="hand-btn" data-hand="左打" onclick="selectBatterHand(this)" style="flex:1;padding:8px;font-size:13px;">👈 左打</button>
                             <button class="hand-btn" data-hand="右打" onclick="selectBatterHand(this)" style="flex:1;padding:8px;font-size:13px;">👉 右打</button>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">姓名</span>
+                            <input type="text" id="batterName" placeholder="選填" autocomplete="off" style="flex:1;padding:8px;" onkeydown="if(event.key==='Enter')this.blur()">
                         </div>
                         <button id="pinchHitterBtn" onclick="togglePinchHitter()" style="width:100%;padding:9px;border:2px solid var(--ct-gold);border-radius:6px;background:#fff3cd;color:var(--ct-blue-dark);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;">
                             代打上場
@@ -482,37 +504,36 @@
                                 <!-- 出局 -->
                                 <span class="outcome-group-label out">出局</span>
                                 <div class="at-bat-result" style="margin-bottom:8px;">
-                                    <button class="outcome-btn out-btn" data-outcome="三振" onclick="toggleOutcome(this)" title="三振">K</button>
+                                    <button class="outcome-btn out-btn" data-outcome="三振" onclick="toggleOutcome(this)" title="三振">三振</button>
                                     <button class="outcome-btn out-btn" data-outcome="滾地球出局" onclick="toggleOutcome(this)" title="滾地球出局">滾地</button>
                                     <button class="outcome-btn out-btn" data-outcome="飛球出局" onclick="toggleOutcome(this)" title="飛球出局">飛球</button>
                                     <button class="outcome-btn out-btn" data-outcome="平飛球出局" onclick="toggleOutcome(this)" title="平飛球出局">平飛</button>
                                     <button class="outcome-btn out-btn" data-outcome="高飛犧牲打" onclick="toggleOutcome(this)" title="高飛犧牲打">高犧</button>
                                     <button class="outcome-btn out-btn" data-outcome="犧牲觸擊" onclick="toggleOutcome(this)" title="犧牲觸擊">犧觸</button>
-                                    <button class="outcome-btn out-btn" data-outcome="雙殺" onclick="toggleOutcome(this)" title="雙殺">DP</button>
-                                    <button class="outcome-btn out-btn" data-outcome="趁傳出局" onclick="toggleOutcome(this)" title="趁傳出局">趁傳</button>
+                                    <button class="outcome-btn out-btn" data-outcome="雙殺" onclick="toggleOutcome(this)" title="雙殺">雙殺</button>
                                 </div>
                                 <!-- 安打 -->
                                 <span class="outcome-group-label hit">安打</span>
                                 <div class="at-bat-result" style="margin-bottom:8px;">
                                     <button class="outcome-btn hit-btn" data-outcome="內野安打" onclick="toggleOutcome(this)" title="內野安打">內安</button>
-                                    <button class="outcome-btn hit-btn" data-outcome="一壘安打" onclick="toggleOutcome(this)" title="一壘安打">1B</button>
-                                    <button class="outcome-btn hit-btn" data-outcome="二壘安打" onclick="toggleOutcome(this)" title="二壘安打">2B</button>
-                                    <button class="outcome-btn hit-btn" data-outcome="三壘安打" onclick="toggleOutcome(this)" title="三壘安打">3B</button>
-                                    <button class="outcome-btn hit-btn" data-outcome="全壘打" onclick="toggleOutcome(this)" title="全壘打">HR</button>
+                                    <button class="outcome-btn hit-btn" data-outcome="一壘安打" onclick="toggleOutcome(this)" title="一壘安打">一安</button>
+                                    <button class="outcome-btn hit-btn" data-outcome="二壘安打" onclick="toggleOutcome(this)" title="二壘安打">二安</button>
+                                    <button class="outcome-btn hit-btn" data-outcome="三壘安打" onclick="toggleOutcome(this)" title="三壘安打">三安</button>
+                                    <button class="outcome-btn hit-btn" data-outcome="全壘打" onclick="toggleOutcome(this)" title="全壘打">全壘</button>
                                 </div>
                                 <!-- 上壘（非安打） -->
                                 <span class="outcome-group-label reach">上壘</span>
                                 <div class="at-bat-result" style="margin-bottom:8px;">
-                                    <button class="outcome-btn reach-btn" data-outcome="保送" onclick="toggleOutcome(this)" title="保送">BB</button>
-                                    <button class="outcome-btn reach-btn" data-outcome="觸身球" onclick="toggleOutcome(this)" title="觸身球">HBP</button>
-                                    <button class="outcome-btn reach-btn" data-outcome="不死三振" onclick="toggleOutcome(this)" title="不死三振">K3</button>
-                                    <button class="outcome-btn reach-btn" data-outcome="野選" onclick="toggleOutcome(this)" title="野選">FC</button>
-                                    <button class="outcome-btn reach-btn" data-outcome="失誤" onclick="toggleOutcome(this)" title="失誤">E</button>
+                                    <button class="outcome-btn reach-btn" data-outcome="保送" onclick="toggleOutcome(this)" title="保送">保送</button>
+                                    <button class="outcome-btn reach-btn" data-outcome="觸身球" onclick="toggleOutcome(this)" title="觸身球">觸身</button>
+                                    <button class="outcome-btn reach-btn" data-outcome="不死三振" onclick="toggleOutcome(this)" title="不死三振">不死</button>
+                                    <button class="outcome-btn reach-btn" data-outcome="野選" onclick="toggleOutcome(this)" title="野選">野選</button>
+                                    <button class="outcome-btn reach-btn" data-outcome="失誤" onclick="toggleOutcome(this)" title="失誤">失誤</button>
                                 </div>
                                 <!-- 戰術標籤 -->
                                 <span class="outcome-group-label tag">戰術標籤</span>
                                 <div class="at-bat-result">
-                                    <button class="outcome-btn modifier" data-outcome="攻擊首球" onclick="toggleOutcome(this)" title="攻擊首球">攻首</button>
+                                    <button class="outcome-btn modifier" data-outcome="首球" onclick="toggleOutcome(this)" title="首球">首球</button>
                                     <button class="outcome-btn modifier" data-outcome="跑打" onclick="toggleOutcome(this)" title="跑打">跑打</button>
                                     <button class="outcome-btn modifier" data-outcome="偷點" onclick="toggleOutcome(this)" title="偷點">偷點</button>
                                     <button class="outcome-btn modifier" data-outcome="Push" onclick="toggleOutcome(this)" title="Push">Push</button>
