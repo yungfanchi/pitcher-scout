@@ -2321,6 +2321,7 @@
         updateBaseStateAnalysis(pitches);
         // Charts
         updatePitchTypePieChart(pitches);
+        updatePatternPieChart(pitches);
         updateSpeedLineChart(pitches);
         // Right-panel heatmaps (analysis split layout)
         updateSingleHeatmap('tendencyStrikeRight', pitches.filter(p => p.result==='好球' && !String(p.zone).startsWith('B')), 'yellow');
@@ -2924,8 +2925,11 @@
 
     // ====== 壘上有人分析 ======
     function updateBaseStateAnalysis(pitches) {
-        const div = document.getElementById('baseStateAnalysis');
-        if (!div) return;
+        const divWith = document.getElementById('baseStateWith');
+        const divNo = document.getElementById('baseStateNo');
+        const divInsight = document.getElementById('baseStateInsight');
+        if (!divWith || !divNo) return;
+        const div = { innerHTML: '' }; // dummy, not used below
         const upperZones = ['1','2','3'];
         const lowerZones = ['7','8','9'];
 
@@ -2951,7 +2955,12 @@
         const bWith = calc(withBase);
         const bNo = calc(noBase);
 
-        if (!bWith && !bNo) { div.innerHTML = '<p style="color:#9ca3af;padding:10px;font-size:12px;">尚無資料（需記錄壘包狀態）</p>'; return; }
+        if (!bWith && !bNo) {
+            divWith.innerHTML = '<p style="color:#9ca3af;padding:10px;font-size:12px;">尚無資料（需記錄壘包狀態）</p>';
+            divNo.innerHTML = '';
+            if (divInsight) divInsight.innerHTML = '';
+            return;
+        }
 
         const bar = (pct, color) => `<div style="height:10px;border-radius:5px;background:#e5e7eb;margin:4px 0 8px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:5px;"></div></div>`;
 
@@ -2979,7 +2988,9 @@
             ${Math.abs(diff)>=5 ? `⚠️ 壘上有人時高球帶${diff>0?'增加':'減少'} <strong>${Math.abs(diff)}%</strong>，有明顯差異` : `✅ 壘上有無人時進壘點差異不大（${diff>0?'+':''}${diff}%）`}
         </div>` : '';
 
-        div.innerHTML = `${renderCard(bWith,'🏃 壘上有人','#dc2626')}${renderCard(bNo,'⬜ 壘上無人','#2563eb')}${insight}`;
+        divWith.innerHTML = renderCard(bWith, '🏃 壘上有人', '#dc2626');
+        divNo.innerHTML = renderCard(bNo, '⬜ 壘上無人', '#2563eb');
+        if (divInsight) divInsight.innerHTML = insight;
     }
 
     // ====== 備份還原 ======
@@ -3029,6 +3040,7 @@
     // ====== CHART.JS INSTANCES ======
     let pieChartInstance = null;
     let statsTypePieInstance = null;
+    let patternPieInstance = null;
     let lineChartInstance = null;
 
     // 共用甜甜圈圖建立函式：外置標籤 + 引導線 + 中間總球數
@@ -3111,6 +3123,25 @@
         if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
         if (!allTypes.length) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); return; }
         pieChartInstance = _makeDoughnut(canvas, allTypes, counts, colors, pitches.length);
+    }
+
+    function updatePatternPieChart(pitches) {
+        const canvas = document.getElementById('patternPieChart');
+        if (!canvas) return;
+        if (patternPieInstance) { patternPieInstance.destroy(); patternPieInstance = null; }
+        if (pitches.length < 2) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+        const sequences = {};
+        for (let i = 1; i < pitches.length; i++) {
+            const seq = `${pitches[i-1].type}→${pitches[i].type}`;
+            sequences[seq] = (sequences[seq] || 0) + 1;
+        }
+        const top = Object.entries(sequences).sort((a,b) => b[1]-a[1]).slice(0, 7);
+        if (!top.length) return;
+        const total = top.reduce((s, [,c]) => s + c, 0);
+        const labels = top.map(([seq]) => seq);
+        const counts = top.map(([,c]) => c);
+        const colors = labels.map(seq => PITCH_COLORS[seq.split('→')[0]] || '#999');
+        patternPieInstance = _makeDoughnut(canvas, labels, counts, colors, total);
     }
 
     function updateSpeedLineChart(pitches) {

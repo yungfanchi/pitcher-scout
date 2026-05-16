@@ -710,23 +710,38 @@
                 </div>
             </div>
 
-            <!-- 配球模式（左50%）+ 壘上分析（右50%）並排 -->
+            <!-- 球種與配球模式：文字列表（左）/ 圓餅圖（右） -->
             <div class="container">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;" class="analysis-two-col">
-                    <!-- 左：配球模式在頂，圓餅圖在底 -->
-                    <div style="min-width:0;">
-                        <h2 style="font-size:16px;">🎲 常用球種與配球模式</h2>
-                        <div class="pattern-analysis" id="patternAnalysis"></div>
-                        <div style="position:relative;width:100%;max-width:220px;aspect-ratio:1;margin:16px auto 0;">
-                            <canvas id="pitchTypePieChart"></canvas>
+                <h2>🎲 常用球種與配球模式</h2>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+                    <!-- 左：文字列表 -->
+                    <div class="pattern-analysis" id="patternAnalysis"></div>
+                    <!-- 右：兩個圓餅圖上下排列 -->
+                    <div style="display:flex;flex-direction:column;gap:16px;align-items:center;">
+                        <div style="width:100%;text-align:center;">
+                            <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:4px;">⚾ 球種比例</div>
+                            <div style="position:relative;width:100%;max-width:200px;aspect-ratio:1;margin:0 auto;">
+                                <canvas id="pitchTypePieChart"></canvas>
+                            </div>
+                        </div>
+                        <div style="width:100%;text-align:center;">
+                            <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:4px;">🔗 配球模式</div>
+                            <div style="position:relative;width:100%;max-width:200px;aspect-ratio:1;margin:0 auto;">
+                                <canvas id="patternPieChart"></canvas>
+                            </div>
                         </div>
                     </div>
-                    <!-- 右：壘上有人/無人 放大字體 -->
-                    <div style="min-width:0;">
-                        <h2 style="font-size:16px;">🏃 壘上情境分析</h2>
-                        <div id="baseStateAnalysis" class="base-state-lg"></div>
-                    </div>
                 </div>
+            </div>
+
+            <!-- 壘上情境分析：移至底部，有人/無人左右並排 -->
+            <div class="container">
+                <h2>🏃 壘上情境分析</h2>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+                    <div id="baseStateWith"></div>
+                    <div id="baseStateNo"></div>
+                </div>
+                <div id="baseStateInsight" style="margin-top:8px;"></div>
             </div>
 
             <div class="container">
