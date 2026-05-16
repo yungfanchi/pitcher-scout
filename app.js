@@ -1270,26 +1270,15 @@
         btn.classList.toggle('active');
     }
 
-    const OUT_OUTCOMES = ['滾地球出局','飛球出局','平飛球出局','三振','趁傳出局','雙殺','出局'];
+    const OUT_OUTCOMES = ['滾地球出局','飛球出局','平飛球出局','三振','趁傳出局','雙殺','出局','高飛犧牲打','犧牲觸擊'];
+    // 打席結束（進入下一打者）的結果清單
+    const PA_ENDING = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','三振','不死三振',
+        '內野安打','一壘安打','二壘安打','三壘安打','全壘打','保送','觸身球','野選','趁傳出局','失誤','違規打擊','Push'];
 
     function toggleOutcome(btn) {
-        const wasSelected = btn.classList.contains('selected');
         btn.classList.toggle('selected');
         currentPitch.outcomes = Array.from(document.querySelectorAll('.outcome-btn.selected')).map(b => b.dataset.outcome);
-
-        // If an out outcome toggled ON → add 1 out to scoreboard
-        if (!wasSelected && OUT_OUTCOMES.includes(btn.dataset.outcome)) {
-            gameState.outs = Math.min(2, gameState.outs + 1);
-            gameState.strikes = 0; gameState.balls = 0;
-            renderCountLights();
-            updateZoneCountDisplay();
-        }
-        // If toggled OFF → remove 1 out
-        if (wasSelected && OUT_OUTCOMES.includes(btn.dataset.outcome)) {
-            gameState.outs = Math.max(0, gameState.outs - 1);
-            renderCountLights();
-            updateZoneCountDisplay();
-        }
+        // 不在此修改 gameState，避免雙重計算；由 recordPitch → updateGameStateFromPitch 統一處理
     }
 
     // ====== RECORD PITCH ======
@@ -1334,21 +1323,15 @@
         // Update game state counts
         updateGameStateFromPitch(currentPitch);
 
-        // Auto-advance batter order if PA ends
-        const paEnding = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','三振','不死三振',
-            '內野安打','一壘安打','二壘安打','三壘安打','全壘打','保送','野選','趁傳出局',
-            '失誤','違規打擊','Push'];
-        const hasEndingOutcome = currentPitch.outcomes.some(o => paEnding.includes(o));
+        // 打席結束 → 自動前進棒次
+        const hasEndingOutcome = currentPitch.outcomes.some(o => PA_ENDING.includes(o));
         if (hasEndingOutcome) {
-            // Auto advance batter order
             const curOrder = parseInt(batterOrder) || 0;
             if (curOrder >= 1 && curOrder <= 9) {
                 const nextOrder = curOrder >= 9 ? 1 : curOrder + 1;
                 document.getElementById('batterOrder').value = nextOrder;
-                // Auto-fill number from history
                 autoFillBatterFromOrder(nextOrder);
             }
-            // Reset count lights
             gameState.strikes = 0;
             gameState.balls = 0;
             renderCountLights();
@@ -1377,6 +1360,15 @@
             batterOrder: document.getElementById('batterOrder').value,
             outcomes: [], outcome: null, wild: false, foul: false, swing: false, pinchHit: false
         };
+    }
+
+    function adjustBatterOrder(delta) {
+        const el = document.getElementById('batterOrder');
+        const cur = parseInt(el.value) || 0;
+        const next = cur + delta;
+        const clamped = next < 1 ? 9 : next > 9 ? 1 : next;
+        el.value = clamped;
+        autoFillBatterFromOrder(clamped);
     }
 
     function autoFillBatterFromOrder(order) {
@@ -1434,22 +1426,32 @@
             return { newBases: [new1b, new2b, new3b], runsScored: runs };
         }
 
-        if (outcomes.some(o => o === '保送' || o === '四壞')) {
-            // Force advance only if bases loaded or forced
-            if (has1b && has2b && has3b) {
-                runs = 1; // loaded, 3b scores
-                return { newBases: [true, true, true], runsScored: runs };
-            }
-            if (has1b && has2b) {
-                return { newBases: [true, true, true], runsScored: 0 };
-            }
-            if (has1b) {
-                return { newBases: [true, true, has3b], runsScored: 0 };
-            }
+        if (outcomes.some(o => o === '保送' || o === '觸身球')) {
+            // 強迫進壘（只在有人在一壘時才連動後壘）
+            if (has1b && has2b && has3b) { runs = 1; return { newBases: [true, true, true], runsScored: runs }; }
+            if (has1b && has2b)          { return { newBases: [true, true, true], runsScored: 0 }; }
+            if (has1b)                   { return { newBases: [true, true, has3b], runsScored: 0 }; }
             return { newBases: [true, has2b, has3b], runsScored: 0 };
         }
 
-        // Out outcomes - no base change (already handled by 3-out logic)
+        if (outcomes.includes('高飛犧牲打')) {
+            // 打者出局，三壘跑者得分
+            runs = has3b ? 1 : 0;
+            return { newBases: [has1b, has2b, false], runsScored: runs };
+        }
+
+        if (outcomes.includes('犧牲觸擊')) {
+            // 打者出局，所有跑者前進一壘
+            runs = has3b ? 1 : 0;
+            return { newBases: [false, has1b, has2b], runsScored: runs };
+        }
+
+        if (outcomes.includes('不死三振')) {
+            // 打者跑向一壘（接捕手未接好），壘上跑者不強迫推進
+            return { newBases: [true, has2b, has3b], runsScored: 0 };
+        }
+
+        // 出局 — 壘包不變（滿壘雙殺、飛球等），由3出局邏輯清壘
         return { newBases: b, runsScored: 0 };
     }
 
@@ -1465,25 +1467,26 @@
         }
 
         const outcomes = pitch.outcomes && pitch.outcomes.length > 0 ? pitch.outcomes : (pitch.outcome ? [pitch.outcome] : []);
-        const isOut = outcomes.some(o => ['滾地球出局','飛球出局','平飛球出局','三振','趁傳出局','雙殺','出局'].includes(o));
-        const isPA = outcomes.some(o => ['一壘安打','二壘安打','三壘安打','全壘打','內野安打',
-            '保送','野選','Push','內野失誤','外野失誤','不死三振'].includes(o));
+        const isOut = outcomes.some(o => OUT_OUTCOMES.includes(o));
+        const isPA  = outcomes.some(o => ['一壘安打','二壘安打','三壘安打','全壘打','內野安打',
+            '保送','觸身球','野選','失誤','不死三振','Push'].includes(o));
 
         if (isOut) {
             gameState.outs++;
             gameState.strikes = 0; gameState.balls = 0;
             if (gameState.outs >= 3) {
-                gameState.outs = 0;
-                gameState.bases = [false, false, false];
-                gameState.half = gameState.half === '上' ? '下' : '上';
-                if (gameState.half === '上') gameState.inning++;
+                // 三出局換局：自動觸發，重置計數與壘包
                 if (currentTeam !== null) {
                     const score = getTeamScore();
-                    score.half = gameState.half;
-                    score.inning = gameState.inning;
+                    score.half = score.half === '上' ? '下' : '上';
+                    if (score.half === '上') score.inning = Math.min(20, score.inning + 1);
+                    gameState.half = score.half;
                 }
+                gameState.outs = 0;
+                gameState.bases = [false, false, false];
+                gameState.strikes = 0; gameState.balls = 0;
+                renderCountLights(); renderBases();
                 updateScoreboard();
-                renderBases();
             }
         } else if (isPA) {
             gameState.strikes = 0; gameState.balls = 0;
@@ -1652,35 +1655,59 @@
             document.getElementById('totalPitches').textContent = '0'; return;
         }
         const pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
+        let lastBatterKey = null;
         pitches.slice().reverse().forEach((pitch, revIndex) => {
             const index = pitches.length - 1 - revIndex;
+            const outcomes = pitch.outcomes && pitch.outcomes.length > 0 ? pitch.outcomes : (pitch.outcome ? [pitch.outcome] : []);
+
+            // 打席分隔線：當打者或棒次改變時插入
+            const batterKey = `${pitch.batterOrder}-${pitch.batterNumber}`;
+            if (lastBatterKey !== null && batterKey !== lastBatterKey) {
+                const div = document.createElement('hr');
+                div.className = 'pa-divider';
+                logDiv.appendChild(div);
+            }
+            lastBatterKey = batterKey;
+
             const record = document.createElement('div');
             record.className = 'pitch-record';
             const resultColor = pitch.result === '好球' ? '#92400e' : pitch.result === '壞球' ? '#065f46' : 'var(--ct-blue-dark)';
             const batterInfo = `${pitch.batterHand || ''}${pitch.batterNumber ? ' #'+pitch.batterNumber : ''}${pitch.batterOrder ? ' ('+pitch.batterOrder+'棒)' : ''}${pitch.pinchHit ? ' 代打' : ''}`;
-            const outcomes = pitch.outcomes && pitch.outcomes.length > 0 ? pitch.outcomes : (pitch.outcome ? [pitch.outcome] : []);
             const extras = [];
             if (pitch.foul) extras.push('界外球');
             if (pitch.swing) extras.push('揮空');
             if (pitch.wild) extras.push('⚠️暴投');
+
+            // 用 DOM 操作而非 innerHTML，確保按鈕事件在各裝置正常運作
             record.innerHTML = `
                 <div class="pitch-record-header">
-                    <div style="flex:1;min-width:0;">
+                    <div style="flex:1;min-width:0;overflow:hidden;">
                         <strong style="color:${resultColor}">#${index+1}</strong>
                         ${batterInfo} | <strong>${pitch.type || '-'}</strong> | 位置:${pitch.zone}
                         ${pitch.speed ? ' | <strong style="color:var(--ct-red);">'+pitch.speed+'</strong>' : ''}
                         | <strong style="color:${resultColor}">${pitch.result}</strong>
                         ${extras.length ? ' <span style="color:#c2410c;font-weight:700;">'+extras.join(' ')+'</span>' : ''}
                     </div>
-                    <div class="pitch-record-actions">
-                        <button class="edit-btn" onclick="openEditModal(${index})">✏️</button>
-                        <button class="delete-btn" onclick="deletePitch(${index})">刪除</button>
+                    <div class="pitch-record-actions" style="flex-shrink:0;">
                     </div>
                 </div>
                 ${outcomes.length ? `<div class="pitch-record-details">打擊結果: <strong style="color:var(--ct-red);">${outcomes.join('、')}</strong></div>` : ''}
                 ${pitch.note ? `<div class="pitch-record-details" style="color:#6b7280;">📝 ${pitch.note}</div>` : ''}
                 <div class="pitch-record-details" style="font-size:11px;color:#9ca3af;">${pitch.balls !== undefined ? pitch.balls+'B-'+pitch.strikes+'S' : ''} ${pitch.timestamp ? new Date(pitch.timestamp).toLocaleTimeString('zh-TW') : ''}</div>
             `;
+            // 用 addEventListener 確保行動裝置按鈕不會失效
+            const actions = record.querySelector('.pitch-record-actions');
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-btn';
+            editBtn.textContent = '✏️';
+            editBtn.addEventListener('click', () => openEditModal(index));
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.textContent = '刪除';
+            delBtn.addEventListener('click', () => deletePitch(index));
+            actions.appendChild(editBtn);
+            actions.appendChild(delBtn);
+
             logDiv.appendChild(record);
         });
         document.getElementById('totalPitches').textContent = pitches.length;
@@ -1847,18 +1874,22 @@
         if (currentTeam === null) { alert('請先選擇投手！'); return; }
         const score = getTeamScore();
         score.inning = Math.max(1, Math.min(20, score.inning + delta));
-        gameState.inning = score.inning;
+        // 只更新顯示，不重置 gameState（手動修正不影響球數/出局數）
         updateScoreboard(); saveToLocalStorage();
     }
 
-    function toggleHalf() {
+    // isManual=true 時僅更新顯示，不重置球數/壘包（比賽中有太多不確定因素）
+    function toggleHalf(isManual = false) {
         if (currentTeam === null) { alert('請先選擇投手！'); return; }
         const score = getTeamScore();
         score.half = score.half === '上' ? '下' : '上';
         gameState.half = score.half;
-        gameState.outs = 0; gameState.strikes = 0; gameState.balls = 0;
-        gameState.bases = [false, false, false];
-        renderCountLights(); renderBases();
+        if (!isManual) {
+            // 自動換局（3出局觸發）：重置計數
+            gameState.outs = 0; gameState.strikes = 0; gameState.balls = 0;
+            gameState.bases = [false, false, false];
+            renderCountLights(); renderBases();
+        }
         updateScoreboard(); saveToLocalStorage();
     }
 

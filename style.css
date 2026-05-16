@@ -355,6 +355,24 @@
         .edit-btn { background:var(--ct-blue); color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; font-size:11px; transition:all 0.2s; font-weight:700; }
         .edit-btn:active { transform:scale(0.95); }
 
+        /* 打擊結果按鈕分類色系 */
+        .outcome-btn.out-btn  { border-color:#dc2626; color:#b91c1c; }
+        .outcome-btn.out-btn.selected  { background:#dc2626; color:white; border-color:#dc2626; box-shadow:0 4px 12px rgba(220,38,38,0.35); }
+        .outcome-btn.hit-btn  { border-color:#16a34a; color:#15803d; }
+        .outcome-btn.hit-btn.selected  { background:#16a34a; color:white; border-color:#16a34a; box-shadow:0 4px 12px rgba(22,163,74,0.35); }
+        .outcome-btn.reach-btn { border-color:#2563eb; color:#1d4ed8; }
+        .outcome-btn.reach-btn.selected { background:#2563eb; color:white; border-color:#2563eb; box-shadow:0 4px 12px rgba(37,99,235,0.35); }
+        .outcome-group-label { font-size:10px; font-weight:900; letter-spacing:1px; padding:2px 6px; border-radius:4px; color:white; display:inline-block; margin-bottom:4px; }
+        .outcome-group-label.out   { background:#dc2626; }
+        .outcome-group-label.hit   { background:#16a34a; }
+        .outcome-group-label.reach { background:#2563eb; }
+        .outcome-group-label.tag   { background:#7c3aed; }
+        /* 棒次快速按鈕 */
+        .order-adj-btn { padding:8px 10px; border:2px solid var(--ct-blue); border-radius:6px; background:white; color:var(--ct-blue-dark); font-weight:900; font-size:16px; cursor:pointer; flex-shrink:0; }
+        .order-adj-btn:active { background:var(--ct-blue-dark); color:white; transform:scale(0.95); }
+        /* PA 分隔線 */
+        .pa-divider { border:none; border-top:2px dashed var(--ct-gold); margin:6px 0; opacity:0.5; }
+
         /* ===== STATS ===== */
         .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
         .stat-card { background:linear-gradient(135deg,var(--ct-blue-dark) 0%,var(--ct-blue) 100%); color:white; padding:16px; border-radius:10px; text-align:center; border-bottom:4px solid var(--ct-red); border-top:2px solid var(--ct-gold); box-shadow:0 4px 12px rgba(0,61,121,0.15); }
