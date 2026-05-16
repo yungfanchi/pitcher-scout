@@ -13,18 +13,24 @@ const ASSETS_TO_CACHE = [
   './icon-512.png'
 ];
 
-// ====== 安裝：快取所有靜態資源 ======
+// ====== 安裝：快取所有靜態資源（等待用戶確認才接管）======
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        // addAll 失敗不影響整體（icon 可能不存在）
         return cache.addAll(ASSETS_TO_CACHE).catch(() => {
           return cache.add('./index.html');
         });
       })
-      .then(() => self.skipWaiting())
+    // 不呼叫 skipWaiting()，讓頁面有機會顯示更新提示
   );
+});
+
+// ====== 接收頁面的 SKIP_WAITING 指令 ======
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // ====== 啟動：清除舊版快取 ======

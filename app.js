@@ -262,20 +262,28 @@
 
     function checkForUpdate() {
         if (!('serviceWorker' in navigator)) return;
-        // Only show on mobile/tablet
-        if (window.innerWidth > 1024) return;
+        const showModal = () => {
+            const m = document.getElementById('updateModal');
+            if (m) m.style.display = 'flex';
+        };
+        // 新 SW 接管後自動 reload（doForceUpdate 觸發 skipWaiting 後會走這裡）
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+        });
         navigator.serviceWorker.getRegistration().then(reg => {
             if (!reg) return;
+            // 已有等待中的新版本（例如重開 App）
+            if (reg.waiting) { showModal(); return; }
             reg.update().then(() => {
-                if (reg.waiting) {
-                    document.getElementById('updateModal').style.display = 'flex';
-                }
+                if (reg.waiting) showModal();
             });
+            // 偵測本次載入過程中發現新版本
             reg.addEventListener('updatefound', () => {
                 const nw = reg.installing;
+                if (!nw) return;
                 nw.addEventListener('statechange', () => {
                     if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                        document.getElementById('updateModal').style.display = 'flex';
+                        showModal();
                     }
                 });
             });
