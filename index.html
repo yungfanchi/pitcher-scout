@@ -1668,16 +1668,30 @@
         if (!teamCode) { document.getElementById('loginError').textContent = '❌ 請輸入球隊代碼'; return; }
         if (!pw) { document.getElementById('loginError').textContent = '❌ 請輸入密碼'; return; }
 
-        // 管理員登入（CTADMIN + 固定密碼）
+        // 管理員登入（本地驗證，不需網路）
         if (teamCode === ADMIN_CODE && pw === 'ct55') {
             currentTeamCode = 'ADMIN';
+            _cacheCredential(teamCode, 'scout', pw);
             enterSystem('scout');
+            return;
+        }
+
+        // 先嘗試本地快取驗證（離線可用）
+        if (_checkCachedCredential(teamCode, selectedLoginRole, pw)) {
+            currentTeamCode = teamCode;
+            try { localStorage.setItem('lastTeamCode', teamCode); } catch(e) {}
+            enterSystem(selectedLoginRole);
+            return;
+        }
+
+        // 無快取，需要網路查 Firebase
+        if (!navigator.onLine) {
+            document.getElementById('loginError').textContent = '❌ 離線中，請先有網路登入一次以啟用離線功能';
             return;
         }
 
         document.getElementById('loginError').textContent = '🔄 驗證中...';
 
-        // Firebase 驗證
         try {
             db.ref(`teams/${teamCode}/config`).once('value').then(snap => {
                 const config = snap.val();
@@ -1688,6 +1702,7 @@
                 const correctPw = selectedLoginRole === 'scout' ? config.scoutPw : config.viewPw;
                 if (pw === correctPw) {
                     currentTeamCode = teamCode;
+                    _cacheCredential(teamCode, selectedLoginRole, pw); // 快取供離線使用
                     try { localStorage.setItem('lastTeamCode', teamCode); } catch(e) {}
                     enterSystem(selectedLoginRole);
                 } else {
@@ -1696,11 +1711,34 @@
                     document.getElementById('loginPw').focus();
                 }
             }).catch(e => {
-                document.getElementById('loginError').textContent = '❌ 連線失敗：' + e.message;
+                // Firebase 失敗再試快取
+                if (_checkCachedCredential(teamCode, selectedLoginRole, pw)) {
+                    currentTeamCode = teamCode;
+                    try { localStorage.setItem('lastTeamCode', teamCode); } catch(e2) {}
+                    enterSystem(selectedLoginRole);
+                } else {
+                    document.getElementById('loginError').textContent = '❌ 連線失敗，且無離線快取';
+                }
             });
         } catch(e) {
             document.getElementById('loginError').textContent = '❌ Firebase 未連線';
         }
+    }
+
+    // 離線密碼快取（hash 保護，非明文儲存）
+    function _hashPw(str) {
+        let h = 0x12345678;
+        for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+        return (h >>> 0).toString(36);
+    }
+    function _cacheCredential(teamCode, role, pw) {
+        try { localStorage.setItem(`_cred_${teamCode}_${role}`, _hashPw(teamCode + pw + role)); } catch(e) {}
+    }
+    function _checkCachedCredential(teamCode, role, pw) {
+        try {
+            const cached = localStorage.getItem(`_cred_${teamCode}_${role}`);
+            return cached !== null && cached === _hashPw(teamCode + pw + role);
+        } catch(e) { return false; }
     }
 
     function createTeam() {
@@ -4558,16 +4596,6 @@
         try { localStorage.setItem('autoSaveSetting', autoSave ? '1' : '0'); } catch(e) {}
     }
 
-    function saveToLocalStorage() {
-        if (!autoSave) return;
-        try {
-            localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData));
-            localStorage.setItem('pitcherScoutSlotState', JSON.stringify({ lastSelectedSlot, activeSlot }));
-        } catch(e) {
-            const w = document.getElementById('lsWarning');
-            if (w) { w.style.display = 'block'; w.textContent = '⚠️ 自動儲存失敗，請手動備份數據'; }
-        }
-    }
 
     // ====== FIREBASE SETUP ======
     const firebaseConfig = {
@@ -4581,22 +4609,49 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    // 啟用 Firebase 離線持久化（讓 Firebase SDK 自行處理離線快取）
+    db.ref('.info/connected'); // 觸發連線監控初始化
+
     // 動態 DB_KEY：根據球隊代碼隔離數據
     let DB_KEY = 'pitcherScoutData'; // 預設，登入後會更新為 teams/{teamCode}/data
     let lastSaveTime = 0;
     let firebaseListening = false;
+    let isOnline = navigator.onLine;
+    let pendingSync = false; // 離線期間是否有未同步的資料
 
     function setSyncStatus(online) {
         const dot = document.getElementById('syncDotCircle');
         const txt = document.getElementById('syncDotText');
         if (!dot) return;
-        dot.className = 'dot ' + (online ? 'online' : 'offline');
-        txt.textContent = online ? '已同步' : '離線';
+        isOnline = online;
+        if (online && pendingSync) {
+            dot.className = 'dot'; dot.style.background = '#f59e0b';
+            txt.textContent = '同步中...';
+        } else {
+            dot.className = 'dot ' + (online ? 'online' : 'offline');
+            txt.textContent = online ? '已同步' : '離線';
+        }
     }
 
-    // Monitor connection
+    // 監控連線狀態，重新連線時自動補傳
     db.ref('.info/connected').on('value', snap => {
-        setSyncStatus(snap.val() === true);
+        const connected = snap.val() === true;
+        setSyncStatus(connected);
+        if (connected && pendingSync) {
+            // 重新連線，自動補傳離線期間的資料
+            console.log('[Firebase] 重新連線，補傳離線資料...');
+            pendingSync = false;
+            saveToFirebase();
+        }
+    });
+
+    // 瀏覽器網路狀態也監控
+    window.addEventListener('online', () => {
+        if (pendingSync) {
+            console.log('[Network] 連線恢復，補傳資料...');
+            pendingSync = false;
+            saveToFirebase();
+        }
     });
 
     function sanitizeForFirebase(data) {
@@ -4652,17 +4707,6 @@
         }
     }
 
-    function saveToFirebase() {
-        lastSaveTime = Date.now();
-        try {
-            const payload = sanitizeForFirebase(allData);
-            db.ref(DB_KEY).set(payload)
-                .then(() => setSyncStatus(true))
-                .catch(e => { console.error('FB write error:', e.code, e.message); setSyncStatus(false); });
-        } catch(e) { console.error('FB save error:', e); }
-    }
-
-    // ====== PDF 匯出 ======
     function exportReportPDF() {
         if (currentTeam === null || currentPitcher === null) { alert('請先選擇投手！'); return; }
         const pitcher = allData.teams[currentTeam].pitchers[currentPitcher];
@@ -4768,12 +4812,21 @@
 
     function saveToFirebase() {
         lastSaveTime = Date.now();
+        saveToLocalStorage();
         try {
             const payload = sanitizeForFirebase(allData);
             db.ref(DB_KEY).set(payload)
-                .then(() => setSyncStatus(true))
-                .catch(e => { console.error('FB write error:', e.code, e.message); setSyncStatus(false); });
-        } catch(e) { console.error('FB save error:', e); }
+                .then(() => { setSyncStatus(true); pendingSync = false; })
+                .catch(e => {
+                    console.warn('[Firebase] 寫入失敗，標記待同步:', e.code);
+                    pendingSync = true;
+                    setSyncStatus(false);
+                });
+        } catch(e) {
+            console.warn('[Firebase] 離線，資料已存本地，待連線後自動同步');
+            pendingSync = true;
+            setSyncStatus(false);
+        }
     }
 
     function pullFromFirebase() {
