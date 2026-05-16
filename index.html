@@ -713,20 +713,20 @@
             <!-- 球種與配球模式：文字列表（左）/ 圓餅圖（右） -->
             <div class="container">
                 <h2>🎲 常用球種與配球模式</h2>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;">
                     <!-- 左：文字列表 -->
                     <div class="pattern-analysis" id="patternAnalysis"></div>
-                    <!-- 右：兩個圓餅圖上下排列，與統計頁球種分布同邏輯 -->
+                    <!-- 右：自動撐滿左欄高度，兩圖各佔一半 -->
                     <div style="display:flex;flex-direction:column;gap:8px;">
-                        <div>
+                        <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
                             <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:2px;text-align:center;">⚾ 球種比例</div>
-                            <div style="position:relative;width:100%;aspect-ratio:1;">
+                            <div style="position:relative;flex:1;min-height:0;">
                                 <canvas id="pitchTypePieChart"></canvas>
                             </div>
                         </div>
-                        <div>
+                        <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
                             <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:2px;text-align:center;">🔗 配球模式</div>
-                            <div style="position:relative;width:100%;aspect-ratio:1;">
+                            <div style="position:relative;flex:1;min-height:0;">
                                 <canvas id="patternPieChart"></canvas>
                             </div>
                         </div>
