@@ -272,20 +272,26 @@
         }
     }
 
-    let _swControllerListenerAdded = false;
     function checkForUpdate(regParam) {
         if (!('serviceWorker' in navigator)) return;
+
         const showModal = () => {
             const m = document.getElementById('updateModal');
             if (m && m.style.display !== 'flex') m.style.display = 'flex';
         };
-        if (!_swControllerListenerAdded) {
-            _swControllerListenerAdded = true;
-            navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
-        }
+
         const setup = (reg) => {
             if (!reg) return;
+
+            // 新 SW 接管後重新整理（iOS/Android 相容，不用 reload(true)）
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
+            });
+
+            // App 重開時若已有等待的新版本，直接顯示
             if (reg.waiting) { showModal(); return; }
+
+            // 新 SW 安裝完成 → 顯示更新提示
             reg.addEventListener('updatefound', () => {
                 const nw = reg.installing;
                 if (!nw) return;
@@ -295,9 +301,19 @@
                     }
                 });
             });
-            reg.update();
+
+            const poll = () => reg.update().catch(() => {});
+
+            // 立即檢查
+            poll();
+            // 每 5 分鐘定期檢查（電腦長時間開著也能收到更新）
+            setInterval(poll, 5 * 60 * 1000);
+            // 手機/平板從背景切回前景時立即檢查（解決 PWA 不更新的主因）
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') poll();
+            });
         };
-        // 若有直接傳入 reg 就用，否則才做非同步查詢（頁面重開時的 fallback）
+
         if (regParam) { setup(regParam); }
         else { navigator.serviceWorker.getRegistration().then(setup); }
     }
@@ -307,12 +323,14 @@
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistration().then(reg => {
                 if (reg && reg.waiting) {
+                    // SKIP_WAITING → controllerchange → window.location.reload()
                     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                } else {
+                    window.location.reload();
                 }
-                setTimeout(() => location.reload(true), 300);
-            });
+            }).catch(() => window.location.reload());
         } else {
-            location.reload(true);
+            window.location.reload();
         }
     }
 
