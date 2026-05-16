@@ -1,4 +1,16 @@
-﻿    // ====== DATA ======
+﻿    // ====== PITCH COLOR PALETTE ======
+    const PITCH_ORDER = ['快速球','上飄球','下墜球','變速球','二速球','內曲','外曲'];
+    const PITCH_COLORS = {
+        '快速球': '#FF2A2A',   // 正烈火紅
+        '上飄球': '#2979FF',   // 皇家極致藍
+        '下墜球': '#8B4513',   // 剛鐵深棕
+        '變速球': '#FFD700',   // 閃電亮黃
+        '二速球': '#00E676',   // 螢光炫綠
+        '內曲':   '#E040FB',   // 夢幻粉紫
+        '外曲':   '#78909C',   // 時尚鋼鐵灰
+    };
+
+    // ====== DATA ======
     let allData = { teams: [], pitcherDB: {} }; // pitcherDB: key="姓名#背號", value={pitches:[{...pitch, gameKey}]}
     let currentTeam = null;
     let currentPitcher = null;
@@ -2339,19 +2351,43 @@
     }
 
     function updatePitchTypeStats(pitches) {
-        const allTypes = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
         const statsDiv = document.getElementById('pitchTypeStats');
         statsDiv.innerHTML = '';
-        const usedTypes = allTypes.filter(t => pitches.some(p => p.type === t));
-        if (usedTypes.length === 0) { statsDiv.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:16px;">尚無球種記錄</p>'; return; }
-        usedTypes.forEach(type => {
+        const usedTypes = PITCH_ORDER.filter(t => pitches.some(p => p.type === t));
+        if (usedTypes.length === 0) {
+            statsDiv.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:16px;">尚無球種記錄</p>';
+            const canvas = document.getElementById('statsTypePieChart');
+            if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }
+            if (statsTypePieInstance) { statsTypePieInstance.destroy(); statsTypePieInstance = null; }
+            return;
+        }
+        usedTypes.forEach((type) => {
             const count = pitches.filter(p => p.type === type).length;
             const pct = pitches.length > 0 ? ((count/pitches.length)*100).toFixed(1) : 0;
+            const color = PITCH_COLORS[type] || '#999';
             const item = document.createElement('div');
             item.className = 'pattern-item';
-            item.innerHTML = `<span style="font-size:17px;font-weight:900;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;">${type}</span><span style="color:var(--ct-red);font-weight:700;">${count} 球 (${pct}%)</span>`;
+            item.innerHTML = `<span style="font-size:17px;font-weight:900;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;">${type}</span><span style="color:var(--ct-red);font-weight:700;">${count} 球 (${pct}%)</span>`;
             statsDiv.appendChild(item);
         });
+        // pie chart
+        const canvas = document.getElementById('statsTypePieChart');
+        if (canvas) {
+            const counts = usedTypes.map(t => pitches.filter(p => p.type === t).length);
+            const colors = usedTypes.map(t => PITCH_COLORS[t] || '#999');
+            if (statsTypePieInstance) { statsTypePieInstance.destroy(); statsTypePieInstance = null; }
+            statsTypePieInstance = new Chart(canvas, {
+                type: 'doughnut',
+                data: { labels: usedTypes, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+                options: {
+                    responsive: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } },
+                        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } }
+                    }
+                }
+            });
+        }
     }
 
     // ====== HEATMAP ======
@@ -3002,20 +3038,20 @@
     // ====== TABS ======
     // ====== CHART.JS INSTANCES ======
     let pieChartInstance = null;
+    let statsTypePieInstance = null;
     let lineChartInstance = null;
 
     function updatePitchTypePieChart(pitches) {
         const canvas = document.getElementById('pitchTypePieChart');
         if (!canvas) return;
-        const PITCH_ORDER = ['快速球','上飄球','下墜球','變速球','二速球','內曲','外曲'];
         const allTypes = PITCH_ORDER.filter(t => pitches.some(p => p.type === t));
         const counts = allTypes.map(t => pitches.filter(p => p.type === t).length);
-        const colors = ['#003d79','#0ea5e9','#10b981','#f59e0b','#8b5cf6','#dc2626','#f97316'];
+        const colors = allTypes.map(t => PITCH_COLORS[t] || '#999');
         if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
         if (!allTypes.length) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); return; }
         pieChartInstance = new Chart(canvas, {
             type: 'doughnut',
-            data: { labels: allTypes, datasets: [{ data: counts, backgroundColor: colors.slice(0, allTypes.length), borderWidth: 2, borderColor: '#fff' }] },
+            data: { labels: allTypes, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
             options: {
                 responsive: false,
                 plugins: {
@@ -3410,7 +3446,6 @@
             makePatterns(pitchesB, `B · ${nameB}`, '#888');
 
         // ---- Effectiveness ----
-        const PITCH_ORDER = ['快速球','上飄球','下墜球','變速球','二速球','內曲','外曲'];
         const allPitchTypes = PITCH_ORDER.filter(t => pitchesA.some(p=>p.type===t) || pitchesB.some(p=>p.type===t));
         let effHTML = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead><tr style="background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;">
@@ -3428,7 +3463,7 @@
             const srB = tpB.length ? ((tpB.filter(p=>p.result==='好球').length/tpB.length)*100).toFixed(1)+'%' : '—';
             const swB = tpB.length ? ((tpB.filter(p=>p.swing).length/tpB.length)*100).toFixed(1)+'%' : '—';
             effHTML += `<tr style="background:${i%2===0?'#f9fafb':'white'};">
-                <td style="padding:8px 10px;font-weight:700;color:var(--ct-blue-dark);">${type}</td>
+                <td style="padding:8px 10px;font-weight:700;color:${PITCH_COLORS[type]||'var(--ct-blue-dark)'};">${type}</td>
                 <td style="padding:8px;text-align:center;">${srA}</td>
                 <td style="padding:8px;text-align:center;">${swA}</td>
                 <td style="padding:8px;text-align:center;">${srB}</td>

@@ -431,7 +431,7 @@
                         <strong id="currentSpeed" style="color:var(--ct-red);font-size:15px;flex-shrink:0;">--</strong>
                         <span style="font-size:12px;color:#9ca3af;flex-shrink:0;">km/h</span>
                     </div>
-                    <div class="speed-shortcuts">
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
                         <button class="speed-btn" onclick="setSpeed(90,this)">90</button>
                         <button class="speed-btn" onclick="setSpeed(91,this)">91</button>
                         <button class="speed-btn" onclick="setSpeed(92,this)">92</button>
@@ -442,6 +442,8 @@
                         <button class="speed-btn" onclick="setSpeed(97,this)">97</button>
                         <button class="speed-btn" onclick="setSpeed(98,this)">98</button>
                         <button class="speed-btn" onclick="setSpeed(99,this)">99</button>
+                    </div>
+                    <div class="speed-shortcuts">
                         <button class="speed-btn" onclick="setSpeed(100,this)">100</button>
                         <button class="speed-btn" onclick="setSpeed(101,this)">101</button>
                         <button class="speed-btn" onclick="setSpeed(102,this)">102</button>
@@ -453,6 +455,16 @@
                         <button class="speed-btn" onclick="setSpeed(108,this)">108</button>
                         <button class="speed-btn" onclick="setSpeed(109,this)">109</button>
                         <button class="speed-btn" onclick="setSpeed(110,this)">110</button>
+                        <button class="speed-btn" onclick="setSpeed(111,this)">111</button>
+                        <button class="speed-btn" onclick="setSpeed(112,this)">112</button>
+                        <button class="speed-btn" onclick="setSpeed(113,this)">113</button>
+                        <button class="speed-btn" onclick="setSpeed(114,this)">114</button>
+                        <button class="speed-btn" onclick="setSpeed(115,this)">115</button>
+                        <button class="speed-btn" onclick="setSpeed(116,this)">116</button>
+                        <button class="speed-btn" onclick="setSpeed(117,this)">117</button>
+                        <button class="speed-btn" onclick="setSpeed(118,this)">118</button>
+                        <button class="speed-btn" onclick="setSpeed(119,this)">119</button>
+                        <button class="speed-btn" onclick="setSpeed(120,this)">120</button>
                     </div>
                 </div>
 
@@ -634,20 +646,18 @@
             </div>
             <div class="container">
                 <h2>⚾ 球種分布</h2>
-                <div id="pitchTypeStats"></div>
-            </div>
-            <!-- 球速折線圖 -->
-            <div class="container">
-                <h2>📉 各局平均球速趨勢</h2>
-                <p style="font-size:12px;color:#6b7280;margin-bottom:10px;">依記錄順序每10球為一組計算平均球速</p>
-                <div style="position:relative;width:100%;min-height:160px;">
-                    <canvas id="speedLineChart" style="width:100% !important;height:160px !important;display:block;"></canvas>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;">
+                    <div id="pitchTypeStats"></div>
+                    <div style="display:flex;justify-content:center;">
+                        <canvas id="statsTypePieChart" width="200" height="200" style="max-width:200px;"></canvas>
+                    </div>
                 </div>
             </div>
+            <canvas id="speedLineChart" style="display:none;"></canvas>
             <!-- 整合熱區圖 - 單一九宮格含好壞球 -->
             <div class="container">
                 <h2>🎯 投球位置熱區圖</h2>
-                <p style="font-size:12px;color:#6b7280;margin-bottom:10px;">黃=好球帶(1-9)  綠=壞球區(B)  數字=投球次數</p>
+                <p style="font-size:12px;color:#6b7280;margin-bottom:10px;">橘=好球帶(1-9)  綠=壞球區(B)  數字=投球次數</p>
                 <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;align-items:flex-start;">
                     <div style="text-align:center;">
                         <div style="font-size:13px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:6px;">總投球位置（好球+壞球整合）</div>
@@ -936,15 +946,17 @@
 
     <!-- 編輯投球記錄彈窗 -->
     <div id="editPitchModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-content" style="display:flex;flex-direction:column;padding:0;max-height:90vh;">
+            <div class="modal-header" style="flex-shrink:0;padding:16px 22px;">
                 <h2 style="margin:0;">✏️ 編輯投球記錄</h2>
                 <span class="close" onclick="closeEditModal()">&times;</span>
             </div>
-            <div id="editPitchForm"></div>
-            <button class="btn btn-success" style="width:100%;margin-top:14px;" onclick="saveEditedPitch()">
-                ✅ 儲存修改
-            </button>
+            <div id="editPitchForm" style="flex:1;overflow-y:auto;padding:0 22px 12px;"></div>
+            <div style="flex-shrink:0;padding:10px 22px 20px;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-success" style="width:100%;touch-action:manipulation;" onclick="saveEditedPitch()">
+                    ✅ 儲存修改
+                </button>
+            </div>
         </div>
     </div>
 

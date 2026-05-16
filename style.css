@@ -217,7 +217,7 @@
         .count-title { font-size:10px; color:var(--ct-gold); font-weight:700; text-align:center; margin-bottom:5px; letter-spacing:1px; }
         .count-lights { display:flex; justify-content:center; gap:4px; }
         .count-light { width:18px; height:18px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.1); flex-shrink:0; }
-        .count-light.strike-on { background:var(--ct-yellow); border-color:var(--ct-yellow); box-shadow:0 0 6px rgba(251,191,36,0.6); }
+        .count-light.strike-on { background:#f97316; border-color:#f97316; box-shadow:0 0 6px rgba(249,115,22,0.6); }
         .count-light.ball-on { background:#22c55e; border-color:#22c55e; box-shadow:0 0 6px rgba(34,197,94,0.6); }
         .count-light.out-on { background:#ef4444; border-color:#ef4444; box-shadow:0 0 6px rgba(239,68,68,0.6); }
         .bases-display { background:rgba(0,0,0,0.3); border-radius:8px; padding:8px; border:1px solid rgba(255,215,0,0.2); }
@@ -291,10 +291,10 @@
             border-radius:6px; color:var(--ct-blue-dark); -webkit-user-select:none; user-select:none;
             touch-action:manipulation;
         }
-        .zone-cell.strike-zone { background:#fef3c7; border-color:var(--ct-yellow); }
+        .zone-cell.strike-zone { background:#fff0e6; border-color:#f97316; }
         .zone-cell.ball-zone { background:#d1fae5; border-color:var(--ct-green-light); opacity:0.85; font-size:12px; }
         .zone-cell:active { transform:scale(1.05); }
-        .zone-cell.selected.strike-zone { background:var(--ct-yellow) !important; color:var(--ct-blue-dark); border-color:var(--ct-red); box-shadow:0 0 0 3px rgba(220,0,0,0.45); transform:scale(1.05); }
+        .zone-cell.selected.strike-zone { background:#f97316 !important; color:var(--ct-blue-dark); border-color:var(--ct-red); box-shadow:0 0 0 3px rgba(220,0,0,0.45); transform:scale(1.05); }
         .zone-cell.selected.ball-zone { background:var(--ct-green) !important; color:white; border-color:var(--ct-red); box-shadow:0 0 0 3px rgba(220,0,0,0.45); transform:scale(1.05); }
         .zone-label { position:absolute; top:3px; left:4px; font-size:10px; color:#9ca3af; font-weight:700; }
         .zone-cell.selected .zone-label { color:rgba(0,0,0,0.65); }
@@ -325,7 +325,7 @@
         .pitch-result-display { background:#f9fafb; border-radius:8px; padding:10px; border:2px solid var(--ct-gold); text-align:center; }
         .pitch-result-display-label { font-size:11px; color:#6b7280; font-weight:700; margin-bottom:4px; }
         .pitch-result-display-value { font-size:18px; font-weight:900; }
-        .pitch-result-display-value.strike-result { color:#92400e; }
+        .pitch-result-display-value.strike-result { color:#c2410c; }
         .pitch-result-display-value.ball-result { color:#065f46; }
         .pitch-result-display-value.none-result { color:#9ca3af; font-style:italic; font-size:14px; }
 
@@ -393,7 +393,7 @@
         /* Ball zone heatmap (4x4 extended) */
         .ball-heatmap-grid { display:grid; grid-template-columns:repeat(6,42px); grid-template-rows:repeat(5,42px); gap:3px; background:var(--ct-blue-dark); padding:3px; border-radius:8px; border:3px solid var(--ct-green); margin:0 auto; }
         .ball-heat-cell { background:#d1fae5; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; position:relative; border-radius:4px; border:1px solid #86efac; color:#065f46; }
-        .ball-heat-cell.inner { background:#fef3c7; border-color:var(--ct-yellow); color:#92400e; }
+        .ball-heat-cell.inner { background:#fff0e6; border-color:#f97316; color:#c2410c; }
 
         /* Common pitch position / ball drop - right side labels */
         .heatmap-side-info { font-size:11px; color:#6b7280; background:#f9fafb; border-radius:6px; padding:8px; border:1px solid var(--ct-gold); max-width:120px; }
@@ -472,7 +472,7 @@
         .zone-legend { padding:10px; background:#f9fafb; border-radius:8px; font-size:12px; border:2px solid var(--ct-gold); }
         .legend-item { display:flex; align-items:center; margin:4px 0; gap:7px; }
         .legend-box { width:18px; height:18px; border-radius:4px; border:2px solid; flex-shrink:0; }
-        .legend-box.strike { background:var(--ct-yellow); border-color:var(--ct-red); }
+        .legend-box.strike { background:#f97316; border-color:var(--ct-red); }
         .legend-box.ball { background:var(--ct-green); border-color:var(--ct-red); }
 
         /* ===== SIDEBAR OVERLAY ===== */
