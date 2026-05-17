@@ -3681,8 +3681,6 @@
     const db = firebase.database();
     // 啟用 Firebase 離線持久化（讓 Firebase SDK 自行處理離線快取）
     db.ref('.info/connected'); // 觸發連線監控初始化
-    // 匿名登入確保 Firebase Security Rules "auth != null" 條件滿足
-    firebase.auth().signInAnonymously().catch(() => {});
 
     // 動態 DB_KEY：根據球隊代碼隔離數據
     let DB_KEY = 'pitcherScoutData'; // 預設，登入後會更新為 teams/{teamCode}/data
