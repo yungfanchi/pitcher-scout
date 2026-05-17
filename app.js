@@ -4435,8 +4435,11 @@
         if (!wrap || !btn) return;
         const collapsed = wrap.style.display === 'none';
         wrap.style.display = collapsed ? '' : 'none';
-        btn.textContent   = collapsed ? '▲ 收合' : '▼ 展開';
+        btn.textContent        = collapsed ? '▲ 收合' : '▼ 展開';
+        btn.style.background   = collapsed ? 'rgba(255,215,0,0.1)'  : 'rgba(255,215,0,0.22)';
+        btn.style.borderColor  = collapsed ? 'rgba(255,215,0,0.25)' : 'rgba(255,215,0,0.55)';
     }
+    window.toggleAdminList = toggleAdminList;
 
     // ── 管理後台：帳號列表 ──
     async function adminLoadTeams() {
@@ -4825,17 +4828,28 @@
             // 寫入管理員專屬路徑（pitcherScoutData），不觸碰 teams/{code}
             await db.ref('pitcherScoutData').set({ teams: demoTeams });
 
+            // 注入完成後立即更新本地狀態與 UI（不等 Firebase listener）
+            allData.teams    = JSON.parse(JSON.stringify(demoTeams));
+            allData.pitcherDB = {};
+            rebuildPitcherDB();
+            saveToLocalStorage();
+            updateTeamList();
+            updateSlotDisplay();
+            updatePitchLog();
+            updateStats();
+            updateScoreboard();
+
             if (btn) {
                 btn.textContent = '✅ 注入完成';
                 setTimeout(() => { btn.textContent = '🎽 注入女子壘球示範資料'; btn.disabled = false; }, 2500);
             }
             alert(
-                '✅ 女子快速壘球示範資料已注入管理員帳號！\n\n' +
+                '✅ 女子快速壘球示範資料已注入！\n\n' +
                 `📊 內容：\n` +
                 `• 賽事：2026 世界女壘錦標賽\n` +
                 `• vs 日本（2026-08-10）：陳雅婷 #1（${chen_g1.length} 球）、林佳蓉 #18（${lin_g1.length} 球）\n` +
                 `• vs 美國（2026-08-14）：陳雅婷 #1（${chen_g2.length} 球）\n\n` +
-                `請切換至「投手情蒐模式」查看統計與分析。`
+                `側邊欄已立即更新，展開「2026 世界女壘錦標賽」即可選擇投手。`
             );
         } catch (e) {
             if (btn) { btn.textContent = '❌ 失敗'; btn.disabled = false; }
