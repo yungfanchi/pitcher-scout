@@ -16,6 +16,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@500;700&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
@@ -26,6 +27,81 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+    <!-- ====== Firebase Auth 全螢幕登入/註冊 Overlay ====== -->
+    <div id="authOverlay" style="display:flex;position:fixed;inset:0;z-index:10000;background:linear-gradient(135deg,#003d79 0%,#0051a5 60%,#003d79 100%);align-items:center;justify-content:center;flex-direction:column;padding:16px;box-sizing:border-box;">
+        <div style="width:100%;max-width:400px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:18px;padding:28px 24px;backdrop-filter:blur(8px);">
+            <!-- Logo -->
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:48px;">⚾</div>
+                <div style="font-size:22px;font-weight:900;color:white;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:3px;margin-top:6px;">投手情蒐系統</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.45);letter-spacing:2px;margin-top:2px;">PITCHER SCOUTING · CHINESE TAIPEI</div>
+            </div>
+            <!-- Tabs -->
+            <div style="display:flex;border-radius:8px;overflow:hidden;margin-bottom:20px;border:1px solid rgba(255,255,255,0.2);">
+                <button id="authTabLogin" onclick="switchAuthTab('login')" style="flex:1;padding:10px;background:rgba(255,255,255,0.18);color:white;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 已有授權登入</button>
+                <button id="authTabRegister" onclick="switchAuthTab('register')" style="flex:1;padding:10px;background:transparent;color:rgba(255,255,255,0.55);border:none;border-left:1px solid rgba(255,255,255,0.2);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">🆕 新球隊開通</button>
+            </div>
+            <!-- Form -->
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">Email</label>
+                    <input type="email" id="authEmail" placeholder="請輸入 Email" autocomplete="email"
+                        style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;"
+                        onkeydown="if(event.key==='Enter')document.getElementById('authPassword').focus()">
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">密碼</label>
+                    <input type="password" id="authPassword" placeholder="請輸入密碼" autocomplete="current-password"
+                        style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;"
+                        onkeydown="if(event.key==='Enter')doAuthAction()">
+                </div>
+                <!-- 球隊授權碼（僅新球隊開通時顯示） -->
+                <div id="authTeamCodeWrap" style="display:none;">
+                    <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">球隊授權碼</label>
+                    <input type="text" id="authTeamCode" placeholder="由管理員提供的授權碼" autocomplete="off" autocapitalize="characters"
+                        style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;text-transform:uppercase;"
+                        onkeydown="if(event.key==='Enter')doAuthAction()">
+                </div>
+            </div>
+            <div id="authError" style="min-height:18px;font-size:12px;color:#fca5a5;margin-top:10px;text-align:center;font-weight:700;"></div>
+            <button onclick="doAuthAction()" ontouchend="event.preventDefault();doAuthAction()"
+                style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(135deg,#dc0000,#b91c1c);color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:1px;touch-action:manipulation;">
+                進入系統 →
+            </button>
+            <!-- 管理員舊版入口 -->
+            <div style="text-align:center;margin-top:16px;">
+                <button onclick="showLegacyLogin()" style="background:none;border:none;color:rgba(255,255,255,0.28);font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline;touch-action:manipulation;">管理員舊版登入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 模式選擇首頁（Auth 通過後顯示） ====== -->
+    <div id="modeSelectionPage" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#003d79 0%,#0051a5 60%,#003d79 100%);align-items:center;justify-content:center;flex-direction:column;padding:24px;box-sizing:border-box;">
+        <div style="text-align:center;margin-bottom:32px;">
+            <div style="font-size:40px;">⚾</div>
+            <div style="font-size:24px;font-weight:900;color:white;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:3px;margin-top:10px;">選擇功能模式</div>
+            <div id="modeSelectionUserInfo" style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:6px;"></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px;width:100%;max-width:560px;">
+            <button type="button" onclick="enterPitcherMode()" ontouchend="event.preventDefault();enterPitcherMode()"
+                style="flex:1;min-width:200px;max-width:240px;padding:28px 20px;background:rgba(255,255,255,0.08);border:2px solid rgba(255,215,0,0.6);border-radius:16px;color:white;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                <div style="font-size:36px;margin-bottom:10px;">📝</div>
+                <div style="font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Oswald','Noto Sans TC',sans-serif;">投手情蒐模式</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:6px;">記錄與分析投球數據</div>
+            </button>
+            <button type="button" disabled
+                style="flex:1;min-width:200px;max-width:240px;padding:28px 20px;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.1);border-radius:16px;color:rgba(255,255,255,0.35);cursor:not-allowed;font-family:inherit;opacity:0.5;">
+                <div style="font-size:36px;margin-bottom:10px;">🏏</div>
+                <div style="font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Oswald','Noto Sans TC',sans-serif;">打者情蒐模式</div>
+                <div style="font-size:12px;margin-top:6px;">開發中，敬請期待</div>
+            </button>
+        </div>
+        <div style="margin-top:28px;">
+            <button type="button" onclick="doAuthLogout()" ontouchend="event.preventDefault();doAuthLogout()"
+                style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.2);padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;touch-action:manipulation;">🚪 登出</button>
+        </div>
+    </div>
+
     <!-- 觀看模式提示條 -->
     <div id="viewOnlyBanner">
         <span>👀 觀看模式 — 數據唯讀，無法輸入記錄</span>
@@ -147,8 +223,8 @@
         <span id="syncDotText">連線中...</span>
     </div>
 
-    <!-- 登入畫面 -->
-    <div id="loginScreen">
+    <!-- 登入畫面（舊版，保留供管理員使用；已由 authOverlay 取代） -->
+    <div id="loginScreen" style="display:none;">
         <div class="login-box">
             <div class="login-logo" style="margin-bottom:8px;">
                 <div style="font-size:52px;text-align:center;">⚾</div>

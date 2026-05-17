@@ -24,6 +24,10 @@
     let statsFilter = 'all'; // 'all' or a gameKey
     let expandedGames = new Set(); // track which game groups are expanded
 
+    // ====== MULTI-TENANT AUTH ======
+    let userSession = null;      // Firebase Auth user object
+    let USER_TEAM_REF = null;    // db.ref('teams/{teamCode}') — locked after auth
+
     // Game state
     let gameState = {
         strikes: 0, balls: 0, outs: 0,
@@ -749,6 +753,10 @@
         DB_KEY = currentTeamCode === 'ADMIN' ? 'pitcherScoutData' : `teams/${currentTeamCode}/data`;
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('modeSelectScreen').style.display = 'none';
+        const msp = document.getElementById('modeSelectionPage');
+        if (msp) msp.style.display = 'none';
+        const ao = document.getElementById('authOverlay');
+        if (ao) ao.style.display = 'none';
         // 管理員顯示建立球隊按鈕
         const createBtn = document.getElementById('createTeamBtn');
         if (createBtn && currentTeamCode === 'ADMIN') createBtn.style.display = 'block';
@@ -794,6 +802,9 @@
     function logout() {
         if (!confirm('確定要登出嗎？')) return;
         userRole = null;
+        userSession = null;
+        USER_TEAM_REF = null;
+        firebaseListening = false;
         // Reset state
         currentTeam = null; currentPitcher = null;
         slotA = { team: null, pitcher: null };
@@ -806,8 +817,13 @@
         document.getElementById('loginPw').value = '';
         document.getElementById('loginError').textContent = '';
         selectRole('scout');
-        // Show login screen
-        document.getElementById('loginScreen').style.display = 'flex';
+        // Firebase Auth sign-out (new flow) — onAuthStateChanged will show authOverlay
+        try { firebase.auth().signOut(); } catch(e) {}
+        // If legacy admin was logged in (no Firebase Auth session), show authOverlay directly
+        const ao = document.getElementById('authOverlay');
+        if (ao) ao.style.display = 'flex';
+        const msp = document.getElementById('modeSelectionPage');
+        if (msp) msp.style.display = 'none';
     }
 
     function applyViewOnlyMode() {
@@ -843,27 +859,37 @@
         }, 100);
     }
 
+    // ====== 後台權限控制 ======
+    function controlUserRolePermissions(role) {
+        if (role === 'viewer') {
+            // 延遲確保 DOM 已渲染完成
+            setTimeout(() => {
+                const writeSelectors = [
+                    '.pitch-btn', '#confirmRecordBtn', '#btnRecord',
+                    '.btn-add', '#btnSave', '.delete-btn',
+                    '.score-btn', '.half-btn', '.zone-cell',
+                    '#foulBtn', '#swingBtn', '#wildBtn',
+                    '.outcome-btn', '.speed-btn', '.order-adj-btn',
+                    '.hand-btn', '#pinchHitterBtn'
+                ];
+                writeSelectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                        el.style.opacity = '0.3';
+                        el.style.pointerEvents = 'none';
+                    });
+                });
+                applyViewOnlyMode();
+            }, 200);
+        }
+        // 'admin' / 'scout'：維持正常，不做限制
+    }
+
     function refreshData(btn) {
         if (btn) { btn.textContent = '⏳ 更新中...'; btn.disabled = true; }
-        // Pull latest data from Firebase and refresh all UI without reloading page
-        db.ref(DB_KEY).once('value')
+        getDataRef().once('value')
             .then(snap => {
-                const data = snap.val();
-                if (data && data.teams) {
-                    let teams = data.teams;
-                    if (!Array.isArray(teams)) teams = Object.values(teams);
-                    teams = teams.map(team => {
-                        if (!team) return team;
-                        let pitchers = team.pitchers || [];
-                        if (!Array.isArray(pitchers)) pitchers = Object.values(pitchers);
-                        pitchers = pitchers.map(pitcher => {
-                            if (!pitcher) return pitcher;
-                            let pitches = pitcher.pitches || [];
-                            if (!Array.isArray(pitches)) pitches = Object.values(pitches);
-                            return { ...pitcher, pitches };
-                        });
-                        return { ...team, pitchers };
-                    });
+                const teams = normalizeTeamsData(snap.val());
+                if (teams) {
                     allData.teams = teams;
                     allData.pitcherDB = {};
                     rebuildPitcherDB();
@@ -875,10 +901,7 @@
                     btn.textContent = '✅ 已更新';
                     btn.style.background = 'rgba(16,185,129,0.5)';
                     btn.disabled = false;
-                    setTimeout(() => {
-                        btn.textContent = origText;
-                        btn.style.background = '';
-                    }, 1500);
+                    setTimeout(() => { btn.textContent = origText; btn.style.background = ''; }, 1500);
                 }
             })
             .catch(() => {
@@ -888,10 +911,7 @@
                     btn.textContent = '📵 離線更新';
                     btn.style.background = 'rgba(251,191,36,0.3)';
                     btn.disabled = false;
-                    setTimeout(() => {
-                        btn.textContent = origText;
-                        btn.style.background = '';
-                    }, 1500);
+                    setTimeout(() => { btn.textContent = origText; btn.style.background = ''; }, 1500);
                 }
             });
     }
@@ -908,7 +928,12 @@
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
     }
 
+    // injectDemoData 已移除，上線版禁止自動覆蓋真實資料
     function injectDemoData() {
+        console.warn('[injectDemoData] 已停用。如需測試資料請手動於 Firebase Console 新增。');
+    }
+    /* ── 以下為已停用的舊測試資料產生器 ── */
+    function _removedInjectDemoData_DISABLED() {
         const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
         const pick = arr => arr[rnd(0,arr.length-1)];
         const types = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
@@ -996,7 +1021,7 @@
         ];
         rebuildPitcherDB();
         try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
-    }
+    } // end _removedInjectDemoData_DISABLED
 
     // ====== TAIWAN FLAG ======
     function checkTaiwanFlag(input) {
@@ -3709,6 +3734,44 @@
         return clean;
     }
 
+    // ====== MULTI-TENANT DATA HELPERS ======
+    // Returns the correct Firebase ref depending on auth mode:
+    //   New SaaS:  USER_TEAM_REF.child('pitchers')  → teams/{teamCode}/pitchers
+    //   Legacy:    db.ref(DB_KEY)                   → teams/{teamCode}/data
+    function getDataRef() {
+        return USER_TEAM_REF ? USER_TEAM_REF.child('pitchers') : db.ref(DB_KEY);
+    }
+
+    // Returns the payload to write: new mode stores raw teams array; legacy wraps in {teams:[]}
+    function getFirebasePayload() {
+        if (USER_TEAM_REF) return JSON.parse(JSON.stringify(allData.teams || []));
+        return sanitizeForFirebase(allData);
+    }
+
+    // Normalises snapshot value from either storage format into a clean teams array
+    function normalizeTeamsData(raw) {
+        if (!raw) return null;
+        let teams;
+        if (USER_TEAM_REF) {
+            // New path: snapshot IS the teams array/object
+            teams = Array.isArray(raw) ? raw : Object.values(raw);
+        } else {
+            // Legacy path: snapshot = { teams: [...] }
+            if (!raw.teams) return null;
+            teams = Array.isArray(raw.teams) ? raw.teams : Object.values(raw.teams);
+        }
+        return teams.filter(Boolean).map(team => {
+            let pitchers = team.pitchers || [];
+            if (!Array.isArray(pitchers)) pitchers = Object.values(pitchers);
+            pitchers = pitchers.filter(Boolean).map(pitcher => {
+                let pitches = pitcher.pitches || [];
+                if (!Array.isArray(pitches)) pitches = Object.values(pitches);
+                return { ...pitcher, pitches };
+            });
+            return { ...team, pitchers };
+        });
+    }
+
     function restoreFromFirebaseData(data) {
         // Firebase Realtime DB converts arrays to objects ({0:{...},1:{...}})
         // Convert back to proper arrays at every level
@@ -3736,11 +3799,10 @@
         const btn = event && event.target;
         if (btn) { btn.textContent = '⏳ 同步中...'; btn.disabled = true; }
         try {
-            const payload = sanitizeForFirebase(allData);
-            db.ref(DB_KEY).set(payload)
+            getDataRef().set(getFirebasePayload())
                 .then(() => {
                     setSyncStatus(true);
-                    if (btn) { btn.textContent = '✅ 同步成功'; setTimeout(() => { btn.textContent = '☁️ 強制同步雲端'; btn.disabled = false; }, 2000); }
+                    if (btn) { btn.textContent = '✅ 同步成功'; setTimeout(() => { btn.textContent = '☁️ 上傳至雲端'; btn.disabled = false; }, 2000); }
                     alert('✅ 數據已成功同步至雲端！');
                 })
                 .catch(e => {
@@ -3749,7 +3811,7 @@
                 });
         } catch(e) {
             alert('同步錯誤：' + e.message);
-            if (btn) { btn.textContent = '☁️ 強制同步雲端'; btn.disabled = false; }
+            if (btn) { btn.textContent = '☁️ 上傳至雲端'; btn.disabled = false; }
         }
     }
 
@@ -3828,25 +3890,10 @@
     function listenFirebase() {
         if (firebaseListening) return;
         firebaseListening = true;
-        db.ref(DB_KEY).on('value', snap => {
-            const data = snap.val();
-            if (!data || !data.teams) return;
-            // Ignore if this update was triggered by our own recent save (within 3s)
-            if (Date.now() - lastSaveTime < 3000) return;
-            let teams = data.teams;
-            if (!Array.isArray(teams)) teams = Object.values(teams);
-            teams = teams.map(team => {
-                if (!team) return team;
-                let pitchers = team.pitchers || [];
-                if (!Array.isArray(pitchers)) pitchers = Object.values(pitchers);
-                pitchers = pitchers.map(pitcher => {
-                    if (!pitcher) return pitcher;
-                    let pitches = pitcher.pitches || [];
-                    if (!Array.isArray(pitches)) pitches = Object.values(pitches);
-                    return { ...pitcher, pitches };
-                });
-                return { ...team, pitchers };
-            });
+        getDataRef().on('value', snap => {
+            if (Date.now() - lastSaveTime < 3000) return; // 忽略自己剛寫入觸發的更新
+            const teams = normalizeTeamsData(snap.val());
+            if (!teams) return;
             allData.teams = teams;
             allData.pitcherDB = {};
             rebuildPitcherDB();
@@ -3860,8 +3907,7 @@
         lastSaveTime = Date.now();
         saveToLocalStorage();
         try {
-            const payload = sanitizeForFirebase(allData);
-            db.ref(DB_KEY).set(payload)
+            getDataRef().set(getFirebasePayload())
                 .then(() => { setSyncStatus(true); pendingSync = false; })
                 .catch(e => {
                     console.warn('[Firebase] 寫入失敗，標記待同步:', e.code);
@@ -3876,18 +3922,18 @@
     }
 
     function pullFromFirebase() {
-        db.ref(DB_KEY).once('value')
+        getDataRef().once('value')
             .then(snap => {
-                const data = snap.val();
-                // Firebase may return teams as object {0:{...},1:{...}} instead of array
-                let teams = data && data.teams;
-                if (teams && !Array.isArray(teams)) teams = Object.values(teams);
-                if (!data || !teams || teams.length === 0) {
+                const teams = normalizeTeamsData(snap.val());
+                if (!teams || teams.length === 0) {
                     alert('雲端目前無資料，請先按「☁️ 上傳至雲端」把本機數據上傳。');
                     return;
                 }
                 if (!confirm(`雲端有 ${teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
-                restoreFromFirebaseData(data);
+                allData.teams = teams;
+                allData.pitcherDB = {};
+                rebuildPitcherDB();
+                try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
                 alert('✅ 已從雲端拉取最新數據！');
             })
@@ -3929,7 +3975,7 @@
         if (tg) tg.checked = autoSave;
         const st = document.getElementById('autoSaveStatus');
         if (st) st.textContent = autoSave ? '開啟' : '關閉';
-        listenFirebase();
+        // listenFirebase() 移至 enterSystem() 呼叫，確保 USER_TEAM_REF 已設定後才開始監聽
     }
 
     // Close modals on outside click - use stopPropagation to prevent flash
@@ -3944,6 +3990,154 @@
         document.querySelectorAll('.modal-content').forEach(el => {
             el.addEventListener('click', e => e.stopPropagation());
         });
+        initFirebaseAuth();
     });
 
+    // ====== FIREBASE AUTH（新多租戶 SaaS 入口）======
+
+    function initFirebaseAuth() {
+        firebase.auth().onAuthStateChanged(async (user) => {
+            const ao = document.getElementById('authOverlay');
+            const msp = document.getElementById('modeSelectionPage');
+            if (!user) {
+                // 未登入：顯示 authOverlay
+                userSession = null;
+                USER_TEAM_REF = null;
+                if (ao) ao.style.display = 'flex';
+                if (msp) msp.style.display = 'none';
+                return;
+            }
+            // 登入成功：取得使用者權限
+            userSession = user;
+            try {
+                const snap = await db.ref('users/' + user.uid).once('value');
+                const userData = snap.val();
+                // 商業安全防線：isPaid 必須為 true
+                if (!userData || userData.isPaid !== true) {
+                    await firebase.auth().signOut();
+                    const errEl = document.getElementById('authError');
+                    if (errEl) errEl.textContent = '❌ 授權已過期，請聯絡管理員開通';
+                    return;
+                }
+                // 核心路徑隔離：鎖定該球隊的 Firebase ref
+                USER_TEAM_REF = db.ref('teams/' + userData.teamCode);
+                currentTeamCode = userData.teamCode;
+                userRole = userData.role || 'admin';
+                // 隱藏 authOverlay，顯示模式選擇頁
+                if (ao) ao.style.display = 'none';
+                if (msp) {
+                    msp.style.display = 'flex';
+                    const info = document.getElementById('modeSelectionUserInfo');
+                    if (info) info.textContent = `${user.email}　｜　${userData.teamCode}　｜　${userRole}`;
+                }
+            } catch(e) {
+                console.error('[Auth] 讀取使用者資料失敗:', e);
+                await firebase.auth().signOut();
+                const errEl = document.getElementById('authError');
+                if (errEl) errEl.textContent = '❌ 驗證失敗，請稍後再試';
+            }
+        });
+    }
+
+    // 登入/註冊 Tab 切換
+    function switchAuthTab(tab) {
+        const isRegister = tab === 'register';
+        const loginBtn = document.getElementById('authTabLogin');
+        const regBtn = document.getElementById('authTabRegister');
+        const wrap = document.getElementById('authTeamCodeWrap');
+        if (loginBtn) loginBtn.style.background = isRegister ? 'transparent' : 'rgba(255,255,255,0.18)';
+        if (loginBtn) loginBtn.style.color = isRegister ? 'rgba(255,255,255,0.55)' : 'white';
+        if (regBtn)   regBtn.style.background  = isRegister ? 'rgba(255,255,255,0.18)' : 'transparent';
+        if (regBtn)   regBtn.style.color  = isRegister ? 'white' : 'rgba(255,255,255,0.55)';
+        if (wrap) wrap.style.display = isRegister ? 'block' : 'none';
+        const errEl = document.getElementById('authError');
+        if (errEl) errEl.textContent = '';
+        // 標記當前 Tab
+        document.getElementById('authOverlay').dataset.tab = tab;
+    }
+
+    // 統一入口：依當前 Tab 決定登入或註冊
+    async function doAuthAction() {
+        const overlay = document.getElementById('authOverlay');
+        const tab = overlay ? overlay.dataset.tab || 'login' : 'login';
+        if (tab === 'register') {
+            await doAuthRegister();
+        } else {
+            await doAuthLogin();
+        }
+    }
+
+    async function doAuthLogin() {
+        const email = (document.getElementById('authEmail').value || '').trim();
+        const pw    = (document.getElementById('authPassword').value || '').trim();
+        const errEl = document.getElementById('authError');
+        if (!email || !pw) { errEl.textContent = '❌ 請填寫 Email 與密碼'; return; }
+        errEl.textContent = '🔄 驗證中...';
+        try {
+            await firebase.auth().signInWithEmailAndPassword(email, pw);
+            // onAuthStateChanged 接手後續流程
+        } catch(e) {
+            const msg = e.code === 'auth/user-not-found'  ? '帳號不存在' :
+                        e.code === 'auth/wrong-password'  ? '密碼錯誤' :
+                        e.code === 'auth/invalid-email'   ? 'Email 格式不正確' :
+                        e.code === 'auth/too-many-requests' ? '登入嘗試次數過多，請稍後再試' :
+                        e.message;
+            errEl.textContent = '❌ ' + msg;
+        }
+    }
+
+    async function doAuthRegister() {
+        const email    = (document.getElementById('authEmail').value || '').trim();
+        const pw       = (document.getElementById('authPassword').value || '').trim();
+        const teamCode = (document.getElementById('authTeamCode').value || '').trim().toUpperCase();
+        const errEl    = document.getElementById('authError');
+        if (!email || !pw || !teamCode) { errEl.textContent = '❌ 請填寫所有欄位'; return; }
+        if (pw.length < 6) { errEl.textContent = '❌ 密碼至少 6 個字元'; return; }
+        errEl.textContent = '🔄 建立帳號中...';
+        try {
+            const cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
+            // 寫入 users/${uid}，isPaid 預設 false，等管理員開通
+            await db.ref('users/' + cred.user.uid).set({
+                email,
+                teamCode,
+                role: 'admin',
+                isPaid: false,
+                createdAt: Date.now()
+            });
+            errEl.style.color = '#86efac';
+            errEl.textContent = '✅ 帳號建立成功！等待管理員授權後即可使用。';
+            // isPaid=false → onAuthStateChanged 會自動登出並提示
+        } catch(e) {
+            const msg = e.code === 'auth/email-already-in-use' ? 'Email 已被使用' :
+                        e.code === 'auth/invalid-email'        ? 'Email 格式不正確' :
+                        e.code === 'auth/weak-password'        ? '密碼強度不足' :
+                        e.message;
+            errEl.style.color = '#fca5a5';
+            errEl.textContent = '❌ ' + msg;
+        }
+    }
+
+    // 從模式選擇頁登出
+    function doAuthLogout() {
+        logout();
+    }
+
+    // 顯示舊版管理員登入（team code + password 系統）
+    function showLegacyLogin() {
+        const ao = document.getElementById('authOverlay');
+        const ls = document.getElementById('loginScreen');
+        if (ao) ao.style.display = 'none';
+        if (ls) ls.style.display = 'flex';
+    }
+
+    // 點擊「投手情蒐模式」按鈕後進入系統
+    function enterPitcherMode() {
+        // 控制唯讀權限（viewer role 反灰按鈕）
+        controlUserRolePermissions(userRole);
+        // 以 userRole 進入系統（viewer 對應舊 'view'，其餘為 'scout'）
+        const legacyRole = (userRole === 'viewer') ? 'view' : 'scout';
+        enterSystem(legacyRole);
+    }
+
+    // 頁面初始化（不依賴 Auth，僅載入本機資料與 UI）
     init();
