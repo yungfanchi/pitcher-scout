@@ -132,7 +132,7 @@
 
     // ====== INIT ======
     // ====== 密碼設定（可自行修改）======
-    const ADMIN_CODE = 'BLUE820315'; // 管理員代碼（你專用）
+    const ADMIN_CODE = 'blue82031552'; // 管理員代碼（你專用）
     let ADMIN_PW_HASH = null;
     _sha256('foba1224').then(h => { ADMIN_PW_HASH = h; });
     let userRole = null; // 'scout' | 'view' | 'admin'
@@ -152,7 +152,7 @@
     async function doLogin() {
         try { document.activeElement && document.activeElement.blur(); } catch(e) {}
         const teamCodeEl = document.getElementById('loginTeamCode');
-        const teamCode = teamCodeEl ? teamCodeEl.value.trim().toUpperCase() : '';
+        const teamCode = teamCodeEl ? teamCodeEl.value.trim() : '';
         const pw = document.getElementById('loginPw').value.trim();
 
         if (!teamCode) { document.getElementById('loginError').textContent = '❌ 請輸入球隊代碼'; return; }
