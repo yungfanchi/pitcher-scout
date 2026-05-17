@@ -3677,10 +3677,12 @@
         messagingSenderId: "225631887831",
         appId: "1:225631887831:web:1e7c2a8a9d6520f55beb92"
     };
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     // 啟用 Firebase 離線持久化（讓 Firebase SDK 自行處理離線快取）
     db.ref('.info/connected'); // 觸發連線監控初始化
+    // 匿名登入確保 Firebase Security Rules "auth != null" 條件滿足
+    firebase.auth().signInAnonymously().catch(() => {});
 
     // 動態 DB_KEY：根據球隊代碼隔離數據
     let DB_KEY = 'pitcherScoutData'; // 預設，登入後會更新為 teams/{teamCode}/data
@@ -4089,6 +4091,7 @@
             if (inputHash === ADMIN_PW_HASH) {
                 currentTeamCode = 'ADMIN';
                 await _cacheCredential(code, 'scout', pw);
+                try { localStorage.setItem('lastTeamCode', code); } catch(e) {}
                 enterSystem('scout');
             } else {
                 errEl.textContent = '❌ 密碼錯誤';
@@ -4113,7 +4116,11 @@
         try {
             const snap = await db.ref(`teams/${code}/config`).once('value');
             const config = snap.val();
-            if (!config) { errEl.textContent = '❌ 登入代碼不存在，請確認後再試'; return; }
+            if (!config) {
+                errEl.textContent = `❌ 登入代碼「${code}」不存在，請確認後再試`;
+                console.warn('[doScoutLogin] teams/' + code + '/config 為 null，可能尚未建立此球隊');
+                return;
+            }
             const stored = config.scoutPw;
             const inputHash = await _sha256(pw);
             const matches = _isHashed(stored) ? inputHash === stored : pw === stored;
@@ -4128,11 +4135,14 @@
                 document.getElementById('authPassword').focus();
             }
         } catch(e) {
-            if (await _checkCachedCredential(code, 'scout', pw)) {
+            console.error('[doScoutLogin] Firebase 讀取失敗:', e.code, e.message);
+            if (e.code === 'PERMISSION_DENIED') {
+                errEl.textContent = '❌ Firebase 權限不足，請聯絡管理員檢查 Security Rules';
+            } else if (await _checkCachedCredential(code, 'scout', pw)) {
                 currentTeamCode = code;
                 enterSystem('scout');
             } else {
-                errEl.textContent = '❌ 連線失敗，且無離線快取';
+                errEl.textContent = '❌ 連線失敗（' + (e.code || e.message) + '），且無離線快取';
             }
         }
     }
