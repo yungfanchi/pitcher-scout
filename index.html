@@ -554,7 +554,7 @@
                         <strong id="currentSpeed" style="color:var(--ct-red);font-size:15px;flex-shrink:0;">--</strong>
                         <span style="font-size:12px;color:#9ca3af;flex-shrink:0;">km/h</span>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:4px;">
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
                         <button class="speed-btn" onclick="setSpeed(90,this)">90</button>
                         <button class="speed-btn" onclick="setSpeed(91,this)">91</button>
                         <button class="speed-btn" onclick="setSpeed(92,this)">92</button>
@@ -644,6 +644,7 @@
                         <button class="zone-right-btn foul-btn" id="foulBtn" onclick="toggleFoul(this)">🚫<br>界外球</button>
                         <button class="zone-right-btn swing-btn" id="swingBtn" onclick="toggleSwing(this)">💨<br>揮空</button>
                         <button class="zone-right-btn wild-btn" id="wildBtn" onclick="toggleWild(this)">⚠️<br>暴投</button>
+                        <button class="zone-right-btn passball-btn" id="passballBtn" onclick="togglePassball(this)">🧤<br>捕逸</button>
                     </div>
 
                     <!-- 右側：投球結果顯示 + 打擊結果 -->

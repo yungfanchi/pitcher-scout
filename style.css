@@ -310,9 +310,9 @@
 
         /* Left side: pitch result + batting result */
         .pitch-result-side { display:flex; flex-direction:column; gap:6px; min-width:0; flex:1; }
-        /* Right side of zone: foul, swing, wild */
-        .zone-right-btns { display:flex; flex-direction:column; gap:6px; }
-        .zone-right-btn { padding:10px 8px; border:2px solid; border-radius:8px; background:white; cursor:pointer; font-weight:700; font-size:13px; transition:all 0.2s; -webkit-user-select:none; user-select:none; text-align:center; white-space:nowrap; }
+        /* Right side of zone: foul, swing, wild, passball */
+        .zone-right-btns { display:flex; flex-direction:column; gap:5px; }
+        .zone-right-btn { padding:8px 6px; border:2px solid; border-radius:8px; background:white; cursor:pointer; font-weight:700; font-size:12px; transition:all 0.2s; -webkit-user-select:none; user-select:none; text-align:center; white-space:nowrap; }
         .zone-right-btn:active { transform:scale(0.98); }
         .foul-btn { border-color:#9333ea; color:#7c3aed; }
         .foul-btn.active { background:#9333ea; color:white; }
@@ -320,6 +320,8 @@
         .swing-btn.active { background:var(--ct-blue-dark); color:white; border-color:var(--ct-gold); }
         .wild-btn { border-color:#f97316; color:#c2410c; }
         .wild-btn.active { background:#f97316; color:white; box-shadow:0 0 0 3px rgba(249,115,22,0.3); }
+        .passball-btn { border-color:#0891b2; color:#0e7490; }
+        .passball-btn.active { background:#0891b2; color:white; box-shadow:0 0 0 3px rgba(8,145,178,0.3); }
 
         /* ===== PITCH RESULT (strike/ball - auto from zone) ===== */
         .pitch-result-display { background:#f9fafb; border-radius:8px; padding:10px; border:2px solid var(--ct-gold); text-align:center; }
@@ -330,8 +332,8 @@
         .pitch-result-display-value.none-result { color:#9ca3af; font-style:italic; font-size:14px; }
 
         /* ===== AT BAT RESULT ===== */
-        .at-bat-result { display:grid; grid-template-columns:repeat(auto-fill,minmax(48px,1fr)); gap:5px; margin:5px 0; }
-        .outcome-btn { height:48px; border-radius:8px; border:2px solid var(--ct-blue); background:white; cursor:pointer; transition:all 0.2s; color:var(--ct-blue-dark); -webkit-user-select:none; user-select:none; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; text-align:center; padding:0 2px; line-height:1.2; width:auto; }
+        .at-bat-result { display:grid; grid-template-columns:repeat(auto-fit,minmax(0,1fr)); gap:5px; margin:5px 0; }
+        .outcome-btn { height:53px; border-radius:8px; border:2px solid var(--ct-blue); background:white; cursor:pointer; transition:all 0.2s; color:var(--ct-blue-dark); -webkit-user-select:none; user-select:none; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; text-align:center; padding:0 2px; line-height:1.2; width:auto; }
         .outcome-btn:active { transform:scale(0.95); }
         .outcome-btn.selected { background:var(--ct-red); color:white; border-color:var(--ct-gold); box-shadow:0 4px 12px rgba(220,0,0,0.3); }
         .outcome-btn[data-outcome="違規打擊"] { border-color:#f97316; color:#c2410c; }

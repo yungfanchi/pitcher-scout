@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v33';
+﻿    const APP_VERSION = 'v34';
 
     // ====== PITCH COLOR PALETTE ======
     const PITCH_ORDER = ['快速球','上飄球','下墜球','變速球','二速球','內曲','外曲'];
@@ -134,7 +134,7 @@
     let currentPitch = {
         type: null, zone: null, speed: null, result: null,
         batterHand: null, batterNumber: null, batterOrder: null,
-        outcomes: [], wild: false, foul: false, swing: false, pinchHit: false
+        outcomes: [], wild: false, foul: false, swing: false, passball: false, pinchHit: false
     };
 
     // ====== INIT ======
@@ -1776,6 +1776,11 @@
         btn.classList.toggle('active');
     }
 
+    function togglePassball(btn) {
+        currentPitch.passball = !currentPitch.passball;
+        btn.classList.toggle('active');
+    }
+
     const OUT_OUTCOMES = ['滾地球出局','飛球出局','平飛球出局','三振','趁傳出局','雙殺','出局','高飛犧牲打','犧牲觸擊'];
     // 打席結束（進入下一打者）的結果清單
     const PA_ENDING = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','三振','不死三振',
@@ -1858,7 +1863,7 @@
         document.querySelectorAll('.zone-cell').forEach(c => c.classList.remove('selected'));
         document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.outcome-btn').forEach(b => b.classList.remove('selected'));
-        ['foulBtn','swingBtn','wildBtn'].forEach(id => document.getElementById(id).classList.remove('active'));
+        ['foulBtn','swingBtn','wildBtn','passballBtn'].forEach(id => document.getElementById(id)?.classList.remove('active'));
         document.getElementById('pitchSpeed').value = '';
         document.getElementById('currentSpeed').textContent = '--';
         document.getElementById('pitchNote').value = '';
@@ -1870,7 +1875,7 @@
             batterHand: currentPitch.batterHand,
             batterNumber: document.getElementById('batterNumber').value,
             batterOrder: document.getElementById('batterOrder').value,
-            outcomes: [], outcome: null, wild: false, foul: false, swing: false, pinchHit: false
+            outcomes: [], outcome: null, wild: false, foul: false, swing: false, passball: false, pinchHit: false
         };
     }
 
@@ -2949,7 +2954,12 @@
         const allTypes = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
         const usedTypes = allTypes.filter(t => pitches.some(p=>p.type===t));
         const inningsTotal = computeInnings(pitches);
-        const earnedRuns = pitches.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='全壘打')).length;
+        const earnedRuns = pitches.reduce((sum, p) => {
+            const outs = p.outcomes && p.outcomes.length ? p.outcomes : (p.outcome ? [p.outcome] : []);
+            if (!outs.length) return sum;
+            const bases = p.basesSnapshot || [false, false, false];
+            return sum + applyBaseRunning(bases, outs).runsScored;
+        }, 0);
         const totalWalks = pitches.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='保送')).length;
         const totalHits = pitches.filter(p=>(p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'))).length;
         const eraTotal = inningsTotal>0 ? ((earnedRuns*7)/inningsTotal).toFixed(2) : '--';
