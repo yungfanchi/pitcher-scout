@@ -548,13 +548,11 @@
                 </div>
 
                 <div class="speed-input">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                    <div class="speed-row">
                         <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);flex-shrink:0;">球速</span>
-                        <input type="number" id="pitchSpeed" placeholder="輸入" min="0" max="150" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')this.blur()" style="width:64px;">
+                        <input type="number" id="pitchSpeed" placeholder="輸入" min="0" max="150" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')this.blur()" style="width:52px;flex-shrink:0;">
                         <strong id="currentSpeed" style="color:var(--ct-red);font-size:15px;flex-shrink:0;">--</strong>
-                        <span style="font-size:12px;color:#9ca3af;flex-shrink:0;">km/h</span>
-                    </div>
-                    <div style="display:grid;grid-template-columns:repeat(16,1fr);gap:3px;">
+                        <span style="font-size:11px;color:#9ca3af;flex-shrink:0;margin-right:2px;">km/h</span>
                         <button class="speed-btn" onclick="setSpeed(90,this)">90</button>
                         <button class="speed-btn" onclick="setSpeed(91,this)">91</button>
                         <button class="speed-btn" onclick="setSpeed(92,this)">92</button>

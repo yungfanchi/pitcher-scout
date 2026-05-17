@@ -270,13 +270,11 @@
 
         /* ===== SPEED ===== */
         .speed-input { margin:6px 0; }
-        .speed-shortcuts { display:flex; flex-wrap:nowrap; overflow-x:auto; gap:4px; margin-top:5px; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:2px; }
-        .speed-shortcuts::-webkit-scrollbar { display:none; }
-        .speed-shortcuts-row2 { display:none; }
-        .speed-btn { flex-shrink:0; padding:6px 2px; min-width:0; border:2px solid var(--ct-blue); border-radius:6px; background:white; cursor:pointer; font-weight:700; transition:all 0.2s; color:var(--ct-blue-dark); font-size:11px; -webkit-user-select:none; user-select:none; }
+        .speed-row { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+        .speed-btn { flex-shrink:0; height:34px; padding:0 5px; min-width:28px; border:2px solid var(--ct-blue); border-radius:6px; background:white; cursor:pointer; font-weight:700; transition:all 0.2s; color:var(--ct-blue-dark); font-size:11px; -webkit-user-select:none; user-select:none; }
         .speed-btn:active { transform:scale(0.95); }
         .speed-btn.active { background:var(--ct-blue-dark); color:white; border-color:var(--ct-gold); }
-        .speed-input input { padding:9px; border:2px solid var(--ct-blue); border-radius:8px; font-size:16px; width:100px; margin-right:8px; font-weight:700; }
+        .speed-input input { padding:6px 4px; border:2px solid var(--ct-blue); border-radius:8px; font-size:15px; width:52px; font-weight:700; }
 
         /* ===== STRIKE ZONE (5x5 grid) ===== */
         .strike-zone-extended {
@@ -543,7 +541,7 @@
             .pitch-btn { padding:16px 8px; font-size:17px; font-weight:900; border-radius:10px; }
             .zone-cell { font-size:18px; font-weight:900; }
             .zone-cell.ball-zone { font-size:12px; }
-            .speed-btn { padding:14px 2px; font-size:14px; font-weight:900; }
+            .speed-btn { height:40px; padding:0 5px; font-size:14px; font-weight:900; }
             .outcome-btn { height:52px; font-size:13px; }
             .zone-right-btn { padding:18px 12px; font-size:15px; font-weight:900; border-radius:10px; }
             .confirm-record-btn { padding:22px; font-size:20px; border-radius:12px; }
@@ -560,9 +558,7 @@
             .heatmap { grid-template-columns:repeat(3,52px); grid-template-rows:repeat(3,52px); }
             .pitch-types { grid-template-columns:repeat(3,1fr); }
             .at-bat-result { gap:5px; }
-            .speed-shortcuts { grid-template-columns:repeat(5,1fr); gap:3px; }
-            .speed-shortcuts-row2 { grid-template-columns:repeat(5,1fr); gap:3px; }
-            .speed-btn { padding:12px 2px; font-size:13px; }
+            .speed-btn { height:38px; padding:0 4px; font-size:13px; }
             .stat-card { padding:12px; }
             .stat-value { font-size:20px; }
             .batter-details { grid-template-columns:1fr 1fr; }
