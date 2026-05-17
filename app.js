@@ -1,4 +1,7 @@
-﻿    const APP_VERSION = 'v34';
+﻿    const APP_VERSION = 'v35';
+
+    // 局數制標準：壘球 7 局、棒球 9 局
+    const GAME_INNING_STANDARD = 7;
 
     // ====== PITCH COLOR PALETTE ======
     const PITCH_ORDER = ['快速球','上飄球','下墜球','變速球','二速球','內曲','外曲'];
@@ -2942,9 +2945,23 @@
         renderCount(behind, behindDiv, 'behind');
     }
 
+    // 計算總出局數（整數）
+    function computeTotalOuts(pitches) {
+        return pitches.filter(p =>
+            (p.outcomes||[p.outcome]).some(o => o && (o.includes('出局') || o === '三振' || o === '不死三振'))
+        ).length;
+    }
+
+    // 將總出局數轉為棒球記分板局數格式（X / X.1 / X.2）
+    function formatIP(totalOuts) {
+        const full = Math.floor(totalOuts / 3);
+        const rem  = totalOuts % 3;
+        return rem === 0 ? `${full}` : `${full}.${rem}`;
+    }
+
+    // 向後相容：原本呼叫 computeInnings 的地方仍可用（回傳小數）
     function computeInnings(pitches) {
-        const outs = pitches.filter(p => (p.outcomes||[p.outcome]).some(o=>o&&(o.includes('出局')||o==='三振'||o==='不死三振'))).length;
-        return outs/3;
+        return computeTotalOuts(pitches) / 3;
     }
 
     function updatePitchEffectiveness(pitches) {
@@ -2953,7 +2970,8 @@
         if (pitches.length===0) { div.innerHTML='<p style="color:#9ca3af;text-align:center;padding:16px;">尚無資料</p>'; return; }
         const allTypes = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
         const usedTypes = allTypes.filter(t => pitches.some(p=>p.type===t));
-        const inningsTotal = computeInnings(pitches);
+        const totalOuts  = computeTotalOuts(pitches);
+        const ipDisplay  = formatIP(totalOuts);   // e.g. "6", "6.1", "6.2"
         const earnedRuns = pitches.reduce((sum, p) => {
             const outs = p.outcomes && p.outcomes.length ? p.outcomes : (p.outcome ? [p.outcome] : []);
             if (!outs.length) return sum;
@@ -2961,9 +2979,19 @@
             return sum + applyBaseRunning(bases, outs).runsScored;
         }, 0);
         const totalWalks = pitches.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='保送')).length;
-        const totalHits = pitches.filter(p=>(p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'))).length;
-        const eraTotal = inningsTotal>0 ? ((earnedRuns*7)/inningsTotal).toFixed(2) : '--';
-        const whipTotal = inningsTotal>0 ? ((totalHits+totalWalks)/inningsTotal).toFixed(2) : '--';
+        const totalHits  = pitches.filter(p=>(p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'))).length;
+        // ERA = (自責分 × 局數制) / (總出局數 / 3) = 自責分 × 局數制 × 3 / 總出局數
+        let eraTotal, whipTotal;
+        if (totalOuts === 0 && earnedRuns === 0) {
+            eraTotal  = '0.00';
+            whipTotal = '0.00';
+        } else if (totalOuts === 0 && earnedRuns > 0) {
+            eraTotal  = '-.--';  // 無出局數但已失分（數學無限大）
+            whipTotal = '-.--';
+        } else {
+            eraTotal  = ((earnedRuns * GAME_INNING_STANDARD * 3) / totalOuts).toFixed(2);
+            whipTotal = (((totalHits + totalWalks) * 3) / totalOuts).toFixed(2);
+        }
         usedTypes.forEach(type => {
             const tp = pitches.filter(p=>p.type===type);
             const total=tp.length;
@@ -3006,7 +3034,7 @@
         const sumCard=document.createElement('div');
         sumCard.className='pitch-effect-card';
         sumCard.style.borderLeftColor='var(--ct-red)';
-        sumCard.innerHTML=`<div class="pitch-effect-header"><div class="pitch-effect-name">全體</div><div class="pitch-effect-count">總投球 ${pitches.length} 球 · 估算局數 ${inningsTotal.toFixed(1)}</div></div><div class="pitch-effect-grid"><div class="pitch-effect-stat"><div class="pitch-effect-stat-label">ERA (估)</div><div class="pitch-effect-stat-value" style="color:var(--ct-red);">${eraTotal}</div></div><div class="pitch-effect-stat"><div class="pitch-effect-stat-label">WHIP</div><div class="pitch-effect-stat-value" style="color:var(--ct-red);">${whipTotal}</div></div></div><p style="font-size:11px;color:#6b7280;margin-top:5px;">※ ERA/WHIP 為依目前資料的估算值</p>`;
+        sumCard.innerHTML=`<div class="pitch-effect-header"><div class="pitch-effect-name">全體</div><div class="pitch-effect-count">總投球 ${pitches.length} 球 · IP ${ipDisplay} · ${totalOuts} 個出局數</div></div><div class="pitch-effect-grid"><div class="pitch-effect-stat"><div class="pitch-effect-stat-label">ERA</div><div class="pitch-effect-stat-value" style="color:var(--ct-red);">${eraTotal}</div></div><div class="pitch-effect-stat"><div class="pitch-effect-stat-label">WHIP</div><div class="pitch-effect-stat-value" style="color:var(--ct-red);">${whipTotal}</div></div></div>`;
         div.appendChild(sumCard);
     }
 

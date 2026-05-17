@@ -273,7 +273,7 @@
         .speed-shortcuts { display:flex; flex-wrap:nowrap; overflow-x:auto; gap:4px; margin-top:5px; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:2px; }
         .speed-shortcuts::-webkit-scrollbar { display:none; }
         .speed-shortcuts-row2 { display:none; }
-        .speed-btn { flex-shrink:0; padding:9px 8px; min-width:38px; border:2px solid var(--ct-blue); border-radius:6px; background:white; cursor:pointer; font-weight:700; transition:all 0.2s; color:var(--ct-blue-dark); font-size:13px; -webkit-user-select:none; user-select:none; }
+        .speed-btn { flex-shrink:0; padding:6px 2px; min-width:0; border:2px solid var(--ct-blue); border-radius:6px; background:white; cursor:pointer; font-weight:700; transition:all 0.2s; color:var(--ct-blue-dark); font-size:11px; -webkit-user-select:none; user-select:none; }
         .speed-btn:active { transform:scale(0.95); }
         .speed-btn.active { background:var(--ct-blue-dark); color:white; border-color:var(--ct-gold); }
         .speed-input input { padding:9px; border:2px solid var(--ct-blue); border-radius:8px; font-size:16px; width:100px; margin-right:8px; font-weight:700; }
