@@ -259,6 +259,9 @@
         const viewPw = prompt(`設定「${teamCode}」的觀看者密碼：`);
         if (!viewPw || viewPw.length < 4) { alert('密碼至少 4 個字元'); return; }
         const [scoutHash, viewHash] = await Promise.all([_sha256(scoutPw), _sha256(viewPw)]);
+        // 清除舊資料，確保新帳號乾淨
+        await db.ref(`teams/${teamCode}/data`).remove().catch(() => {});
+        await db.ref(`teams/${teamCode}/pitchers`).remove().catch(() => {});
         db.ref(`teams/${teamCode}/config`).set({ scoutPw: scoutHash, viewPw: viewHash, createdAt: Date.now() })
             .then(() => alert(`✅ 球隊 ${teamCode} 建立成功！\n情蒐員密碼：${scoutPw}\n觀看密碼：${viewPw}`))
             .catch(e => alert('❌ 建立失敗：' + e.message));
@@ -4289,6 +4292,7 @@
                         <button onclick="adminChangeTeamPw('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(255,165,0,0.2);color:#ffd700;border:1px solid rgba(255,165,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🔑 改密碼</button>
                         <button onclick="adminSetTeamName('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(100,255,180,0.15);color:#6ee7b7;border:1px solid rgba(100,255,180,0.35);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">✏️ 隊名</button>
                         <button onclick="adminSetExpiry('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(100,180,255,0.2);color:#93c5fd;border:1px solid rgba(100,180,255,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">📅 到期日</button>
+                        <button onclick="adminClearTeamData('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(255,100,0,0.2);color:#fdba74;border:1px solid rgba(255,100,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🧹 清資料</button>
                         <button onclick="adminDeleteTeam('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(220,0,0,0.2);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🗑️ 刪除</button>
                     </div>`;
                 container.appendChild(card);
@@ -4335,6 +4339,15 @@
         await db.ref(`teams/${code}`).remove();
         alert(`✅ 「${code}」已刪除`);
         adminLoadTeams();
+    }
+
+    async function adminClearTeamData(code) {
+        if (!confirm(`確定清除「${code}」的所有比賽記錄？\n\n⚠️ config（帳號設定）保留，只刪比賽資料。此操作無法復原！`)) return;
+        await Promise.all([
+            db.ref(`teams/${code}/data`).remove(),
+            db.ref(`teams/${code}/pitchers`).remove()
+        ]);
+        alert(`✅ 「${code}」比賽資料已清除，帳號設定保留`);
     }
 
     async function adminSetTeamName(code) {
