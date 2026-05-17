@@ -1176,14 +1176,17 @@
         }
     }
 
-    // 自動填入上次使用的球隊代碼
+    // 自動填入球隊代碼（優先 URL ?team= 參數，其次 localStorage）
     try {
-        const lastCode = localStorage.getItem('lastTeamCode');
+        const urlTeam = new URLSearchParams(window.location.search).get('team');
+        const lastCode = urlTeam ? urlTeam.toUpperCase() : localStorage.getItem('lastTeamCode');
         if (lastCode) {
             const el = document.getElementById('loginTeamCode');
             if (el) el.value = lastCode;
             const ac = document.getElementById('authCode');
-            if (ac) ac.value = lastCode;
+            if (ac) { ac.value = lastCode; }
+            // 立即載入該球隊的登入頁名稱
+            if (typeof previewTeamBranding === 'function') previewTeamBranding(lastCode);
         }
     } catch(e) {}
     </script>
