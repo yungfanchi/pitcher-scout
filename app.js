@@ -32,7 +32,12 @@
     let gameState = {
         strikes: 0, balls: 0, outs: 0,
         bases: [false, false, false], // 1B, 2B, 3B
-        half: '上', inning: 1
+        half: '上', inning: 1,
+        lineups: {
+            teamA: Array.from({length: 10}, () => ({ number: '', name: '', hand: '右打' })),
+            teamB: Array.from({length: 10}, () => ({ number: '', name: '', hand: '右打' }))
+        },
+        currentBatterIndex: { teamA: 0, teamB: 0 }
     };
 
     function getDefaultScore() {
@@ -1379,6 +1384,17 @@
             updateStats();
             updateScoreboard();
         }
+        // 反向連動：手動點 A 槽 → 上半局（A 投）；點 B 槽 → 下半局（B 投）
+        if (!_syncingSlotAndBatter) {
+            const newHalf = slot === 'A' ? '上' : '下';
+            gameState.half = newHalf;
+            if (currentTeam !== null) {
+                const score = getTeamScore();
+                score.half = newHalf;
+                updateScoreboard();
+            }
+            autoUpdateBatterInfoByInning();
+        }
     }
 
     function selectPitcherToSlot(teamIndex, pitcherIndex) {
@@ -1528,7 +1544,7 @@
 
     // ====== LINEUP MANAGEMENT ======
     // index 0 unused; 1-9 = batting order slots
-    let lineup = Array.from({length: 10}, () => ({ number: '', name: '', hand: '右打' }));
+    let lineup = gameState.lineups.teamB; // 預設上半局：B 隊打擊，autoUpdateBatterInfoByInning() 會動態切換
 
     function openLineupModal() {
         const container = document.getElementById('lineupRows');
@@ -1582,6 +1598,60 @@
 
     // ====== BATTER AUTO-FILL ======
     function autofillBatterNumber() {}
+
+    // ====== 雙隊打序智慧連動 ======
+    // 防止 activateSlot ↔ autoUpdateBatterInfoByInning 互相觸發的遞迴保護旗標
+    let _syncingSlotAndBatter = false;
+
+    /**
+     * 依當前 gameState.half 自動切換 activeSlot，並從 gameState.lineups 填入打者資訊。
+     * 上半局：A 隊投（slot A）、B 隊打 → 讀 lineups.teamB[currentBatterIndex.teamB]
+     * 下半局：B 隊投（slot B）、A 隊打 → 讀 lineups.teamA[currentBatterIndex.teamA]
+     */
+    function autoUpdateBatterInfoByInning() {
+        if (_syncingSlotAndBatter) return;
+        _syncingSlotAndBatter = true;
+
+        const half = gameState.half;
+        const targetSlot  = half === '上' ? 'A' : 'B';
+        const battingTeam = half === '上' ? 'teamB' : 'teamA';
+
+        // 切換 slot（避免呼叫 activateSlot 造成遞迴，直接操作 DOM 與狀態）
+        if (activeSlot !== targetSlot) {
+            activeSlot = targetSlot;
+            document.getElementById('slotA').classList.toggle('active-slot', targetSlot === 'A');
+            document.getElementById('slotB').classList.toggle('active-slot', targetSlot === 'B');
+            const s = targetSlot === 'A' ? slotA : slotB;
+            if (s.team !== null && s.pitcher !== null) {
+                currentTeam    = s.team;
+                currentPitcher = s.pitcher;
+                updatePitchLog();
+                updateStats();
+                updateScoreboard();
+            }
+        }
+
+        // 將 lineup 參考指向當前打擊隊，讓打序 Modal 也連動
+        lineup = gameState.lineups[battingTeam];
+
+        // 計算本次打者的棒次（0-based index → 1-based order）
+        const batterOrder = gameState.currentBatterIndex[battingTeam] + 1;
+        document.getElementById('batterOrder').value = batterOrder;
+
+        // 優先從 lineups 填入打者資料；無資料則 fallback 至投球歷史紀錄
+        const batterData = gameState.lineups[battingTeam][batterOrder]; // array 以 1 為起始索引
+        if (batterData && (batterData.number || batterData.name)) {
+            document.getElementById('batterNumber').value = batterData.number || '';
+            document.getElementById('batterName').value   = batterData.name   || '';
+            document.querySelectorAll('.hand-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.hand === batterData.hand));
+            currentPitch.batterHand = batterData.hand || '右打';
+        } else {
+            autoFillBatterFromOrder(batterOrder);
+        }
+
+        _syncingSlotAndBatter = false;
+    }
 
     function togglePinchHitter() {
         const cb = document.getElementById('isPinchHitter');
@@ -1754,18 +1824,24 @@
         // Update game state counts
         updateGameStateFromPitch(currentPitch);
 
-        // 打席結束 → 自動前進棒次
+        // 打席結束 → 推進打者、更新連動
         const hasEndingOutcome = currentPitch.outcomes.some(o => PA_ENDING.includes(o));
         if (hasEndingOutcome) {
+            // 推進當前打擊隊的棒次索引（0-8 循環）
+            const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+            gameState.currentBatterIndex[battingTeam] =
+                (gameState.currentBatterIndex[battingTeam] + 1) % 9;
+
             const curOrder = parseInt(batterOrder) || 0;
             if (curOrder >= 1 && curOrder <= 9) {
                 const nextOrder = curOrder >= 9 ? 1 : curOrder + 1;
                 document.getElementById('batterOrder').value = nextOrder;
-                autoFillBatterFromOrder(nextOrder);
             }
             gameState.strikes = 0;
             gameState.balls = 0;
             renderCountLights();
+            // 從 lineups 填入下一棒（若有）；否則從投球歷史填入
+            autoUpdateBatterInfoByInning();
         }
 
         updateSlotDisplay();
@@ -1922,6 +1998,8 @@
                 gameState.strikes = 0; gameState.balls = 0;
                 renderCountLights(); renderBases();
                 updateScoreboard();
+                // 換局後自動切換 slot 並更新打者資訊
+                autoUpdateBatterInfoByInning();
             }
         } else if (isPA) {
             gameState.strikes = 0; gameState.balls = 0;
@@ -2076,7 +2154,7 @@
         if (currentTeam === null || currentPitcher === null) return;
         if (confirm('確定要清除當前投手的所有記錄嗎？')) {
             allData.teams[currentTeam].pitchers[currentPitcher].pitches = [];
-            gameState = { strikes:0, balls:0, outs:0, bases:[false,false,false], half:'上', inning:1 };
+            Object.assign(gameState, { strikes:0, balls:0, outs:0, bases:[false,false,false], half:'上', inning:1, currentBatterIndex:{ teamA:0, teamB:0 } });
             renderCountLights(); renderBases();
             updateSlotDisplay(); updatePitchLog(); updateStats(); saveToLocalStorage();
         }
@@ -2326,6 +2404,8 @@
             renderCountLights(); renderBases();
         }
         updateScoreboard(); saveToLocalStorage();
+        // 換局後自動切換 slot 並更新打者資訊
+        autoUpdateBatterInfoByInning();
     }
 
     // ====== STATS FILTER ======
