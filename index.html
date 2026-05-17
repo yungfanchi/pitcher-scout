@@ -50,7 +50,8 @@
                     <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">登入代碼</label>
                     <input type="text" id="authCode" placeholder="請輸入球隊登入代碼" autocomplete="off" autocapitalize="off"
                         style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;"
-                        onkeydown="if(event.key==='Enter')document.getElementById('authPassword').focus()">
+                        onkeydown="if(event.key==='Enter')document.getElementById('authPassword').focus()"
+                        onblur="previewTeamBranding(this.value)">
                 </div>
                 <!-- 密碼（球隊＝情蒐密碼；觀看者＝觀看密碼） -->
                 <div>

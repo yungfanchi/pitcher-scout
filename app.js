@@ -258,12 +258,17 @@
         if (!scoutPw || scoutPw.length < 4) { alert('密碼至少 4 個字元'); return; }
         const viewPw = prompt(`設定「${teamCode}」的觀看者密碼：`);
         if (!viewPw || viewPw.length < 4) { alert('密碼至少 4 個字元'); return; }
+        const teamName = prompt(`設定「${teamCode}」的登入頁大字隊名\n（例：CHINESE TAIPEI，留空=系統預設）：`) || '';
+        const teamSub  = prompt(`設定「${teamCode}」的登入頁小字副標\n（例：棒球投手情蒐系統，留空=系統預設）：`) || '';
         const [scoutHash, viewHash] = await Promise.all([_sha256(scoutPw), _sha256(viewPw)]);
         // 清除舊資料，確保新帳號乾淨
         await db.ref(`teams/${teamCode}/data`).remove().catch(() => {});
         await db.ref(`teams/${teamCode}/pitchers`).remove().catch(() => {});
-        db.ref(`teams/${teamCode}/config`).set({ scoutPw: scoutHash, viewPw: viewHash, createdAt: Date.now() })
-            .then(() => alert(`✅ 球隊 ${teamCode} 建立成功！\n情蒐員密碼：${scoutPw}\n觀看密碼：${viewPw}`))
+        const configPayload = { scoutPw: scoutHash, viewPw: viewHash, createdAt: Date.now() };
+        if (teamName.trim()) configPayload.teamName = teamName.trim();
+        if (teamSub.trim())  configPayload.teamSub  = teamSub.trim();
+        db.ref(`teams/${teamCode}/config`).set(configPayload)
+            .then(() => alert(`✅ 球隊 ${teamCode} 建立成功！\n情蒐員密碼：${scoutPw}\n觀看密碼：${viewPw}${teamName ? '\n隊名：' + teamName : ''}`))
             .catch(e => alert('❌ 建立失敗：' + e.message));
     }
 
@@ -4220,6 +4225,27 @@
     // 從模式選擇頁登出
     function doAuthLogout() {
         logout();
+    }
+
+    // ── 買家輸入代碼後動態預覽該球隊的登入頁名稱 ──
+    let _brandingTimer = null;
+    function previewTeamBranding(rawCode) {
+        clearTimeout(_brandingTimer);
+        const code = (rawCode || '').trim().toUpperCase();
+        if (!code || code === ADMIN_CODE.toUpperCase()) { loadSiteConfig(); return; }
+        _brandingTimer = setTimeout(() => {
+            db.ref(`teams/${code}/config`).once('value').then(snap => {
+                const cfg = snap.val() || {};
+                const t = document.getElementById('loginPageTitle');
+                const s = document.getElementById('loginPageSub');
+                if (cfg.teamName) {
+                    if (t) t.textContent = cfg.teamName;
+                    if (s) s.textContent = cfg.teamSub || 'PITCHER SCOUTING';
+                } else {
+                    loadSiteConfig(); // 無自訂隊名則還原系統預設
+                }
+            }).catch(() => {});
+        }, 400); // 防抖：停止輸入 400ms 後才查詢
     }
 
     // ── 載入登入頁全域名稱（頁面一開啟就執行）──
