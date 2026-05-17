@@ -757,6 +757,8 @@
         if (msp) msp.style.display = 'none';
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'none';
+        // 每次登入重置資料，確保買家看不到前一 session 殘留資料
+        allData = { teams: [], pitcherDB: {} };
         // 管理員：顯示後台面板；買家：確保隱藏
         const adminPanel = document.getElementById('adminPanel');
         const createBtn = document.getElementById('createTeamBtn');
@@ -767,6 +769,7 @@
             if (adminPanel) adminPanel.style.display = 'none';
             if (createBtn) createBtn.style.display = 'none';
         }
+        loadTeamHeader(currentTeamCode);
         listenFirebase();
         if (role === 'view') {
             document.getElementById('viewOnlyBanner').style.display = 'block';
@@ -826,6 +829,10 @@
         selectRole('scout');
         // Firebase Auth sign-out (new flow) — onAuthStateChanged will show authOverlay
         try { firebase.auth().signOut(); } catch(e) {}
+        // 重置 header 隊名
+        loadTeamHeader(null);
+        // 重置資料
+        allData = { teams: [], pitcherDB: {} };
         // If legacy admin was logged in (no Firebase Auth session), show authOverlay directly
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'flex';
@@ -4204,6 +4211,23 @@
         logout();
     }
 
+    // ── 更新主畫面 Header 隊名 ──
+    function loadTeamHeader(code) {
+        const nameEl = document.getElementById('headerTeamName');
+        const subEl  = document.getElementById('headerTeamSub');
+        if (!nameEl || !subEl) return;
+        if (!code || code === 'ADMIN') {
+            nameEl.textContent = 'CHINESE TAIPEI';
+            subEl.textContent  = '投手情蒐系統 · PITCHER SCOUTING';
+            return;
+        }
+        db.ref(`teams/${code}/config`).once('value').then(snap => {
+            const cfg = snap.val() || {};
+            nameEl.textContent = cfg.teamName || 'CHINESE TAIPEI';
+            subEl.textContent  = cfg.teamSub  || '投手情蒐系統 · PITCHER SCOUTING';
+        }).catch(() => {});
+    }
+
     // ── 管理員彈窗 ──
     function showAdminLogin() {
         const overlay = document.getElementById('adminLoginOverlay');
@@ -4261,10 +4285,11 @@
                         <span style="font-size:11px;padding:2px 8px;border-radius:10px;${isExpired ? 'color:#fca5a5;background:rgba(220,0,0,0.2)' : 'color:#86efac;background:rgba(0,200,100,0.15)'};">${isExpired ? '⛔ 已到期' : '✅ 使用中'}</span>
                     </div>
                     <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-bottom:8px;">📅 到期日：${expiryText}</div>
-                    <div style="display:flex;gap:5px;">
-                        <button onclick="adminChangeTeamPw('${code}')" style="flex:1;padding:5px 2px;background:rgba(255,165,0,0.2);color:#ffd700;border:1px solid rgba(255,165,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🔑 改密碼</button>
-                        <button onclick="adminSetExpiry('${code}')" style="flex:1;padding:5px 2px;background:rgba(100,180,255,0.2);color:#93c5fd;border:1px solid rgba(100,180,255,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">📅 到期日</button>
-                        <button onclick="adminDeleteTeam('${code}')" style="flex:1;padding:5px 2px;background:rgba(220,0,0,0.2);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🗑️ 刪除</button>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        <button onclick="adminChangeTeamPw('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(255,165,0,0.2);color:#ffd700;border:1px solid rgba(255,165,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🔑 改密碼</button>
+                        <button onclick="adminSetTeamName('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(100,255,180,0.15);color:#6ee7b7;border:1px solid rgba(100,255,180,0.35);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">✏️ 隊名</button>
+                        <button onclick="adminSetExpiry('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(100,180,255,0.2);color:#93c5fd;border:1px solid rgba(100,180,255,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">📅 到期日</button>
+                        <button onclick="adminDeleteTeam('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(220,0,0,0.2);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🗑️ 刪除</button>
                     </div>`;
                 container.appendChild(card);
             });
@@ -4310,6 +4335,20 @@
         await db.ref(`teams/${code}`).remove();
         alert(`✅ 「${code}」已刪除`);
         adminLoadTeams();
+    }
+
+    async function adminSetTeamName(code) {
+        const snap = await db.ref(`teams/${code}/config`).once('value');
+        const cfg = snap.val() || {};
+        const newName = prompt(`「${code}」的隊名大字\n（例：CHINESE TAIPEI）：`, cfg.teamName || '');
+        if (newName === null) return;
+        const newSub = prompt(`「${code}」的隊名小字\n（例：投手情蒐系統）：`, cfg.teamSub || '');
+        if (newSub === null) return;
+        await db.ref(`teams/${code}/config`).update({
+            teamName: newName.trim() || null,
+            teamSub:  newSub.trim()  || null
+        });
+        alert(`✅ 「${code}」隊名已更新`);
     }
 
     // 保留舊名供相容性
