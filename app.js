@@ -757,12 +757,15 @@
         if (msp) msp.style.display = 'none';
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'none';
-        // 管理員：顯示後台面板
+        // 管理員：顯示後台面板；買家：確保隱藏
         const adminPanel = document.getElementById('adminPanel');
         const createBtn = document.getElementById('createTeamBtn');
         if (currentTeamCode === 'ADMIN') {
             if (adminPanel) { adminPanel.style.display = 'block'; adminLoadTeams(); }
             if (createBtn) createBtn.style.display = 'block';
+        } else {
+            if (adminPanel) adminPanel.style.display = 'none';
+            if (createBtn) createBtn.style.display = 'none';
         }
         listenFirebase();
         if (role === 'view') {
