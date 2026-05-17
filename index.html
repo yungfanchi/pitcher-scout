@@ -1185,8 +1185,8 @@
             if (el) el.value = lastCode;
             const ac = document.getElementById('authCode');
             if (ac) { ac.value = lastCode; }
-            // 立即載入該球隊的登入頁名稱
-            if (typeof previewTeamBranding === 'function') previewTeamBranding(lastCode);
+            // 立即載入該球隊的登入頁名稱（immediate=true 跳過防抖）
+            if (typeof previewTeamBranding === 'function') previewTeamBranding(lastCode, true);
         }
     } catch(e) {}
     </script>

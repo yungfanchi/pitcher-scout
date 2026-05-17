@@ -4229,10 +4229,25 @@
 
     // ── 買家輸入代碼後動態預覽該球隊的登入頁名稱 ──
     let _brandingTimer = null;
-    function previewTeamBranding(rawCode) {
+    function previewTeamBranding(rawCode, immediate) {
         clearTimeout(_brandingTimer);
         const code = (rawCode || '').trim().toUpperCase();
         if (!code || code === ADMIN_CODE.toUpperCase()) { loadSiteConfig(); return; }
+
+        // 先從 localStorage 快取立即顯示（無延遲）
+        try {
+            const cached = localStorage.getItem('_brand_' + code);
+            if (cached) {
+                const { teamName, teamSub } = JSON.parse(cached);
+                const t = document.getElementById('loginPageTitle');
+                const s = document.getElementById('loginPageSub');
+                if (teamName && t) t.textContent = teamName;
+                if (teamSub  && s) s.textContent = teamSub;
+            }
+        } catch(e) {}
+
+        // 背景向 Firebase 更新（頁面載入時立即執行；手動輸入時防抖）
+        const delay = immediate ? 0 : 500;
         _brandingTimer = setTimeout(() => {
             db.ref(`teams/${code}/config`).once('value').then(snap => {
                 const cfg = snap.val() || {};
@@ -4241,11 +4256,13 @@
                 if (cfg.teamName) {
                     if (t) t.textContent = cfg.teamName;
                     if (s) s.textContent = cfg.teamSub || 'PITCHER SCOUTING';
+                    try { localStorage.setItem('_brand_' + code, JSON.stringify({ teamName: cfg.teamName, teamSub: cfg.teamSub })); } catch(e) {}
                 } else {
-                    loadSiteConfig(); // 無自訂隊名則還原系統預設
+                    try { localStorage.removeItem('_brand_' + code); } catch(e) {}
+                    loadSiteConfig();
                 }
             }).catch(() => {});
-        }, 400); // 防抖：停止輸入 400ms 後才查詢
+        }, delay);
     }
 
     // ── 載入登入頁全域名稱（頁面一開啟就執行）──
