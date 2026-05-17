@@ -939,6 +939,7 @@
     }
 
     function init() {
+        loadSiteConfig();
         loadFromLocalStorage();
         updateTeamList();
         const today = new Date().toISOString().split('T')[0];
@@ -4219,6 +4220,37 @@
     // 從模式選擇頁登出
     function doAuthLogout() {
         logout();
+    }
+
+    // ── 載入登入頁全域名稱（頁面一開啟就執行）──
+    function loadSiteConfig() {
+        db.ref('systemConfig').once('value').then(snap => {
+            const cfg = snap.val() || {};
+            const t = document.getElementById('loginPageTitle');
+            const s = document.getElementById('loginPageSub');
+            if (t) t.textContent = cfg.siteTitle || '投手情蒐系統';
+            if (s) s.textContent = cfg.siteSub   || 'PITCHER SCOUTING · CHINESE TAIPEI';
+        }).catch(() => {});
+    }
+
+    // ── 管理員修改登入頁名稱 ──
+    async function adminSetSiteConfig() {
+        const snap = await db.ref('systemConfig').once('value');
+        const cfg = snap.val() || {};
+        const newTitle = prompt('登入頁大字（例：投手情蒐系統）：', cfg.siteTitle || '投手情蒐系統');
+        if (newTitle === null) return;
+        const newSub = prompt('登入頁小字（例：PITCHER SCOUTING · CHINESE TAIPEI）：', cfg.siteSub || 'PITCHER SCOUTING · CHINESE TAIPEI');
+        if (newSub === null) return;
+        await db.ref('systemConfig').update({
+            siteTitle: newTitle.trim() || '投手情蒐系統',
+            siteSub:   newSub.trim()   || 'PITCHER SCOUTING · CHINESE TAIPEI'
+        });
+        // 即時更新當前頁面
+        const t = document.getElementById('loginPageTitle');
+        const s = document.getElementById('loginPageSub');
+        if (t) t.textContent = newTitle.trim() || '投手情蒐系統';
+        if (s) s.textContent = newSub.trim()   || 'PITCHER SCOUTING · CHINESE TAIPEI';
+        alert('✅ 登入頁名稱已更新');
     }
 
     // ── 更新主畫面 Header 隊名 ──
