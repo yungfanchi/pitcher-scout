@@ -4040,80 +4040,151 @@
     }
 
     // 登入/註冊 Tab 切換
+    // ── Tab 切換：'scout' | 'viewer' ──
     function switchAuthTab(tab) {
-        const isRegister = tab === 'register';
-        const loginBtn = document.getElementById('authTabLogin');
-        const regBtn = document.getElementById('authTabRegister');
-        const wrap = document.getElementById('authTeamCodeWrap');
-        if (loginBtn) loginBtn.style.background = isRegister ? 'transparent' : 'rgba(255,255,255,0.18)';
-        if (loginBtn) loginBtn.style.color = isRegister ? 'rgba(255,255,255,0.55)' : 'white';
-        if (regBtn)   regBtn.style.background  = isRegister ? 'rgba(255,255,255,0.18)' : 'transparent';
-        if (regBtn)   regBtn.style.color  = isRegister ? 'white' : 'rgba(255,255,255,0.55)';
-        if (wrap) wrap.style.display = isRegister ? 'block' : 'none';
+        const isViewer = tab === 'viewer';
+        const scoutBtn  = document.getElementById('authTabScout');
+        const viewerBtn = document.getElementById('authTabViewer');
+        const codeWrap  = document.getElementById('authCodeWrap');
+        const pwLabel   = document.getElementById('authPasswordLabel');
+
+        if (scoutBtn)  { scoutBtn.style.background  = isViewer ? 'transparent' : 'rgba(255,255,255,0.18)'; scoutBtn.style.color  = isViewer ? 'rgba(255,255,255,0.55)' : 'white'; }
+        if (viewerBtn) { viewerBtn.style.background = isViewer ? 'rgba(255,255,255,0.18)' : 'transparent'; viewerBtn.style.color = isViewer ? 'white' : 'rgba(255,255,255,0.55)'; }
+        if (codeWrap)  codeWrap.style.display = isViewer ? 'none' : 'block';
+        if (pwLabel)   pwLabel.textContent = isViewer ? '觀看密碼' : '密碼';
+
+        const pw = document.getElementById('authPassword');
+        if (pw) pw.placeholder = isViewer ? '請輸入觀看密碼' : '請輸入密碼';
+
         const errEl = document.getElementById('authError');
-        if (errEl) errEl.textContent = '';
-        // 標記當前 Tab
+        if (errEl) { errEl.textContent = ''; errEl.style.color = '#fca5a5'; }
+
         document.getElementById('authOverlay').dataset.tab = tab;
     }
 
-    // 統一入口：依當前 Tab 決定登入或註冊
+    // ── 統一送出：依 Tab 決定走哪條路 ──
     async function doAuthAction() {
         const overlay = document.getElementById('authOverlay');
-        const tab = overlay ? overlay.dataset.tab || 'login' : 'login';
-        if (tab === 'register') {
-            await doAuthRegister();
+        const tab = overlay ? (overlay.dataset.tab || 'scout') : 'scout';
+        if (tab === 'viewer') {
+            const pw = (document.getElementById('authPassword').value || '').trim();
+            await doViewerLogin(pw);
         } else {
-            await doAuthLogin();
+            const code = (document.getElementById('authCode').value || '').trim();
+            const pw   = (document.getElementById('authPassword').value || '').trim();
+            await doScoutLogin(code, pw);
         }
     }
 
-    async function doAuthLogin() {
-        const email = (document.getElementById('authEmail').value || '').trim();
-        const pw    = (document.getElementById('authPassword').value || '').trim();
+    // ── 球隊專用登入（情蒐員）──
+    async function doScoutLogin(code, pw) {
+        code = (code || '').trim().toUpperCase();
+        pw   = (pw   || '').trim();
         const errEl = document.getElementById('authError');
-        if (!email || !pw) { errEl.textContent = '❌ 請填寫 Email 與密碼'; return; }
+        if (!code) { errEl.textContent = '❌ 請輸入登入代碼'; return; }
+        if (!pw)   { errEl.textContent = '❌ 請輸入密碼';     return; }
+
+        // 管理員本地驗證
+        if (code === ADMIN_CODE) {
+            const inputHash = await _sha256(pw);
+            if (inputHash === ADMIN_PW_HASH) {
+                currentTeamCode = 'ADMIN';
+                await _cacheCredential(code, 'scout', pw);
+                enterSystem('scout');
+            } else {
+                errEl.textContent = '❌ 密碼錯誤';
+            }
+            return;
+        }
+
+        // 先試離線快取
+        if (await _checkCachedCredential(code, 'scout', pw)) {
+            currentTeamCode = code;
+            try { localStorage.setItem('lastTeamCode', code); } catch(e) {}
+            enterSystem('scout');
+            return;
+        }
+
+        if (!navigator.onLine) {
+            errEl.textContent = '❌ 離線中，請先在有網路的環境登入一次';
+            return;
+        }
+
         errEl.textContent = '🔄 驗證中...';
         try {
-            await firebase.auth().signInWithEmailAndPassword(email, pw);
-            // onAuthStateChanged 接手後續流程
+            const snap = await db.ref(`teams/${code}/config`).once('value');
+            const config = snap.val();
+            if (!config) { errEl.textContent = '❌ 登入代碼不存在，請確認後再試'; return; }
+            const stored = config.scoutPw;
+            const inputHash = await _sha256(pw);
+            const matches = _isHashed(stored) ? inputHash === stored : pw === stored;
+            if (matches) {
+                currentTeamCode = code;
+                await _cacheCredential(code, 'scout', pw);
+                try { localStorage.setItem('lastTeamCode', code); } catch(e) {}
+                enterSystem('scout');
+            } else {
+                errEl.textContent = '❌ 密碼錯誤，請再試一次';
+                document.getElementById('authPassword').value = '';
+                document.getElementById('authPassword').focus();
+            }
         } catch(e) {
-            const msg = e.code === 'auth/user-not-found'  ? '帳號不存在' :
-                        e.code === 'auth/wrong-password'  ? '密碼錯誤' :
-                        e.code === 'auth/invalid-email'   ? 'Email 格式不正確' :
-                        e.code === 'auth/too-many-requests' ? '登入嘗試次數過多，請稍後再試' :
-                        e.message;
-            errEl.textContent = '❌ ' + msg;
+            if (await _checkCachedCredential(code, 'scout', pw)) {
+                currentTeamCode = code;
+                enterSystem('scout');
+            } else {
+                errEl.textContent = '❌ 連線失敗，且無離線快取';
+            }
         }
     }
 
-    async function doAuthRegister() {
-        const email    = (document.getElementById('authEmail').value || '').trim();
-        const pw       = (document.getElementById('authPassword').value || '').trim();
-        const teamCode = (document.getElementById('authTeamCode').value || '').trim().toUpperCase();
-        const errEl    = document.getElementById('authError');
-        if (!email || !pw || !teamCode) { errEl.textContent = '❌ 請填寫所有欄位'; return; }
-        if (pw.length < 6) { errEl.textContent = '❌ 密碼至少 6 個字元'; return; }
-        errEl.textContent = '🔄 建立帳號中...';
+    // ── 觀看者登入（只需一組觀看密碼，系統自動比對所有球隊）──
+    async function doViewerLogin(viewPw) {
+        viewPw = (viewPw || '').trim();
+        const errEl = document.getElementById('authError');
+        if (!viewPw) { errEl.textContent = '❌ 請輸入觀看密碼'; return; }
+
+        // 先試離線快取（需曾在線上登入過）
+        const cachedCode = localStorage.getItem('lastViewerTeamCode');
+        if (cachedCode && await _checkCachedCredential(cachedCode, 'view', viewPw)) {
+            currentTeamCode = cachedCode;
+            try { localStorage.setItem('lastTeamCode', cachedCode); } catch(e) {}
+            enterSystem('view');
+            return;
+        }
+
+        if (!navigator.onLine) {
+            errEl.textContent = '❌ 離線中，請先在有網路的環境登入一次';
+            return;
+        }
+
+        errEl.textContent = '🔄 驗證中...';
         try {
-            const cred = await firebase.auth().createUserWithEmailAndPassword(email, pw);
-            // 寫入 users/${uid}，isPaid 預設 false，等管理員開通
-            await db.ref('users/' + cred.user.uid).set({
-                email,
-                teamCode,
-                role: 'admin',
-                isPaid: false,
-                createdAt: Date.now()
-            });
-            errEl.style.color = '#86efac';
-            errEl.textContent = '✅ 帳號建立成功！等待管理員授權後即可使用。';
-            // isPaid=false → onAuthStateChanged 會自動登出並提示
+            const snap = await db.ref('teams').once('value');
+            const teamsObj = snap.val();
+            if (!teamsObj) { errEl.textContent = '❌ 無法連線，請稍後再試'; return; }
+
+            const inputHash = await _sha256(viewPw);
+            let foundCode = null;
+            for (const [teamCode, teamData] of Object.entries(teamsObj)) {
+                const config = teamData && teamData.config;
+                if (!config || !config.viewPw) continue;
+                const stored = config.viewPw;
+                const matches = _isHashed(stored) ? inputHash === stored : viewPw === stored;
+                if (matches) { foundCode = teamCode; break; }
+            }
+
+            if (!foundCode) { errEl.textContent = '❌ 觀看密碼錯誤，請確認後再試'; return; }
+
+            currentTeamCode = foundCode;
+            await _cacheCredential(foundCode, 'view', viewPw);
+            try {
+                localStorage.setItem('lastTeamCode', foundCode);
+                localStorage.setItem('lastViewerTeamCode', foundCode);
+            } catch(e) {}
+            enterSystem('view');
         } catch(e) {
-            const msg = e.code === 'auth/email-already-in-use' ? 'Email 已被使用' :
-                        e.code === 'auth/invalid-email'        ? 'Email 格式不正確' :
-                        e.code === 'auth/weak-password'        ? '密碼強度不足' :
-                        e.message;
-            errEl.style.color = '#fca5a5';
-            errEl.textContent = '❌ ' + msg;
+            errEl.textContent = '❌ 連線失敗，請稍後再試';
         }
     }
 
@@ -4122,7 +4193,7 @@
         logout();
     }
 
-    // 顯示舊版管理員登入（team code + password 系統）
+    // 開發者專用：顯示舊版管理員登入表單
     function showLegacyLogin() {
         const ao = document.getElementById('authOverlay');
         const ls = document.getElementById('loginScreen');
@@ -4132,9 +4203,7 @@
 
     // 點擊「投手情蒐模式」按鈕後進入系統
     function enterPitcherMode() {
-        // 控制唯讀權限（viewer role 反灰按鈕）
         controlUserRolePermissions(userRole);
-        // 以 userRole 進入系統（viewer 對應舊 'view'，其餘為 'scout'）
         const legacyRole = (userRole === 'viewer') ? 'view' : 'scout';
         enterSystem(legacyRole);
     }

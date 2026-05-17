@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <!-- ====== Firebase Auth 全螢幕登入/註冊 Overlay ====== -->
+    <!-- ====== 登入 Overlay ====== -->
     <div id="authOverlay" style="display:flex;position:fixed;inset:0;z-index:10000;background:linear-gradient(135deg,#003d79 0%,#0051a5 60%,#003d79 100%);align-items:center;justify-content:center;flex-direction:column;padding:16px;box-sizing:border-box;">
         <div style="width:100%;max-width:400px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:18px;padding:28px 24px;backdrop-filter:blur(8px);">
             <!-- Logo -->
@@ -38,28 +38,25 @@
             </div>
             <!-- Tabs -->
             <div style="display:flex;border-radius:8px;overflow:hidden;margin-bottom:20px;border:1px solid rgba(255,255,255,0.2);">
-                <button id="authTabLogin" onclick="switchAuthTab('login')" style="flex:1;padding:10px;background:rgba(255,255,255,0.18);color:white;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 已有授權登入</button>
-                <button id="authTabRegister" onclick="switchAuthTab('register')" style="flex:1;padding:10px;background:transparent;color:rgba(255,255,255,0.55);border:none;border-left:1px solid rgba(255,255,255,0.2);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">🆕 新球隊開通</button>
+                <button id="authTabScout" onclick="switchAuthTab('scout')"
+                    style="flex:1;padding:10px;background:rgba(255,255,255,0.18);color:white;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">⚾ 球隊專用</button>
+                <button id="authTabViewer" onclick="switchAuthTab('viewer')"
+                    style="flex:1;padding:10px;background:transparent;color:rgba(255,255,255,0.55);border:none;border-left:1px solid rgba(255,255,255,0.2);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">👀 觀看者模式</button>
             </div>
             <!-- Form -->
             <div style="display:flex;flex-direction:column;gap:12px;">
-                <div>
-                    <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">Email</label>
-                    <input type="email" id="authEmail" placeholder="請輸入 Email" autocomplete="email"
-                        style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;"
+                <!-- 登入代碼（球隊專用，觀看者隱藏） -->
+                <div id="authCodeWrap">
+                    <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">登入代碼</label>
+                    <input type="text" id="authCode" placeholder="請輸入球隊登入代碼" autocomplete="off" autocapitalize="characters"
+                        style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;text-transform:uppercase;"
                         onkeydown="if(event.key==='Enter')document.getElementById('authPassword').focus()">
                 </div>
+                <!-- 密碼（球隊＝情蒐密碼；觀看者＝觀看密碼） -->
                 <div>
-                    <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">密碼</label>
+                    <label id="authPasswordLabel" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">密碼</label>
                     <input type="password" id="authPassword" placeholder="請輸入密碼" autocomplete="current-password"
                         style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;"
-                        onkeydown="if(event.key==='Enter')doAuthAction()">
-                </div>
-                <!-- 球隊授權碼（僅新球隊開通時顯示） -->
-                <div id="authTeamCodeWrap" style="display:none;">
-                    <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">球隊授權碼</label>
-                    <input type="text" id="authTeamCode" placeholder="由管理員提供的授權碼" autocomplete="off" autocapitalize="characters"
-                        style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;text-transform:uppercase;"
                         onkeydown="if(event.key==='Enter')doAuthAction()">
                 </div>
             </div>
@@ -68,12 +65,11 @@
                 style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(135deg,#dc0000,#b91c1c);color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:1px;touch-action:manipulation;">
                 進入系統 →
             </button>
-            <!-- 舊版球隊代碼登入入口 -->
-            <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.12);text-align:center;">
-                <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-bottom:8px;">原本用「球隊代碼 + 密碼」登入的用戶請點此</div>
+            <!-- 開發者專用 -->
+            <div style="margin-top:20px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.1);text-align:center;">
                 <button onclick="showLegacyLogin()" ontouchend="event.preventDefault();showLegacyLogin()"
-                    style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.75);font-size:13px;font-weight:700;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:inherit;touch-action:manipulation;width:100%;">
-                    🔑 球隊代碼登入（舊版入口）
+                    style="background:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.35);font-size:11px;font-weight:700;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                    🛠️ 開發者專用
                 </button>
             </div>
         </div>
@@ -1150,6 +1146,8 @@
         if (lastCode) {
             const el = document.getElementById('loginTeamCode');
             if (el) el.value = lastCode;
+            const ac = document.getElementById('authCode');
+            if (ac) ac.value = lastCode;
         }
     } catch(e) {}
     </script>
