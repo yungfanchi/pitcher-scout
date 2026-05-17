@@ -72,6 +72,7 @@
                     style="background:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.35);font-size:11px;font-weight:700;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">
                     🛠️ 開發者專用
                 </button>
+                <div id="appVersionDisplay" style="margin-top:6px;font-size:10px;color:rgba(255,255,255,0.18);letter-spacing:0.8px;font-family:monospace;"></div>
             </div>
         </div>
     </div>
@@ -299,12 +300,19 @@
 
         <!-- ====== 管理員後台面板（僅管理員可見）====== -->
         <div id="adminPanel" style="display:none;padding:10px 12px;border-bottom:1px solid rgba(255,215,0,0.2);">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                 <span style="font-size:13px;font-weight:900;color:#ffd700;letter-spacing:1px;">⚙️ 帳號管理</span>
-                <button onclick="adminLoadTeams()" style="font-size:11px;padding:4px 10px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:4px;cursor:pointer;font-family:inherit;">🔄 重整</button>
+                <div style="display:flex;gap:5px;">
+                    <button onclick="adminLoadTeams()" style="font-size:11px;padding:4px 8px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:4px;cursor:pointer;font-family:inherit;">🔄 重整</button>
+                    <button id="adminListToggleBtn" onclick="toggleAdminList()" style="font-size:11px;padding:4px 10px;background:rgba(255,215,0,0.1);color:#ffd700;border:1px solid rgba(255,215,0,0.25);border-radius:4px;cursor:pointer;font-family:inherit;">▲ 收合</button>
+                </div>
             </div>
-            <div id="adminTeamList" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;"></div>
-            <button onclick="createTeam()" style="width:100%;margin-top:10px;padding:10px;background:rgba(220,0,0,0.25);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">➕ 建立新球隊帳號</button>
+            <!-- 可收合的帳號列表 -->
+            <div id="adminTeamListWrap">
+                <div id="adminTeamList" style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;margin-bottom:8px;"></div>
+            </div>
+            <!-- 功能按鈕（常駐顯示） -->
+            <button onclick="createTeam()" style="width:100%;padding:10px;background:rgba(220,0,0,0.25);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">➕ 建立新球隊帳號</button>
             <button onclick="adminSetSiteConfig()" style="width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">🌐 修改登入頁名稱</button>
             <button onclick="adminInjectDemoData(event)" style="width:100%;margin-top:6px;padding:8px;background:rgba(100,220,180,0.12);color:#6ee7b7;border:1px solid rgba(100,220,180,0.3);border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">🎽 注入女子壘球示範資料</button>
         </div>

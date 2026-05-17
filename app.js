@@ -1,4 +1,6 @@
-﻿    // ====== PITCH COLOR PALETTE ======
+﻿    const APP_VERSION = 'v32';
+
+    // ====== PITCH COLOR PALETTE ======
     const PITCH_ORDER = ['快速球','上飄球','下墜球','變速球','二速球','內曲','外曲'];
     const PITCH_COLORS = {
         '快速球': '#FF2A2A',   // 正烈火紅
@@ -957,6 +959,9 @@
         updateScoreboard();
         renderCountLights();
         renderBases();
+        // 顯示版本號於登入頁
+        const verEl = document.getElementById('appVersionDisplay');
+        if (verEl) verEl.textContent = APP_VERSION;
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
     }
 
@@ -4421,6 +4426,16 @@
             errEl.textContent = '❌ 代碼或密碼錯誤';
             document.getElementById('adminLoginPw').value = '';
         }
+    }
+
+    // ── 管理後台：帳號列表收合 ──
+    function toggleAdminList() {
+        const wrap = document.getElementById('adminTeamListWrap');
+        const btn  = document.getElementById('adminListToggleBtn');
+        if (!wrap || !btn) return;
+        const collapsed = wrap.style.display === 'none';
+        wrap.style.display = collapsed ? '' : 'none';
+        btn.textContent   = collapsed ? '▲ 收合' : '▼ 展開';
     }
 
     // ── 管理後台：帳號列表 ──
