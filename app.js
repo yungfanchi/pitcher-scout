@@ -4353,6 +4353,9 @@
                         <span style="font-size:11px;padding:2px 8px;border-radius:10px;${isExpired ? 'color:#fca5a5;background:rgba(220,0,0,0.2)' : 'color:#86efac;background:rgba(0,200,100,0.15)'};">${isExpired ? '⛔ 已到期' : '✅ 使用中'}</span>
                     </div>
                     <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-bottom:8px;">📅 到期日：${expiryText}</div>
+                    <div style="margin-bottom:6px;">
+                        <button onclick="adminCopyTeamLink('${code}')" style="width:100%;padding:6px;background:rgba(255,215,0,0.15);color:#ffd700;border:1px solid rgba(255,215,0,0.35);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🔗 複製球隊專屬連結</button>
+                    </div>
                     <div style="display:flex;gap:5px;flex-wrap:wrap;">
                         <button onclick="adminChangeTeamPw('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(255,165,0,0.2);color:#ffd700;border:1px solid rgba(255,165,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🔑 改密碼</button>
                         <button onclick="adminSetTeamName('${code}')" style="flex:1;min-width:52px;padding:5px 2px;background:rgba(100,255,180,0.15);color:#6ee7b7;border:1px solid rgba(100,255,180,0.35);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">✏️ 隊名</button>
@@ -4404,6 +4407,16 @@
         await db.ref(`teams/${code}`).remove();
         alert(`✅ 「${code}」已刪除`);
         adminLoadTeams();
+    }
+
+    function adminCopyTeamLink(code) {
+        const base = window.location.origin + window.location.pathname;
+        const link = `${base}?team=${encodeURIComponent(code)}`;
+        navigator.clipboard.writeText(link).then(() => {
+            alert(`✅ 已複製！\n\n${link}\n\n直接傳給球隊，他們打開就能看到自己的名稱。`);
+        }).catch(() => {
+            prompt('複製以下連結傳給球隊：', link);
+        });
     }
 
     async function adminClearTeamData(code) {
