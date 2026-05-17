@@ -760,8 +760,12 @@
         if (msp) msp.style.display = 'none';
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'none';
-        // 每次登入重置資料，確保買家看不到前一 session 殘留資料
+        // 每次登入重置資料 + 清 localStorage 快取，防止舊資料污染新帳號
         allData = { teams: [], pitcherDB: {} };
+        if (currentTeamCode !== 'ADMIN') {
+            try { localStorage.removeItem('chineseTaipeiPitcherData'); } catch(e) {}
+            try { localStorage.removeItem('pitcherScoutSlotState'); } catch(e) {}
+        }
         // 管理員：顯示後台面板；買家：確保隱藏
         const adminPanel = document.getElementById('adminPanel');
         const createBtn = document.getElementById('createTeamBtn');
@@ -817,6 +821,7 @@
         userRole = null;
         userSession = null;
         USER_TEAM_REF = null;
+        if (activeFirebaseRef) { try { activeFirebaseRef.off('value'); } catch(e) {} activeFirebaseRef = null; }
         firebaseListening = false;
         // Reset state
         currentTeam = null; currentPitcher = null;
@@ -3703,6 +3708,7 @@
     let DB_KEY = 'pitcherScoutData'; // 預設，登入後會更新為 teams/{teamCode}/data
     let lastSaveTime = 0;
     let firebaseListening = false;
+    let activeFirebaseRef = null; // 記錄目前監聽的 ref，供 logout 時正確移除
     let isOnline = navigator.onLine;
     let pendingSync = false; // 離線期間是否有未同步的資料
 
@@ -3906,7 +3912,8 @@
     function listenFirebase() {
         if (firebaseListening) return;
         firebaseListening = true;
-        getDataRef().on('value', snap => {
+        activeFirebaseRef = getDataRef();
+        activeFirebaseRef.on('value', snap => {
             if (Date.now() - lastSaveTime < 3000) return; // 忽略自己剛寫入觸發的更新
             const teams = normalizeTeamsData(snap.val());
             if (!teams) return;
