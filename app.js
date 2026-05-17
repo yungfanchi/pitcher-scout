@@ -132,9 +132,9 @@
 
     // ====== INIT ======
     // ====== 密碼設定（可自行修改）======
-    const ADMIN_CODE = 'CT55'; // 管理員代碼（你專用）
+    const ADMIN_CODE = 'BLUE820315'; // 管理員代碼（你專用）
     let ADMIN_PW_HASH = null;
-    _sha256('ct55').then(h => { ADMIN_PW_HASH = h; });
+    _sha256('foba1224').then(h => { ADMIN_PW_HASH = h; });
     let userRole = null; // 'scout' | 'view' | 'admin'
     let currentTeamCode = null; // 當前球隊代碼
     let selectedLoginRole = 'scout';
@@ -757,9 +757,13 @@
         if (msp) msp.style.display = 'none';
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'none';
-        // 管理員顯示建立球隊按鈕
+        // 管理員：顯示後台面板
+        const adminPanel = document.getElementById('adminPanel');
         const createBtn = document.getElementById('createTeamBtn');
-        if (createBtn && currentTeamCode === 'ADMIN') createBtn.style.display = 'block';
+        if (currentTeamCode === 'ADMIN') {
+            if (adminPanel) { adminPanel.style.display = 'block'; adminLoadTeams(); }
+            if (createBtn) createBtn.style.display = 'block';
+        }
         listenFirebase();
         if (role === 'view') {
             document.getElementById('viewOnlyBanner').style.display = 'block';
@@ -4083,17 +4087,9 @@
         if (!code) { errEl.textContent = '❌ 請輸入登入代碼'; return; }
         if (!pw)   { errEl.textContent = '❌ 請輸入密碼';     return; }
 
-        // 管理員本地驗證
+        // 管理員帳號不走此流程，請用開發者專用入口
         if (code === ADMIN_CODE) {
-            const inputHash = await _sha256(pw);
-            if (inputHash === ADMIN_PW_HASH) {
-                currentTeamCode = 'ADMIN';
-                await _cacheCredential(code, 'scout', pw);
-                try { localStorage.setItem('lastTeamCode', code); } catch(e) {}
-                enterSystem('scout');
-            } else {
-                errEl.textContent = '❌ 密碼錯誤';
-            }
+            errEl.textContent = '❌ 管理員請使用下方「🛠️ 開發者專用」入口登入';
             return;
         }
 
@@ -4116,7 +4112,11 @@
             const config = snap.val();
             if (!config) {
                 errEl.textContent = `❌ 登入代碼「${code}」不存在，請確認後再試`;
-                console.warn('[doScoutLogin] teams/' + code + '/config 為 null，可能尚未建立此球隊');
+                return;
+            }
+            // 訂閱到期檢查
+            if (config.expiresAt && Date.now() > config.expiresAt) {
+                errEl.textContent = '❌ 訂閱已到期，請聯絡管理員續約';
                 return;
             }
             const stored = config.scoutPw;
@@ -4176,6 +4176,7 @@
             for (const [teamCode, teamData] of Object.entries(teamsObj)) {
                 const config = teamData && teamData.config;
                 if (!config || !config.viewPw) continue;
+                if (config.expiresAt && Date.now() > config.expiresAt) continue; // 跳過已到期球隊
                 const stored = config.viewPw;
                 const matches = _isHashed(stored) ? inputHash === stored : viewPw === stored;
                 if (matches) { foundCode = teamCode; break; }
@@ -4200,13 +4201,116 @@
         logout();
     }
 
-    // 開發者專用：顯示舊版管理員登入表單
-    function showLegacyLogin() {
-        const ao = document.getElementById('authOverlay');
-        const ls = document.getElementById('loginScreen');
-        if (ao) ao.style.display = 'none';
-        if (ls) ls.style.display = 'flex';
+    // ── 管理員彈窗 ──
+    function showAdminLogin() {
+        const overlay = document.getElementById('adminLoginOverlay');
+        if (overlay) { overlay.style.display = 'flex'; }
+        setTimeout(() => { const el = document.getElementById('adminLoginCode'); if (el) el.focus(); }, 80);
     }
+    function closeAdminLogin() {
+        const overlay = document.getElementById('adminLoginOverlay');
+        if (overlay) overlay.style.display = 'none';
+        const errEl = document.getElementById('adminLoginError');
+        if (errEl) errEl.textContent = '';
+    }
+    async function doAdminLogin() {
+        const code = (document.getElementById('adminLoginCode').value || '').trim();
+        const pw   = (document.getElementById('adminLoginPw').value  || '').trim();
+        const errEl = document.getElementById('adminLoginError');
+        if (!code || !pw) { errEl.textContent = '❌ 請輸入代碼與密碼'; return; }
+        const inputHash = await _sha256(pw);
+        if (code === ADMIN_CODE && inputHash === ADMIN_PW_HASH) {
+            currentTeamCode = 'ADMIN';
+            await _cacheCredential(code, 'scout', pw);
+            try { localStorage.setItem('lastTeamCode', code); } catch(e) {}
+            closeAdminLogin();
+            enterSystem('scout');
+        } else {
+            errEl.textContent = '❌ 代碼或密碼錯誤';
+            document.getElementById('adminLoginPw').value = '';
+        }
+    }
+
+    // ── 管理後台：帳號列表 ──
+    async function adminLoadTeams() {
+        const container = document.getElementById('adminTeamList');
+        if (!container) return;
+        container.innerHTML = '<div style="color:rgba(255,255,255,0.5);font-size:12px;text-align:center;padding:12px;">載入中...</div>';
+        try {
+            const snap = await db.ref('teams').once('value');
+            const teamsData = snap.val() || {};
+            const codes = Object.keys(teamsData);
+            if (codes.length === 0) {
+                container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center;padding:12px;">尚無球隊帳號<br>請點下方「建立新球隊帳號」</div>';
+                return;
+            }
+            container.innerHTML = '';
+            codes.forEach(code => {
+                const config = (teamsData[code] && teamsData[code].config) || {};
+                const expiry = config.expiresAt;
+                const isExpired = expiry && Date.now() > expiry;
+                const expiryText = expiry ? new Date(expiry).toLocaleDateString('zh-TW') : '永久';
+                const card = document.createElement('div');
+                card.style.cssText = 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 12px;';
+                card.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <span style="font-size:14px;font-weight:900;color:white;font-family:'Oswald',sans-serif;">${code}</span>
+                        <span style="font-size:11px;padding:2px 8px;border-radius:10px;${isExpired ? 'color:#fca5a5;background:rgba(220,0,0,0.2)' : 'color:#86efac;background:rgba(0,200,100,0.15)'};">${isExpired ? '⛔ 已到期' : '✅ 使用中'}</span>
+                    </div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-bottom:8px;">📅 到期日：${expiryText}</div>
+                    <div style="display:flex;gap:5px;">
+                        <button onclick="adminChangeTeamPw('${code}')" style="flex:1;padding:5px 2px;background:rgba(255,165,0,0.2);color:#ffd700;border:1px solid rgba(255,165,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🔑 改密碼</button>
+                        <button onclick="adminSetExpiry('${code}')" style="flex:1;padding:5px 2px;background:rgba(100,180,255,0.2);color:#93c5fd;border:1px solid rgba(100,180,255,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">📅 到期日</button>
+                        <button onclick="adminDeleteTeam('${code}')" style="flex:1;padding:5px 2px;background:rgba(220,0,0,0.2);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;">🗑️ 刪除</button>
+                    </div>`;
+                container.appendChild(card);
+            });
+        } catch(e) {
+            container.innerHTML = `<div style="color:#fca5a5;font-size:12px;text-align:center;padding:10px;">載入失敗：${e.message}</div>`;
+        }
+    }
+
+    async function adminChangeTeamPw(code) {
+        const newScout = prompt(`「${code}」的新情蒐員密碼（留空=不修改）：`);
+        if (newScout === null) return;
+        const newView = prompt(`「${code}」的新觀看者密碼（留空=不修改）：`);
+        if (newView === null) return;
+        if (!newScout && !newView) { alert('未輸入任何密碼，取消'); return; }
+        if ((newScout && newScout.length < 4) || (newView && newView.length < 4)) { alert('密碼至少需要 4 個字元'); return; }
+        const updates = {};
+        if (newScout) updates.scoutPw = await _sha256(newScout);
+        if (newView)  updates.viewPw  = await _sha256(newView);
+        await db.ref(`teams/${code}/config`).update(updates);
+        alert(`✅ 「${code}」密碼已更新`);
+    }
+
+    async function adminSetExpiry(code) {
+        const snap = await db.ref(`teams/${code}/config/expiresAt`).once('value');
+        const current = snap.val();
+        const currentStr = current ? new Date(current).toISOString().split('T')[0] : '';
+        const input = prompt(`設定「${code}」的到期日\n格式：YYYY-MM-DD\n留空 = 永久使用`, currentStr);
+        if (input === null) return;
+        if (input.trim() === '') {
+            await db.ref(`teams/${code}/config/expiresAt`).remove();
+            alert(`✅ 「${code}」已設為永久使用`);
+        } else {
+            const ts = new Date(input.trim()).getTime();
+            if (isNaN(ts)) { alert('❌ 日期格式錯誤，請輸入 YYYY-MM-DD'); return; }
+            await db.ref(`teams/${code}/config/expiresAt`).set(ts);
+            alert(`✅ 「${code}」到期日設為 ${input.trim()}`);
+        }
+        adminLoadTeams();
+    }
+
+    async function adminDeleteTeam(code) {
+        if (!confirm(`確定刪除球隊「${code}」？\n\n⚠️ 此操作無法復原，所有比賽記錄將一併刪除！`)) return;
+        await db.ref(`teams/${code}`).remove();
+        alert(`✅ 「${code}」已刪除`);
+        adminLoadTeams();
+    }
+
+    // 保留舊名供相容性
+    function showLegacyLogin() { showAdminLogin(); }
 
     // 點擊「投手情蒐模式」按鈕後進入系統
     function enterPitcherMode() {

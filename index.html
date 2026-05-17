@@ -48,8 +48,8 @@
                 <!-- 登入代碼（球隊專用，觀看者隱藏） -->
                 <div id="authCodeWrap">
                     <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);display:block;margin-bottom:4px;">登入代碼</label>
-                    <input type="text" id="authCode" placeholder="請輸入球隊登入代碼" autocomplete="off" autocapitalize="characters"
-                        style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;text-transform:uppercase;"
+                    <input type="text" id="authCode" placeholder="請輸入球隊登入代碼" autocomplete="off" autocapitalize="off"
+                        style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;"
                         onkeydown="if(event.key==='Enter')document.getElementById('authPassword').focus()">
                 </div>
                 <!-- 密碼（球隊＝情蒐密碼；觀看者＝觀看密碼） -->
@@ -65,12 +65,35 @@
                 style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(135deg,#dc0000,#b91c1c);color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:1px;touch-action:manipulation;">
                 進入系統 →
             </button>
-            <!-- 開發者專用 -->
+            <!-- 開發者專用（管理員入口） -->
             <div style="margin-top:20px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.1);text-align:center;">
-                <button onclick="showLegacyLogin()" ontouchend="event.preventDefault();showLegacyLogin()"
+                <button onclick="showAdminLogin()" ontouchend="event.preventDefault();showAdminLogin()"
                     style="background:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.35);font-size:11px;font-weight:700;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">
                     🛠️ 開發者專用
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 管理員登入彈窗 ====== -->
+    <div id="adminLoginOverlay" style="display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+        <div style="width:100%;max-width:340px;background:#0f172a;border:1px solid rgba(220,0,0,0.4);border-radius:16px;padding:28px 24px;">
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:32px;">🛠️</div>
+                <div style="font-size:18px;font-weight:900;color:white;font-family:'Oswald','Noto Sans TC',sans-serif;margin-top:6px;">管理員入口</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <input type="text" id="adminLoginCode" placeholder="管理員代碼" autocomplete="off" autocapitalize="off"
+                    style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;"
+                    onkeydown="if(event.key==='Enter')document.getElementById('adminLoginPw').focus()">
+                <input type="password" id="adminLoginPw" placeholder="管理員密碼" autocomplete="current-password"
+                    style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;box-sizing:border-box;font-family:inherit;"
+                    onkeydown="if(event.key==='Enter')doAdminLogin()">
+            </div>
+            <div id="adminLoginError" style="min-height:18px;font-size:12px;color:#fca5a5;margin-top:10px;text-align:center;font-weight:700;"></div>
+            <div style="display:flex;gap:8px;margin-top:14px;">
+                <button onclick="closeAdminLogin()" style="flex:1;padding:12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
+                <button onclick="doAdminLogin()" ontouchend="event.preventDefault();doAdminLogin()" style="flex:2;padding:12px;background:linear-gradient(135deg,#7f1d1d,#dc2626);color:white;border:none;border-radius:8px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;">進入管理後台 →</button>
             </div>
         </div>
     </div>
@@ -272,6 +295,17 @@
         <div class="sidebar-header">
             <h2>🥎 球隊管理</h2>
         </div>
+
+        <!-- ====== 管理員後台面板（僅管理員可見）====== -->
+        <div id="adminPanel" style="display:none;padding:10px 12px;border-bottom:1px solid rgba(255,215,0,0.2);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span style="font-size:13px;font-weight:900;color:#ffd700;letter-spacing:1px;">⚙️ 帳號管理</span>
+                <button onclick="adminLoadTeams()" style="font-size:11px;padding:4px 10px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:4px;cursor:pointer;font-family:inherit;">🔄 重整</button>
+            </div>
+            <div id="adminTeamList" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;"></div>
+            <button onclick="createTeam()" style="width:100%;margin-top:10px;padding:10px;background:rgba(220,0,0,0.25);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">➕ 建立新球隊帳號</button>
+        </div>
+
         <div class="team-management">
             <div class="add-team-form">
                 <!-- 賽事 -->
