@@ -68,9 +68,13 @@
                 style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(135deg,#dc0000,#b91c1c);color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:1px;touch-action:manipulation;">
                 進入系統 →
             </button>
-            <!-- 管理員舊版入口 -->
-            <div style="text-align:center;margin-top:16px;">
-                <button onclick="showLegacyLogin()" style="background:none;border:none;color:rgba(255,255,255,0.28);font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline;touch-action:manipulation;">管理員舊版登入</button>
+            <!-- 舊版球隊代碼登入入口 -->
+            <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.12);text-align:center;">
+                <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-bottom:8px;">原本用「球隊代碼 + 密碼」登入的用戶請點此</div>
+                <button onclick="showLegacyLogin()" ontouchend="event.preventDefault();showLegacyLogin()"
+                    style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.75);font-size:13px;font-weight:700;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:inherit;touch-action:manipulation;width:100%;">
+                    🔑 球隊代碼登入（舊版入口）
+                </button>
             </div>
         </div>
     </div>
