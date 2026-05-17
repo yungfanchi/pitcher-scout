@@ -924,7 +924,6 @@
         updateScoreboard();
         renderCountLights();
         renderBases();
-        setupTeamListDelegation();
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
     }
 
