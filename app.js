@@ -4539,6 +4539,295 @@
         alert(`✅ 「${code}」隊名已更新`);
     }
 
+    // ── 管理員示範資料注入（僅寫入管理員自己的 pitcherScoutData，不觸碰任何客戶球隊）──
+    async function adminInjectDemoData(evt) {
+        if (!confirm(
+            '注入女子快速壘球示範資料至管理員帳號？\n\n' +
+            '⚠️ 這只會覆蓋管理員自己的測試資料庫（pitcherScoutData），\n' +
+            '完全不影響任何已購買球隊的資料。\n\n確定繼續？'
+        )) return;
+
+        const btn = evt && evt.target;
+        if (btn) { btn.textContent = '⏳ 注入中...'; btn.disabled = true; }
+
+        try {
+            // ── 快速建構投球物件 ──
+            function sp(type, zone, speed, o = {}) {
+                const good = !String(zone).startsWith('B');
+                return {
+                    type, zone: String(zone),
+                    result: good ? '好球' : '壞球',
+                    speed: speed || null,
+                    swing: o.sw  || false,
+                    foul:  o.fo  || false,
+                    wild:  false,
+                    batterHand:   o.hand  || '右打',
+                    batterNumber: o.num   != null ? String(o.num) : null,
+                    batterOrder:  o.order != null ? String(o.order) : null,
+                    outcomes: o.out ? [o.out] : [],
+                    outcome:  o.out || null,
+                    balls:    o.b ?? 0,
+                    strikes:  o.s ?? 0,
+                    runnersOn: o.ro || false,
+                    basesSnapshot: [false, false, false],
+                    timestamp: new Date().toISOString()
+                };
+            }
+
+            // ════════════════════════════════════════════════
+            // 陳雅婷 #1 右投 先發 速球型 ─ 2026-08-10 vs 日本（6局，71球）
+            // ════════════════════════════════════════════════
+            const chen_g1 = [
+                // 1局上 ─ 3出局
+                sp('快速球','5',115,{hand:'左打',order:1,num:7,   b:0,s:0}),
+                sp('快速球','2',117,{hand:'左打',order:1,num:7,   b:0,s:1}),
+                sp('上飄球','B14',107,{hand:'左打',order:1,num:7, b:1,s:1}),
+                sp('快速球','6',116,{hand:'左打',order:1,num:7,   b:1,s:1,sw:true,out:'三振'}),
+                sp('上飄球','8',109,{hand:'右打',order:2,num:3,   b:0,s:0}),
+                sp('快速球','B1',117,{hand:'右打',order:2,num:3,  b:1,s:0}),
+                sp('下墜球','3',103,{hand:'右打',order:2,num:3,   b:1,s:0,out:'滾地球出局'}),
+                sp('快速球','4',118,{hand:'右打',order:3,num:22,  b:0,s:0}),
+                sp('快速球','B2',115,{hand:'右打',order:3,num:22, b:1,s:0}),
+                sp('上飄球','9',110,{hand:'右打',order:3,num:22,  b:1,s:0,out:'飛球出局'}),
+                // 2局上 ─ 3出局
+                sp('快速球','5',116,{hand:'右打',order:4,num:15,  b:0,s:0}),
+                sp('變速球','2',91, {hand:'右打',order:4,num:15,  b:0,s:1}),
+                sp('快速球','B3',115,{hand:'右打',order:4,num:15, b:1,s:1}),
+                sp('上飄球','7',108,{hand:'右打',order:4,num:15,  b:1,s:1}),
+                sp('快速球','6',117,{hand:'右打',order:4,num:15,  b:1,s:2,sw:true,out:'三振'}),
+                sp('快速球','4',116,{hand:'左打',order:5,num:11,  b:0,s:0}),
+                sp('快速球','7',118,{hand:'左打',order:5,num:11,  b:0,s:1}),
+                sp('下墜球','B12',102,{hand:'左打',order:5,num:11,b:1,s:1}),
+                sp('快速球','3',115,{hand:'左打',order:5,num:11,  b:1,s:1,out:'一壘安打'}),
+                sp('快速球','5',114,{hand:'右打',order:6,num:18,  b:0,s:0,ro:true}),
+                sp('內曲','1',97,  {hand:'右打',order:6,num:18,   b:0,s:1,ro:true}),
+                sp('快速球','B1',116,{hand:'右打',order:6,num:18, b:1,s:1,ro:true}),
+                sp('變速球','3',90, {hand:'右打',order:6,num:18,  b:1,s:1,ro:true,out:'雙殺'}),
+                // 3局上 ─ 3出局
+                sp('上飄球','9',109,{hand:'右打',order:7,num:2,   b:0,s:0}),
+                sp('快速球','5',117,{hand:'右打',order:7,num:2,   b:0,s:1}),
+                sp('快速球','B5',114,{hand:'右打',order:7,num:2,  b:1,s:1}),
+                sp('上飄球','8',108,{hand:'右打',order:7,num:2,   b:1,s:1,sw:true,out:'三振'}),
+                sp('快速球','4',116,{hand:'左打',order:8,num:24,  b:0,s:0}),
+                sp('下墜球','2',104,{hand:'左打',order:8,num:24,  b:0,s:1}),
+                sp('快速球','B4',117,{hand:'左打',order:8,num:24, b:1,s:1}),
+                sp('內曲','1',98,   {hand:'左打',order:8,num:24,  b:1,s:1,out:'滾地球出局'}),
+                sp('快速球','6',118,{hand:'右打',order:9,num:1,   b:0,s:0}),
+                sp('快速球','5',116,{hand:'右打',order:9,num:1,   b:0,s:1}),
+                sp('上飄球','7',109,{hand:'右打',order:9,num:1,   b:0,s:2,out:'飛球出局'}),
+                // 4局上 ─ 3出局（含一壘安打）
+                sp('快速球','5',115,{hand:'左打',order:1,num:7,   b:0,s:0}),
+                sp('快速球','8',117,{hand:'左打',order:1,num:7,   b:0,s:0,out:'飛球出局'}),
+                sp('下墜球','3',103,{hand:'右打',order:2,num:3,   b:0,s:0}),
+                sp('快速球','B1',114,{hand:'右打',order:2,num:3,  b:1,s:0}),
+                sp('上飄球','9',109,{hand:'右打',order:2,num:3,   b:1,s:0,out:'二壘安打'}),
+                sp('快速球','4',117,{hand:'右打',order:3,num:22,  b:0,s:0,ro:true}),
+                sp('變速球','2',90, {hand:'右打',order:3,num:22,  b:0,s:1,ro:true}),
+                sp('快速球','6',118,{hand:'右打',order:3,num:22,  b:0,s:1,ro:true,sw:true,out:'三振'}),
+                sp('快速球','5',116,{hand:'右打',order:4,num:15,  b:0,s:0,ro:true}),
+                sp('上飄球','8',108,{hand:'右打',order:4,num:15,  b:0,s:1,ro:true}),
+                sp('下墜球','1',102,{hand:'右打',order:4,num:15,  b:0,s:1,ro:true,out:'滾地球出局'}),
+                // 5局上 ─ 3出局
+                sp('快速球','7',116,{hand:'左打',order:5,num:11,  b:0,s:0}),
+                sp('快速球','B6',115,{hand:'左打',order:5,num:11, b:1,s:0}),
+                sp('快速球','4',117,{hand:'左打',order:5,num:11,  b:1,s:0}),
+                sp('快速球','B5',116,{hand:'左打',order:5,num:11, b:2,s:0}),
+                sp('快速球','5',116,{hand:'左打',order:5,num:11,  b:2,s:0,out:'保送'}),
+                sp('快速球','5',114,{hand:'右打',order:6,num:18,  b:0,s:0,ro:true}),
+                sp('內曲','3',97,   {hand:'右打',order:6,num:18,  b:0,s:0,ro:true,out:'雙殺'}),
+                sp('下墜球','2',104,{hand:'右打',order:7,num:2,   b:0,s:0}),
+                sp('快速球','5',117,{hand:'右打',order:7,num:2,   b:0,s:1}),
+                sp('快速球','6',116,{hand:'右打',order:7,num:2,   b:0,s:2,out:'飛球出局'}),
+                // 6局上 ─ 3出局
+                sp('快速球','4',116,{hand:'左打',order:8,num:24,  b:0,s:0}),
+                sp('上飄球','7',109,{hand:'左打',order:8,num:24,  b:0,s:1}),
+                sp('快速球','5',117,{hand:'左打',order:8,num:24,  b:0,s:1,sw:true,out:'三振'}),
+                sp('快速球','2',118,{hand:'右打',order:9,num:1,   b:0,s:0}),
+                sp('下墜球','B12',101,{hand:'右打',order:9,num:1, b:1,s:0}),
+                sp('快速球','B1',116,{hand:'右打',order:9,num:1,  b:2,s:0}),
+                sp('快速球','3',115,{hand:'右打',order:9,num:1,   b:2,s:0,out:'一壘安打'}),
+                sp('快速球','5',116,{hand:'左打',order:1,num:7,   b:0,s:0,ro:true}),
+                sp('上飄球','8',109,{hand:'左打',order:1,num:7,   b:0,s:1,ro:true}),
+                sp('變速球','2',90, {hand:'左打',order:1,num:7,   b:0,s:1,ro:true,out:'滾地球出局'}),
+            ];
+
+            // ════════════════════════════════════════════════
+            // 林佳蓉 #18 左投 後援 變化球型 ─ 2026-08-10 vs 日本（7局，19球）
+            // ════════════════════════════════════════════════
+            const lin_g1 = [
+                sp('外曲','6',100,{hand:'右打',order:2,num:3,  b:0,s:0}),
+                sp('下墜球','B13',95,{hand:'右打',order:2,num:3,b:1,s:0}),
+                sp('外曲','3',99,  {hand:'右打',order:2,num:3,  b:1,s:0,out:'滾地球出局'}),
+                sp('下墜球','2',97, {hand:'右打',order:3,num:22, b:0,s:0}),
+                sp('外曲','9',100, {hand:'右打',order:3,num:22, b:0,s:1}),
+                sp('下墜球','B12',95,{hand:'右打',order:3,num:22,b:1,s:1}),
+                sp('變速球','4',84, {hand:'右打',order:3,num:22, b:1,s:1}),
+                sp('外曲','6',101, {hand:'右打',order:3,num:22, b:1,s:2,out:'飛球出局'}),
+                sp('下墜球','1',96, {hand:'右打',order:4,num:15, b:0,s:0}),
+                sp('外曲','B7',99,  {hand:'右打',order:4,num:15, b:1,s:0}),
+                sp('變速球','5',83, {hand:'右打',order:4,num:15, b:1,s:0}),
+                sp('下墜球','3',97, {hand:'右打',order:4,num:15, b:1,s:1,out:'一壘安打'}),
+                sp('外曲','4',100, {hand:'左打',order:5,num:11, b:0,s:0,ro:true}),
+                sp('外曲','7',101, {hand:'左打',order:5,num:11, b:0,s:1,ro:true}),
+                sp('下墜球','B12',95,{hand:'左打',order:5,num:11,b:1,s:1,ro:true}),
+                sp('變速球','1',83, {hand:'左打',order:5,num:11, b:1,s:1,ro:true}),
+                sp('外曲','B8',98, {hand:'左打',order:5,num:11, b:2,s:1,ro:true}),
+                sp('外曲','5',100, {hand:'左打',order:5,num:11, b:2,s:1,ro:true}),
+                sp('外曲','3',101, {hand:'左打',order:5,num:11, b:2,s:2,ro:true,out:'雙殺'}),
+            ];
+
+            // ════════════════════════════════════════════════
+            // 陳雅婷 #1 右投 先發 速球型 ─ 2026-08-14 vs 美國（7局完投，84球）
+            // ════════════════════════════════════════════════
+            const chen_g2 = [
+                // 1局上
+                sp('快速球','5',114,{hand:'左打',order:1,num:4,  b:0,s:0}),
+                sp('上飄球','8',108,{hand:'左打',order:1,num:4,  b:0,s:1}),
+                sp('快速球','B1',115,{hand:'左打',order:1,num:4, b:1,s:1}),
+                sp('上飄球','9',109,{hand:'左打',order:1,num:4,  b:1,s:1,out:'飛球出局'}),
+                sp('快速球','4',116,{hand:'左打',order:2,num:12, b:0,s:0}),
+                sp('快速球','5',117,{hand:'左打',order:2,num:12, b:0,s:1}),
+                sp('下墜球','2',102,{hand:'左打',order:2,num:12, b:0,s:2,out:'三振'}),
+                sp('快速球','6',118,{hand:'右打',order:3,num:25, b:0,s:0}),
+                sp('快速球','B3',115,{hand:'右打',order:3,num:25,b:1,s:0}),
+                sp('上飄球','7',109,{hand:'右打',order:3,num:25, b:1,s:0}),
+                sp('快速球','5',117,{hand:'右打',order:3,num:25, b:1,s:1}),
+                sp('內曲','1',97, {hand:'右打',order:3,num:25,   b:1,s:1,out:'一壘安打'}),
+                sp('快速球','5',116,{hand:'右打',order:4,num:8,  b:0,s:0,ro:true}),
+                sp('快速球','B2',115,{hand:'右打',order:4,num:8, b:1,s:0,ro:true}),
+                sp('快速球','5',118,{hand:'右打',order:4,num:8,  b:1,s:0,ro:true}),
+                sp('上飄球','8',109,{hand:'右打',order:4,num:8,  b:1,s:1,ro:true,out:'保送'}),
+                sp('下墜球','1',103,{hand:'右打',order:5,num:16, b:0,s:0,ro:true}),
+                sp('快速球','5',116,{hand:'右打',order:5,num:16, b:0,s:1,ro:true}),
+                sp('下墜球','3',104,{hand:'右打',order:5,num:16, b:0,s:1,ro:true,out:'滾地球出局'}),
+                // 2局上
+                sp('快速球','5',117,{hand:'右打',order:6,num:22, b:0,s:0}),
+                sp('快速球','2',116,{hand:'右打',order:6,num:22, b:0,s:1}),
+                sp('上飄球','9',110,{hand:'右打',order:6,num:22, b:0,s:2,out:'飛球出局'}),
+                sp('快速球','4',118,{hand:'左打',order:7,num:3,  b:0,s:0}),
+                sp('快速球','B6',116,{hand:'左打',order:7,num:3, b:1,s:0}),
+                sp('上飄球','7',108,{hand:'左打',order:7,num:3,  b:1,s:0,out:'三振'}),
+                sp('快速球','5',116,{hand:'右打',order:8,num:9,  b:0,s:0}),
+                sp('下墜球','2',103,{hand:'右打',order:8,num:9,  b:0,s:1}),
+                sp('快速球','3',117,{hand:'右打',order:8,num:9,  b:0,s:1,out:'滾地球出局'}),
+                // 3局上
+                sp('快速球','5',115,{hand:'左打',order:9,num:1,  b:0,s:0}),
+                sp('快速球','B5',114,{hand:'左打',order:9,num:1, b:1,s:0}),
+                sp('上飄球','8',108,{hand:'左打',order:9,num:1,  b:1,s:0}),
+                sp('快速球','5',118,{hand:'左打',order:9,num:1,  b:1,s:1,out:'二壘安打'}),
+                sp('快速球','4',116,{hand:'左打',order:1,num:4,  b:0,s:0,ro:true}),
+                sp('快速球','5',117,{hand:'左打',order:1,num:4,  b:0,s:1,ro:true}),
+                sp('上飄球','9',109,{hand:'左打',order:1,num:4,  b:0,s:1,ro:true,out:'二壘安打'}),
+                sp('快速球','5',116,{hand:'左打',order:2,num:12, b:0,s:0,ro:true}),
+                sp('下墜球','3',103,{hand:'左打',order:2,num:12, b:0,s:0,ro:true,out:'飛球出局'}),
+                sp('快速球','6',118,{hand:'右打',order:3,num:25, b:0,s:0,ro:true}),
+                sp('快速球','B4',115,{hand:'右打',order:3,num:25,b:1,s:0,ro:true}),
+                sp('變速球','2',90, {hand:'右打',order:3,num:25, b:1,s:0,ro:true,out:'雙殺'}),
+                // 4局上
+                sp('快速球','5',116,{hand:'右打',order:4,num:8,  b:0,s:0}),
+                sp('上飄球','7',109,{hand:'右打',order:4,num:8,  b:0,s:1}),
+                sp('快速球','6',117,{hand:'右打',order:4,num:8,  b:0,s:2,out:'三振'}),
+                sp('快速球','4',116,{hand:'右打',order:5,num:16, b:0,s:0}),
+                sp('快速球','1',117,{hand:'右打',order:5,num:16, b:0,s:0,out:'滾地球出局'}),
+                sp('快速球','5',118,{hand:'右打',order:6,num:22, b:0,s:0}),
+                sp('上飄球','8',108,{hand:'右打',order:6,num:22, b:0,s:0,out:'飛球出局'}),
+                // 5局上
+                sp('快速球','5',117,{hand:'左打',order:7,num:3,  b:0,s:0}),
+                sp('快速球','B6',116,{hand:'左打',order:7,num:3, b:1,s:0}),
+                sp('快速球','4',118,{hand:'左打',order:7,num:3,  b:1,s:0}),
+                sp('下墜球','3',104,{hand:'左打',order:7,num:3,  b:1,s:0,out:'滾地球出局'}),
+                sp('快速球','5',116,{hand:'右打',order:8,num:9,  b:0,s:0}),
+                sp('快速球','2',117,{hand:'右打',order:8,num:9,  b:0,s:1}),
+                sp('上飄球','9',109,{hand:'右打',order:8,num:9,  b:0,s:2,out:'飛球出局'}),
+                sp('快速球','5',117,{hand:'左打',order:9,num:1,  b:0,s:0}),
+                sp('快速球','B1',115,{hand:'左打',order:9,num:1, b:1,s:0}),
+                sp('上飄球','8',109,{hand:'左打',order:9,num:1,  b:1,s:0,out:'三振'}),
+                // 6局上
+                sp('快速球','5',116,{hand:'左打',order:1,num:4,  b:0,s:0}),
+                sp('上飄球','7',109,{hand:'左打',order:1,num:4,  b:0,s:1}),
+                sp('快速球','5',117,{hand:'左打',order:1,num:4,  b:0,s:1,out:'三振'}),
+                sp('快速球','4',118,{hand:'左打',order:2,num:12, b:0,s:0}),
+                sp('快速球','6',116,{hand:'左打',order:2,num:12, b:0,s:0,out:'一壘安打'}),
+                sp('快速球','5',117,{hand:'右打',order:3,num:25, b:0,s:0,ro:true}),
+                sp('快速球','B2',115,{hand:'右打',order:3,num:25,b:1,s:0,ro:true}),
+                sp('快速球','5',118,{hand:'右打',order:3,num:25, b:1,s:0,ro:true}),
+                sp('快速球','B1',116,{hand:'右打',order:3,num:25,b:2,s:0,ro:true}),
+                sp('快速球','6',117,{hand:'右打',order:3,num:25, b:2,s:0,ro:true,out:'保送'}),
+                sp('快速球','5',116,{hand:'右打',order:4,num:8,  b:0,s:0,ro:true}),
+                sp('下墜球','2',103,{hand:'右打',order:4,num:8,  b:0,s:1,ro:true}),
+                sp('快速球','4',117,{hand:'右打',order:4,num:8,  b:0,s:1,ro:true,out:'雙殺'}),
+                // 7局上
+                sp('快速球','5',114,{hand:'右打',order:5,num:16, b:0,s:0}),
+                sp('上飄球','8',107,{hand:'右打',order:5,num:16, b:0,s:1}),
+                sp('快速球','B3',113,{hand:'右打',order:5,num:16,b:1,s:1}),
+                sp('快速球','5',115,{hand:'右打',order:5,num:16, b:1,s:1,out:'飛球出局'}),
+                sp('快速球','4',114,{hand:'右打',order:6,num:22, b:0,s:0}),
+                sp('快速球','5',116,{hand:'右打',order:6,num:22, b:0,s:1}),
+                sp('快速球','6',115,{hand:'右打',order:6,num:22, b:0,s:2,out:'三振'}),
+                sp('快速球','5',116,{hand:'左打',order:7,num:3,  b:0,s:0}),
+                sp('下墜球','2',103,{hand:'左打',order:7,num:3,  b:0,s:1}),
+                sp('快速球','5',117,{hand:'左打',order:7,num:3,  b:0,s:1,out:'滾地球出局'}),
+            ];
+
+            // ── 組裝比賽資料 ──
+            const demoTeams = [
+                {
+                    gameName: '2026 世界女壘錦標賽',
+                    name: '中華台北',
+                    opponent: '日本',
+                    date: '2026-08-10',
+                    pitchers: [
+                        {
+                            name: '陳雅婷', number: '1',
+                            hand: '右投', role: '先發', style: '速球型',
+                            pitches: chen_g1,
+                            score: { home: 3, away: 2, inning: 7, half: '上' }
+                        },
+                        {
+                            name: '林佳蓉', number: '18',
+                            hand: '左投', role: '後援', style: '變化球型',
+                            pitches: lin_g1,
+                            score: { home: 3, away: 2, inning: 7, half: '上' }
+                        }
+                    ]
+                },
+                {
+                    gameName: '2026 世界女壘錦標賽',
+                    name: '中華台北',
+                    opponent: '美國',
+                    date: '2026-08-14',
+                    pitchers: [
+                        {
+                            name: '陳雅婷', number: '1',
+                            hand: '右投', role: '先發', style: '速球型',
+                            pitches: chen_g2,
+                            score: { home: 1, away: 2, inning: 7, half: '上' }
+                        }
+                    ]
+                }
+            ];
+
+            // 寫入管理員專屬路徑（pitcherScoutData），不觸碰 teams/{code}
+            await db.ref('pitcherScoutData').set({ teams: demoTeams });
+
+            if (btn) {
+                btn.textContent = '✅ 注入完成';
+                setTimeout(() => { btn.textContent = '🎽 注入女子壘球示範資料'; btn.disabled = false; }, 2500);
+            }
+            alert(
+                '✅ 女子快速壘球示範資料已注入管理員帳號！\n\n' +
+                `📊 內容：\n` +
+                `• 賽事：2026 世界女壘錦標賽\n` +
+                `• vs 日本（2026-08-10）：陳雅婷 #1（${chen_g1.length} 球）、林佳蓉 #18（${lin_g1.length} 球）\n` +
+                `• vs 美國（2026-08-14）：陳雅婷 #1（${chen_g2.length} 球）\n\n` +
+                `請切換至「投手情蒐模式」查看統計與分析。`
+            );
+        } catch (e) {
+            if (btn) { btn.textContent = '❌ 失敗'; btn.disabled = false; }
+            alert('注入失敗：' + e.message);
+        }
+    }
+
     // 保留舊名供相容性
     function showLegacyLogin() { showAdminLogin(); }
 
