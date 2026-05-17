@@ -539,18 +539,23 @@
             .count-analysis { grid-template-columns:1fr; }
             .score-value { font-size:26px; }
             .dual-pitcher-cards { grid-template-columns:1fr 1fr; gap:8px; }
+            /* 記分板 + 打者資訊：手機堆疊 */
             .scoreboard-batter-row { grid-template-columns:1fr; }
+            /* 九宮格 + 結果區：手機堆疊 */
             .pitch-zone-result-row { flex-direction:column; }
-            /* 手機投球記錄大按鈕 */
-            .pitch-btn { padding:16px 8px; font-size:17px; font-weight:900; border-radius:10px; }
+            /* 球速：單排橫向滑動，不佔雙排高度 */
+            .speed-grid { display:flex; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; gap:4px; padding-bottom:2px; }
+            .speed-grid::-webkit-scrollbar { display:none; }
+            .speed-btn { flex-shrink:0; width:46px; height:40px; font-size:13px; font-weight:900; }
+            /* 投球結果按鈕：縮小讓版面更緊湊 */
+            .zone-right-btn { padding:12px 6px; font-size:13px; font-weight:900; border-radius:10px; }
+            /* 打擊記錄大按鈕 */
+            .pitch-btn { padding:14px 8px; font-size:16px; font-weight:900; border-radius:10px; }
             .zone-cell { font-size:18px; font-weight:900; }
             .zone-cell.ball-zone { font-size:12px; }
-            .speed-btn { height:40px; font-size:13px; font-weight:900; }
-            .speed-grid { grid-template-columns:repeat(auto-fill, minmax(36px, 1fr)); }
-            .outcome-btn { height:52px; font-size:13px; }
-            .zone-right-btn { padding:18px 12px; font-size:15px; font-weight:900; border-radius:10px; }
-            .confirm-record-btn { padding:22px; font-size:20px; border-radius:12px; }
-            .hand-btn { padding:16px; font-size:16px; }
+            .outcome-btn { height:50px; font-size:13px; }
+            .confirm-record-btn { padding:20px; font-size:19px; border-radius:12px; }
+            .hand-btn { padding:14px; font-size:15px; }
             .heatmap { grid-template-columns:repeat(3,58px); grid-template-rows:repeat(3,58px); }
             .tendency-heatmap { grid-template-columns:repeat(3,50px); grid-template-rows:repeat(3,50px); }
             /* 九宮格手機版 */
@@ -561,22 +566,24 @@
             h1 .h1-baseball { font-size:18px; }
             .zone-label { font-size:9px; }
             .heatmap { grid-template-columns:repeat(3,52px); grid-template-rows:repeat(3,52px); }
-            .pitch-types { grid-template-columns:repeat(3,1fr); }
-            .at-bat-result { gap:5px; }
-            .speed-btn { height:38px; font-size:12px; }
-            .speed-grid { grid-template-columns:repeat(auto-fill, minmax(32px, 1fr)); }
+            .pitch-types { grid-template-columns:repeat(4,1fr); gap:5px; }
+            .pitch-btn { padding:11px 4px; font-size:13px; }
+            .at-bat-result { gap:4px; }
+            /* 投球結果按鈕改橫排，省高度 */
+            .zone-right-btns { flex-direction:row; flex-wrap:wrap; gap:4px; }
+            .zone-right-btn { flex:1; min-width:0; padding:10px 2px; font-size:12px; font-weight:900; }
+            /* 球速按鈕更緊湊 */
+            .speed-btn { width:42px; height:38px; font-size:12px; }
             .stat-card { padding:12px; }
             .stat-value { font-size:20px; }
             .batter-details { grid-template-columns:1fr 1fr; }
             .dual-pitcher-cards { grid-template-columns:1fr; }
             /* 小手機九宮格 */
-            .strike-zone-extended { grid-template-columns:repeat(5,52px); grid-template-rows:repeat(5,52px); gap:2px; }
+            .strike-zone-extended { grid-template-columns:repeat(5,50px); grid-template-rows:repeat(5,50px); gap:2px; }
             .zone-cell { font-size:16px; }
             .zone-cell.ball-zone { font-size:10px; }
-            .pitch-btn { padding:14px 6px; font-size:16px; }
-            .outcome-btn { height:48px; font-size:12px; }
-            .zone-right-btn { padding:16px 10px; font-size:14px; }
-            .confirm-record-btn { padding:20px; font-size:18px; }
+            .outcome-btn { height:46px; font-size:12px; }
+            .confirm-record-btn { padding:18px; font-size:17px; }
         }
         /* ===== SYNC STATUS ===== */
         #syncDot { position:fixed; top:max(8px,env(safe-area-inset-top)); right:12px; z-index:1003; display:flex; align-items:center; gap:5px; background:rgba(0,0,0,0.35); border-radius:20px; padding:4px 10px; }
