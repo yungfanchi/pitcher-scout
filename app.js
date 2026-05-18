@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v61';
+﻿    const APP_VERSION = 'v62';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2907,7 +2907,7 @@
             <strong style="color:var(--ct-blue-dark);display:block;font-size:16px;margin-bottom:8px;text-align:center;">⚾ 各球種投球傾向</strong>
             <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center;">
                 <div style="flex:0 1 auto;min-width:180px;max-width:340px;">${typeRows}</div>
-                <div style="flex:0 0 220px;max-width:280px;min-width:180px;position:relative;aspect-ratio:1;"><canvas id="tendencyTypeChart"></canvas></div>
+                <div style="flex:0 0 300px;max-width:340px;min-width:240px;position:relative;aspect-ratio:1;"><canvas id="tendencyTypeChart"></canvas></div>
             </div>
         </div>`;
         const tendencyCanvas = document.getElementById('tendencyTypeChart');
@@ -3079,7 +3079,7 @@
                 <div style="font-size:16px;font-weight:900;color:${color};margin-bottom:10px;text-align:center;">${label} <span style="font-size:13px;font-weight:400;color:#6b7280;">（${total}打席首球）</span></div>
                 <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:center;">
                     <div style="flex:0 1 auto;min-width:180px;max-width:320px;">${rows}</div>
-                    <div style="flex:0 0 240px;max-width:280px;min-width:200px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                    <div style="flex:0 0 300px;max-width:340px;min-width:240px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
                 </div>
             </div>`;
         };

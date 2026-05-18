@@ -489,7 +489,7 @@
 
         /* ===== 球種/配球模式 行版型 ===== */
         .pattern-row { display:flex; gap:16px; align-items:center; justify-content:center; }
-        .pattern-chart-canvas { flex:0 0 38%; min-width:220px; max-width:300px; position:relative; aspect-ratio:1; }
+        .pattern-chart-canvas { flex:0 0 42%; min-width:260px; max-width:360px; position:relative; aspect-ratio:1; }
         @media (max-width:580px) {
             .pattern-row { flex-wrap:wrap; }
             .pattern-chart-canvas { flex:1 1 100%; max-width:260px; min-width:0; margin:0 auto; }
