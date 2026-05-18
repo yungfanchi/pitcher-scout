@@ -269,15 +269,17 @@
         .pitch-btn.active { background:var(--ct-blue-dark); color:white; border-color:var(--ct-gold); box-shadow:0 0 0 3px rgba(255,215,0,0.3); }
 
         /* ===== SPEED ===== */
-        /* 左側輸入框 + 右側按鈕 grid 並排 */
-        .speed-input { display:flex; align-items:stretch; gap:6px; margin:6px 0; }
-        .speed-left { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; width:66px; border:2px solid var(--ct-blue); border-radius:8px; padding:6px 4px; background:#f0f5ff; }
-        .speed-label { font-size:11px; font-weight:700; color:var(--ct-blue-dark); }
-        .speed-unit { font-size:10px; color:#9ca3af; }
-        .speed-input input { padding:4px 2px; border:2px solid var(--ct-blue); border-radius:6px; font-size:14px; width:54px; font-weight:700; text-align:center; box-sizing:border-box; }
-        #currentSpeed { color:var(--ct-red); font-size:14px; font-weight:900; }
-        .speed-grid { flex:1; display:grid; grid-template-columns:repeat(auto-fill, minmax(38px, 1fr)); gap:4px; align-content:start; }
-        .speed-btn { height:36px; padding:0; border:2px solid var(--ct-blue); border-radius:6px; background:white; cursor:pointer; font-weight:700; transition:all 0.2s; color:var(--ct-blue-dark); font-size:12px; -webkit-user-select:none; user-select:none; width:100%; }
+        /* 左側輸入框 + 右側按鈕 grid 並排，兩者等高 */
+        .speed-input { display:flex; align-items:stretch; gap:8px; margin:6px 0; }
+        .speed-left { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; flex-shrink:0; width:90px; border:2px solid var(--ct-blue); border-radius:8px; padding:8px 6px; background:#f0f5ff; }
+        .speed-label { font-size:13px; font-weight:700; color:var(--ct-blue-dark); }
+        .speed-display { display:flex; align-items:baseline; gap:3px; }
+        .speed-unit { font-size:12px; color:#9ca3af; }
+        .speed-input input { padding:6px 4px; border:2px solid var(--ct-blue); border-radius:6px; font-size:20px; width:76px; font-weight:700; text-align:center; box-sizing:border-box; }
+        #currentSpeed { color:var(--ct-red); font-size:20px; font-weight:900; }
+        /* 固定 2 排，按鈕平均填滿整個寬度 */
+        .speed-grid { flex:1; display:grid; grid-template-columns:repeat(16, 1fr); grid-template-rows:repeat(2, 1fr); gap:4px; }
+        .speed-btn { padding:0; border:2px solid var(--ct-blue); border-radius:6px; background:white; cursor:pointer; font-weight:700; transition:all 0.2s; color:var(--ct-blue-dark); font-size:12px; -webkit-user-select:none; user-select:none; width:100%; height:100%; }
         .speed-btn:active { transform:scale(0.95); }
         .speed-btn.active { background:var(--ct-blue-dark); color:white; border-color:var(--ct-gold); }
 
@@ -544,8 +546,8 @@
             .scoreboard-batter-row { grid-template-columns:1fr; }
             /* 九宮格 + 結果區：手機堆疊 */
             .pitch-zone-result-row { flex-direction:column; }
-            /* 球速按鈕：平板仍用 grid 兩排，尺寸稍縮 */
-            .speed-btn { height:38px; font-size:12px; font-weight:900; }
+            /* 球速按鈕：高度由 grid 決定，不固定 */
+            .speed-btn { font-size:12px; font-weight:900; }
             /* 投球結果按鈕：縮小讓版面更緊湊 */
             .zone-right-btn { padding:12px 6px; font-size:13px; font-weight:900; border-radius:10px; }
             /* 打擊記錄大按鈕 */
