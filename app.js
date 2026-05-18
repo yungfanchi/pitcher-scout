@@ -2981,21 +2981,25 @@
         const lhb = buildSideStats(pitches.filter(p=>p.batterHand==='左打'), innerZonesLHB, outerZonesLHB);
 
         const buildSideHTML = (d, label, color, chartId) => {
-            if (!d) return `<div style="color:#9ca3af;font-size:13px;padding:12px;text-align:center;">${label}：尚無資料</div>`;
+            if (!d) return `<div style="color:#9ca3af;font-size:13px;padding:12px;text-align:center;height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;">${label}：尚無資料</div>`;
+            const itemCount = d.typeBreakdown.length;
+            const typeFontSize = itemCount <= 1 ? 18 : itemCount <= 2 ? 16 : itemCount <= 3 ? 14 : 12;
+            const statFontSize = typeFontSize - 2;
+            const rowPad = itemCount <= 2 ? '6px 2px' : '3px 2px';
             const rows = d.typeBreakdown.map(({type,cnt,pct}) => `
-                <div style="display:flex;align-items:center;gap:6px;padding:5px 2px;">
-                    <span style="width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;min-width:46px;">${type}</span>
-                    <span style="font-size:14px;color:#374151;font-weight:600;margin-left:4px;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
+                <div style="display:flex;align-items:center;gap:4px;padding:${rowPad};">
+                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:${typeFontSize}px;min-width:44px;">${type}</span>
+                    <span style="font-size:${statFontSize}px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
                 </div>`).join('');
-            return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
-                <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:10px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${d.total}球）</span></div>
-                <div style="display:flex;gap:10px;align-items:center;">
-                    <div style="flex:1;min-width:0;">
-                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
-                            <span style="background:#fee2e2;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#dc2626;">內角 ${d.pct(d.inner)}%</span>
-                            <span style="background:#dbeafe;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#2563eb;">外角 ${d.pct(d.outer)}%</span>
-                            <span style="background:#f3f4f6;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#6b7280;">中間 ${d.pct(d.mid)}%</span>
+            return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
+                <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${d.total}球）</span></div>
+                <div style="flex:1;display:flex;gap:10px;align-items:center;">
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">
+                            <span style="background:#fee2e2;border-radius:5px;padding:2px 6px;font-size:12px;font-weight:700;color:#dc2626;">內角 ${d.pct(d.inner)}%</span>
+                            <span style="background:#dbeafe;border-radius:5px;padding:2px 6px;font-size:12px;font-weight:700;color:#2563eb;">外角 ${d.pct(d.outer)}%</span>
+                            <span style="background:#f3f4f6;border-radius:5px;padding:2px 6px;font-size:12px;font-weight:700;color:#6b7280;">中間 ${d.pct(d.mid)}%</span>
                         </div>
                         ${rows || '<div style="color:#9ca3af;font-size:13px;">無資料</div>'}
                     </div>
@@ -3004,7 +3008,7 @@
             </div>`;
         };
 
-        div.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+        div.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
                             ${buildSideHTML(rhb, '👉 對右打 (RHB)', '#dc2626', 'innerOuterRHBChart')}
                             ${buildSideHTML(lhb, '👈 對左打 (LHB)', '#2563eb', 'innerOuterLHBChart')}
                          </div>` +
@@ -3042,17 +3046,21 @@
             const pct = n => ((n/total)*100).toFixed(1);
             // compact（RHB/LHB並排）：圖上文字下，間距緊湊
             if (compact) {
+                const itemCount = sorted.length;
+                const typeFontSize = itemCount <= 1 ? 18 : itemCount <= 2 ? 16 : itemCount <= 3 ? 14 : 12;
+                const statFontSize = typeFontSize - 2;
+                const rowPad = itemCount <= 2 ? '6px 2px' : '3px 2px';
                 const rows = sorted.map(([type,cnt],i) => `
-                    <div style="display:flex;align-items:center;gap:5px;padding:5px 2px;">
-                        <span style="font-size:13px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
-                        <span style="width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                        <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;min-width:44px;">${type}</span>
-                        <span style="font-size:14px;color:#374151;font-weight:600;margin-left:4px;">${cnt}次 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
+                    <div style="display:flex;align-items:center;gap:4px;padding:${rowPad};">
+                        <span style="font-size:12px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
+                        <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                        <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:${typeFontSize}px;min-width:42px;">${type}</span>
+                        <span style="font-size:${statFontSize}px;color:#374151;font-weight:600;">${cnt}次 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
                     </div>`).join('');
-                return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
-                    <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:10px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}打席）</span></div>
-                    <div style="display:flex;gap:10px;align-items:center;">
-                        <div style="flex:1;min-width:0;">${rows}</div>
+                return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
+                    <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}打席）</span></div>
+                    <div style="flex:1;display:flex;gap:10px;align-items:center;">
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">${rows}</div>
                         <div style="flex:0 0 42%;max-width:180px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
                     </div>
                 </div>`;
@@ -3078,7 +3086,7 @@
         const lhb = firstPitches.filter(p=>p.batterHand==='左打');
 
         div.innerHTML = `<div style="margin-bottom:12px;">${buildSection(firstPitches, '📊 全部首球分布', '#003d79', 'firstPitchAllChart', false)}</div>` +
-                        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+                        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
                              ${buildSection(rhb, '👉 對右打首球', '#dc2626', 'firstPitchRHBChart', true)}
                              ${buildSection(lhb, '👈 對左打首球', '#2563eb', 'firstPitchLHBChart', true)}
                          </div>`;
@@ -3390,27 +3398,31 @@
             ps.forEach(p => { if(p.zone) zoneCount[p.zone] = (zoneCount[p.zone]||0)+1; });
             const topZones = Object.entries(zoneCount).sort((a,b)=>b[1]-a[1]).slice(0,3);
 
+            const itemCount = topTypes.length;
+            const typeFontSize = itemCount <= 1 ? 18 : itemCount <= 2 ? 16 : itemCount <= 3 ? 14 : 12;
+            const statFontSize = typeFontSize - 2;
+            const rowPad = itemCount <= 2 ? '6px 2px' : '3px 2px';
             const typeRows = topTypes.map(([type,cnt],i) => `
-                <div style="display:flex;align-items:center;gap:5px;padding:5px 2px;">
-                    <span style="font-size:13px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
-                    <span style="width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;min-width:44px;">${type}</span>
-                    <span style="font-size:14px;color:#374151;font-weight:600;margin-left:4px;">${cnt}球 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
+                <div style="display:flex;align-items:center;gap:4px;padding:${rowPad};">
+                    <span style="font-size:12px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
+                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:${typeFontSize}px;min-width:42px;">${type}</span>
+                    <span style="font-size:${statFontSize}px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
                 </div>`).join('');
             const zoneRows = topZones.map(([zone,cnt],i) => {
                 const isStrike = !zone.startsWith('B');
-                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px;font-size:13px;">
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 2px;font-size:12px;">
                     <span>${i===0?'🎯 ':''}<b style="color:${isStrike?'#92400e':'#065f46'};">位置${zone}</b></span>
                     <span style="color:var(--ct-red);font-weight:700;">${cnt}球 ${pct(cnt)}%</span>
                 </div>`;
             }).join('');
-            return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
-                <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:10px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
-                <div style="display:flex;gap:10px;align-items:center;">
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:3px;">⚾ 球種</div>
+            return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
+                <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
+                <div style="flex:1;display:flex;gap:10px;align-items:center;">
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:2px;">⚾ 球種</div>
                         ${typeRows}
-                        <div style="font-size:11px;font-weight:700;color:#374151;margin:6px 0 3px;">📍 進壘 Top3</div>
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin:4px 0 2px;">📍 進壘 Top3</div>
                         ${zoneRows || '<div style="color:#9ca3af;font-size:12px;">無資料</div>'}
                     </div>
                     <div style="flex:0 0 42%;max-width:180px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
@@ -3419,7 +3431,7 @@
         };
 
         div.innerHTML = `<div style="font-size:12px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（右打 ${rhb.length} / 左打 ${lhb.length}）</div>` +
-                        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+                        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
                              ${buildSection(rhb, '👉 對右打 (RHB)', '#dc2626', 'twoStrikeRHBChart')}
                              ${buildSection(lhb, '👈 對左打 (LHB)', '#2563eb', 'twoStrikeLHBChart')}
                          </div>`;
