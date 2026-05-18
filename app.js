@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v67';
+﻿    const APP_VERSION = 'v68';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -989,10 +989,10 @@
 
             <div class="section-block">
             <div class="section-title">🎯 兩好球決勝球傾向（2 Strikes）</div>
-            <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（右打 ${twoStrike.filter(p=>p.batterHand==='右打').length} / 左打 ${twoStrike.filter(p=>p.batterHand==='左打').length}）</div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（左打 ${twoStrike.filter(p=>p.batterHand==='左打').length} / 右打 ${twoStrike.filter(p=>p.batterHand==='右打').length}）</div>
             <div class="two-col">
-                ${tsSection(twoStrike.filter(p=>p.batterHand==='右打'), '👉 對右打 (RHB)', '#dc2626')}
                 ${tsSection(twoStrike.filter(p=>p.batterHand==='左打'), '👈 對左打 (LHB)', '#2563eb')}
+                ${tsSection(twoStrike.filter(p=>p.batterHand==='右打'), '👉 對右打 (RHB)', '#dc2626')}
             </div>
             </div>
 
@@ -3114,8 +3114,8 @@
         };
 
         div.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
-                            ${buildSideHTML(rhb, '👉 對右打 (RHB)', '#dc2626', 'innerOuterRHBChart')}
                             ${buildSideHTML(lhb, '👈 對左打 (LHB)', '#2563eb', 'innerOuterLHBChart')}
+                            ${buildSideHTML(rhb, '👉 對右打 (RHB)', '#dc2626', 'innerOuterRHBChart')}
                          </div>` +
                         '<p style="font-size:11px;color:#9ca3af;margin-top:6px;">內角定義：對RHB為1/4/7區，對LHB為3/6/9區。佔比以總投球數計算。</p>';
 
@@ -3192,8 +3192,8 @@
 
         div.innerHTML = `<div style="margin-bottom:12px;">${buildSection(firstPitches, '📊 全部首球分布', '#003d79', 'firstPitchAllChart', false)}</div>` +
                         `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
-                             ${buildSection(rhb, '👉 對右打首球', '#dc2626', 'firstPitchRHBChart', true)}
                              ${buildSection(lhb, '👈 對左打首球', '#2563eb', 'firstPitchLHBChart', true)}
+                             ${buildSection(rhb, '👉 對右打首球', '#dc2626', 'firstPitchRHBChart', true)}
                          </div>`;
 
         const makeChart = (fps, canvasId) => {
@@ -3536,10 +3536,10 @@
             </div>`;
         };
 
-        div.innerHTML = `<div style="font-size:12px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（右打 ${rhb.length} / 左打 ${lhb.length}）</div>` +
+        div.innerHTML = `<div style="font-size:12px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（左打 ${lhb.length} / 右打 ${rhb.length}）</div>` +
                         `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
-                             ${buildSection(rhb, '👉 對右打 (RHB)', '#dc2626', 'twoStrikeRHBChart')}
                              ${buildSection(lhb, '👈 對左打 (LHB)', '#2563eb', 'twoStrikeLHBChart')}
+                             ${buildSection(rhb, '👉 對右打 (RHB)', '#dc2626', 'twoStrikeRHBChart')}
                          </div>`;
 
         const makeChart = (ps, canvasId) => {
