@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v55';
+﻿    const APP_VERSION = 'v57';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -1117,9 +1117,11 @@
         updateScoreboard();
         renderCountLights();
         renderBases();
-        // 顯示版本號於登入頁
+        // 顯示版本號：登入頁 + 主介面
         const verEl = document.getElementById('appVersionDisplay');
         if (verEl) verEl.textContent = APP_VERSION;
+        const verMainEl = document.getElementById('appVersionMain');
+        if (verMainEl) verMainEl.textContent = APP_VERSION;
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
     }
 
@@ -2983,9 +2985,9 @@
         const buildSideHTML = (d, label, color, chartId) => {
             if (!d) return `<div style="color:#9ca3af;font-size:13px;padding:12px;text-align:center;height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;">${label}：尚無資料</div>`;
             const itemCount = d.typeBreakdown.length;
-            const typeFontSize = itemCount <= 1 ? 18 : itemCount <= 2 ? 16 : itemCount <= 3 ? 14 : 12;
-            const statFontSize = typeFontSize - 2;
-            const rowPad = itemCount <= 2 ? '6px 2px' : '3px 2px';
+            const typeFontSize = itemCount <= 1 ? 20 : itemCount <= 2 ? 18 : itemCount <= 3 ? 16 : 14;
+            const statFontSize = typeFontSize - 1;
+            const rowPad = itemCount <= 2 ? '7px 2px' : '4px 2px';
             const rows = d.typeBreakdown.map(({type,cnt,pct}) => `
                 <div style="display:flex;align-items:center;gap:4px;padding:${rowPad};">
                     <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
@@ -3047,9 +3049,9 @@
             // compact（RHB/LHB並排）：圖上文字下，間距緊湊
             if (compact) {
                 const itemCount = sorted.length;
-                const typeFontSize = itemCount <= 1 ? 18 : itemCount <= 2 ? 16 : itemCount <= 3 ? 14 : 12;
-                const statFontSize = typeFontSize - 2;
-                const rowPad = itemCount <= 2 ? '6px 2px' : '3px 2px';
+                const typeFontSize = itemCount <= 1 ? 20 : itemCount <= 2 ? 18 : itemCount <= 3 ? 16 : 14;
+                const statFontSize = typeFontSize - 1;
+                const rowPad = itemCount <= 2 ? '7px 2px' : '4px 2px';
                 const rows = sorted.map(([type,cnt],i) => `
                     <div style="display:flex;align-items:center;gap:4px;padding:${rowPad};">
                         <span style="font-size:12px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
@@ -3399,9 +3401,9 @@
             const topZones = Object.entries(zoneCount).sort((a,b)=>b[1]-a[1]).slice(0,3);
 
             const itemCount = topTypes.length;
-            const typeFontSize = itemCount <= 1 ? 18 : itemCount <= 2 ? 16 : itemCount <= 3 ? 14 : 12;
-            const statFontSize = typeFontSize - 2;
-            const rowPad = itemCount <= 2 ? '6px 2px' : '3px 2px';
+            const typeFontSize = itemCount <= 1 ? 20 : itemCount <= 2 ? 18 : itemCount <= 3 ? 16 : 14;
+            const statFontSize = typeFontSize - 1;
+            const rowPad = itemCount <= 2 ? '7px 2px' : '4px 2px';
             const typeRows = topTypes.map(([type,cnt],i) => `
                 <div style="display:flex;align-items:center;gap:4px;padding:${rowPad};">
                     <span style="font-size:12px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
