@@ -9,7 +9,7 @@
         '快速球': '#FF2A2A',   // 正烈火紅
         '上飄球': '#2979FF',   // 皇家極致藍
         '下墜球': '#8B4513',   // 剛鐵深棕
-        '變速球': '#FFD700',   // 閃電亮黃
+        '變速球': '#0284c7',   // 天空藍
         '二速球': '#00E676',   // 螢光炫綠
         '內曲':   '#E040FB',   // 夢幻粉紫
         '外曲':   '#78909C',   // 時尚鋼鐵灰
@@ -2852,7 +2852,7 @@
         const listEl = document.getElementById('heatmapCommonList');
         if (listEl) {
             const allEntries = Object.entries(allCounts).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
-            listEl.innerHTML = allEntries.map(([z,c])=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f3f4f6;"><span style="font-weight:700;color:${z.startsWith('B')?'#065f46':'#92400e'};">${z}</span><span style="color:var(--ct-red);font-weight:700;">${c}</span></div>`).join('') || '-';
+            listEl.innerHTML = allEntries.map(([z,c])=>`<div class="heatmap-rank-item"><span class="heatmap-rank-zone" style="color:${z.startsWith('B')?'#065f46':'#92400e'};">${z}</span><span class="heatmap-rank-count">${c}</span></div>`).join('') || '<span style="color:#9ca3af;font-size:13px;">尚無資料</span>';
         }
     }
 
@@ -2876,23 +2876,35 @@
 
         // Insight with pitch type breakdown
         const insight = document.getElementById('tendencyInsight');
-        const allTypes = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
-        const changeUpTypes = ['下墜球','變速球','內曲','外曲'];
-        const used = allTypes.filter(t => pitches.some(p => p.type===t));
+        const used = PITCH_ORDER.filter(t => pitches.some(p => p.type===t));
+        if (tendencyTypeChartInstance) { tendencyTypeChartInstance.destroy(); tendencyTypeChartInstance = null; }
         if (used.length === 0) { insight.innerHTML = ''; return; }
-        insight.innerHTML = `<div style="background:#f0f9ff;border:2px solid var(--ct-blue);border-radius:8px;padding:10px;">
-            <strong style="color:var(--ct-blue-dark);">🔄 各球種投球傾向（變化球標示）</strong>
-            <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
-            ${used.map(type=>{
-                const tp = pitches.filter(p=>p.type===type);
-                const strikeRate = tp.length ? ((tp.filter(p=>p.result==='好球').length/tp.length)*100).toFixed(0) : 0;
-                const isBreaking = changeUpTypes.includes(type);
-                return `<span style="background:${isBreaking?'#7c3aed':'var(--ct-blue-dark)'};color:white;padding:4px 10px;border-radius:20px;font-size:13px;font-weight:700;">
-                    ${type}${isBreaking?' 🔄':''}  好球率${strikeRate}%
-                </span>`;
-            }).join('')}
+        const typeRows = used.map(type => {
+            const tp = pitches.filter(p => p.type===type);
+            const cnt = tp.length;
+            const pct = pitches.length ? ((cnt/pitches.length)*100).toFixed(1) : 0;
+            const strikeRate = tp.length ? ((tp.filter(p=>p.result==='好球').length/tp.length)*100).toFixed(0) : 0;
+            const color = PITCH_COLORS[type] || '#999';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #e5e7eb;">
+                <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
+                <span style="font-weight:700;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:14px;min-width:54px;">${type}</span>
+                <span style="font-size:12px;color:#6b7280;">${cnt}球 ${pct}%</span>
+                <span style="margin-left:auto;font-size:13px;font-weight:700;color:#b45309;">好球率 ${strikeRate}%</span>
+            </div>`;
+        }).join('');
+        insight.innerHTML = `<div style="background:#f0f9ff;border:2px solid var(--ct-blue);border-radius:8px;padding:12px;">
+            <strong style="color:var(--ct-blue-dark);display:block;margin-bottom:10px;">⚾ 各球種投球傾向</strong>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">
+                <div style="flex:1;min-width:200px;">${typeRows}</div>
+                <div style="flex:0 1 38%;min-width:160px;position:relative;aspect-ratio:1;"><canvas id="tendencyTypeChart"></canvas></div>
             </div>
         </div>`;
+        const tendencyCanvas = document.getElementById('tendencyTypeChart');
+        if (tendencyCanvas) {
+            tendencyTypeChartInstance = _makeDoughnut(tendencyCanvas, used,
+                used.map(t => pitches.filter(p=>p.type===t).length),
+                used.map(t => PITCH_COLORS[t] || '#999'), pitches.length);
+        }
     }
 
     function updateBallTendencyHeatmap(elementId, pitches) {
@@ -2934,119 +2946,127 @@
     function updateInnerOuterTable(pitches) {
         const div = document.getElementById('innerOuterTable');
         if (!div) return;
+        if (innerOuterRHBChartInstance) { innerOuterRHBChartInstance.destroy(); innerOuterRHBChartInstance = null; }
+        if (innerOuterLHBChartInstance) { innerOuterLHBChartInstance.destroy(); innerOuterLHBChartInstance = null; }
         if (pitches.length === 0) { div.innerHTML = '<p style="color:#9ca3af;padding:10px;">尚無資料</p>'; return; }
 
-        // Zone definitions (from pitcher's view)
-        // RHB inner: 1,4,7 / outer: 3,6,9
-        // LHB inner: 3,6,9 / outer: 1,4,7
-        const innerZonesRHB = ['1','4','7'];
-        const outerZonesRHB = ['3','6','9'];
-        const innerZonesLHB = ['3','6','9'];
-        const outerZonesLHB = ['1','4','7'];
+        const innerZonesRHB = ['1','4','7'], outerZonesRHB = ['3','6','9'];
+        const innerZonesLHB = ['3','6','9'], outerZonesLHB = ['1','4','7'];
 
-        // Rise types vs sink types
-        const riseTypes = ['快速球','上飄球'];
-        const sinkTypes = ['下墜球','內曲','外曲'];
-        const changeupTypes = ['變速球'];
-
-        const calc = (ps, innerZones, outerZones) => {
+        const buildSideStats = (ps, innerZones, outerZones) => {
             const total = ps.length;
             if (total === 0) return null;
             const strikePs = ps.filter(p => !String(p.zone).startsWith('B'));
             const inner = strikePs.filter(p => innerZones.includes(String(p.zone))).length;
             const outer = strikePs.filter(p => outerZones.includes(String(p.zone))).length;
             const mid = strikePs.length - inner - outer;
-            const rise = ps.filter(p => riseTypes.includes(p.type)).length;
-            const sink = ps.filter(p => sinkTypes.includes(p.type)).length;
-            const changeup = ps.filter(p => changeupTypes.includes(p.type)).length;
-            const pct = n => total > 0 ? ((n/total)*100).toFixed(1)+'%' : '-';
-            return { total, inner, outer, mid, rise, sink, changeup, pct };
+            const pct = n => total > 0 ? ((n/total)*100).toFixed(1) : '0.0';
+            const typeBreakdown = PITCH_ORDER.filter(t => ps.some(p=>p.type===t)).map(t => ({
+                type: t, cnt: ps.filter(p=>p.type===t).length,
+                pct: ((ps.filter(p=>p.type===t).length/total)*100).toFixed(1)
+            })).sort((a,b)=>b.cnt-a.cnt);
+            return { total, inner, outer, mid, pct, typeBreakdown };
         };
 
-        const rhb = calc(pitches.filter(p => p.batterHand === '右打'), innerZonesRHB, outerZonesRHB);
-        const lhb = calc(pitches.filter(p => p.batterHand === '左打'), innerZonesLHB, outerZonesLHB);
+        const rhb = buildSideStats(pitches.filter(p=>p.batterHand==='右打'), innerZonesRHB, outerZonesRHB);
+        const lhb = buildSideStats(pitches.filter(p=>p.batterHand==='左打'), innerZonesLHB, outerZonesLHB);
 
-        const renderRow = (label, d, color) => {
-            if (!d) return `<tr><td colspan="8" style="color:#9ca3af;font-size:12px;padding:8px;">${label}：尚無資料</td></tr>`;
-            return `<tr style="background:${color}10;">
-                <td style="font-weight:700;color:${color};padding:8px 10px;">${label}</td>
-                <td style="text-align:center;font-weight:700;">${d.total}</td>
-                <td style="text-align:center;color:#dc2626;font-weight:700;">${d.pct(d.inner)}</td>
-                <td style="text-align:center;color:#2563eb;font-weight:700;">${d.pct(d.outer)}</td>
-                <td style="text-align:center;color:#6b7280;">${d.pct(d.mid)}</td>
-                <td style="text-align:center;color:#d97706;font-weight:700;">${d.pct(d.rise)}</td>
-                <td style="text-align:center;color:#7c3aed;font-weight:700;">${d.pct(d.sink)}</td>
-                <td style="text-align:center;color:#0891b2;font-weight:700;">${d.pct(d.changeup)}</td>
-            </tr>`;
+        const buildSideHTML = (d, label, color, chartId) => {
+            if (!d) return `<div style="color:#9ca3af;font-size:12px;padding:12px;text-align:center;">${label}：尚無資料</div>`;
+            const rows = d.typeBreakdown.map(({type,cnt,pct}) => `
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f3f4f6;">
+                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:13px;min-width:50px;">${type}</span>
+                    <span style="font-size:12px;color:#6b7280;margin-left:auto;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
+                </div>`).join('');
+            return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;margin-bottom:12px;">
+                <div style="font-size:13px;font-weight:900;color:${color};margin-bottom:10px;">${label} <span style="font-size:11px;font-weight:400;color:#6b7280;">（${d.total}球）</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">
+                    <div style="flex:1;min-width:180px;">
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:6px;">📐 進壘區域（好球帶）</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                            <span style="background:#fee2e2;border-radius:5px;padding:4px 8px;font-size:12px;font-weight:700;color:#dc2626;">內角 ${d.pct(d.inner)}%</span>
+                            <span style="background:#dbeafe;border-radius:5px;padding:4px 8px;font-size:12px;font-weight:700;color:#2563eb;">外角 ${d.pct(d.outer)}%</span>
+                            <span style="background:#f3f4f6;border-radius:5px;padding:4px 8px;font-size:12px;font-weight:700;color:#6b7280;">中間 ${d.pct(d.mid)}%</span>
+                        </div>
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">⚾ 球種分析</div>
+                        ${rows || '<div style="color:#9ca3af;font-size:12px;">無資料</div>'}
+                    </div>
+                    <div style="flex:0 1 36%;min-width:140px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                </div>
+            </div>`;
         };
 
-        div.innerHTML = `
-        <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-            <thead>
-                <tr style="background:var(--ct-blue-dark);color:white;">
-                    <th style="padding:8px 10px;text-align:left;">打者</th>
-                    <th style="padding:8px;text-align:center;">投球數</th>
-                    <th style="padding:8px;text-align:center;">內角%</th>
-                    <th style="padding:8px;text-align:center;">外角%</th>
-                    <th style="padding:8px;text-align:center;">中間%</th>
-                    <th style="padding:8px;text-align:center;">↑上飄%</th>
-                    <th style="padding:8px;text-align:center;">↓下墜%</th>
-                    <th style="padding:8px;text-align:center;">🔵變速%</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${renderRow('👉 對右打 (RHB)', rhb, '#dc2626')}
-                ${renderRow('👈 對左打 (LHB)', lhb, '#2563eb')}
-            </tbody>
-        </table>
-        </div>
-        <p style="font-size:11px;color:#9ca3af;margin-top:6px;">內角定義：對RHB為1/4/7區，對LHB為3/6/9區。上飄：快速球/上飄球；下墜：下墜球/內曲/外曲；變速球獨立統計。</p>`;
+        div.innerHTML = buildSideHTML(rhb, '👉 對右打 (RHB)', '#dc2626', 'innerOuterRHBChart') +
+                        buildSideHTML(lhb, '👈 對左打 (LHB)', '#2563eb', 'innerOuterLHBChart') +
+                        '<p style="font-size:11px;color:#9ca3af;margin-top:2px;">內角定義：對RHB為1/4/7區，對LHB為3/6/9區。佔比以總投球數計算。</p>';
+
+        const makeChart = (d, canvasId) => {
+            if (!d) return null;
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+            const types = d.typeBreakdown.map(t=>t.type);
+            return _makeDoughnut(canvas, types, d.typeBreakdown.map(t=>t.cnt),
+                types.map(t => PITCH_COLORS[t]||'#999'), d.total);
+        };
+        innerOuterRHBChartInstance = makeChart(rhb, 'innerOuterRHBChart');
+        innerOuterLHBChartInstance = makeChart(lhb, 'innerOuterLHBChart');
     }
 
     // ====== 首球習慣分析 ======
     function updateFirstPitchAnalysis(pitches) {
         const div = document.getElementById('firstPitchAnalysis');
         if (!div) return;
+        [firstPitchAllChartInstance, firstPitchRHBChartInstance, firstPitchLHBChartInstance].forEach(c => { if(c) c.destroy(); });
+        firstPitchAllChartInstance = firstPitchRHBChartInstance = firstPitchLHBChartInstance = null;
         if (pitches.length === 0) { div.innerHTML = '<p style="color:#9ca3af;padding:10px;">尚無資料</p>'; return; }
 
-        // Find first pitch of each PA: pitch where balls=0 and strikes=0
-        const firstPitches = pitches.filter(p => (p.balls || 0) === 0 && (p.strikes || 0) === 0);
+        const firstPitches = pitches.filter(p => (p.balls||0)===0 && (p.strikes||0)===0);
         if (firstPitches.length === 0) { div.innerHTML = '<p style="color:#9ca3af;padding:10px;">尚無首球資料（需記錄球數）</p>'; return; }
 
-        const typeCount = {};
-        firstPitches.forEach(p => { if (p.type) typeCount[p.type] = (typeCount[p.type]||0)+1; });
-        const sorted = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
-        const total = firstPitches.length;
-        const pct = n => ((n/total)*100).toFixed(1);
-
-        const top1 = sorted[0] || null;
-        const top2 = sorted[1] || null;
-
-        div.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:8px;">
-            <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid var(--ct-yellow);border-radius:8px;padding:12px;">
-                <div style="font-size:11px;color:#92400e;font-weight:700;margin-bottom:4px;">🥇 首球最高佔比球種</div>
-                <div style="font-size:20px;font-weight:900;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;">
-                    ${top1 ? top1[0] + ' — ' + pct(top1[1]) + '%' : '尚無資料'}
+        const buildSection = (fps, label, color, chartId) => {
+            const total = fps.length;
+            if (total === 0) return `<div style="color:#9ca3af;font-size:12px;padding:8px;text-align:center;">${label}：尚無資料</div>`;
+            const typeCount = {};
+            fps.forEach(p => { if(p.type) typeCount[p.type] = (typeCount[p.type]||0)+1; });
+            const sorted = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
+            const pct = n => ((n/total)*100).toFixed(1);
+            const rows = sorted.map(([type,cnt],i) => `
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f3f4f6;">
+                    <span style="font-size:13px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'　'}</span>
+                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:14px;min-width:50px;">${type}</span>
+                    <span style="margin-left:auto;font-size:12px;color:#6b7280;">${cnt}次 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
+                </div>`).join('');
+            return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;margin-bottom:10px;">
+                <div style="font-size:13px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:11px;font-weight:400;color:#6b7280;">（${total}打席首球）</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">
+                    <div style="flex:1;min-width:180px;">${rows}</div>
+                    <div style="flex:0 1 36%;min-width:140px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
                 </div>
-                ${top1 ? `<div style="font-size:12px;color:#78350f;margin-top:2px;">${top1[1]} 次首球 / 共 ${total} 個打席</div>` : ''}
-            </div>
-            <div style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);border:2px solid var(--ct-green);border-radius:8px;padding:12px;">
-                <div style="font-size:11px;color:#065f46;font-weight:700;margin-bottom:4px;">🥈 首球次高佔比球種</div>
-                <div style="font-size:20px;font-weight:900;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;">
-                    ${top2 ? top2[0] + ' — ' + pct(top2[1]) + '%' : '僅有一種球種'}
-                </div>
-                ${top2 ? `<div style="font-size:12px;color:#064e3b;margin-top:2px;">${top2[1]} 次首球</div>` : ''}
-            </div>
-            ${sorted.length > 2 ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;">
-                <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:6px;">全部首球球種分布</div>
-                ${sorted.map(([type,cnt]) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f3f4f6;font-size:13px;">
-                    <span style="font-weight:700;">${type}</span>
-                    <span style="color:var(--ct-red);font-weight:700;">${cnt} 次（${pct(cnt)}%）</span>
-                </div>`).join('')}
-            </div>` : ''}
-        </div>`;
+            </div>`;
+        };
+
+        const rhb = firstPitches.filter(p=>p.batterHand==='右打');
+        const lhb = firstPitches.filter(p=>p.batterHand==='左打');
+
+        div.innerHTML = buildSection(firstPitches, '📊 全部首球分布', '#003d79', 'firstPitchAllChart') +
+                        buildSection(rhb, '👉 對右打首球', '#dc2626', 'firstPitchRHBChart') +
+                        buildSection(lhb, '👈 對左打首球', '#2563eb', 'firstPitchLHBChart');
+
+        const makeChart = (fps, canvasId) => {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || fps.length === 0) return null;
+            const tc = {};
+            fps.forEach(p => { if(p.type) tc[p.type] = (tc[p.type]||0)+1; });
+            const sorted = Object.entries(tc).sort((a,b)=>b[1]-a[1]);
+            const types = sorted.map(e=>e[0]);
+            return _makeDoughnut(canvas, types, sorted.map(e=>e[1]),
+                types.map(t => PITCH_COLORS[t]||'#999'), fps.length);
+        };
+        firstPitchAllChartInstance = makeChart(firstPitches, 'firstPitchAllChart');
+        firstPitchRHBChartInstance = makeChart(rhb, 'firstPitchRHBChart');
+        firstPitchLHBChartInstance = makeChart(lhb, 'firstPitchLHBChart');
     }
 
     // ====== PATTERN ANALYSIS ======
@@ -3192,10 +3212,10 @@
             };
         }).sort((a, b) => b.total - a.total);
 
-        // 指派藍色漸層（最大佔比球種 → 深丈青）
-        const chartColors = typeStats.map((_, i) => DASHBOARD_BLUES[Math.min(i, DASHBOARD_BLUES.length - 1)]);
+        // 使用 PITCH_COLORS（與對比頁一致）
+        const chartColors = typeStats.map(s => PITCH_COLORS[s.type] || '#999');
         const colorMap = {};
-        typeStats.forEach((s, i) => { colorMap[s.type] = chartColors[i]; });
+        typeStats.forEach(s => { colorMap[s.type] = PITCH_COLORS[s.type] || '#999'; });
 
         // ---- 建立表格 ----
         const rows = typeStats.map(s => {
@@ -3265,60 +3285,71 @@
     function updateTwoStrikeAnalysis(pitches) {
         const div = document.getElementById('twoStrikeAnalysis');
         if (!div) return;
-        const twoStrike = pitches.filter(p => (p.strikes || 0) === 2);
+        if (twoStrikeRHBChartInstance) { twoStrikeRHBChartInstance.destroy(); twoStrikeRHBChartInstance = null; }
+        if (twoStrikeLHBChartInstance) { twoStrikeLHBChartInstance.destroy(); twoStrikeLHBChartInstance = null; }
+        const twoStrike = pitches.filter(p => (p.strikes||0) === 2);
         if (twoStrike.length === 0) {
             div.innerHTML = '<p style="color:#9ca3af;padding:10px;">尚無兩好球資料（需記錄球數）</p>';
             return;
         }
-
         const rhb = twoStrike.filter(p => p.batterHand === '右打');
         const lhb = twoStrike.filter(p => p.batterHand === '左打');
 
-        const buildSection = (ps, label, color) => {
-            if (ps.length === 0) return `<div style="color:#9ca3af;font-size:12px;padding:8px;">尚無${label}資料</div>`;
+        const buildSection = (ps, label, color, chartId) => {
+            if (ps.length === 0) return `<div style="color:#9ca3af;font-size:12px;padding:8px;text-align:center;">${label}：尚無資料</div>`;
             const total = ps.length;
             const pct = n => ((n/total)*100).toFixed(1);
-
-            // Top types
             const typeCount = {};
-            ps.forEach(p => { if (p.type) typeCount[p.type] = (typeCount[p.type]||0)+1; });
-            const topTypes = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]).slice(0,3);
-
-            // Top zones
+            ps.forEach(p => { if(p.type) typeCount[p.type] = (typeCount[p.type]||0)+1; });
+            const topTypes = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
             const zoneCount = {};
-            ps.forEach(p => { if (p.zone) zoneCount[p.zone] = (zoneCount[p.zone]||0)+1; });
+            ps.forEach(p => { if(p.zone) zoneCount[p.zone] = (zoneCount[p.zone]||0)+1; });
             const topZones = Object.entries(zoneCount).sort((a,b)=>b[1]-a[1]).slice(0,3);
 
-            const typeHTML = topTypes.map(([type,cnt],i) =>
-                `<div style="display:flex;justify-content:space-between;padding:5px 8px;background:${i===0?'#fef3c7':'#f9fafb'};border-radius:5px;margin-bottom:3px;font-size:13px;">
-                    <span style="font-weight:700;color:var(--ct-blue-dark);">${i===0?'🥇 ':''}${type}</span>
-                    <span style="font-weight:700;color:var(--ct-red);">${cnt}球 ${pct(cnt)}%</span>
+            const typeRows = topTypes.map(([type,cnt],i) => `
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f3f4f6;">
+                    <span style="font-size:12px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
+                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:13px;min-width:50px;">${type}</span>
+                    <span style="margin-left:auto;font-size:12px;color:#6b7280;">${cnt}球 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
                 </div>`).join('');
-
-            const zoneHTML = topZones.map(([zone,cnt],i) => {
+            const zoneRows = topZones.map(([zone,cnt],i) => {
                 const isStrike = !zone.startsWith('B');
-                return `<div style="display:flex;justify-content:space-between;padding:5px 8px;background:${i===0?(isStrike?'#fef3c7':'#d1fae5'):'#f9fafb'};border-radius:5px;margin-bottom:3px;font-size:13px;">
-                    <span style="font-weight:700;color:${isStrike?'#92400e':'#065f46'};">${i===0?'🎯 ':''}位置${zone}</span>
-                    <span style="font-weight:700;color:var(--ct-red);">${cnt}球 ${pct(cnt)}%</span>
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f3f4f6;font-size:12px;">
+                    <span>${i===0?'🎯 ':''}<b style="color:${isStrike?'#92400e':'#065f46'};">位置${zone}</b></span>
+                    <span style="color:var(--ct-red);font-weight:700;">${cnt}球 ${pct(cnt)}%</span>
                 </div>`;
             }).join('');
-
-            return `
-                <div style="border:2px solid ${color};border-radius:8px;padding:10px;background:${color}08;">
-                    <div style="font-size:13px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:11px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
-                    <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">球種</div>
-                    ${typeHTML || '<div style="color:#9ca3af;font-size:12px;">無資料</div>'}
-                    <div style="font-size:11px;font-weight:700;color:#374151;margin:8px 0 4px;">進壘位置</div>
-                    ${zoneHTML || '<div style="color:#9ca3af;font-size:12px;">無資料</div>'}
-                </div>`;
+            return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;margin-bottom:12px;">
+                <div style="font-size:13px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:11px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">
+                    <div style="flex:1;min-width:180px;">
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">⚾ 球種</div>
+                        ${typeRows}
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin:8px 0 4px;">📍 進壘位置 Top3</div>
+                        ${zoneRows || '<div style="color:#9ca3af;font-size:12px;">無資料</div>'}
+                    </div>
+                    <div style="flex:0 1 36%;min-width:140px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                </div>
+            </div>`;
         };
 
-        div.innerHTML = `
-        <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（右打 ${rhb.length} / 左打 ${lhb.length}）</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            ${buildSection(rhb, '👉 對右打 (RHB)', '#dc2626')}
-            ${buildSection(lhb, '👈 對左打 (LHB)', '#2563eb')}
-        </div>`;
+        div.innerHTML = `<div style="font-size:12px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（右打 ${rhb.length} / 左打 ${lhb.length}）</div>` +
+                        buildSection(rhb, '👉 對右打 (RHB)', '#dc2626', 'twoStrikeRHBChart') +
+                        buildSection(lhb, '👈 對左打 (LHB)', '#2563eb', 'twoStrikeLHBChart');
+
+        const makeChart = (ps, canvasId) => {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || ps.length === 0) return null;
+            const tc = {};
+            ps.forEach(p => { if(p.type) tc[p.type] = (tc[p.type]||0)+1; });
+            const sorted = Object.entries(tc).sort((a,b)=>b[1]-a[1]);
+            const types = sorted.map(e=>e[0]);
+            return _makeDoughnut(canvas, types, sorted.map(e=>e[1]),
+                types.map(t => PITCH_COLORS[t]||'#999'), ps.length);
+        };
+        twoStrikeRHBChartInstance = makeChart(rhb, 'twoStrikeRHBChart');
+        twoStrikeLHBChartInstance = makeChart(lhb, 'twoStrikeLHBChart');
     }
 
     // ====== 壘上有人分析 ======
@@ -3441,9 +3472,14 @@
     let patternPieInstance = null;
     let lineChartInstance = null;
     let pitchTypeChartInstance = null;
-
-    // 球種儀表板藍色漸層（最大佔比 → 深丈青，其餘依序變淺）
-    const DASHBOARD_BLUES = ['#003d79','#0051a5','#1565c0','#1976d2','#2196f3','#42a5f5','#90caf9'];
+    let tendencyTypeChartInstance = null;
+    let innerOuterRHBChartInstance = null;
+    let innerOuterLHBChartInstance = null;
+    let firstPitchAllChartInstance = null;
+    let firstPitchRHBChartInstance = null;
+    let firstPitchLHBChartInstance = null;
+    let twoStrikeRHBChartInstance = null;
+    let twoStrikeLHBChartInstance = null;
 
     // 共用甜甜圈圖建立函式：外置標籤 + 引導線 + 中間總球數
     function _makeDoughnut(canvas, types, counts, colors, total) {

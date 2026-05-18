@@ -446,6 +446,11 @@
         .pitch-effect-stat-label { font-size:10px; color:#6b7280; margin-bottom:3px; }
         .pitch-effect-stat-value { font-size:16px; font-weight:700; color:var(--ct-blue-dark); }
 
+        /* ===== 熱區排名列表 ===== */
+        .heatmap-rank-item { display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid #f3f4f6; }
+        .heatmap-rank-zone { font-size:17px; font-weight:900; font-family:'Oswald','Noto Sans TC',sans-serif; }
+        .heatmap-rank-count { font-size:22px; font-weight:900; color:var(--ct-red); font-family:'Oswald','Noto Sans TC',sans-serif; }
+
         /* ===== 球種效果分析儀表板 ===== */
         .analysis-dashboard-container { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
         .pitch-type-table-wrap { flex:1 1 58%; min-width:0; overflow-x:auto; }
