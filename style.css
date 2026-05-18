@@ -487,6 +487,12 @@
             .chart-box { flex:1 1 100%; max-width:280px; margin:0 auto; }
         }
 
+        /* ===== 對比頁雙欄卡片格線 ===== */
+        .compare-cards-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:stretch; }
+        @media (max-width:600px) {
+            .compare-cards-grid { grid-template-columns:1fr; }
+        }
+
         /* ===== 球種/配球模式 行版型 ===== */
         .pattern-row { display:flex; gap:16px; align-items:center; justify-content:center; }
         .pattern-chart-canvas { flex:0 0 auto; width:340px; height:340px; position:relative; }

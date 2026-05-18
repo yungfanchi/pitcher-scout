@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v65';
+﻿    const APP_VERSION = 'v66';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -4053,7 +4053,7 @@
                 </div>
             </div>`;
         };
-        const typeCardHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
+        const typeCardHTML = `<div class="compare-cards-grid">
             ${buildTypeCard(pitchesA, `A · ${nameA}`, 'var(--ct-gold)', 'comparePitchACanvas', totalA)}
             ${buildTypeCard(pitchesB, `B · ${nameB}`, '#888', 'comparePitchBCanvas', totalB)}
         </div>`;
@@ -4122,24 +4122,28 @@
 
         const buildEffCard = (pitches, label, color, chartId, total) => {
             if (!pitches.length) return `<div style="color:#9ca3af;font-size:13px;padding:12px;text-align:center;">${label}：尚無資料</div>`;
-            const itemCount = allPitchTypes.length;
-            const fs = itemCount <= 2 ? 17 : itemCount <= 3 ? 15 : 14;
             const rows = allPitchTypes.map(type => {
                 const tp = pitches.filter(p=>p.type===type);
-                if (!tp.length) return `<div style="display:flex;align-items:center;gap:6px;padding:5px 2px;border-bottom:1px solid #f0f0f0;opacity:0.35;">
-                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:${fs}px;min-width:48px;">${type}</span>
-                    <span style="font-size:${fs-1}px;color:#9ca3af;">—</span>
+                if (!tp.length) return `<div style="padding:5px 2px 4px;border-bottom:1px solid #f0f0f0;opacity:0.3;">
+                    <div style="display:flex;align-items:center;gap:5px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                        <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;">${type}</span>
+                        <span style="font-size:13px;color:#9ca3af;">—</span>
+                    </div>
                 </div>`;
                 const sr = ((tp.filter(p=>p.result==='好球').length/tp.length)*100).toFixed(1);
                 const sw = ((tp.filter(p=>p.swing).length/tp.length)*100).toFixed(1);
                 const cnt = tp.length;
                 const pct = ((cnt/total)*100).toFixed(1);
-                return `<div style="display:flex;align-items:center;gap:6px;padding:5px 2px;border-bottom:1px solid #f0f0f0;">
-                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:${fs}px;min-width:48px;">${type}</span>
-                    <span style="font-size:${fs-1}px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
-                    <span style="font-size:${fs-2}px;color:#6b7280;white-space:nowrap;">好球${sr}% 揮空${sw}%</span>
+                return `<div style="padding:5px 2px 4px;border-bottom:1px solid #f0f0f0;">
+                    <div style="display:flex;align-items:center;gap:5px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                        <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;min-width:44px;">${type}</span>
+                        <span style="font-size:13px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
+                    </div>
+                    <div style="font-size:12px;color:#6b7280;padding-left:13px;margin-top:1px;">
+                        好球率 <b style="color:#059669;">${sr}%</b>&ensp;揮空率 <b style="color:#7c3aed;">${sw}%</b>
+                    </div>
                 </div>`;
             }).join('');
             return `<div style="background:${color}10;border:2px solid ${color};border-radius:10px;padding:12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
@@ -4152,7 +4156,7 @@
         };
 
         document.getElementById('compareEffectiveness').innerHTML =
-            `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
+            `<div class="compare-cards-grid">
                 ${buildEffCard(pitchesA, `A · ${nameA}`, 'var(--ct-gold)', 'compareEffectACanvas', totalA)}
                 ${buildEffCard(pitchesB, `B · ${nameB}`, '#888', 'compareEffectBCanvas', totalB)}
             </div>` || '<p style="color:#9ca3af;">尚無資料</p>';
