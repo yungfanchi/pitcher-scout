@@ -802,7 +802,7 @@
             </div>
             <div class="container">
                 <h2>⚾ 球種分布</h2>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center;">
                     <div id="pitchTypeStats"></div>
                     <div style="position:relative;width:100%;aspect-ratio:1;">
                         <canvas id="statsTypePieChart"></canvas>
@@ -839,7 +839,7 @@
                     <h2 style="margin:0;border:none;padding:0;">📈 投球傾向 & 各球種分布</h2>
                     <button onclick="showPitcherHistory()" style="padding:7px 14px;border:2px solid var(--ct-blue);border-radius:8px;background:var(--ct-blue-dark);color:var(--ct-gold);font-weight:700;font-size:13px;cursor:pointer;touch-action:manipulation;">📋 對戰歷史</button>
                 </div>
-                <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">
                     <div style="text-align:center;min-width:0;">
                         <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;">🟡 好球區域傾向（1-9）</div>
                         <div style="display:flex;align-items:center;gap:5px;justify-content:center;">
@@ -859,16 +859,16 @@
                         <div style="margin-top:6px;font-size:11px;color:#6b7280;" id="ballZoneTip">-</div>
                     </div>
                 </div>
-                <div style="margin-top:12px;" id="tendencyInsight"></div>
-                <div style="margin-top:14px;">
+                <div style="margin-top:8px;" id="tendencyInsight"></div>
+                <div style="margin-top:8px;">
                     <h3>左/右打者內外角與球種分析</h3>
                     <div id="innerOuterTable"></div>
                 </div>
-                <div style="margin-top:14px;">
+                <div style="margin-top:8px;">
                     <h3>首球（First Pitch）習慣分析</h3>
                     <div id="firstPitchAnalysis"></div>
                 </div>
-                <div style="margin-top:14px;">
+                <div style="margin-top:8px;">
                     <h3>⚔️ 兩好球決勝球傾向（2 Strikes）</h3>
                     <div id="twoStrikeAnalysis"></div>
                 </div>
@@ -877,18 +877,18 @@
             <!-- 球種與配球模式：每列各自文字左 + 圓圈圖右，平行對齊 -->
             <div class="container">
                 <h2>🎲 常用球種與配球模式</h2>
-                <div style="display:flex;flex-direction:column;gap:20px;">
+                <div style="display:flex;flex-direction:column;gap:12px;">
                     <!-- 第一列：球種比例 文字 + 圖 -->
-                    <div style="display:flex;gap:16px;align-items:center;">
+                    <div style="display:flex;gap:12px;align-items:center;">
                         <div class="pattern-analysis" id="patternAnalysisType" style="flex:1;min-width:0;"></div>
-                        <div style="flex:0 0 38%;max-width:280px;position:relative;aspect-ratio:1;">
+                        <div style="flex:0 0 38%;max-width:260px;position:relative;aspect-ratio:1;">
                             <canvas id="pitchTypePieChart"></canvas>
                         </div>
                     </div>
                     <!-- 第二列：配球模式 文字 + 圖 -->
-                    <div style="display:flex;gap:16px;align-items:center;border-top:1px solid #e5e7eb;padding-top:16px;">
+                    <div style="display:flex;gap:12px;align-items:center;border-top:1px solid #e5e7eb;padding-top:10px;">
                         <div class="pattern-analysis" id="patternAnalysisSeq" style="flex:1;min-width:0;"></div>
-                        <div style="flex:0 0 38%;max-width:280px;position:relative;aspect-ratio:1;">
+                        <div style="flex:0 0 38%;max-width:260px;position:relative;aspect-ratio:1;">
                             <canvas id="patternPieChart"></canvas>
                         </div>
                     </div>
@@ -898,7 +898,7 @@
             <!-- 壘上情境分析：移至底部，有人/無人左右並排 -->
             <div class="container">
                 <h2>🏃 壘上情境分析</h2>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
                     <div id="baseStateWith"></div>
                     <div id="baseStateNo"></div>
                 </div>
