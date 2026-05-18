@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v54';
+﻿    const APP_VERSION = 'v55';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -930,7 +930,14 @@
         const createBtn = document.getElementById('createTeamBtn');
         const injectWrap = document.getElementById('adminInjectWrap');
         if (currentTeamCode === 'ADMIN') {
-            if (adminPanel) { adminPanel.style.display = 'block'; adminLoadTeams(); }
+            if (adminPanel) {
+                adminPanel.style.display = 'block';
+                adminLoadTeams();
+                const wrap = document.getElementById('adminTeamListWrap');
+                const btn  = document.getElementById('adminListToggleBtn');
+                if (wrap) wrap.style.display = 'none';
+                if (btn) { btn.textContent = '▶ 帳號管理'; btn.style.background = 'rgba(255,215,0,0.1)'; btn.style.borderColor = 'rgba(255,215,0,0.25)'; }
+            }
             if (createBtn) createBtn.style.display = 'block';
             if (injectWrap) injectWrap.style.display = 'block';
         } else {

@@ -13,6 +13,7 @@
             overscroll-behavior-y:contain;
         }
         input,select,textarea { font-size:16px !important; -webkit-appearance:none; appearance:none; }
+        input[type="checkbox"] { -webkit-appearance:auto !important; appearance:auto !important; width:auto; height:auto; font-size:inherit !important; }
 
         /* ===== SIDEBAR ===== */
         .sidebar {
@@ -423,7 +424,7 @@
 
         /* ===== ANALYSIS ===== */
         .pattern-analysis { background:#f9fafb; padding:14px; border-radius:8px; margin-top:8px; border-left:4px solid var(--ct-red); border-top:2px solid var(--ct-gold); }
-        .pattern-item { padding:10px; margin:6px 0; background:white; border-radius:6px; display:flex; justify-content:space-between; border-left:3px solid var(--ct-blue); transition:all 0.2s; align-items:center; }
+        .pattern-item { padding:8px 10px; margin:4px 0; background:white; border-radius:6px; display:flex; gap:6px; align-items:center; border-left:3px solid var(--ct-blue); transition:all 0.2s; }
         .count-analysis { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; }
         .count-card { padding:12px; border-radius:8px; border:2px solid; }
         .count-card.ahead { background:linear-gradient(135deg,#fef3c7,#fde68a); border-color:var(--ct-yellow); }
