@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v40';
+﻿    const APP_VERSION = 'v47';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -1008,6 +1008,7 @@
         if (ao) ao.style.display = 'flex';
         const msp = document.getElementById('modeSelectionPage');
         if (msp) msp.style.display = 'none';
+        setTimeout(loadRememberedLogin, 80);
     }
 
     function applyViewOnlyMode() {
@@ -4402,6 +4403,8 @@
                 USER_TEAM_REF = null;
                 if (ao) ao.style.display = 'flex';
                 if (msp) msp.style.display = 'none';
+                // 自動填入已記住的登入資訊
+                setTimeout(loadRememberedLogin, 80);
                 return;
             }
             // 登入成功：取得使用者權限
@@ -4438,6 +4441,90 @@
 
     // 登入/註冊 Tab 切換
     // ── Tab 切換：'scout' | 'viewer' ──
+    // ====== 記住登入資訊 ======
+    // 安全設計：密碼以 btoa 輕度混淆儲存；不適用於公共設備
+    const REM_KEY_CODE = '_rem_code';
+    const REM_KEY_PW   = '_rem_pw';
+    const REM_KEY_TAB  = '_rem_tab';
+    const REM_ADMIN_CODE = '_rem_admin_code';
+
+    function _remEncode(s) { try { return btoa(unescape(encodeURIComponent(s))); } catch(e) { return ''; } }
+    function _remDecode(s) { try { return decodeURIComponent(escape(atob(s))); } catch(e) { return ''; } }
+
+    function loadRememberedLogin() {
+        try {
+            const savedCode = localStorage.getItem(REM_KEY_CODE);
+            const savedPw   = localStorage.getItem(REM_KEY_PW);
+            const savedTab  = localStorage.getItem(REM_KEY_TAB) || 'scout';
+            const hasData   = !!(savedCode);
+
+            if (hasData) {
+                // 切換到正確 tab
+                switchAuthTab(savedTab);
+                // 填入代碼
+                const codeEl = document.getElementById('authCode');
+                const pwEl   = document.getElementById('authPassword');
+                if (savedCode && codeEl) codeEl.value = savedCode;
+                if (savedPw && pwEl) pwEl.value = _remDecode(savedPw);
+                // 勾選 checkbox + 顯示清除按鈕
+                const cb = document.getElementById('authRememberMe');
+                const forgetBtn = document.getElementById('authForgetBtn');
+                if (cb) cb.checked = true;
+                if (forgetBtn) forgetBtn.style.display = 'inline';
+                // 預覽品牌
+                if (savedCode) previewTeamBranding(savedCode, true);
+            }
+
+            // 管理員代碼
+            const savedAdminCode = localStorage.getItem(REM_ADMIN_CODE);
+            if (savedAdminCode) {
+                const el = document.getElementById('adminLoginCode');
+                const cb = document.getElementById('adminRememberCode');
+                if (el) el.value = savedAdminCode;
+                if (cb) cb.checked = true;
+            }
+        } catch(e) {}
+    }
+
+    function onRememberMeChange() {
+        const cb = document.getElementById('authRememberMe');
+        const note = document.getElementById('authRememberNote');
+        const forgetBtn = document.getElementById('authForgetBtn');
+        if (!cb) return;
+        if (cb.checked) {
+            if (note) note.style.display = 'block';
+            if (forgetBtn) forgetBtn.style.display = 'inline';
+        } else {
+            if (note) note.style.display = 'none';
+            // 勾掉時立刻清除儲存的資訊
+            forgetSavedLogin();
+            if (forgetBtn) forgetBtn.style.display = 'none';
+        }
+    }
+
+    function saveRememberedLogin(code, pw, tab) {
+        try {
+            localStorage.setItem(REM_KEY_CODE, code);
+            localStorage.setItem(REM_KEY_PW,   _remEncode(pw));
+            localStorage.setItem(REM_KEY_TAB,  tab || 'scout');
+        } catch(e) {}
+    }
+
+    function forgetSavedLogin() {
+        try {
+            [REM_KEY_CODE, REM_KEY_PW, REM_KEY_TAB].forEach(k => localStorage.removeItem(k));
+            const cb = document.getElementById('authRememberMe');
+            const note = document.getElementById('authRememberNote');
+            const forgetBtn = document.getElementById('authForgetBtn');
+            if (cb) cb.checked = false;
+            if (note) note.style.display = 'none';
+            if (forgetBtn) forgetBtn.style.display = 'none';
+        } catch(e) {}
+    }
+    window.onRememberMeChange   = onRememberMeChange;
+    window.forgetSavedLogin     = forgetSavedLogin;
+    window.loadRememberedLogin  = loadRememberedLogin;
+
     function switchAuthTab(tab) {
         const isViewer = tab === 'viewer';
         const scoutBtn  = document.getElementById('authTabScout');
@@ -4491,6 +4578,9 @@
         if (await _checkCachedCredential(code, 'scout', pw)) {
             currentTeamCode = code;
             try { localStorage.setItem('lastTeamCode', code); } catch(e) {}
+            const remCb = document.getElementById('authRememberMe');
+            if (remCb && remCb.checked) saveRememberedLogin(code, pw, 'scout');
+            else forgetSavedLogin();
             enterSystem('scout');
             return;
         }
@@ -4520,6 +4610,9 @@
                 currentTeamCode = code;
                 await _cacheCredential(code, 'scout', pw);
                 try { localStorage.setItem('lastTeamCode', code); } catch(e) {}
+                const remCb = document.getElementById('authRememberMe');
+                if (remCb && remCb.checked) saveRememberedLogin(code, pw, 'scout');
+                else forgetSavedLogin();
                 enterSystem('scout');
             } else {
                 errEl.textContent = '❌ 密碼錯誤，請再試一次';
@@ -4584,6 +4677,9 @@
                 localStorage.setItem('lastTeamCode', foundCode);
                 localStorage.setItem('lastViewerTeamCode', foundCode);
             } catch(e) {}
+            const remCb = document.getElementById('authRememberMe');
+            if (remCb && remCb.checked) saveRememberedLogin('', viewPw, 'viewer');
+            else forgetSavedLogin();
             enterSystem('view');
         } catch(e) {
             errEl.textContent = '❌ 連線失敗，請稍後再試';
@@ -4703,6 +4799,12 @@
             currentTeamCode = 'ADMIN';
             await _cacheCredential(code, 'scout', pw);
             try { localStorage.setItem('lastTeamCode', code); } catch(e) {}
+            const remAdminCb = document.getElementById('adminRememberCode');
+            if (remAdminCb && remAdminCb.checked) {
+                try { localStorage.setItem(REM_ADMIN_CODE, code); } catch(e) {}
+            } else {
+                try { localStorage.removeItem(REM_ADMIN_CODE); } catch(e) {}
+            }
             closeAdminLogin();
             enterSystem('scout');
         } else {

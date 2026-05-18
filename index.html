@@ -61,9 +61,21 @@
                         onkeydown="if(event.key==='Enter')doAuthAction()">
                 </div>
             </div>
-            <div id="authError" style="min-height:18px;font-size:12px;color:#fca5a5;margin-top:10px;text-align:center;font-weight:700;"></div>
+            <!-- 記住登入資訊 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+                <label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;">
+                    <input type="checkbox" id="authRememberMe" style="width:16px;height:16px;accent-color:#dc0000;cursor:pointer;"
+                        onchange="onRememberMeChange()">
+                    <span style="font-size:12px;color:rgba(255,255,255,0.65);font-weight:700;">記住登入資訊</span>
+                </label>
+                <button type="button" id="authForgetBtn" onclick="forgetSavedLogin()" style="display:none;background:none;border:none;color:rgba(255,255,255,0.35);font-size:11px;cursor:pointer;font-family:inherit;padding:2px 6px;text-decoration:underline;" title="清除已儲存的登入資訊">清除</button>
+            </div>
+            <div id="authRememberNote" style="display:none;font-size:10px;color:rgba(255,165,0,0.7);margin-top:4px;padding:4px 6px;background:rgba(255,165,0,0.08);border-radius:4px;">
+                ⚠️ 請勿在公共設備上勾選此項
+            </div>
+            <div id="authError" style="min-height:18px;font-size:12px;color:#fca5a5;margin-top:8px;text-align:center;font-weight:700;"></div>
             <button onclick="doAuthAction()" ontouchend="event.preventDefault();doAuthAction()"
-                style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(135deg,#dc0000,#b91c1c);color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:1px;touch-action:manipulation;">
+                style="width:100%;margin-top:10px;padding:14px;background:linear-gradient(135deg,#dc0000,#b91c1c);color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:1px;touch-action:manipulation;">
                 進入系統 →
             </button>
             <!-- 開發者專用（管理員入口） -->
@@ -93,7 +105,11 @@
                     onkeydown="if(event.key==='Enter')doAdminLogin()">
             </div>
             <div id="adminLoginError" style="min-height:18px;font-size:12px;color:#fca5a5;margin-top:10px;text-align:center;font-weight:700;"></div>
-            <div style="display:flex;gap:8px;margin-top:14px;">
+            <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-top:10px;">
+                <input type="checkbox" id="adminRememberCode" style="width:16px;height:16px;accent-color:#dc2626;cursor:pointer;">
+                <span style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:700;">記住管理員代碼（僅代碼，不儲存密碼）</span>
+            </label>
+            <div style="display:flex;gap:8px;margin-top:12px;">
                 <button onclick="closeAdminLogin()" style="flex:1;padding:12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
                 <button onclick="doAdminLogin()" ontouchend="event.preventDefault();doAdminLogin()" style="flex:2;padding:12px;background:linear-gradient(135deg,#7f1d1d,#dc2626);color:white;border:none;border-radius:8px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;">進入管理後台 →</button>
             </div>
