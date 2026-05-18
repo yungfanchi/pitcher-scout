@@ -802,9 +802,9 @@
             </div>
             <div class="container">
                 <h2>⚾ 球種分布</h2>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center;">
-                    <div id="pitchTypeStats"></div>
-                    <div style="position:relative;width:100%;max-width:320px;aspect-ratio:1;margin:0 auto;">
+                <div style="display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;">
+                    <div id="pitchTypeStats" style="flex:0 1 auto;min-width:200px;max-width:380px;"></div>
+                    <div style="flex:0 0 auto;width:min(340px,90vw);height:min(340px,90vw);position:relative;">
                         <canvas id="statsTypePieChart"></canvas>
                     </div>
                 </div>

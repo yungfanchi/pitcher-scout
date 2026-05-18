@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v63';
+﻿    const APP_VERSION = 'v64';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -3581,6 +3581,10 @@
     let firstPitchLHBChartInstance = null;
     let twoStrikeRHBChartInstance = null;
     let twoStrikeLHBChartInstance = null;
+    let comparePitchAChart = null;
+    let comparePitchBChart = null;
+    let compareEffectAChart = null;
+    let compareEffectBChart = null;
 
     // 緊湊型甜甜圈：legend-bottom，無外部標籤，用於 RHB/LHB 並排區塊
     function _makeCompactDoughnut(canvas, types, counts, colors, total) {
@@ -3898,6 +3902,10 @@
         const hasA = slotA.team !== null && slotA.pitcher !== null && allData.teams[slotA.team];
         const hasB = slotB.team !== null && slotB.pitcher !== null && allData.teams[slotB.team];
 
+        // 清除對比頁圖表
+        [comparePitchAChart, comparePitchBChart, compareEffectAChart, compareEffectBChart].forEach(c => { if(c) c.destroy(); });
+        comparePitchAChart = comparePitchBChart = compareEffectAChart = compareEffectBChart = null;
+
         const noDataMsg = '<div style="text-align:center;color:#9ca3af;padding:32px;font-size:14px;">請先在左側選擇兩位投手（Slot A 和 Slot B）再進行對比</div>';
         if (!hasA && !hasB) {
             ['compareHeader','compareBasic','comparePitchTypes','compareHeatmaps','comparePatterns','compareEffectiveness'].forEach(id => {
@@ -4023,39 +4031,44 @@
         const totalA = pitchesA.length || 1;
         const totalB = pitchesB.length || 1;
 
-        let typeHTML = '';
-        allTypes.forEach(type => {
-            const cntA = typesA[type] || 0;
-            const cntB = typesB[type] || 0;
-            const pctA = ((cntA/totalA)*100).toFixed(1);
-            const pctB = ((cntB/totalB)*100).toFixed(1);
-            typeHTML += `<div style="margin-bottom:12px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                    <span style="font-weight:700;color:var(--ct-blue-dark);font-size:14px;">${type}</span>
-                    <span style="font-size:12px;color:#6b7280;">${cntA}球 vs ${cntB}球</span>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;">
-                    <div>
-                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;">
-                            <span style="color:var(--ct-gold);font-weight:700;">A</span><span>${pctA}%</span>
-                        </div>
-                        <div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;">
-                            <div style="height:100%;width:${pctA}%;background:linear-gradient(90deg,var(--ct-blue-dark),var(--ct-blue));border-radius:5px;transition:width 0.4s;"></div>
-                        </div>
-                    </div>
-                    <div style="font-size:11px;color:#9ca3af;text-align:center;min-width:28px;">vs</div>
-                    <div>
-                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;">
-                            <span>${pctB}%</span><span style="color:#aaa;font-weight:700;">B</span>
-                        </div>
-                        <div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;">
-                            <div style="height:100%;width:${pctB}%;background:linear-gradient(90deg,#444,#666);border-radius:5px;transition:width 0.4s;margin-left:auto;"></div>
-                        </div>
-                    </div>
+        // ---- 球種比例對比：左右卡片 + 圓形圖 ----
+        const buildTypeCard = (pitches, label, color, chartId, total) => {
+            const types = {};
+            pitches.forEach(p => { if(p.type) types[p.type] = (types[p.type]||0)+1; });
+            const sorted = Object.entries(types).sort((a,b)=>b[1]-a[1]);
+            if (!sorted.length) return `<div style="color:#9ca3af;font-size:13px;padding:12px;text-align:center;">尚無資料</div>`;
+            const itemCount = sorted.length;
+            const fs = itemCount <= 2 ? 18 : itemCount <= 3 ? 16 : 14;
+            const rows = sorted.map(([type,cnt]) => `
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 2px;border-bottom:1px solid #f0f0f0;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:${fs}px;min-width:48px;">${type}</span>
+                    <span style="font-size:${fs-1}px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-red);">${((cnt/total)*100).toFixed(1)}%</b></span>
+                </div>`).join('');
+            return `<div style="background:${color}10;border:2px solid ${color};border-radius:10px;padding:12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
+                <div style="font-size:14px;font-weight:900;color:${color};margin-bottom:10px;text-align:center;">${label} <span style="font-size:11px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
+                <div style="flex:1;display:flex;gap:10px;align-items:center;justify-content:center;">
+                    <div style="flex:0 1 auto;min-width:0;">${rows}</div>
+                    <div style="flex:0 0 auto;width:200px;height:200px;position:relative;"><canvas id="${chartId}"></canvas></div>
                 </div>
             </div>`;
-        });
-        document.getElementById('comparePitchTypes').innerHTML = typeHTML || '<p style="color:#9ca3af;">尚無球種資料</p>';
+        };
+        const typeCardHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
+            ${buildTypeCard(pitchesA, `A · ${nameA}`, 'var(--ct-gold)', 'comparePitchACanvas', totalA)}
+            ${buildTypeCard(pitchesB, `B · ${nameB}`, '#888', 'comparePitchBCanvas', totalB)}
+        </div>`;
+        document.getElementById('comparePitchTypes').innerHTML = typeCardHTML || '<p style="color:#9ca3af;">尚無球種資料</p>';
+        // 繪製圓形圖
+        const canvasPA = document.getElementById('comparePitchACanvas');
+        const canvasPB = document.getElementById('comparePitchBCanvas');
+        if (canvasPA) {
+            const tA = Object.entries(typesA).sort((a,b)=>b[1]-a[1]);
+            comparePitchAChart = _makeCompactDoughnut(canvasPA, tA.map(e=>e[0]), tA.map(e=>e[1]), tA.map(e=>PITCH_COLORS[e[0]]||'#999'), totalA);
+        }
+        if (canvasPB) {
+            const tB = Object.entries(typesB).sort((a,b)=>b[1]-a[1]);
+            comparePitchBChart = _makeCompactDoughnut(canvasPB, tB.map(e=>e[0]), tB.map(e=>e[1]), tB.map(e=>PITCH_COLORS[e[0]]||'#999'), totalB);
+        }
 
         // ---- Heatmaps ----
         const makeHeatmapHTML = (pitches, label, color) => {
@@ -4106,7 +4119,18 @@
 
         // ---- Effectiveness ----
         const allPitchTypes = PITCH_ORDER.filter(t => pitchesA.some(p=>p.type===t) || pitchesB.some(p=>p.type===t));
-        let effHTML = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+        // 效果對比：上方兩個圓形圖，下方比較表
+        const effChartsHTML = `<div style="display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:14px;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <div style="font-size:13px;font-weight:900;color:var(--ct-gold);">A · ${nameA}</div>
+                <div style="width:200px;height:200px;position:relative;"><canvas id="compareEffectACanvas"></canvas></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <div style="font-size:13px;font-weight:900;color:#888;">B · ${nameB}</div>
+                <div style="width:200px;height:200px;position:relative;"><canvas id="compareEffectBCanvas"></canvas></div>
+            </div>
+        </div>`;
+        let effHTML = effChartsHTML + `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead><tr style="background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;">
                 <th style="padding:8px;text-align:left;">球種</th>
                 <th style="padding:8px;text-align:center;color:var(--ct-gold);">${shortA} 好球率</th>
@@ -4131,6 +4155,17 @@
         });
         effHTML += '</tbody></table></div>';
         document.getElementById('compareEffectiveness').innerHTML = effHTML || '<p style="color:#9ca3af;">尚無資料</p>';
+        // 繪製效果圓形圖
+        const canvasEA = document.getElementById('compareEffectACanvas');
+        const canvasEB = document.getElementById('compareEffectBCanvas');
+        if (canvasEA && pitchesA.length) {
+            const tA = PITCH_ORDER.filter(t=>typesA[t]).map(t=>[t,typesA[t]]);
+            compareEffectAChart = _makeCompactDoughnut(canvasEA, tA.map(e=>e[0]), tA.map(e=>e[1]), tA.map(e=>PITCH_COLORS[e[0]]||'#999'), totalA);
+        }
+        if (canvasEB && pitchesB.length) {
+            const tB = PITCH_ORDER.filter(t=>typesB[t]).map(t=>[t,typesB[t]]);
+            compareEffectBChart = _makeCompactDoughnut(canvasEB, tB.map(e=>e[0]), tB.map(e=>e[1]), tB.map(e=>PITCH_COLORS[e[0]]||'#999'), totalB);
+        }
     }
 
     // ====== DATA MANAGEMENT ======
