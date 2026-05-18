@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v52';
+﻿    const APP_VERSION = 'v53';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2886,18 +2886,19 @@
             const pct = pitches.length ? ((cnt/pitches.length)*100).toFixed(1) : 0;
             const strikeRate = tp.length ? ((tp.filter(p=>p.result==='好球').length/tp.length)*100).toFixed(0) : 0;
             const color = PITCH_COLORS[type] || '#999';
-            return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #e5e7eb;">
+            return `<div style="display:flex;align-items:center;gap:12px;padding:9px 6px;border-bottom:1px solid #e5e7eb;">
                 <span style="width:13px;height:13px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
-                <span style="font-weight:700;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:18px;flex:1;">${type}</span>
-                <span style="font-size:15px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-blue-dark);">${pct}%</b></span>
-                <span style="font-size:15px;font-weight:700;color:#b45309;min-width:80px;text-align:right;">好球率 ${strikeRate}%</span>
+                <span style="font-weight:700;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:18px;min-width:54px;">${type}</span>
+                <span style="font-size:15px;color:#374151;font-weight:600;">${cnt}球</span>
+                <span style="font-size:15px;font-weight:700;color:var(--ct-blue-dark);">${pct}%</span>
+                <span style="font-size:15px;font-weight:700;color:#b45309;margin-left:auto;">好球率 ${strikeRate}%</span>
             </div>`;
         }).join('');
         insight.innerHTML = `<div style="background:#f0f9ff;border:2px solid var(--ct-blue);border-radius:10px;padding:16px;">
             <strong style="color:var(--ct-blue-dark);display:block;font-size:16px;margin-bottom:12px;">⚾ 各球種投球傾向</strong>
             <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
-                <div style="flex:1;min-width:220px;">${typeRows}</div>
-                <div style="flex:0 0 42%;min-width:180px;position:relative;aspect-ratio:1;"><canvas id="tendencyTypeChart"></canvas></div>
+                <div style="flex:1;min-width:200px;">${typeRows}</div>
+                <div style="flex:0 0 38%;max-width:300px;min-width:180px;position:relative;aspect-ratio:1;"><canvas id="tendencyTypeChart"></canvas></div>
             </div>
         </div>`;
         const tendencyCanvas = document.getElementById('tendencyTypeChart');
@@ -2977,12 +2978,12 @@
             const rows = d.typeBreakdown.map(({type,cnt,pct}) => `
                 <div style="display:flex;align-items:center;gap:6px;padding:5px 2px;">
                     <span style="width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;flex:1;">${type}</span>
-                    <span style="font-size:14px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;min-width:46px;">${type}</span>
+                    <span style="font-size:14px;color:#374151;font-weight:600;margin-left:4px;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
                 </div>`).join('');
             return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
                 <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${d.total}球）</span></div>
-                <div style="position:relative;aspect-ratio:1;width:100%;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
+                <div style="position:relative;aspect-ratio:1;width:100%;max-width:260px;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
                     <span style="background:#fee2e2;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#dc2626;">內角 ${d.pct(d.inner)}%</span>
                     <span style="background:#dbeafe;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#2563eb;">外角 ${d.pct(d.outer)}%</span>
@@ -3036,12 +3037,12 @@
                     <div style="display:flex;align-items:center;gap:5px;padding:5px 2px;">
                         <span style="font-size:13px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
                         <span style="width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                        <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;flex:1;">${type}</span>
-                        <span style="font-size:14px;color:#374151;font-weight:600;">${cnt}次 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
+                        <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;min-width:44px;">${type}</span>
+                        <span style="font-size:14px;color:#374151;font-weight:600;margin-left:4px;">${cnt}次 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
                     </div>`).join('');
                 return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
                     <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}打席）</span></div>
-                    <div style="position:relative;aspect-ratio:1;width:100%;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
+                    <div style="position:relative;aspect-ratio:1;width:100%;max-width:260px;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
                     <div style="border-top:1px solid ${color}30;padding-top:6px;">${rows}</div>
                 </div>`;
             }
@@ -3050,14 +3051,14 @@
                 <div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid #f3f4f6;">
                     <span style="font-size:15px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'　'}</span>
                     <span style="width:12px;height:12px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:17px;flex:1;">${type}</span>
-                    <span style="font-size:15px;color:#374151;font-weight:600;">${cnt}次 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:17px;min-width:50px;">${type}</span>
+                    <span style="font-size:15px;color:#374151;font-weight:600;margin-left:6px;">${cnt}次 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
                 </div>`).join('');
             return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:14px;">
                 <div style="font-size:16px;font-weight:900;color:${color};margin-bottom:10px;">${label} <span style="font-size:13px;font-weight:400;color:#6b7280;">（${total}打席首球）</span></div>
                 <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
                     <div style="flex:1;min-width:180px;">${rows}</div>
-                    <div style="flex:0 0 40%;min-width:160px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                    <div style="flex:0 0 38%;max-width:280px;min-width:160px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
                 </div>
             </div>`;
         };
@@ -3382,8 +3383,8 @@
                 <div style="display:flex;align-items:center;gap:5px;padding:5px 2px;">
                     <span style="font-size:13px;flex-shrink:0;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':''}</span>
                     <span style="width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
-                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;flex:1;">${type}</span>
-                    <span style="font-size:14px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:15px;min-width:44px;">${type}</span>
+                    <span style="font-size:14px;color:#374151;font-weight:600;margin-left:4px;">${cnt}球 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
                 </div>`).join('');
             const zoneRows = topZones.map(([zone,cnt],i) => {
                 const isStrike = !zone.startsWith('B');
@@ -3394,7 +3395,7 @@
             }).join('');
             return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
                 <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
-                <div style="position:relative;aspect-ratio:1;width:100%;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
+                <div style="position:relative;aspect-ratio:1;width:100%;max-width:260px;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
                 <div style="border-top:1px solid ${color}30;padding-top:6px;">
                     <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:3px;">⚾ 球種</div>
                     ${typeRows}
