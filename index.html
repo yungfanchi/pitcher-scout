@@ -253,6 +253,41 @@
                     </div>
                 </div>
 
+                <!-- Step 3: 打者分類 -->
+                <div class="pf-section pf-fade-in" id="pdfHandSection" style="display:none;">
+                    <div class="pf-step-label"><span class="pf-step-num">3</span>打者分類 <span style="font-size:11px;font-weight:400;color:#6b7280;">（客製化選手報告）</span></div>
+                    <label class="pf-radio-item">
+                        <input type="radio" name="pdfHand" value="all" checked>
+                        <div class="pf-radio-card">
+                            <div class="pf-radio-icon">👥</div>
+                            <div>
+                                <div class="pf-radio-title">全部打者</div>
+                                <div class="pf-radio-sub">包含左打右打完整數據</div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="pf-radio-item">
+                        <input type="radio" name="pdfHand" value="left">
+                        <div class="pf-radio-card">
+                            <div class="pf-radio-icon">👈</div>
+                            <div>
+                                <div class="pf-radio-title">只看對左打（LHB）</div>
+                                <div class="pf-radio-sub">篩選對左打者投球分析</div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="pf-radio-item">
+                        <input type="radio" name="pdfHand" value="right">
+                        <div class="pf-radio-card">
+                            <div class="pf-radio-icon">👉</div>
+                            <div>
+                                <div class="pf-radio-title">只看對右打（RHB）</div>
+                                <div class="pf-radio-sub">篩選對右打者投球分析</div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
                 <!-- 產生按鈕 -->
                 <button id="pdfGenerateBtn" onclick="generatePDF()" style="display:none;width:100%;padding:15px;background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;touch-action:manipulation;letter-spacing:1px;margin-top:4px;">
                     📄 產生 PDF 報告

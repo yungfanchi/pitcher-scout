@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v71';
+﻿    const APP_VERSION = 'v72';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -384,6 +384,11 @@
         const allRadio = document.querySelector('input[name="pdfScope"][value="all"]');
         if (allRadio) allRadio.checked = true;
 
+        const allHandRadio = document.querySelector('input[name="pdfHand"][value="all"]');
+        if (allHandRadio) allHandRadio.checked = true;
+        const handSec = document.getElementById('pdfHandSection');
+        if (handSec) handSec.style.display = 'none';
+
         document.getElementById('pdfFilterModal').style.display = 'flex';
     }
 
@@ -400,6 +405,8 @@
         if (!name) {
             scopeSection.style.display = 'none';
             generateBtn.style.display = 'none';
+            const handSection = document.getElementById('pdfHandSection');
+            if (handSection) handSection.style.display = 'none';
             return;
         }
 
@@ -413,6 +420,8 @@
 
         scopeSection.style.display = 'block';
         generateBtn.style.display = 'block';
+        const handSection2 = document.getElementById('pdfHandSection');
+        if (handSection2) handSection2.style.display = 'block';
     }
 
     // 填入場次下拉選單（只列出該投手有參與的場次）
@@ -448,13 +457,15 @@
         if (!pitcherName) { alert('請選擇投手'); return; }
         if (scope === 'single' && !gameIndex) { alert('請選擇場次'); return; }
 
-        exportToPDF(pitcherName, gameIndex);
+        const handEl = document.querySelector('input[name="pdfHand"]:checked');
+        const handFilter = handEl ? handEl.value : 'all';
+        exportToPDF(pitcherName, gameIndex, handFilter);
     }
 
     // ===== 核心過濾函式（PDF 實體導出預留殼） =====
     // pitcherName: 投手姓名字串
     // gameId: 'all' | teamIndex 字串（對應 allData.teams 索引）
-    function exportToPDF(pitcherName, gameId) {
+    function exportToPDF(pitcherName, gameId, handFilter = 'all') {
         const sections = [];
 
         allData.teams.forEach((team, ti) => {
@@ -464,30 +475,35 @@
                 const pitches = pitcher.pitches || [];
                 if (!pitches.length) return;
 
+                const filteredPitches = handFilter === 'left' ? pitches.filter(p => p.batterHand === '左打') :
+                                        handFilter === 'right' ? pitches.filter(p => p.batterHand === '右打') :
+                                        pitches;
+                if (!filteredPitches.length) return;
+
                 // 計算摘要統計
-                const total = pitches.length;
-                const strikes = pitches.filter(p => p.result === '好球').length;
-                const speeds = pitches.filter(p => p.speed).map(p => p.speed);
+                const total = filteredPitches.length;
+                const strikes = filteredPitches.filter(p => p.result === '好球').length;
+                const speeds = filteredPitches.filter(p => p.speed).map(p => p.speed);
                 const avgSpd = speeds.length ? (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(1) : '--';
                 const maxSpd = speeds.length ? Math.max(...speeds) : '--';
-                const ks = pitches.filter(p => (p.outcomes || []).some(o => o === '三振' || o === '不死三振')).length;
-                const walks = pitches.filter(p => (p.outcomes || []).some(o => o === '保送' || o === '觸身球')).length;
+                const ks = filteredPitches.filter(p => (p.outcomes || []).some(o => o === '三振' || o === '不死三振')).length;
+                const walks = filteredPitches.filter(p => (p.outcomes || []).some(o => o === '保送' || o === '觸身球')).length;
                 const typeMap = {};
-                pitches.forEach(p => { if (p.type) typeMap[p.type] = (typeMap[p.type] || 0) + 1; });
+                filteredPitches.forEach(p => { if (p.type) typeMap[p.type] = (typeMap[p.type] || 0) + 1; });
                 const topTypes = Object.entries(typeMap).sort((a, b) => b[1] - a[1]);
 
-                sections.push({ team, pitcher, pitches, total, strikes, avgSpd, maxSpd, ks, walks, topTypes });
+                sections.push({ team, pitcher, pitches: filteredPitches, total, strikes, avgSpd, maxSpd, ks, walks, topTypes });
             });
         });
 
         // 預留殼：console 呈現過濾結果，PDF 實體導出待接套件
-        console.log(`[exportToPDF] 投手: ${pitcherName} | 場次: ${gameId === 'all' ? '全部場次' : '第 ' + gameId + ' 場'}`);
+        console.log(`[exportToPDF] 投手: ${pitcherName} | 場次: ${gameId === 'all' ? '全部場次' : '第 ' + gameId + ' 場'} | 打者篩選: ${handFilter}`);
         console.log('[exportToPDF] 過濾結果 sections:', sections);
 
         if (!sections.length) { alert('所選條件無投球數據'); return; }
 
         closePDFFilter();
-        _buildAndOpenReport(sections, pitcherName, gameId);
+        _buildAndOpenReport(sections, pitcherName, gameId, handFilter);
     }
 
     // ===== 統計計算輔助（供 PDF 報告使用）=====
@@ -571,10 +587,11 @@
     }
 
     // ===== 主要報告產生函式 =====
-    function _buildAndOpenReport(sections, pitcherName, gameId) {
+    function _buildAndOpenReport(sections, pitcherName, gameId, handFilter = 'all') {
         const isAll = gameId === 'all';
         const pitcher = sections[0].pitcher;
         const allPitches = sections.flatMap(s => s.pitches);
+        const handLabel = handFilter === 'left' ? '👈 對左打專項報告' : handFilter === 'right' ? '👉 對右打專項報告' : null;
         const st = _calcPitcherStats(allPitches);
         if (!st) { alert('無投球數據'); return; }
 
@@ -782,6 +799,87 @@
         const allOutcomeRows = Object.entries(st.outcomeMap).sort((a,b)=>b[1]-a[1])
             .map(([o,n])=>`<tr><td class="left">${o}</td><td style="color:#003d79;font-weight:900;">${n}</td><td>${st.total?((n/st.total)*100).toFixed(1)+'%':'--'}</td></tr>`).join('');
 
+        // 常用球種與配球模式
+        const typeCount = {};
+        allPitches.forEach(p => { if(p.type) typeCount[p.type] = (typeCount[p.type]||0)+1; });
+        const sortedTypes = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
+        // 配球序列 top5
+        const seqMap = {};
+        for (let i = 1; i < allPitches.length; i++) {
+            if (!allPitches[i-1].type || !allPitches[i].type) continue;
+            const k = `${allPitches[i-1].type} → ${allPitches[i].type}`;
+            seqMap[k] = (seqMap[k]||0)+1;
+        }
+        const topSeqs = Object.entries(seqMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+        const patternHtml = `
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div>
+        <div style="font-size:12px;font-weight:700;color:#003d79;margin-bottom:6px;border-left:3px solid #d4af37;padding-left:6px;">常用球種</div>
+        <table><tr><th>球種</th><th>球數</th><th>佔比</th></tr>
+        ${sortedTypes.map(([t,n],i)=>`<tr><td class="left" style="font-weight:700;">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${t}</td><td>${n}</td><td>${((n/allPitches.length)*100).toFixed(1)}%</td></tr>`).join('')}
+        </table>
+    </div>
+    <div>
+        <div style="font-size:12px;font-weight:700;color:#003d79;margin-bottom:6px;border-left:3px solid #d4af37;padding-left:6px;">配球序列 Top5</div>
+        ${topSeqs.length?`<table><tr><th>配球模式</th><th>次數</th></tr>
+        ${topSeqs.map(([seq,n],i)=>`<tr><td class="left" style="font-weight:700;">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${seq}</td><td style="font-weight:700;color:#dc2626;">${n}</td></tr>`).join('')}
+        </table>`:'<p style="color:#9ca3af;padding:8px;">需至少 2 球資料</p>'}
+    </div>
+</div>`;
+
+        // 內外角分析
+        const buildInnerOuterHtml = (ps, innerZones, outerZones, label) => {
+            if (!ps.length) return `<div style="color:#9ca3af;padding:8px;">${label}: 尚無資料</div>`;
+            const total = ps.length;
+            const strPs = ps.filter(p => !String(p.zone).startsWith('B'));
+            const inner = strPs.filter(p => innerZones.includes(String(p.zone))).length;
+            const outer = strPs.filter(p => outerZones.includes(String(p.zone))).length;
+            const mid = strPs.length - inner - outer;
+            const pct = n => strPs.length ? ((n/strPs.length)*100).toFixed(1) : '0';
+            const tCount = {};
+            ps.forEach(p => { if(p.type) tCount[p.type]=(tCount[p.type]||0)+1; });
+            const topT = Object.entries(tCount).sort((a,b)=>b[1]-a[1]).slice(0,3);
+            return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;">
+                <div style="font-size:12px;font-weight:700;color:#003d79;margin-bottom:6px;">${label} (${total}球)</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;">
+                    <div style="text-align:center;background:#dbeafe;border-radius:6px;padding:8px;">
+                        <div style="font-size:18px;font-weight:900;color:#1d4ed8;">${inner}</div>
+                        <div style="font-size:10px;color:#6b7280;">內角 ${pct(inner)}%</div>
+                    </div>
+                    <div style="text-align:center;background:#f0fdf4;border-radius:6px;padding:8px;">
+                        <div style="font-size:18px;font-weight:900;color:#15803d;">${mid}</div>
+                        <div style="font-size:10px;color:#6b7280;">中間 ${pct(mid)}%</div>
+                    </div>
+                    <div style="text-align:center;background:#fef3c7;border-radius:6px;padding:8px;">
+                        <div style="font-size:18px;font-weight:900;color:#b45309;">${outer}</div>
+                        <div style="font-size:10px;color:#6b7280;">外角 ${pct(outer)}%</div>
+                    </div>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">常用球種</div>
+                ${topT.map(([t,n])=>`<div style="display:flex;justify-content:space-between;padding:3px 6px;font-size:11px;border-bottom:1px solid #f0f0f0;">
+                    <span style="font-weight:700;">${t}</span>
+                    <span>${n}球 ${((n/total)*100).toFixed(1)}%</span>
+                </div>`).join('')}
+            </div>`;
+        };
+
+        let innerOuterHtml;
+        if (handFilter === 'all') {
+            const rhb = allPitches.filter(p => p.batterHand === '右打');
+            const lhb = allPitches.filter(p => p.batterHand === '左打');
+            innerOuterHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                ${buildInnerOuterHtml(lhb, ['3','6','9'], ['1','4','7'], '👈 對左打 (LHB)')}
+                ${buildInnerOuterHtml(rhb, ['1','4','7'], ['3','6','9'], '👉 對右打 (RHB)')}
+            </div>
+            <p style="font-size:11px;color:#9ca3af;margin-top:6px;">內角定義：對RHB為1/4/7區，對LHB為3/6/9區。</p>`;
+        } else {
+            const innerZones = handFilter === 'left' ? ['3','6','9'] : ['1','4','7'];
+            const outerZones = handFilter === 'left' ? ['1','4','7'] : ['3','6','9'];
+            const ioLabel = handFilter === 'left' ? '👈 對左打 (LHB)' : '👉 對右打 (RHB)';
+            innerOuterHtml = buildInnerOuterHtml(allPitches, innerZones, outerZones, ioLabel);
+        }
+
         // 首球習慣 HTML
         const firstPitchHtml = fpTotal === 0
             ? '<p style="color:#9ca3af;padding:8px;">尚無首球資料（需記錄球數）</p>'
@@ -926,7 +1024,10 @@
                         <span class="ph-badge">IP ${ipDisplay}</span>
                     </div>
                 </div>
-                <div class="scope-chip">📊 ${scopeLabel}</div>
+                <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+                    <div class="scope-chip">📊 ${scopeLabel}</div>
+                    ${handLabel ? `<div class="scope-chip" style="background:rgba(255,165,0,0.25);border-color:rgba(255,165,0,0.5);">${handLabel}</div>` : ''}
+                </div>
             </div>
 
             <div class="section-block">
@@ -973,14 +1074,26 @@
             </div>
 
             <div class="section-block">
-            <div class="section-title">👥 左右打者分析</div>
-            ${splitTable}
+            <div class="section-title">🎲 常用球種與配球模式</div>
+            ${patternHtml}
             </div>
 
             <div class="section-block">
             <div class="section-title">📈 球數傾向分析</div>
             ${countHtml}
             </div>
+
+            ${handFilter === 'all' ? `
+            <div class="section-block">
+            <div class="section-title">👥 左右打者分析</div>
+            ${splitTable}
+            </div>` : `
+            <div class="section-block">
+            <div class="section-title">👥 左右打者分析</div>
+            <div style="padding:10px 12px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;font-size:12px;color:#92400e;font-weight:700;">
+                ${handLabel} — 本報告已篩選特定打者手別，左右打者比較不適用。
+            </div>
+            </div>`}
 
             <div class="section-block">
             <div class="section-title">🏁 首球（First Pitch）習慣</div>
@@ -989,17 +1102,27 @@
 
             <div class="section-block">
             <div class="section-title">🎯 兩好球決勝球傾向（2 Strikes）</div>
+            ${handFilter === 'all' ? `
             <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（左打 ${twoStrike.filter(p=>p.batterHand==='左打').length} / 右打 ${twoStrike.filter(p=>p.batterHand==='右打').length}）</div>
             <div class="two-col">
                 ${tsSection(twoStrike.filter(p=>p.batterHand==='左打'), '👈 對左打兩好球 (LHB)', '#2563eb')}
                 ${tsSection(twoStrike.filter(p=>p.batterHand==='右打'), '👉 對右打兩好球 (RHB)', '#dc2626')}
+            </div>` : `
+            <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄</div>
+            ${tsSection(twoStrike, handFilter==='left'?'👈 對左打兩好球 (LHB)':'👉 對右打兩好球 (RHB)', handFilter==='left'?'#2563eb':'#dc2626')}`}
             </div>
+
+            <div class="section-block">
+            <div class="section-title">↔️ 內外角分析</div>
+            ${innerOuterHtml}
             </div>
 
             <div class="section-block">
             <div class="section-title">🏃 壘上情境分析（有人 vs 無人差異）</div>
             ${baseCompareHtml}
             </div>
+
+            ${compareSection}
 
             ${gamesBlock}
 
