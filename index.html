@@ -549,12 +549,14 @@
 
                 <div class="speed-input">
                     <div class="speed-left">
-                        <span class="speed-label">球速</span>
-                        <input type="number" id="pitchSpeed" placeholder="--" min="0" max="150" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')this.blur()">
-                        <div class="speed-display">
-                            <strong id="currentSpeed">--</strong>
-                            <span class="speed-unit">km/h</span>
+                        <div class="speed-top-row">
+                            <span class="speed-label">球速</span>
+                            <div class="speed-display">
+                                <strong id="currentSpeed">--</strong>
+                                <span class="speed-unit">km/h</span>
+                            </div>
                         </div>
+                        <input type="number" id="pitchSpeed" placeholder="--" min="0" max="150" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')this.blur()">
                     </div>
                     <div class="speed-grid">
                         <button class="speed-btn" onclick="setSpeed(90,this)">90</button>
