@@ -1015,7 +1015,8 @@
                 <button class="btn btn-warning" onclick="exportCurrentPitcher()" style="color:var(--ct-blue-dark);">📊 匯出當前投手</button>
                 <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
                 <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">📤 匯入數據</button>
-                <button class="btn btn-primary" onclick="openPDFFilter()" style="background:#dc2626;border-color:#dc2626;">📄 匯出報告 PDF</button>
+                <button class="btn btn-primary" onclick="generateScreenshotPDF()" style="background:#dc2626;border-color:#dc2626;">📸 截圖 PDF</button>
+                <button class="btn btn-primary" onclick="openPDFFilter()" style="background:#6b21a8;border-color:#6b21a8;font-size:12px;">📊 客製化篩選報告</button>
             </div>
             <div class="auto-save-toggle">
                 <label class="switch">
