@@ -630,23 +630,70 @@
             const st2 = strike.length||1;
             const hits = ps.filter(p=>(p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'))).length;
             const ab   = ps.filter(p=>(p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'||o.includes('出局')||o==='三振'))).length;
-            return { total, upperPct:((upper/st2)*100).toFixed(1), midPct:((mid/st2)*100).toFixed(1), lowerPct:((lower/st2)*100).toFixed(1), hits, ab, avg: ab?(hits/ab).toFixed(3):'.000' };
+            const k    = ps.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='三振'||o==='不死三振')).length;
+            const bb   = ps.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='保送'||o==='觸身球')).length;
+            const sr   = ((ps.filter(p=>p.result==='好球').length/total)*100).toFixed(1);
+            return { total, upperPct:((upper/st2)*100).toFixed(1), midPct:((mid/st2)*100).toFixed(1), lowerPct:((lower/st2)*100).toFixed(1), hits, ab, avg: ab?(hits/ab).toFixed(3):'.000', k, bb, sr };
         };
         const bWith = calcBase(allPitches.filter(p=>p.runnersOn));
         const bNo   = calcBase(allPitches.filter(p=>!p.runnersOn));
-        const baseCard = (d, label, color) => !d
-            ? `<div style="border:2px solid ${color};border-radius:8px;padding:12px;"><div style="font-weight:700;color:${color};">${label}</div><div style="color:#9ca3af;font-size:12px;margin-top:4px;">尚無資料</div></div>`
-            : `<div style="border:2px solid ${color};border-radius:8px;padding:12px;background:${color}08;">
-                <div style="font-weight:700;color:${color};margin-bottom:8px;">${label} <span style="font-weight:400;font-size:11px;color:#6b7280;">(${d.total}球)</span></div>
-                <table style="margin:0;"><tr><th>高球帶(1-3)</th><th>中間(4-6)</th><th>低球帶(7-9)</th><th>被打擊率</th></tr>
-                <tr><td>${d.upperPct}%</td><td>${d.midPct}%</td><td>${d.lowerPct}%</td><td style="font-weight:700;color:#dc2626;">${d.avg}</td></tr></table>
-            </div>`;
+
+        // 壘上差異對比表
+        const baseCompareHtml = (() => {
+            if (!bWith && !bNo) return '<p style="color:#9ca3af;padding:8px;">尚無壘包狀況記錄（需記錄壘包狀態）</p>';
+            const fmtDiff = (va, vb, isAvg) => {
+                if (va == null || vb == null) return { str:'--', color:'#6b7280' };
+                const d = parseFloat(va) - parseFloat(vb);
+                const str = (d > 0 ? '+' : '') + (isAvg ? d.toFixed(3) : d.toFixed(1) + '%');
+                return { str, color: d > 0 ? '#dc2626' : d < 0 ? '#2563eb' : '#6b7280' };
+            };
+            const rows = [
+                ['好球率',      bWith?.sr,       bNo?.sr,       '%',  false],
+                ['高球帶(1-3)', bWith?.upperPct,  bNo?.upperPct, '%',  false],
+                ['中間(4-6)',   bWith?.midPct,    bNo?.midPct,   '%',  false],
+                ['低球帶(7-9)', bWith?.lowerPct,  bNo?.lowerPct, '%',  false],
+                ['被打擊率',    bWith?.avg,        bNo?.avg,      '',   true],
+                ['三振',        bWith?.k,          bNo?.k,        '',   false],
+                ['保送/觸身',   bWith?.bb,         bNo?.bb,       '',   false],
+            ];
+            let insight = '';
+            if (bWith && bNo) {
+                const highDiff = parseFloat(bWith.upperPct) - parseFloat(bNo.upperPct);
+                const avgDiff  = parseFloat(bWith.avg) - parseFloat(bNo.avg);
+                if (Math.abs(highDiff) >= 5)
+                    insight += `💡 壘上有人時高球帶${highDiff>0?'增加':'減少'} ${Math.abs(highDiff).toFixed(1)}%`;
+                if (Math.abs(avgDiff) >= 0.020)
+                    insight += (insight?'　':'💡 ') + `被打擊率${avgDiff>0?'上升':'下降'} ${Math.abs(avgDiff).toFixed(3)}`;
+                if (!insight) insight = '✅ 壘上有無人時進壘點與被打擊率差異不大';
+            }
+            return `<table>
+                <tr>
+                    <th style="text-align:left;min-width:80px;">指標</th>
+                    <th style="background:#7f1d1d;min-width:90px;">🏃 壘上有人<br><span style="font-weight:400;font-size:10px;">${bWith?bWith.total+'球':'無資料'}</span></th>
+                    <th style="background:#1e3a5f;min-width:90px;">⬜ 壘上無人<br><span style="font-weight:400;font-size:10px;">${bNo?bNo.total+'球':'無資料'}</span></th>
+                    <th style="min-width:60px;">差異<br><span style="font-weight:400;font-size:10px;">有人−無人</span></th>
+                </tr>
+                ${rows.map(([label,va,vb,unit,isAvg])=>{
+                    const da = va!=null ? va+unit : '--';
+                    const db = vb!=null ? vb+unit : '--';
+                    const {str:dStr,color:dColor} = fmtDiff(va,vb,isAvg);
+                    return `<tr>
+                        <td class="left" style="font-weight:700;">${label}</td>
+                        <td style="background:#fff5f5;font-weight:700;">${da}</td>
+                        <td style="background:#eff6ff;font-weight:700;">${db}</td>
+                        <td style="font-weight:900;color:${dColor};">${dStr}</td>
+                    </tr>`;
+                }).join('')}
+            </table>
+            ${insight?`<div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;font-size:12px;color:#92400e;font-weight:700;">${insight}</div>`:''}`;
+        })();
 
         const css = `
             *{box-sizing:border-box;margin:0;padding:0;}
             body{font-family:'Noto Sans TC',Arial,sans-serif;padding:24px;color:#1e3a5f;max-width:980px;margin:0 auto;font-size:13px;}
             h1{font-size:22px;font-weight:900;color:#003d79;border-bottom:4px solid #d4af37;padding-bottom:8px;margin-bottom:12px;}
-            .section-title{font-size:14px;font-weight:900;color:#003d79;border-left:4px solid #d4af37;padding:5px 10px;background:#f0f4ff;border-radius:0 6px 6px 0;margin:20px 0 10px;}
+            .section-title{font-size:14px;font-weight:900;color:#003d79;border-left:4px solid #d4af37;padding:5px 10px;background:#f0f4ff;border-radius:0 6px 6px 0;margin:20px 0 10px;break-after:avoid;page-break-after:avoid;}
+            .section-block{break-inside:avoid;page-break-inside:avoid;}
             .pitcher-header{background:linear-gradient(135deg,#003d79,#0051a5);color:white;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;}
             .ph-name{font-size:26px;font-weight:900;letter-spacing:2px;}
             .ph-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
@@ -670,7 +717,7 @@
             .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;}
             .sep{border:none;border-top:2px dashed #d4af37;margin:22px 0;}
             .footer{margin-top:20px;font-size:10px;color:#9ca3af;text-align:right;border-top:1px solid #e5e7eb;padding-top:8px;}
-            @media print{body{padding:12px;}.section-title{break-inside:avoid;}}`;
+            @media print{body{padding:12px;}.section-title{break-after:avoid;page-break-after:avoid;}.section-block{break-inside:avoid;page-break-inside:avoid;}}`;
 
         // 球種詳細分析 table（含壞球率/揮空率/暴投率/三振率/被打擊率）
         const typeTable = st.typeSorted.length ? `
@@ -779,6 +826,7 @@
                 <div class="scope-chip">📊 ${scopeLabel}</div>
             </div>
 
+            <div class="section-block">
             <div class="section-title">📊 核心統計</div>
             <div class="stats-row">
                 <div class="stat-box"><div class="stat-val">${st.total}</div><div class="stat-lbl">總球數</div></div>
@@ -801,10 +849,14 @@
                 <div class="stat-box"><div class="stat-val">${earnedRuns}</div><div class="stat-lbl">自責分</div></div>
                 <div class="stat-box"><div class="stat-val">${st.hrs}</div><div class="stat-lbl">全壘打</div></div>
             </div>
+            </div>
 
+            <div class="section-block">
             <div class="section-title">⚾ 球種詳細分析</div>
             ${typeTable}
+            </div>
 
+            <div class="section-block">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0;">
                 <div>
                     <div class="section-title">🎯 好球帶熱區</div>
@@ -815,27 +867,35 @@
                     <table><tr><th>結果</th><th>次數</th><th>佔比</th></tr>${allOutcomeRows||'<tr><td colspan="3" style="color:#9ca3af;">尚無記錄</td></tr>'}</table>
                 </div>
             </div>
+            </div>
 
+            <div class="section-block">
             <div class="section-title">👥 左右打者分析</div>
             ${splitTable}
+            </div>
 
+            <div class="section-block">
             <div class="section-title">📈 球數傾向分析</div>
             ${countHtml}
+            </div>
 
+            <div class="section-block">
             <div class="section-title">🏁 首球（First Pitch）習慣</div>
             ${firstPitchHtml}
+            </div>
 
+            <div class="section-block">
             <div class="section-title">🎯 兩好球決勝球傾向（2 Strikes）</div>
             <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">共 ${twoStrike.length} 球兩好球紀錄（右打 ${twoStrike.filter(p=>p.batterHand==='右打').length} / 左打 ${twoStrike.filter(p=>p.batterHand==='左打').length}）</div>
             <div class="two-col">
                 ${tsSection(twoStrike.filter(p=>p.batterHand==='右打'), '👉 對右打 (RHB)', '#dc2626')}
                 ${tsSection(twoStrike.filter(p=>p.batterHand==='左打'), '👈 對左打 (LHB)', '#2563eb')}
             </div>
+            </div>
 
-            <div class="section-title">🏃 壘上情境分析</div>
-            <div class="two-col">
-                ${baseCard(bWith, '🏃 壘上有人', '#dc2626')}
-                ${baseCard(bNo, '⬜ 壘上無人', '#2563eb')}
+            <div class="section-block">
+            <div class="section-title">🏃 壘上情境分析（有人 vs 無人差異）</div>
+            ${baseCompareHtml}
             </div>
 
             ${gamesBlock}
@@ -846,7 +906,7 @@
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const w = window.open(url, '_blank');
-        if (w) { setTimeout(() => { w.print(); URL.revokeObjectURL(url); }, 900); }
+        if (w) { setTimeout(() => URL.revokeObjectURL(url), 2000); }
         else { triggerDownload(url, `投手報告_${pitcherName}_${new Date().toISOString().split('T')[0]}.html`); }
     }
 
