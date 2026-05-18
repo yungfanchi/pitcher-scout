@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v53';
+﻿    const APP_VERSION = 'v54';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2982,15 +2982,17 @@
                     <span style="font-size:14px;color:#374151;font-weight:600;margin-left:4px;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
                 </div>`).join('');
             return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
-                <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${d.total}球）</span></div>
-                <div style="position:relative;aspect-ratio:1;width:100%;max-width:260px;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
-                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
-                    <span style="background:#fee2e2;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#dc2626;">內角 ${d.pct(d.inner)}%</span>
-                    <span style="background:#dbeafe;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#2563eb;">外角 ${d.pct(d.outer)}%</span>
-                    <span style="background:#f3f4f6;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#6b7280;">中間 ${d.pct(d.mid)}%</span>
-                </div>
-                <div style="border-top:1px solid ${color}30;padding-top:6px;">
-                    ${rows || '<div style="color:#9ca3af;font-size:13px;">無資料</div>'}
+                <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:10px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${d.total}球）</span></div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+                            <span style="background:#fee2e2;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#dc2626;">內角 ${d.pct(d.inner)}%</span>
+                            <span style="background:#dbeafe;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#2563eb;">外角 ${d.pct(d.outer)}%</span>
+                            <span style="background:#f3f4f6;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#6b7280;">中間 ${d.pct(d.mid)}%</span>
+                        </div>
+                        ${rows || '<div style="color:#9ca3af;font-size:13px;">無資料</div>'}
+                    </div>
+                    <div style="flex:0 0 42%;max-width:180px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
                 </div>
             </div>`;
         };
@@ -3041,9 +3043,11 @@
                         <span style="font-size:14px;color:#374151;font-weight:600;margin-left:4px;">${cnt}次 <b style="color:var(--ct-red);">${pct(cnt)}%</b></span>
                     </div>`).join('');
                 return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
-                    <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}打席）</span></div>
-                    <div style="position:relative;aspect-ratio:1;width:100%;max-width:260px;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
-                    <div style="border-top:1px solid ${color}30;padding-top:6px;">${rows}</div>
+                    <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:10px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}打席）</span></div>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <div style="flex:1;min-width:0;">${rows}</div>
+                        <div style="flex:0 0 42%;max-width:180px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                    </div>
                 </div>`;
             }
             // 全部首球：圖右文字左，字大
@@ -3092,40 +3096,40 @@
 
     // ====== PATTERN ANALYSIS ======
     function updatePatternAnalysis(pitches) {
-        const div = document.getElementById('patternAnalysis');
-        div.innerHTML = '';
-        if (pitches.length === 0) { div.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:16px;">尚無資料</p>'; return; }
+        const divType = document.getElementById('patternAnalysisType');
+        const divSeq  = document.getElementById('patternAnalysisSeq');
+        if (!divType || !divSeq) return;
+        const empty = '<p style="color:#9ca3af;padding:8px;font-size:13px;">尚無資料</p>';
+        if (pitches.length === 0) { divType.innerHTML = empty; divSeq.innerHTML = empty; return; }
+
+        // ── 球種比例 ──
         const typeCount = {};
         pitches.forEach(p => { typeCount[p.type] = (typeCount[p.type]||0)+1; });
         const sortedTypes = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
         const total = pitches.length;
-        const head1 = document.createElement('h3');
-        head1.textContent = '🎯 常用球種比例';
-        head1.style.color = 'var(--ct-blue-dark)';
-        div.appendChild(head1);
+        divType.innerHTML = '';
         sortedTypes.forEach(([type,cnt]) => {
+            const dot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};margin-right:6px;vertical-align:middle;flex-shrink:0;"></span>`;
             const item = document.createElement('div');
             item.className = 'pattern-item';
-            item.innerHTML = `<span style="font-size:16px;font-weight:900;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;">${type}</span><span style="color:var(--ct-red);font-weight:700;">${cnt} 球 / ${((cnt/total)*100).toFixed(1)}%</span>`;
-            div.appendChild(item);
+            item.innerHTML = `<span style="display:flex;align-items:center;">${dot}<span style="font-size:15px;font-weight:900;color:${PITCH_COLORS[type]||'var(--ct-blue-dark)'};font-family:'Oswald','Noto Sans TC',sans-serif;">${type}</span></span><span style="color:var(--ct-red);font-weight:700;white-space:nowrap;">${cnt}球 ${((cnt/total)*100).toFixed(1)}%</span>`;
+            divType.appendChild(item);
         });
-        if (pitches.length >= 2) {
-            const head2 = document.createElement('h3');
-            head2.textContent = '🔗 常見配球模式';
-            head2.style.cssText = 'color:var(--ct-blue-dark);margin-top:12px;';
-            div.appendChild(head2);
-            const sequences = {};
-            for (let i=1; i<pitches.length; i++) {
-                const seq = `${pitches[i-1].type} → ${pitches[i].type}`;
-                sequences[seq] = (sequences[seq]||0)+1;
-            }
-            Object.entries(sequences).sort((a,b)=>b[1]-a[1]).slice(0,5).forEach(([seq,cnt]) => {
-                const item = document.createElement('div');
-                item.className = 'pattern-item';
-                item.innerHTML = `<span style="font-size:14px;font-weight:700;color:var(--ct-blue-dark);">${seq}</span><span style="color:var(--ct-red);font-weight:700;">${cnt} 次</span>`;
-                div.appendChild(item);
-            });
+
+        // ── 配球模式 ──
+        divSeq.innerHTML = '';
+        if (pitches.length < 2) { divSeq.innerHTML = '<p style="color:#9ca3af;padding:8px;font-size:13px;">需至少 2 球</p>'; return; }
+        const sequences = {};
+        for (let i=1; i<pitches.length; i++) {
+            const seq = `${pitches[i-1].type} → ${pitches[i].type}`;
+            sequences[seq] = (sequences[seq]||0)+1;
         }
+        Object.entries(sequences).sort((a,b)=>b[1]-a[1]).slice(0,5).forEach(([seq,cnt]) => {
+            const item = document.createElement('div');
+            item.className = 'pattern-item';
+            item.innerHTML = `<span style="font-size:14px;font-weight:700;color:var(--ct-blue-dark);">${seq}</span><span style="color:var(--ct-red);font-weight:700;white-space:nowrap;">${cnt}次</span>`;
+            divSeq.appendChild(item);
+        });
     }
 
     function updateCountAnalysis(pitches) {
@@ -3394,13 +3398,15 @@
                 </div>`;
             }).join('');
             return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
-                <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
-                <div style="position:relative;aspect-ratio:1;width:100%;max-width:260px;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
-                <div style="border-top:1px solid ${color}30;padding-top:6px;">
-                    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:3px;">⚾ 球種</div>
-                    ${typeRows}
-                    <div style="font-size:12px;font-weight:700;color:#374151;margin:6px 0 3px;">📍 進壘位置 Top3</div>
-                    ${zoneRows || '<div style="color:#9ca3af;font-size:13px;">無資料</div>'}
+                <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:10px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:3px;">⚾ 球種</div>
+                        ${typeRows}
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin:6px 0 3px;">📍 進壘 Top3</div>
+                        ${zoneRows || '<div style="color:#9ca3af;font-size:12px;">無資料</div>'}
+                    </div>
+                    <div style="flex:0 0 42%;max-width:180px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
                 </div>
             </div>`;
         };
@@ -3581,19 +3587,7 @@
                 responsive: true, maintainAspectRatio: false, cutout: '52%',
                 layout: { padding: 4 },
                 plugins: {
-                    legend: {
-                        display: true, position: 'bottom',
-                        labels: {
-                            font: { size: 11, weight: '700' }, padding: 8,
-                            usePointStyle: true, pointStyleWidth: 10, color: '#374151',
-                            generateLabels: chart => chart.data.labels.map((label, i) => ({
-                                text: `${label} ${((chart.data.datasets[0].data[i] / total) * 100).toFixed(0)}%`,
-                                fillStyle: chart.data.datasets[0].backgroundColor[i],
-                                strokeStyle: chart.data.datasets[0].backgroundColor[i],
-                                pointStyle: 'circle', index: i
-                            }))
-                        }
-                    },
+                    legend: { display: false },
                     tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed / total) * 100).toFixed(1)}%)` } },
                     datalabels: { display: false }
                 }

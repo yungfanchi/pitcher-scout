@@ -874,25 +874,22 @@
                 </div>
             </div>
 
-            <!-- 球種與配球模式：文字列表（左）/ 圓餅圖（右，上下堆疊） -->
+            <!-- 球種與配球模式：每列各自文字左 + 圓圈圖右，平行對齊 -->
             <div class="container">
                 <h2>🎲 常用球種與配球模式</h2>
-                <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;">
-                    <!-- 左：文字列表 -->
-                    <div class="pattern-analysis" id="patternAnalysis" style="flex:1 1 36%;min-width:200px;"></div>
-                    <!-- 右：兩圖上下堆疊 -->
-                    <div style="flex:0 1 44%;min-width:220px;display:flex;flex-direction:column;gap:16px;">
-                        <div style="display:flex;flex-direction:column;">
-                            <div style="font-size:13px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:6px;text-align:center;">⚾ 球種比例</div>
-                            <div style="position:relative;aspect-ratio:1;width:100%;">
-                                <canvas id="pitchTypePieChart"></canvas>
-                            </div>
+                <div style="display:flex;flex-direction:column;gap:20px;">
+                    <!-- 第一列：球種比例 文字 + 圖 -->
+                    <div style="display:flex;gap:16px;align-items:center;">
+                        <div class="pattern-analysis" id="patternAnalysisType" style="flex:1;min-width:0;"></div>
+                        <div style="flex:0 0 38%;max-width:280px;position:relative;aspect-ratio:1;">
+                            <canvas id="pitchTypePieChart"></canvas>
                         </div>
-                        <div style="display:flex;flex-direction:column;">
-                            <div style="font-size:13px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:6px;text-align:center;">🔗 配球模式</div>
-                            <div style="position:relative;aspect-ratio:1;width:100%;">
-                                <canvas id="patternPieChart"></canvas>
-                            </div>
+                    </div>
+                    <!-- 第二列：配球模式 文字 + 圖 -->
+                    <div style="display:flex;gap:16px;align-items:center;border-top:1px solid #e5e7eb;padding-top:16px;">
+                        <div class="pattern-analysis" id="patternAnalysisSeq" style="flex:1;min-width:0;"></div>
+                        <div style="flex:0 0 38%;max-width:280px;position:relative;aspect-ratio:1;">
+                            <canvas id="patternPieChart"></canvas>
                         </div>
                     </div>
                 </div>
