@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v66';
+﻿    const APP_VERSION = 'v67';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -789,6 +789,109 @@
                <table><tr><th>球種</th><th>次數</th><th>佔比</th></tr>
                ${fpSorted.map(([t,n],i)=>`<tr><td class="left" style="font-weight:700;">${i===0?'🥇 ':i===1?'🥈 ':''}${t}</td><td>${n}</td><td>${((n/fpTotal)*100).toFixed(1)}%</td></tr>`).join('')}
                </table>`;
+
+        // ===== 對比區（slotA vs slotB 若兩者都已設定）=====
+        let compareSection = '';
+        const hasCompare = slotA.team !== null && slotA.pitcher !== null &&
+                           slotB.team !== null && slotB.pitcher !== null;
+        if (hasCompare) {
+            const teamA = allData.teams[slotA.team];
+            const teamB = allData.teams[slotB.team];
+            const pA = teamA?.pitchers[slotA.pitcher];
+            const pB = teamB?.pitchers[slotB.pitcher];
+            const psA = (pA?.pitches || []);
+            const psB = (pB?.pitches || []);
+            const stA = _calcPitcherStats(psA);
+            const stB = _calcPitcherStats(psB);
+            if (stA && stB && pA && pB) {
+                const totA = stA.total, totB = stB.total;
+                const typeMapA = Object.fromEntries(stA.typeSorted);
+                const typeMapB = Object.fromEntries(stB.typeSorted);
+                const allCmpTypes = [...new Set([...Object.keys(typeMapA), ...Object.keys(typeMapB)])];
+
+                const basicRows = [
+                    ['總球數',   totA,                                         totB,                                          '球',   false],
+                    ['好球率',   totA?((stA.strikes/totA)*100).toFixed(1):0,   totB?((stB.strikes/totB)*100).toFixed(1):0,   '%',    false],
+                    ['平均球速', stA.avgSpd,                                    stB.avgSpd,                                    'km/h', false],
+                    ['最高球速', stA.maxSpd,                                    stB.maxSpd,                                    'km/h', false],
+                    ['三振',     stA.ks,                                        stB.ks,                                        '',     false],
+                    ['保送/觸身',stA.walks,                                      stB.walks,                                     '',     false],
+                    ['被安打',   stA.hits,                                       stB.hits,                                      '',     false],
+                    ['揮空率',   totA?((stA.swings/totA)*100).toFixed(1):0,    totB?((stB.swings/totB)*100).toFixed(1):0,    '%',    false],
+                    ['暴投率',   totA?((stA.wilds/totA)*100).toFixed(1):0,     totB?((stB.wilds/totB)*100).toFixed(1):0,     '%',    false],
+                    ['對左打好球率', stA.L.sr,  stB.L.sr, '%', false],
+                    ['對右打好球率', stA.R.sr,  stB.R.sr, '%', false],
+                ];
+
+                const typeRows = allCmpTypes.map(type => {
+                    const vA = typeMapA[type], vB = typeMapB[type];
+                    const tpA = psA.filter(p=>p.type===type);
+                    const tpB = psB.filter(p=>p.type===type);
+                    const pctA = vA ? ((vA.n/totA)*100).toFixed(1)+'%' : '—';
+                    const srA  = tpA.length ? ((tpA.filter(p=>p.result==='好球').length/tpA.length)*100).toFixed(1)+'%' : '—';
+                    const swA  = tpA.length ? ((tpA.filter(p=>p.swing).length/tpA.length)*100).toFixed(1)+'%' : '—';
+                    const pctB = vB ? ((vB.n/totB)*100).toFixed(1)+'%' : '—';
+                    const srB  = tpB.length ? ((tpB.filter(p=>p.result==='好球').length/tpB.length)*100).toFixed(1)+'%' : '—';
+                    const swB  = tpB.length ? ((tpB.filter(p=>p.swing).length/tpB.length)*100).toFixed(1)+'%' : '—';
+                    const color = PITCH_COLORS[type] || '#1e3a5f';
+                    return `<tr><td class="left" style="font-weight:700;color:${color};">${type}</td>
+                        <td>${pctA}</td><td>${srA}</td><td>${swA}</td>
+                        <td>${pctB}</td><td>${srB}</td><td>${swB}</td></tr>`;
+                }).join('');
+
+                // 首球對比
+                const fpA = psA.filter(p=>(p.balls||0)===0&&(p.strikes||0)===0);
+                const fpB = psB.filter(p=>(p.balls||0)===0&&(p.strikes||0)===0);
+                const fpMapA = {}; fpA.forEach(p=>{if(p.type)fpMapA[p.type]=(fpMapA[p.type]||0)+1;});
+                const fpMapB = {}; fpB.forEach(p=>{if(p.type)fpMapB[p.type]=(fpMapB[p.type]||0)+1;});
+                const fpTop = (m,t) => Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([tp,n])=>`${tp} ${t?((n/t)*100).toFixed(0)+'%':''}`).join('、') || '—';
+
+                compareSection = `
+                <hr class="sep">
+                <div class="section-title">⚔️ A vs B 投手對比</div>
+                <div class="section-block">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                    <div style="background:linear-gradient(135deg,#003d79,#0051a5);color:white;border-radius:8px;padding:10px 14px;">
+                        <div style="font-size:15px;font-weight:900;">🅐 ${pA.name}${pA.number?' #'+pA.number:''}</div>
+                        <div style="font-size:11px;opacity:0.75;margin-top:3px;">${teamA.name}　${teamA.gameName||''}　${teamA.date||''}</div>
+                        <div style="font-size:11px;opacity:0.6;margin-top:2px;">${pA.hand||''} ${pA.role||''}</div>
+                    </div>
+                    <div style="background:linear-gradient(135deg,#374151,#4b5563);color:white;border-radius:8px;padding:10px 14px;">
+                        <div style="font-size:15px;font-weight:900;">🅑 ${pB.name}${pB.number?' #'+pB.number:''}</div>
+                        <div style="font-size:11px;opacity:0.75;margin-top:3px;">${teamB.name}　${teamB.gameName||''}　${teamB.date||''}</div>
+                        <div style="font-size:11px;opacity:0.6;margin-top:2px;">${pB.hand||''} ${pB.role||''}</div>
+                    </div>
+                </div>
+                <div style="font-size:12px;font-weight:700;color:#003d79;margin:8px 0 4px;border-left:3px solid #d4af37;padding-left:6px;">📊 核心數據對比</div>
+                <table>
+                    <tr><th style="text-align:left;">指標</th><th style="color:#fde68a;">A · ${pA.name}</th><th style="color:#d1d5db;">B · ${pB.name}</th><th>差異 (A−B)</th></tr>
+                    ${basicRows.map(([label, vA, vB, unit]) => {
+                        const dNum = parseFloat(vA) - parseFloat(vB);
+                        const dStr = isNaN(dNum) ? '—' : (dNum > 0 ? '+' : '') + (Number.isInteger(dNum) ? dNum : dNum.toFixed(1)) + unit;
+                        const dColor = dNum > 0 ? '#dc2626' : dNum < 0 ? '#2563eb' : '#6b7280';
+                        return `<tr><td class="left" style="font-weight:700;">${label}</td><td>${vA}${unit}</td><td>${vB}${unit}</td><td style="font-weight:900;color:${dColor};">${dStr}</td></tr>`;
+                    }).join('')}
+                </table>
+                </div>
+                <div class="section-block" style="margin-top:12px;">
+                <div style="font-size:12px;font-weight:700;color:#003d79;margin:8px 0 4px;border-left:3px solid #d4af37;padding-left:6px;">⚾ 球種比例與效果對比</div>
+                <table>
+                    <tr><th style="text-align:left;">球種</th>
+                        <th style="color:#fde68a;">A 佔比</th><th style="color:#fde68a;">A 好球%</th><th style="color:#fde68a;">A 揮空%</th>
+                        <th style="color:#d1d5db;">B 佔比</th><th style="color:#d1d5db;">B 好球%</th><th style="color:#d1d5db;">B 揮空%</th></tr>
+                    ${typeRows}
+                </table>
+                </div>
+                <div class="section-block" style="margin-top:12px;">
+                <div style="font-size:12px;font-weight:700;color:#003d79;margin:8px 0 4px;border-left:3px solid #d4af37;padding-left:6px;">🏁 首球習慣對比</div>
+                <table>
+                    <tr><th style="text-align:left;">投手</th><th>打席首球數</th><th>常用首球 Top3</th></tr>
+                    <tr><td class="left" style="font-weight:700;color:#003d79;">A · ${pA.name}</td><td>${fpA.length}</td><td class="left">${fpTop(fpMapA, fpA.length)}</td></tr>
+                    <tr><td class="left" style="font-weight:700;color:#4b5563;">B · ${pB.name}</td><td>${fpB.length}</td><td class="left">${fpTop(fpMapB, fpB.length)}</td></tr>
+                </table>
+                </div>`;
+            }
+        }
 
         // 各場次摘要（生涯模式才顯示）
         let gamesBlock = '';
