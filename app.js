@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v74';
+﻿    const APP_VERSION = 'v75';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -358,19 +358,10 @@
 
     // ====== 截圖 PDF（完全按畫面） ======
     async function generateScreenshotPDF() {
-        // 確認槽位有資料
-        const slotData = activeSlot === 'A' ? slotA : slotB;
-        const otherSlotData = activeSlot === 'A' ? slotB : slotA;
-        const hasActive = slotData.team !== null && slotData.pitcher !== null;
-        const hasOther  = otherSlotData.team !== null && otherSlotData.pitcher !== null;
-        if (!hasActive && !hasOther) {
-            alert('請先將投手載入到槽位 A 或 B，才能產生截圖 PDF');
-            return;
-        }
-        const useSlot = hasActive ? activeSlot : (activeSlot === 'A' ? 'B' : 'A');
-        const useSlotData = useSlot === 'A' ? slotA : slotB;
-        const pitcher = allData.teams[useSlotData.team]?.pitchers[useSlotData.pitcher];
-        if (!pitcher) { alert('找不到投手資料'); return; }
+        // 取得投手名（供檔名用，沒有也無妨）
+        const _sd = activeSlot === 'A' ? slotA : slotB;
+        const _p = (_sd.team !== null && _sd.pitcher !== null) ? allData.teams[_sd.team]?.pitchers[_sd.pitcher] : null;
+        const pitcherLabel = _p?.name || '投手報告';
 
         if (typeof html2canvas === 'undefined') { alert('截圖套件未載入，請重新整理頁面'); return; }
         const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
@@ -478,7 +469,7 @@
 
             prog('儲存中...', 95);
             await new Promise(r => setTimeout(r, 200));
-            const fname = `投手報告_${pitcher.name}_${new Date().toISOString().split('T')[0]}.pdf`;
+            const fname = `投手報告_${pitcherLabel}_${new Date().toISOString().split('T')[0]}.pdf`;
             pdf.save(fname);
             prog('✅ 完成！', 100);
             await new Promise(r => setTimeout(r, 600));
