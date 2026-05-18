@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v62';
+﻿    const APP_VERSION = 'v63';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2907,7 +2907,7 @@
             <strong style="color:var(--ct-blue-dark);display:block;font-size:16px;margin-bottom:8px;text-align:center;">⚾ 各球種投球傾向</strong>
             <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center;">
                 <div style="flex:0 1 auto;min-width:180px;max-width:340px;">${typeRows}</div>
-                <div style="flex:0 0 300px;max-width:340px;min-width:240px;position:relative;aspect-ratio:1;"><canvas id="tendencyTypeChart"></canvas></div>
+                <div style="flex:0 0 auto;width:min(340px,90vw);height:min(340px,90vw);position:relative;"><canvas id="tendencyTypeChart"></canvas></div>
             </div>
         </div>`;
         const tendencyCanvas = document.getElementById('tendencyTypeChart');
@@ -3005,7 +3005,7 @@
                         </div>
                         ${rows || '<div style="color:#9ca3af;font-size:13px;">無資料</div>'}
                     </div>
-                    <div style="flex:0 0 42%;max-width:200px;min-width:120px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                    <div style="flex:0 0 auto;width:200px;height:200px;position:relative;"><canvas id="${chartId}"></canvas></div>
                 </div>
             </div>`;
         };
@@ -3063,7 +3063,7 @@
                     <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;text-align:center;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}打席）</span></div>
                     <div style="flex:1;display:flex;gap:10px;align-items:center;justify-content:center;">
                         <div style="flex:0 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;">${rows}</div>
-                        <div style="flex:0 0 42%;max-width:200px;min-width:120px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                        <div style="flex:0 0 auto;width:200px;height:200px;position:relative;"><canvas id="${chartId}"></canvas></div>
                     </div>
                 </div>`;
             }
@@ -3079,7 +3079,7 @@
                 <div style="font-size:16px;font-weight:900;color:${color};margin-bottom:10px;text-align:center;">${label} <span style="font-size:13px;font-weight:400;color:#6b7280;">（${total}打席首球）</span></div>
                 <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:center;">
                     <div style="flex:0 1 auto;min-width:180px;max-width:320px;">${rows}</div>
-                    <div style="flex:0 0 300px;max-width:340px;min-width:240px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                    <div style="flex:0 0 auto;width:min(340px,90vw);height:min(340px,90vw);position:relative;"><canvas id="${chartId}"></canvas></div>
                 </div>
             </div>`;
         };
@@ -3330,14 +3330,15 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 cutout: '52%',
-                layout: { padding: 4 },
+                layout: { padding: 0 },
                 plugins: {
                     legend: {
                         display: true,
                         position: 'bottom',
                         labels: {
                             font: { size: 11, weight: '700' },
-                            padding: 8,
+                            padding: 6,
+                            boxWidth: 12,
                             usePointStyle: true,
                             pointStyleWidth: 10,
                             color: '#374151',
@@ -3427,7 +3428,7 @@
                         <div style="font-size:11px;font-weight:700;color:#374151;margin:4px 0 2px;">📍 進壘 Top3</div>
                         ${zoneRows || '<div style="color:#9ca3af;font-size:12px;">無資料</div>'}
                     </div>
-                    <div style="flex:0 0 42%;max-width:200px;min-width:120px;position:relative;aspect-ratio:1;"><canvas id="${chartId}"></canvas></div>
+                    <div style="flex:0 0 auto;width:200px;height:200px;position:relative;"><canvas id="${chartId}"></canvas></div>
                 </div>
             </div>`;
         };
@@ -3606,7 +3607,7 @@
             data: { labels: types, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
             options: {
                 responsive: true, maintainAspectRatio: false, cutout: '52%',
-                layout: { padding: 4 },
+                layout: { padding: 0 },
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed / total) * 100).toFixed(1)}%)` } },
@@ -3668,7 +3669,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 cutout: '50%',
-                layout: { padding: 72 },
+                layout: { padding: 65 },
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/total)*100).toFixed(1)}%)` } },

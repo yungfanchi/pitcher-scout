@@ -456,8 +456,8 @@
         /* ===== 球種效果分析儀表板 ===== */
         .analysis-dashboard-container { display:flex; gap:12px; align-items:stretch; justify-content:flex-start; }
         .pitch-type-table-wrap { flex:0 0 68%; min-width:0; overflow-x:hidden; }
-        .chart-box { flex:0 0 28%; min-width:160px; position:relative; display:flex; flex-direction:column; align-items:stretch; }
-        .chart-box canvas { width:100% !important; }
+        .chart-box { flex:0 0 28%; min-width:160px; min-height:220px; position:relative; display:flex; flex-direction:column; align-items:stretch; }
+        .chart-box canvas { width:100% !important; height:100% !important; }
         .pitch-detail-table { width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; }
         .pitch-detail-table col.col-type  { width:20%; }
         .pitch-detail-table col.col-pct   { width:10%; }
@@ -489,10 +489,10 @@
 
         /* ===== 球種/配球模式 行版型 ===== */
         .pattern-row { display:flex; gap:16px; align-items:center; justify-content:center; }
-        .pattern-chart-canvas { flex:0 0 42%; min-width:260px; max-width:360px; position:relative; aspect-ratio:1; }
-        @media (max-width:580px) {
+        .pattern-chart-canvas { flex:0 0 auto; width:340px; height:340px; position:relative; }
+        @media (max-width:760px) {
             .pattern-row { flex-wrap:wrap; }
-            .pattern-chart-canvas { flex:1 1 100%; max-width:260px; min-width:0; margin:0 auto; }
+            .pattern-chart-canvas { width:min(340px, 90vw); height:min(340px, 90vw); margin:0 auto; }
         }
 
         /* ===== TABS ===== */
