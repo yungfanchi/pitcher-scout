@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v72';
+﻿    const APP_VERSION = 'v73';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -353,6 +353,144 @@
             }).catch(() => window.location.reload());
         } else {
             window.location.reload();
+        }
+    }
+
+    // ====== 截圖 PDF（完全按畫面） ======
+    async function generateScreenshotPDF() {
+        // 確認槽位有資料
+        const slotData = activeSlot === 'A' ? slotA : slotB;
+        const otherSlotData = activeSlot === 'A' ? slotB : slotA;
+        const hasActive = slotData.team !== null && slotData.pitcher !== null;
+        const hasOther  = otherSlotData.team !== null && otherSlotData.pitcher !== null;
+        if (!hasActive && !hasOther) {
+            alert('請先將投手載入到槽位 A 或 B，才能產生截圖 PDF');
+            return;
+        }
+        const useSlot = hasActive ? activeSlot : (activeSlot === 'A' ? 'B' : 'A');
+        const useSlotData = useSlot === 'A' ? slotA : slotB;
+        const pitcher = allData.teams[useSlotData.team]?.pitchers[useSlotData.pitcher];
+        if (!pitcher) { alert('找不到投手資料'); return; }
+
+        if (typeof html2canvas === 'undefined') { alert('截圖套件未載入，請重新整理頁面'); return; }
+        const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
+        if (!JSPDF) { alert('PDF 套件未載入，請重新整理頁面'); return; }
+
+        // 記住目前分頁
+        const origTabEl = document.querySelector('.tab-content.active');
+        const origTabId = origTabEl?.id || 'recordTab';
+
+        // 建立 Loading 遮罩
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,20,60,0.88);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:"Noto Sans TC",sans-serif;';
+        overlay.innerHTML = `
+            <div style="font-size:52px;margin-bottom:16px;">📸</div>
+            <div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;letter-spacing:3px;margin-bottom:10px;">正在產生截圖 PDF</div>
+            <div id="_pdfProg" style="font-size:14px;color:#ffd700;margin-bottom:20px;min-height:20px;">準備中...</div>
+            <div style="width:320px;height:6px;background:rgba(255,255,255,0.15);border-radius:3px;overflow:hidden;">
+                <div id="_pdfBar" style="height:100%;background:linear-gradient(90deg,#ffd700,#ff8c00);width:0%;transition:width 0.4s;border-radius:3px;"></div>
+            </div>
+            <div style="margin-top:18px;font-size:12px;color:rgba(255,255,255,0.45);">請稍候，截圖需要數秒鐘</div>`;
+        document.body.appendChild(overlay);
+        const prog = (msg, pct) => {
+            const p = document.getElementById('_pdfProg');
+            const b = document.getElementById('_pdfBar');
+            if (p) p.textContent = msg;
+            if (b) b.style.width = pct + '%';
+        };
+
+        try {
+            const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+
+            const tabs = [
+                { id: 'statsTab',    label: '📊 統計', upd: () => updateStats() },
+                { id: 'analysisTab', label: '🔍 分析', upd: () => updateStats() },
+                { id: 'compareTab',  label: '⚔️ 對比', upd: () => updateCompare() },
+            ];
+
+            let firstPage = true;
+            for (let ti = 0; ti < tabs.length; ti++) {
+                const tab = tabs[ti];
+                prog(`切換到 ${tab.label} 分頁...`, ti * 28 + 5);
+
+                // 啟用該分頁
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                const tabEl = document.getElementById(tab.id);
+                if (!tabEl) continue;
+                tabEl.classList.add('active');
+                tab.upd();
+
+                // 等待圖表渲染
+                await new Promise(r => setTimeout(r, 1400));
+                prog(`截圖 ${tab.label}...`, ti * 28 + 18);
+
+                // 暫時展開以捕捉完整高度
+                const savedStyle = { height: tabEl.style.height, overflow: tabEl.style.overflow, maxHeight: tabEl.style.maxHeight };
+                tabEl.style.cssText += ';height:auto!important;overflow:visible!important;max-height:none!important;';
+
+                const canvas = await html2canvas(tabEl, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#f8f9fa',
+                    scrollX: 0,
+                    scrollY: 0,
+                    width: tabEl.scrollWidth,
+                    height: tabEl.scrollHeight,
+                    windowWidth: tabEl.scrollWidth,
+                    windowHeight: tabEl.scrollHeight,
+                    logging: false,
+                    imageTimeout: 10000
+                });
+
+                // 還原樣式
+                tabEl.style.height    = savedStyle.height;
+                tabEl.style.overflow  = savedStyle.overflow;
+                tabEl.style.maxHeight = savedStyle.maxHeight;
+
+                prog(`${tab.label} 加入 PDF...`, (ti + 1) * 28);
+
+                // 計算分頁
+                const pxPerMm = canvas.width / pageW;
+                const imgHeightMm = canvas.height / pxPerMm;
+                const pagesNeeded = Math.ceil(imgHeightMm / pageH);
+                const slicePx = Math.ceil(canvas.height / pagesNeeded);
+
+                for (let s = 0; s < pagesNeeded; s++) {
+                    if (!firstPage) pdf.addPage();
+                    firstPage = false;
+
+                    const srcY    = s * slicePx;
+                    const srcH    = Math.min(slicePx, canvas.height - srcY);
+                    const sliceW  = canvas.width;
+                    const sliceC  = document.createElement('canvas');
+                    sliceC.width  = sliceW;
+                    sliceC.height = srcH;
+                    sliceC.getContext('2d').drawImage(canvas, 0, srcY, sliceW, srcH, 0, 0, sliceW, srcH);
+
+                    const sliceH_mm = srcH / pxPerMm;
+                    pdf.addImage(sliceC.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, sliceH_mm);
+                }
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            prog('儲存中...', 95);
+            await new Promise(r => setTimeout(r, 200));
+            const fname = `投手報告_${pitcher.name}_${new Date().toISOString().split('T')[0]}.pdf`;
+            pdf.save(fname);
+            prog('✅ 完成！', 100);
+            await new Promise(r => setTimeout(r, 600));
+
+        } catch (err) {
+            console.error('[截圖PDF]', err);
+            alert('PDF 產生失敗：' + err.message + '\n\n建議重新整理頁面後再試。');
+        } finally {
+            // 還原原本分頁
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(origTabId)?.classList.add('active');
+            overlay.remove();
         }
     }
 
