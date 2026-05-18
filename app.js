@@ -868,12 +868,15 @@
         // 管理員：顯示後台面板；買家：確保隱藏
         const adminPanel = document.getElementById('adminPanel');
         const createBtn = document.getElementById('createTeamBtn');
+        const injectWrap = document.getElementById('adminInjectWrap');
         if (currentTeamCode === 'ADMIN') {
             if (adminPanel) { adminPanel.style.display = 'block'; adminLoadTeams(); }
             if (createBtn) createBtn.style.display = 'block';
+            if (injectWrap) injectWrap.style.display = 'block';
         } else {
             if (adminPanel) adminPanel.style.display = 'none';
             if (createBtn) createBtn.style.display = 'none';
+            if (injectWrap) injectWrap.style.display = 'none';
         }
         loadTeamHeader(currentTeamCode);
         listenFirebase();
@@ -4562,6 +4565,17 @@
         btn.style.borderColor  = collapsed ? 'rgba(255,215,0,0.25)' : 'rgba(255,215,0,0.55)';
     }
     window.toggleAdminList = toggleAdminList;
+
+    // ── 新增賽事/投手區塊收合 ──
+    function toggleTeamManagement() {
+        const content = document.getElementById('teamMgmtContent');
+        const btn = document.getElementById('teamMgmtToggleBtn');
+        if (!content || !btn) return;
+        const isOpen = content.style.display !== 'none';
+        content.style.display = isOpen ? 'none' : 'block';
+        btn.textContent = isOpen ? '▼ 展開' : '▲ 收合';
+    }
+    window.toggleTeamManagement = toggleTeamManagement;
 
     // ── 管理後台：帳號列表 ──
     async function adminLoadTeams() {

@@ -307,48 +307,58 @@
                     <button id="adminListToggleBtn" onclick="toggleAdminList()" style="font-size:11px;padding:4px 10px;background:rgba(255,215,0,0.1);color:#ffd700;border:1px solid rgba(255,215,0,0.25);border-radius:4px;cursor:pointer;font-family:inherit;">▲ 收合</button>
                 </div>
             </div>
-            <!-- 可收合的帳號列表 -->
+            <!-- 可收合：帳號列表 + 功能按鈕 -->
             <div id="adminTeamListWrap">
                 <div id="adminTeamList" style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;margin-bottom:8px;"></div>
+                <button onclick="createTeam()" style="width:100%;padding:10px;background:rgba(220,0,0,0.25);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">➕ 建立新球隊帳號</button>
+                <button onclick="adminSetSiteConfig()" style="width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">🌐 修改登入頁名稱</button>
             </div>
-            <!-- 功能按鈕（常駐顯示） -->
-            <button onclick="createTeam()" style="width:100%;padding:10px;background:rgba(220,0,0,0.25);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">➕ 建立新球隊帳號</button>
-            <button onclick="adminSetSiteConfig()" style="width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">🌐 修改登入頁名稱</button>
-            <button onclick="adminInjectDemoData(event)" style="width:100%;margin-top:6px;padding:8px;background:rgba(100,220,180,0.12);color:#6ee7b7;border:1px solid rgba(100,220,180,0.3);border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">🎽 注入女子壘球示範資料</button>
         </div>
 
         <div class="team-management">
-            <div class="add-team-form">
-                <!-- 賽事 -->
-                <input type="text" id="newTeamGameName" placeholder="🏟️ 賽事名稱 (例：2026 世界盃)" autocomplete="off">
-                <!-- 日期 -->
-                <input type="date" id="newTeamDate" autocomplete="off">
-                <!-- 先攻 vs 後攻 -->
-                <input type="text" id="newTeamName" placeholder="先攻隊名" autocomplete="off">
-                <input type="text" id="newTeamOpponent" placeholder="後攻隊名" autocomplete="off" oninput="checkTaiwanFlag(this)">
-                <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.8);">
-                    <span id="twFlagHint" style="font-size:18px;display:none;">🇹🇼</span>
-                    <span id="twFlagText" style="display:none;">台灣國旗帶入</span>
-                </div>
-                <button onclick="addTeam()">➕ 新增球隊</button>
+            <!-- 收合標題列 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0 4px;">
+                <span style="font-size:12px;font-weight:900;color:rgba(255,255,255,0.75);letter-spacing:0.5px;">📋 新增賽事 / 投手</span>
+                <button onclick="toggleTeamManagement()" id="teamMgmtToggleBtn" style="font-size:11px;padding:3px 8px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:4px;cursor:pointer;font-family:inherit;">▼ 展開</button>
             </div>
-            <button class="add-pitcher-btn" onclick="showAddPitcherModal()" ontouchend="event.preventDefault();showAddPitcherModal()">⚡ 新增投手對戰組合</button>
-            <button class="add-pitcher-btn secondary" onclick="showSinglePitcherModal()" ontouchend="event.preventDefault();showSinglePitcherModal()">➕ 新增單一投手</button>
+            <!-- 可收合內容 -->
+            <div id="teamMgmtContent" style="display:none;">
+                <!-- 注入女子壘球示範資料（管理員限定） -->
+                <div id="adminInjectWrap" style="display:none;">
+                    <button onclick="adminInjectDemoData(event)" style="width:100%;margin-bottom:6px;padding:8px;background:rgba(100,220,180,0.12);color:#6ee7b7;border:1px solid rgba(100,220,180,0.3);border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">🎽 注入女子壘球示範資料</button>
+                </div>
+                <div class="add-team-form">
+                    <!-- 賽事 -->
+                    <input type="text" id="newTeamGameName" placeholder="🏟️ 賽事名稱 (例：2026 世界盃)" autocomplete="off">
+                    <!-- 日期 -->
+                    <input type="date" id="newTeamDate" autocomplete="off">
+                    <!-- 先攻 vs 後攻 -->
+                    <input type="text" id="newTeamName" placeholder="先攻隊名" autocomplete="off">
+                    <input type="text" id="newTeamOpponent" placeholder="後攻隊名" autocomplete="off" oninput="checkTaiwanFlag(this)">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.8);">
+                        <span id="twFlagHint" style="font-size:18px;display:none;">🇹🇼</span>
+                        <span id="twFlagText" style="display:none;">台灣國旗帶入</span>
+                    </div>
+                    <button onclick="addTeam()">➕ 新增球隊</button>
+                </div>
+                <button class="add-pitcher-btn" onclick="showAddPitcherModal()" ontouchend="event.preventDefault();showAddPitcherModal()">⚡ 新增投手對戰組合</button>
+                <button class="add-pitcher-btn secondary" onclick="showSinglePitcherModal()" ontouchend="event.preventDefault();showSinglePitcherModal()">➕ 新增單一投手</button>
+            </div>
         </div>
         <div class="team-list" id="teamList"></div>
         <!-- 情蒐員底部（快速備份還原） -->
         <div class="sidebar-quick-save" id="scoutBottomBar">
-            <!-- 開發者選項（可折疊） -->
+            <!-- 帳戶與備份（可折疊） -->
             <div id="devOptionsWrapper">
                 <button onclick="toggleDevOptions()" id="devOptionsToggle" style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;margin-bottom:4px;">
-                    <span>🛠️ 開發者選項</span>
+                    <span>💾 帳戶與備份</span>
                     <span id="devOptionsArrow" style="font-size:10px;transition:transform 0.2s;display:inline-block;">▶</span>
                 </button>
                 <div id="devOptionsPanel" style="display:none;padding:4px 0 2px;">
-                    <button onclick="pullFromFirebase()" style="background:rgba(100,255,180,0.2);color:#6ee7b7;border:1px solid rgba(100,255,180,0.4);">⬇️ 從雲端下載</button>
-                    <button onclick="forceSyncToFirebase()" style="background:rgba(0,180,255,0.3);color:#7dd3fc;border:1px solid rgba(0,180,255,0.4);">☁️ 上傳至雲端</button>
-                    <button onclick="backupData()" style="background:var(--ct-green);color:white;">📦 備份數據</button>
-                    <button onclick="document.getElementById('restoreFile').click()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,215,0,0.4);">📂 還原數據</button>
+                    <button onclick="pullFromFirebase()" style="background:rgba(100,255,180,0.2);color:#6ee7b7;border:1px solid rgba(100,255,180,0.4);">⬇️ 雲端下載</button>
+                    <button onclick="forceSyncToFirebase()" style="background:rgba(0,180,255,0.3);color:#7dd3fc;border:1px solid rgba(0,180,255,0.4);">☁️ 雲端備份</button>
+                    <button onclick="backupData()" style="background:var(--ct-green);color:white;">📦 備份資料</button>
+                    <button onclick="document.getElementById('restoreFile').click()" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,215,0,0.4);">📂 還原資料</button>
                     <button onclick="changePassword()" style="background:rgba(255,165,0,0.2);color:#ffd700;border:1px solid rgba(255,165,0,0.4);">🔑 修改密碼</button>
                     <button onclick="createTeam()" id="createTeamBtn" style="background:rgba(220,0,0,0.3);color:#fca5a5;border:1px solid rgba(220,0,0,0.4);display:none;">➕ 建立球隊</button>
                 </div>
@@ -360,7 +370,7 @@
                 <button onclick="logout()" class="bottom-action-btn" style="background:rgba(220,0,0,0.6);color:white;border:1px solid rgba(220,0,0,0.5);">🚪 登出</button>
             </div>
             <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(event)">
-            <div class="ls-warning" id="lsWarning">⚠️ 儲存空間受限，請定期備份數據</div>
+            <div class="ls-warning" id="lsWarning">⚠️ 儲存空間受限，請定期備份資料</div>
         </div>
         <!-- 觀看者底部（重新整理 + 登出） -->
         <div class="sidebar-quick-save" id="viewerBottomBar" style="display:none;">
