@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v69';
+﻿    const APP_VERSION = 'v70';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -3459,6 +3459,29 @@
                 }
             }
         });
+
+        // ---- 備註：常用球種 + 配球模式 ----
+        const notesDiv = document.getElementById('pitchTypeNotes');
+        if (notesDiv) {
+            // 常用球種 top3
+            const topTypes = typeStats.slice(0, 3).map(s =>
+                `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${PITCH_COLORS[s.type]||'#999'};margin-right:3px;vertical-align:middle;"></span><b>${s.type}</b> ${s.pct}%`
+            ).join('　');
+            // 配球模式 top3
+            const seqMap = {};
+            for (let i = 1; i < pitches.length; i++) {
+                const k = `${pitches[i-1].type}→${pitches[i].type}`;
+                seqMap[k] = (seqMap[k] || 0) + 1;
+            }
+            const topSeqs = Object.entries(seqMap).sort((a,b)=>b[1]-a[1]).slice(0,3)
+                .map(([seq,cnt]) => `<span style="color:#374151;">${seq} <b style="color:var(--ct-red);">${cnt}次</b></span>`)
+                .join('<br>');
+            notesDiv.innerHTML =
+                `<div style="font-weight:700;color:#374151;margin-bottom:3px;font-size:11px;">📊 常用球種</div>` +
+                `<div style="margin-bottom:6px;">${topTypes}</div>` +
+                `<div style="font-weight:700;color:#374151;margin-bottom:3px;font-size:11px;">🔗 配球模式</div>` +
+                `<div>${topSeqs || '<span style="color:#9ca3af;">尚無資料</span>'}</div>`;
+        }
     }
 
     function updateOutcomeStats(pitches) {
