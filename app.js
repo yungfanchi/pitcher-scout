@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v58';
+﻿    const APP_VERSION = 'v59';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2900,14 +2900,14 @@
                 <span style="font-weight:700;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:18px;min-width:54px;">${type}</span>
                 <span style="font-size:15px;color:#374151;font-weight:600;">${cnt}球</span>
                 <span style="font-size:15px;font-weight:700;color:var(--ct-blue-dark);">${pct}%</span>
-                <span style="font-size:15px;font-weight:700;color:#b45309;margin-left:auto;">好球率 ${strikeRate}%</span>
+                <span style="font-size:15px;font-weight:700;color:#b45309;">好球率 ${strikeRate}%</span>
             </div>`;
         }).join('');
-        insight.innerHTML = `<div style="background:#f0f9ff;border:2px solid var(--ct-blue);border-radius:10px;padding:16px;">
-            <strong style="color:var(--ct-blue-dark);display:block;font-size:16px;margin-bottom:12px;">⚾ 各球種投球傾向</strong>
-            <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
-                <div style="flex:1;min-width:200px;">${typeRows}</div>
-                <div style="flex:0 0 38%;max-width:300px;min-width:180px;position:relative;aspect-ratio:1;"><canvas id="tendencyTypeChart"></canvas></div>
+        insight.innerHTML = `<div style="background:#f0f9ff;border:2px solid var(--ct-blue);border-radius:10px;padding:12px;">
+            <strong style="color:var(--ct-blue-dark);display:block;font-size:16px;margin-bottom:8px;">⚾ 各球種投球傾向</strong>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+                <div style="flex:0 1 auto;min-width:0;">${typeRows}</div>
+                <div style="flex:0 0 38%;max-width:300px;min-width:200px;position:relative;aspect-ratio:1;"><canvas id="tendencyTypeChart"></canvas></div>
             </div>
         </div>`;
         const tendencyCanvas = document.getElementById('tendencyTypeChart');
