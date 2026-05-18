@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v64';
+﻿    const APP_VERSION = 'v65';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -4117,44 +4117,46 @@
             makePatterns(pitchesA, `A · ${nameA}`, 'var(--ct-gold)') +
             makePatterns(pitchesB, `B · ${nameB}`, '#888');
 
-        // ---- Effectiveness ----
+        // ---- Effectiveness：兩張左文字右圓形圖的卡片 ----
         const allPitchTypes = PITCH_ORDER.filter(t => pitchesA.some(p=>p.type===t) || pitchesB.some(p=>p.type===t));
-        // 效果對比：上方兩個圓形圖，下方比較表
-        const effChartsHTML = `<div style="display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:14px;">
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-                <div style="font-size:13px;font-weight:900;color:var(--ct-gold);">A · ${nameA}</div>
-                <div style="width:200px;height:200px;position:relative;"><canvas id="compareEffectACanvas"></canvas></div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-                <div style="font-size:13px;font-weight:900;color:#888;">B · ${nameB}</div>
-                <div style="width:200px;height:200px;position:relative;"><canvas id="compareEffectBCanvas"></canvas></div>
-            </div>
-        </div>`;
-        let effHTML = effChartsHTML + `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead><tr style="background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;">
-                <th style="padding:8px;text-align:left;">球種</th>
-                <th style="padding:8px;text-align:center;color:var(--ct-gold);">${shortA} 好球率</th>
-                <th style="padding:8px;text-align:center;color:var(--ct-gold);">${shortA} 揮空率</th>
-                <th style="padding:8px;text-align:center;color:#ccc;">${shortB} 好球率</th>
-                <th style="padding:8px;text-align:center;color:#ccc;">${shortB} 揮空率</th>
-            </tr></thead><tbody>`;
-        allPitchTypes.forEach((type, i) => {
-            const tpA = pitchesA.filter(p=>p.type===type);
-            const tpB = pitchesB.filter(p=>p.type===type);
-            const srA = tpA.length ? ((tpA.filter(p=>p.result==='好球').length/tpA.length)*100).toFixed(1)+'%' : '—';
-            const swA = tpA.length ? ((tpA.filter(p=>p.swing).length/tpA.length)*100).toFixed(1)+'%' : '—';
-            const srB = tpB.length ? ((tpB.filter(p=>p.result==='好球').length/tpB.length)*100).toFixed(1)+'%' : '—';
-            const swB = tpB.length ? ((tpB.filter(p=>p.swing).length/tpB.length)*100).toFixed(1)+'%' : '—';
-            effHTML += `<tr style="background:${i%2===0?'#f9fafb':'white'};">
-                <td style="padding:8px 10px;font-weight:700;color:${PITCH_COLORS[type]||'var(--ct-blue-dark)'};">${type}</td>
-                <td style="padding:8px;text-align:center;">${srA}</td>
-                <td style="padding:8px;text-align:center;">${swA}</td>
-                <td style="padding:8px;text-align:center;">${srB}</td>
-                <td style="padding:8px;text-align:center;">${swB}</td>
-            </tr>`;
-        });
-        effHTML += '</tbody></table></div>';
-        document.getElementById('compareEffectiveness').innerHTML = effHTML || '<p style="color:#9ca3af;">尚無資料</p>';
+
+        const buildEffCard = (pitches, label, color, chartId, total) => {
+            if (!pitches.length) return `<div style="color:#9ca3af;font-size:13px;padding:12px;text-align:center;">${label}：尚無資料</div>`;
+            const itemCount = allPitchTypes.length;
+            const fs = itemCount <= 2 ? 17 : itemCount <= 3 ? 15 : 14;
+            const rows = allPitchTypes.map(type => {
+                const tp = pitches.filter(p=>p.type===type);
+                if (!tp.length) return `<div style="display:flex;align-items:center;gap:6px;padding:5px 2px;border-bottom:1px solid #f0f0f0;opacity:0.35;">
+                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:${fs}px;min-width:48px;">${type}</span>
+                    <span style="font-size:${fs-1}px;color:#9ca3af;">—</span>
+                </div>`;
+                const sr = ((tp.filter(p=>p.result==='好球').length/tp.length)*100).toFixed(1);
+                const sw = ((tp.filter(p=>p.swing).length/tp.length)*100).toFixed(1);
+                const cnt = tp.length;
+                const pct = ((cnt/total)*100).toFixed(1);
+                return `<div style="display:flex;align-items:center;gap:6px;padding:5px 2px;border-bottom:1px solid #f0f0f0;">
+                    <span style="width:9px;height:9px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};flex-shrink:0;display:inline-block;"></span>
+                    <span style="font-weight:700;color:${PITCH_COLORS[type]||'#999'};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:${fs}px;min-width:48px;">${type}</span>
+                    <span style="font-size:${fs-1}px;color:#374151;font-weight:600;">${cnt}球 <b style="color:var(--ct-red);">${pct}%</b></span>
+                    <span style="font-size:${fs-2}px;color:#6b7280;white-space:nowrap;">好球${sr}% 揮空${sw}%</span>
+                </div>`;
+            }).join('');
+            return `<div style="background:${color}10;border:2px solid ${color};border-radius:10px;padding:12px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;">
+                <div style="font-size:14px;font-weight:900;color:${color};margin-bottom:10px;text-align:center;">${label} <span style="font-size:11px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
+                <div style="flex:1;display:flex;gap:10px;align-items:center;justify-content:center;">
+                    <div style="flex:0 1 auto;min-width:0;">${rows}</div>
+                    <div style="flex:0 0 auto;width:200px;height:200px;position:relative;"><canvas id="${chartId}"></canvas></div>
+                </div>
+            </div>`;
+        };
+
+        document.getElementById('compareEffectiveness').innerHTML =
+            `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
+                ${buildEffCard(pitchesA, `A · ${nameA}`, 'var(--ct-gold)', 'compareEffectACanvas', totalA)}
+                ${buildEffCard(pitchesB, `B · ${nameB}`, '#888', 'compareEffectBCanvas', totalB)}
+            </div>` || '<p style="color:#9ca3af;">尚無資料</p>';
+
         // 繪製效果圓形圖
         const canvasEA = document.getElementById('compareEffectACanvas');
         const canvasEB = document.getElementById('compareEffectBCanvas');
