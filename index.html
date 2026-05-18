@@ -62,15 +62,15 @@
                 </div>
             </div>
             <!-- 記住登入資訊 -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
-                <label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;">
-                    <input type="checkbox" id="authRememberMe" style="width:16px;height:16px;accent-color:#dc0000;cursor:pointer;"
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:10px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.18);border-radius:8px;">
+                <label style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;">
+                    <input type="checkbox" id="authRememberMe" style="width:20px;height:20px;accent-color:#dc0000;cursor:pointer;flex-shrink:0;"
                         onchange="onRememberMeChange()">
-                    <span style="font-size:12px;color:rgba(255,255,255,0.65);font-weight:700;">記住登入資訊</span>
+                    <span style="font-size:14px;color:rgba(255,255,255,0.92);font-weight:700;">記住登入資訊</span>
                 </label>
-                <button type="button" id="authForgetBtn" onclick="forgetSavedLogin()" style="display:none;background:none;border:none;color:rgba(255,255,255,0.35);font-size:11px;cursor:pointer;font-family:inherit;padding:2px 6px;text-decoration:underline;" title="清除已儲存的登入資訊">清除</button>
+                <button type="button" id="authForgetBtn" onclick="forgetSavedLogin()" style="display:none;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 10px;border-radius:5px;" title="清除已儲存的登入資訊">清除</button>
             </div>
-            <div id="authRememberNote" style="display:none;font-size:10px;color:rgba(255,165,0,0.7);margin-top:4px;padding:4px 6px;background:rgba(255,165,0,0.08);border-radius:4px;">
+            <div id="authRememberNote" style="display:none;font-size:11px;color:rgba(255,165,0,0.9);margin-top:6px;padding:6px 10px;background:rgba(255,165,0,0.12);border:1px solid rgba(255,165,0,0.3);border-radius:6px;">
                 ⚠️ 請勿在公共設備上勾選此項
             </div>
             <div id="authError" style="min-height:18px;font-size:12px;color:#fca5a5;margin-top:8px;text-align:center;font-weight:700;"></div>
@@ -105,10 +105,13 @@
                     onkeydown="if(event.key==='Enter')doAdminLogin()">
             </div>
             <div id="adminLoginError" style="min-height:18px;font-size:12px;color:#fca5a5;margin-top:10px;text-align:center;font-weight:700;"></div>
-            <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-top:10px;">
-                <input type="checkbox" id="adminRememberCode" style="width:16px;height:16px;accent-color:#dc2626;cursor:pointer;">
-                <span style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:700;">記住管理員代碼（僅代碼，不儲存密碼）</span>
-            </label>
+            <div style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(220,38,38,0.3);border-radius:8px;">
+                <label style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;">
+                    <input type="checkbox" id="adminRememberCode" style="width:20px;height:20px;accent-color:#dc2626;cursor:pointer;flex-shrink:0;" onchange="onAdminRememberChange()">
+                    <span style="font-size:14px;color:rgba(255,255,255,0.92);font-weight:700;">記住登入資訊</span>
+                </label>
+                <div id="adminRememberNote" style="display:none;font-size:11px;color:rgba(255,165,0,0.9);margin-top:6px;padding:5px 8px;background:rgba(255,165,0,0.1);border:1px solid rgba(255,165,0,0.3);border-radius:5px;">⚠️ 請勿在公共設備上勾選此項</div>
+            </div>
             <div style="display:flex;gap:8px;margin-top:12px;">
                 <button onclick="closeAdminLogin()" style="flex:1;padding:12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
                 <button onclick="doAdminLogin()" ontouchend="event.preventDefault();doAdminLogin()" style="flex:2;padding:12px;background:linear-gradient(135deg,#7f1d1d,#dc2626);color:white;border:none;border-radius:8px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;">進入管理後台 →</button>
@@ -871,22 +874,22 @@
                 </div>
             </div>
 
-            <!-- 球種與配球模式：文字列表（左）/ 圓餅圖（右） -->
+            <!-- 球種與配球模式：文字列表（左）/ 圓餅圖（右，上下堆疊） -->
             <div class="container">
                 <h2>🎲 常用球種與配球模式</h2>
                 <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;">
                     <!-- 左：文字列表 -->
-                    <div class="pattern-analysis" id="patternAnalysis" style="flex:1 1 38%;min-width:200px;"></div>
-                    <!-- 右：兩圖並排（各自有足夠空間） -->
-                    <div style="flex:1 1 55%;min-width:280px;display:flex;gap:12px;flex-wrap:wrap;">
-                        <div style="flex:1 1 45%;min-width:200px;display:flex;flex-direction:column;">
-                            <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:4px;text-align:center;">⚾ 球種比例</div>
+                    <div class="pattern-analysis" id="patternAnalysis" style="flex:1 1 36%;min-width:200px;"></div>
+                    <!-- 右：兩圖上下堆疊 -->
+                    <div style="flex:0 1 44%;min-width:220px;display:flex;flex-direction:column;gap:16px;">
+                        <div style="display:flex;flex-direction:column;">
+                            <div style="font-size:13px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:6px;text-align:center;">⚾ 球種比例</div>
                             <div style="position:relative;aspect-ratio:1;width:100%;">
                                 <canvas id="pitchTypePieChart"></canvas>
                             </div>
                         </div>
-                        <div style="flex:1 1 45%;min-width:200px;display:flex;flex-direction:column;">
-                            <div style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:4px;text-align:center;">🔗 配球模式</div>
+                        <div style="display:flex;flex-direction:column;">
+                            <div style="font-size:13px;font-weight:700;color:var(--ct-blue-dark);margin-bottom:6px;text-align:center;">🔗 配球模式</div>
                             <div style="position:relative;aspect-ratio:1;width:100%;">
                                 <canvas id="patternPieChart"></canvas>
                             </div>
