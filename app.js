@@ -3133,75 +3133,114 @@
     function updatePitchEffectiveness(pitches) {
         const div = document.getElementById('pitchEffectiveness');
         div.innerHTML = '';
-        if (pitches.length===0) { div.innerHTML='<p style="color:#9ca3af;text-align:center;padding:16px;">尚無資料</p>'; return; }
-        const allTypes = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
-        const usedTypes = allTypes.filter(t => pitches.some(p=>p.type===t));
+
+        // 清除舊圖
+        if (pitchTypeChartInstance) { pitchTypeChartInstance.destroy(); pitchTypeChartInstance = null; }
+
+        if (pitches.length === 0) {
+            div.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:16px;">尚無資料</p>';
+            return;
+        }
+
+        const usedTypes = PITCH_ORDER.filter(t => pitches.some(p => p.type === t));
         const totalOuts  = computeTotalOuts(pitches);
-        const ipDisplay  = formatIP(totalOuts);   // e.g. "6", "6.1", "6.2"
+        const ipDisplay  = formatIP(totalOuts);
         const earnedRuns = pitches.reduce((sum, p) => {
             const outs = p.outcomes && p.outcomes.length ? p.outcomes : (p.outcome ? [p.outcome] : []);
             if (!outs.length) return sum;
             const bases = p.basesSnapshot || [false, false, false];
             return sum + applyBaseRunning(bases, outs).runsScored;
         }, 0);
-        const totalWalks = pitches.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='保送')).length;
-        const totalHits  = pitches.filter(p=>(p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'))).length;
-        // ERA = (自責分 × 局數制) / (總出局數 / 3) = 自責分 × 局數制 × 3 / 總出局數
+        const totalWalks = pitches.filter(p => (p.outcomes||[p.outcome]).some(o => o === '保送')).length;
+        const totalHits  = pitches.filter(p => (p.outcomes||[p.outcome]).some(o => o && (o.includes('安打') || o === '全壘打'))).length;
+
         let eraTotal, whipTotal;
         if (totalOuts === 0 && earnedRuns === 0) {
-            eraTotal  = '0.00';
-            whipTotal = '0.00';
-        } else if (totalOuts === 0 && earnedRuns > 0) {
-            eraTotal  = '-.--';  // 無出局數但已失分（數學無限大）
-            whipTotal = '-.--';
+            eraTotal = '0.00'; whipTotal = '0.00';
+        } else if (totalOuts === 0) {
+            eraTotal = '-.--'; whipTotal = '-.--';
         } else {
             eraTotal  = ((earnedRuns * GAME_INNING_STANDARD * 3) / totalOuts).toFixed(2);
             whipTotal = (((totalHits + totalWalks) * 3) / totalOuts).toFixed(2);
         }
-        usedTypes.forEach(type => {
-            const tp = pitches.filter(p=>p.type===type);
-            const total=tp.length;
-            const strikes=tp.filter(p=>p.result==='好球').length;
-            const balls=tp.filter(p=>p.result==='壞球').length;
-            const swings=tp.filter(p=>p.swing||p.result==='揮空').length;
-            const wilds=tp.filter(p=>p.wild).length;
-            const hits=tp.filter(p=>(p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'))).length;
-            const ks=tp.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='三振'||o==='不死三振')).length;
-            const walks=tp.filter(p=>(p.outcomes||[p.outcome]).some(o=>o==='保送')).length;
-            const atBats=tp.filter(p=>(p.outcomes||[p.outcome]).some(o=>o&&(o.includes('安打')||o==='全壘打'||o.includes('出局')||o==='三振'))).length;
-            const strikeRate=((strikes/total)*100).toFixed(1);
-            const ballRate=((balls/total)*100).toFixed(1);
-            const swingRate=((swings/total)*100).toFixed(1);
-            const wildRate=((wilds/total)*100).toFixed(1);
-            const kRate=atBats>0?((ks/atBats)*100).toFixed(1):'0.0';
-            const hitRate=atBats>0?(hits/atBats).toFixed(3):'.000';
-            const speeds=tp.filter(p=>p.speed).map(p=>p.speed);
-            const avgSpeed=speeds.length>0?(speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(1):'N/A';
-            const ballAlert=parseFloat(ballRate)>=35;
-            const wildAlert=parseFloat(wildRate)>=5;
-            const card=document.createElement('div');
-            card.className='pitch-effect-card';
-            card.innerHTML=`
-                <div class="pitch-effect-header">
-                    <div class="pitch-effect-name">${type}</div>
-                    <div class="pitch-effect-count">共 ${total} 球 · 平均 ${avgSpeed}</div>
-                </div>
-                <div class="pitch-effect-grid">
-                    <div class="pitch-effect-stat"><div class="pitch-effect-stat-label">好球率</div><div class="pitch-effect-stat-value" style="color:#b45309;">${strikeRate}%</div></div>
-                    <div class="pitch-effect-stat" style="border-left-color:${ballAlert?'#dc2626':'#10b981'};"><div class="pitch-effect-stat-label">壞球率</div><div class="pitch-effect-stat-value" style="color:${ballAlert?'#dc2626':'#065f46'};">${ballRate}%${ballAlert?' ⚠':''}</div></div>
-                    <div class="pitch-effect-stat"><div class="pitch-effect-stat-label">揮空率</div><div class="pitch-effect-stat-value">${swingRate}%</div></div>
-                    <div class="pitch-effect-stat" style="border-left-color:${wildAlert?'#dc2626':'#f97316'};"><div class="pitch-effect-stat-label">暴投率</div><div class="pitch-effect-stat-value" style="color:${wildAlert?'#dc2626':'#c2410c'};">${wildRate}%${wildAlert?' ⚠':''}</div></div>
-                    <div class="pitch-effect-stat"><div class="pitch-effect-stat-label">三振率</div><div class="pitch-effect-stat-value">${kRate}%</div></div>
-                    <div class="pitch-effect-stat"><div class="pitch-effect-stat-label">被打擊率</div><div class="pitch-effect-stat-value">${hitRate}</div></div>
-                </div>`;
-            div.appendChild(card);
-        });
-        // Summary
-        const sumCard=document.createElement('div');
-        sumCard.className='pitch-effect-card';
-        sumCard.style.borderLeftColor='var(--ct-red)';
-        sumCard.innerHTML=`<div class="pitch-effect-header"><div class="pitch-effect-name">全體</div><div class="pitch-effect-count">總投球 ${pitches.length} 球 · IP ${ipDisplay} · ${totalOuts} 個出局數</div></div><div class="pitch-effect-grid"><div class="pitch-effect-stat"><div class="pitch-effect-stat-label">ERA</div><div class="pitch-effect-stat-value" style="color:var(--ct-red);">${eraTotal}</div></div><div class="pitch-effect-stat"><div class="pitch-effect-stat-label">WHIP</div><div class="pitch-effect-stat-value" style="color:var(--ct-red);">${whipTotal}</div></div></div>`;
-        div.appendChild(sumCard);
+
+        // 計算各球種統計，並依球數排序（大 → 小）以對應藍色深淺
+        const typeStats = usedTypes.map(type => {
+            const tp = pitches.filter(p => p.type === type);
+            const total = tp.length;
+            const strikes = tp.filter(p => p.result === '好球').length;
+            const balls   = tp.filter(p => p.result === '壞球').length;
+            const swings  = tp.filter(p => p.swing || p.result === '揮空').length;
+            const wilds   = tp.filter(p => p.wild).length;
+            const hits    = tp.filter(p => (p.outcomes||[p.outcome]).some(o => o && (o.includes('安打') || o === '全壘打'))).length;
+            const ks      = tp.filter(p => (p.outcomes||[p.outcome]).some(o => o === '三振' || o === '不死三振')).length;
+            const atBats  = tp.filter(p => (p.outcomes||[p.outcome]).some(o => o && (o.includes('安打') || o === '全壘打' || o.includes('出局') || o === '三振'))).length;
+            const speeds  = tp.filter(p => p.speed).map(p => p.speed);
+            const avgSpeed = speeds.length > 0 ? (speeds.reduce((a,b) => a+b, 0) / speeds.length).toFixed(1) : '--';
+            const maxSpeed = speeds.length > 0 ? Math.max(...speeds) : '--';
+            const pct = ((total / pitches.length) * 100).toFixed(1);
+            return {
+                type, total, pct,
+                strikeRate: ((strikes / total) * 100).toFixed(1),
+                ballRate:   ((balls   / total) * 100).toFixed(1),
+                swingRate:  ((swings  / total) * 100).toFixed(1),
+                kRate:  atBats > 0 ? ((ks / atBats) * 100).toFixed(1) : '0.0',
+                hitRate: atBats > 0 ? (hits / atBats).toFixed(3) : '.000',
+                avgSpeed, maxSpeed,
+                ballAlert: ((balls / total) * 100) >= 35,
+                wildAlert: ((wilds / total) * 100) >= 5,
+            };
+        }).sort((a, b) => b.total - a.total);
+
+        // 指派藍色漸層（最大佔比球種 → 深丈青）
+        const chartColors = typeStats.map((_, i) => DASHBOARD_BLUES[Math.min(i, DASHBOARD_BLUES.length - 1)]);
+        const colorMap = {};
+        typeStats.forEach((s, i) => { colorMap[s.type] = chartColors[i]; });
+
+        // ---- 建立表格 ----
+        const rows = typeStats.map(s => {
+            const ballFlag = s.ballAlert ? ' <span style="color:#dc2626;font-size:10px;">⚠</span>' : '';
+            const wildFlagVal = s.wildAlert ? `<span style="color:#dc2626;">${s.swingRate}%</span>` : `${s.swingRate}%`;
+            const colorDot = `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${colorMap[s.type]};margin-right:5px;vertical-align:middle;"></span>`;
+            return `<tr>
+                <td>${colorDot}${s.type}</td>
+                <td>${s.total}</td>
+                <td style="font-weight:700;color:${colorMap[s.type]};">${s.pct}%</td>
+                <td style="color:#b45309;">${s.strikeRate}%</td>
+                <td style="color:${s.ballAlert ? '#dc2626' : '#065f46'};">${s.ballRate}%${ballFlag}</td>
+                <td>${wildFlagVal}</td>
+                <td>${s.avgSpeed}</td>
+                <td style="font-weight:700;">${s.maxSpeed}</td>
+                <td>${s.kRate}%</td>
+                <td style="font-weight:700;">${s.hitRate}</td>
+            </tr>`;
+        }).join('');
+
+        div.innerHTML = `
+            <table class="pitch-detail-table">
+                <thead><tr>
+                    <th>球種</th><th>球數</th><th>佔比</th>
+                    <th>好球率</th><th>壞球率</th><th>揮空率</th>
+                    <th>均速</th><th>最高速</th><th>三振率</th><th>被打率</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div class="pitch-detail-summary">
+                <span class="sum-title">⚾ 整場合計 · ${pitches.length} 球 · IP ${ipDisplay}</span>
+                <div class="sum-item"><div class="sum-label">ERA</div><div class="sum-val" style="color:var(--ct-red);">${eraTotal}</div></div>
+                <div class="sum-item"><div class="sum-label">WHIP</div><div class="sum-val" style="color:var(--ct-red);">${whipTotal}</div></div>
+            </div>`;
+
+        // ---- 建立甜甜圈圖 ----
+        const canvas = document.getElementById('pitchTypeChart');
+        if (!canvas) return;
+        pitchTypeChartInstance = _makeDoughnut(
+            canvas,
+            typeStats.map(s => s.type),
+            typeStats.map(s => s.total),
+            chartColors,
+            pitches.length
+        );
     }
 
     function updateOutcomeStats(pitches) {
@@ -3401,6 +3440,10 @@
     let statsTypePieInstance = null;
     let patternPieInstance = null;
     let lineChartInstance = null;
+    let pitchTypeChartInstance = null;
+
+    // 球種儀表板藍色漸層（最大佔比 → 深丈青，其餘依序變淺）
+    const DASHBOARD_BLUES = ['#003d79','#0051a5','#1565c0','#1976d2','#2196f3','#42a5f5','#90caf9'];
 
     // 共用甜甜圈圖建立函式：外置標籤 + 引導線 + 中間總球數
     function _makeDoughnut(canvas, types, counts, colors, total) {

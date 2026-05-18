@@ -446,6 +446,30 @@
         .pitch-effect-stat-label { font-size:10px; color:#6b7280; margin-bottom:3px; }
         .pitch-effect-stat-value { font-size:16px; font-weight:700; color:var(--ct-blue-dark); }
 
+        /* ===== 球種效果分析儀表板 ===== */
+        .analysis-dashboard-container { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
+        .pitch-type-table-wrap { flex:1 1 58%; min-width:0; overflow-x:auto; }
+        .chart-box { flex:0 1 36%; min-width:200px; position:relative; }
+        .chart-box canvas { width:100% !important; }
+        .pitch-detail-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .pitch-detail-table thead tr { background:var(--ct-blue-dark); }
+        .pitch-detail-table th { color:#fff; padding:8px 5px; text-align:center; font-weight:700; font-size:11px; white-space:nowrap; border:1px solid rgba(255,255,255,0.15); }
+        .pitch-detail-table th:first-child { text-align:left; padding-left:10px; }
+        .pitch-detail-table td { padding:7px 5px; text-align:center; border-bottom:1px solid #e5e7eb; font-size:12px; }
+        .pitch-detail-table td:first-child { text-align:left; padding-left:10px; font-weight:700; font-size:13px; }
+        .pitch-detail-table tbody tr:hover td { background:#eef3ff; }
+        .pitch-detail-table tbody tr:last-child td { border-bottom:none; }
+        .pitch-detail-summary { margin-top:12px; background:linear-gradient(135deg,#f0f5ff,#e8f0fe); border:2px solid var(--ct-blue-dark); border-radius:8px; padding:10px 14px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+        .pitch-detail-summary .sum-item { text-align:center; }
+        .pitch-detail-summary .sum-label { font-size:10px; color:#6b7280; margin-bottom:2px; }
+        .pitch-detail-summary .sum-val { font-size:20px; font-weight:900; color:var(--ct-blue-dark); font-family:'Oswald','Noto Sans TC',sans-serif; }
+        .pitch-detail-summary .sum-title { font-size:13px; font-weight:700; color:var(--ct-blue-dark); margin-right:auto; }
+        .chart-box-title { font-size:12px; font-weight:700; color:var(--ct-blue-dark); text-align:center; margin-bottom:6px; }
+        @media (max-width:600px) {
+            .pitch-type-table-wrap { flex:1 1 100%; }
+            .chart-box { flex:1 1 100%; max-width:280px; margin:0 auto; }
+        }
+
         /* ===== TABS ===== */
         .tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
         .tab-btn { padding:10px 20px; border:2px solid var(--ct-blue); background:white; cursor:pointer; border-radius:8px 8px 0 0; font-weight:700; color:var(--ct-blue-dark); transition:all 0.2s; -webkit-user-select:none; user-select:none; font-size:15px; }
