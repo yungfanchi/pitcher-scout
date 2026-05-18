@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v50';
+﻿    const APP_VERSION = 'v51';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -3234,14 +3234,13 @@
         const colorMap = {};
         typeStats.forEach(s => { colorMap[s.type] = PITCH_COLORS[s.type] || '#999'; });
 
-        // ---- 建立表格 ----
+        // ---- 建立表格（9欄，移除球數欄，table-layout:fixed 防重疊）----
         const rows = typeStats.map(s => {
             const ballFlag = s.ballAlert ? ' <span style="color:#dc2626;font-size:10px;">⚠</span>' : '';
             const wildFlagVal = s.wildAlert ? `<span style="color:#dc2626;">${s.swingRate}%</span>` : `${s.swingRate}%`;
-            const colorDot = `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${colorMap[s.type]};margin-right:5px;vertical-align:middle;"></span>`;
+            const colorDot = `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${colorMap[s.type]};margin-right:4px;vertical-align:middle;flex-shrink:0;"></span>`;
             return `<tr>
-                <td>${colorDot}${s.type}</td>
-                <td>${s.total}</td>
+                <td><span style="display:flex;align-items:center;">${colorDot}${s.type}(${s.total})</span></td>
                 <td style="font-weight:700;color:${colorMap[s.type]};">${s.pct}%</td>
                 <td style="color:#b45309;">${s.strikeRate}%</td>
                 <td style="color:${s.ballAlert ? '#dc2626' : '#065f46'};">${s.ballRate}%${ballFlag}</td>
@@ -3255,10 +3254,17 @@
 
         div.innerHTML = `
             <table class="pitch-detail-table">
+                <colgroup>
+                    <col class="col-type"><col class="col-pct"><col class="col-str">
+                    <col class="col-ball"><col class="col-swing">
+                    <col class="col-avg"><col class="col-max">
+                    <col class="col-k"><col class="col-ba">
+                </colgroup>
                 <thead><tr>
-                    <th>球種</th><th>球數</th><th>佔比</th>
-                    <th>好球率</th><th>壞球率</th><th>揮空率</th>
-                    <th>均速</th><th>最高速</th><th>三振率</th><th>被打率</th>
+                    <th>球種</th><th>佔比</th><th>好球率</th>
+                    <th>壞球率</th><th>揮空率</th>
+                    <th>均速</th><th>最高速</th>
+                    <th>三振率</th><th>被打率</th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
             </table>
@@ -3268,16 +3274,62 @@
                 <div class="sum-item"><div class="sum-label">WHIP</div><div class="sum-val" style="color:var(--ct-red);">${whipTotal}</div></div>
             </div>`;
 
-        // ---- 建立甜甜圈圖 ----
+        // ---- 建立甜甜圈圖（legend-bottom，無外部指引線）----
         const canvas = document.getElementById('pitchTypeChart');
         if (!canvas) return;
-        pitchTypeChartInstance = _makeDoughnut(
-            canvas,
-            typeStats.map(s => s.type),
-            typeStats.map(s => s.total),
-            chartColors,
-            pitches.length
-        );
+        if (pitchTypeChartInstance) { pitchTypeChartInstance.destroy(); pitchTypeChartInstance = null; }
+        const centerPlugin = {
+            id: 'pitchTypeCenter',
+            afterDraw(chart) {
+                const { ctx, chartArea: { left, right, top, bottom } } = chart;
+                const cx = (left + right) / 2, cy = (top + bottom) / 2;
+                ctx.save();
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.font = "bold 22px 'Oswald','Noto Sans TC',sans-serif";
+                ctx.fillStyle = '#003d79';
+                ctx.fillText(pitches.length, cx, cy - 10);
+                ctx.font = "11px 'Noto Sans TC',sans-serif";
+                ctx.fillStyle = '#9ca3af';
+                ctx.fillText('總球數', cx, cy + 10);
+                ctx.restore();
+            }
+        };
+        pitchTypeChartInstance = new Chart(canvas, {
+            type: 'doughnut',
+            plugins: [centerPlugin],
+            data: {
+                labels: typeStats.map(s => s.type),
+                datasets: [{ data: typeStats.map(s => s.total), backgroundColor: chartColors, borderWidth: 2, borderColor: '#fff' }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '52%',
+                layout: { padding: 4 },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 11, weight: '700' },
+                            padding: 8,
+                            usePointStyle: true,
+                            pointStyleWidth: 10,
+                            color: '#374151',
+                            generateLabels: chart => chart.data.labels.map((label, i) => ({
+                                text: `${label} ${((chart.data.datasets[0].data[i]/pitches.length)*100).toFixed(1)}%`,
+                                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                                strokeStyle: chart.data.datasets[0].backgroundColor[i],
+                                pointStyle: 'circle',
+                                index: i
+                            }))
+                        }
+                    },
+                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed/pitches.length)*100).toFixed(1)}%)` } },
+                    datalabels: { display: false }
+                }
+            }
+        });
     }
 
     function updateOutcomeStats(pitches) {

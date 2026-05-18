@@ -452,16 +452,25 @@
         .heatmap-rank-count { font-size:22px; font-weight:900; color:var(--ct-red); font-family:'Oswald','Noto Sans TC',sans-serif; }
 
         /* ===== 球種效果分析儀表板 ===== */
-        .analysis-dashboard-container { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
-        .pitch-type-table-wrap { flex:1 1 58%; min-width:0; overflow-x:auto; }
-        .chart-box { flex:0 1 36%; min-width:200px; position:relative; }
+        .analysis-dashboard-container { display:flex; gap:16px; align-items:stretch; justify-content:space-between; }
+        .pitch-type-table-wrap { flex:0 0 68%; min-width:0; overflow-x:hidden; }
+        .chart-box { flex:0 0 28%; min-width:160px; position:relative; display:flex; flex-direction:column; align-items:stretch; }
         .chart-box canvas { width:100% !important; }
-        .pitch-detail-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .pitch-detail-table { width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; }
+        .pitch-detail-table col.col-type  { width:20%; }
+        .pitch-detail-table col.col-pct   { width:10%; }
+        .pitch-detail-table col.col-str   { width:10%; }
+        .pitch-detail-table col.col-ball  { width:10%; }
+        .pitch-detail-table col.col-swing { width:10%; }
+        .pitch-detail-table col.col-avg   { width:10%; }
+        .pitch-detail-table col.col-max   { width:10%; }
+        .pitch-detail-table col.col-k     { width:10%; }
+        .pitch-detail-table col.col-ba    { width:10%; }
         .pitch-detail-table thead tr { background:var(--ct-blue-dark); }
-        .pitch-detail-table th { color:#fff; padding:8px 5px; text-align:center; font-weight:700; font-size:11px; white-space:nowrap; border:1px solid rgba(255,255,255,0.15); }
-        .pitch-detail-table th:first-child { text-align:left; padding-left:10px; }
-        .pitch-detail-table td { padding:7px 5px; text-align:center; border-bottom:1px solid #e5e7eb; font-size:12px; }
-        .pitch-detail-table td:first-child { text-align:left; padding-left:10px; font-weight:700; font-size:13px; }
+        .pitch-detail-table th { color:#fff; padding:7px 3px; text-align:center; font-weight:700; font-size:11px; white-space:nowrap; border:1px solid rgba(255,255,255,0.15); overflow:hidden; }
+        .pitch-detail-table th:first-child { text-align:left; padding-left:8px; }
+        .pitch-detail-table td { padding:7px 3px; text-align:center; border-bottom:1px solid #e5e7eb; font-size:12px; overflow:hidden; white-space:nowrap; }
+        .pitch-detail-table td:first-child { text-align:left; padding-left:8px; font-weight:700; font-size:12px; }
         .pitch-detail-table tbody tr:hover td { background:#eef3ff; }
         .pitch-detail-table tbody tr:last-child td { border-bottom:none; }
         .pitch-detail-summary { margin-top:12px; background:linear-gradient(135deg,#f0f5ff,#e8f0fe); border:2px solid var(--ct-blue-dark); border-radius:8px; padding:10px 14px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
@@ -471,6 +480,7 @@
         .pitch-detail-summary .sum-title { font-size:13px; font-weight:700; color:var(--ct-blue-dark); margin-right:auto; }
         .chart-box-title { font-size:12px; font-weight:700; color:var(--ct-blue-dark); text-align:center; margin-bottom:6px; }
         @media (max-width:600px) {
+            .analysis-dashboard-container { flex-wrap:wrap; }
             .pitch-type-table-wrap { flex:1 1 100%; }
             .chart-box { flex:1 1 100%; max-width:280px; margin:0 auto; }
         }
