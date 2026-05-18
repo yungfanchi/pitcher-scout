@@ -62,7 +62,7 @@
                 </div>
             </div>
             <!-- 記住登入資訊 -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:10px 12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.18);border-radius:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;">
                 <label style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;">
                     <input type="checkbox" id="authRememberMe" style="width:20px;height:20px;accent-color:#dc0000;cursor:pointer;flex-shrink:0;"
                         onchange="onRememberMeChange()">
@@ -105,12 +105,12 @@
                     onkeydown="if(event.key==='Enter')doAdminLogin()">
             </div>
             <div id="adminLoginError" style="min-height:18px;font-size:12px;color:#fca5a5;margin-top:10px;text-align:center;font-weight:700;"></div>
-            <div style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(220,38,38,0.3);border-radius:8px;">
-                <label style="display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;">
-                    <input type="checkbox" id="adminRememberCode" style="width:20px;height:20px;accent-color:#dc2626;cursor:pointer;flex-shrink:0;" onchange="onAdminRememberChange()">
-                    <span style="font-size:14px;color:rgba(255,255,255,0.92);font-weight:700;">記住登入資訊</span>
+            <div style="margin-top:12px;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                    <input type="checkbox" id="adminRememberCode" style="width:18px;height:18px;accent-color:#dc2626;cursor:pointer;flex-shrink:0;">
+                    <span style="font-size:13px;color:rgba(255,255,255,0.85);font-weight:700;">記住登入資訊</span>
                 </label>
-                <div id="adminRememberNote" style="display:none;font-size:11px;color:rgba(255,165,0,0.9);margin-top:6px;padding:5px 8px;background:rgba(255,165,0,0.1);border:1px solid rgba(255,165,0,0.3);border-radius:5px;">⚠️ 請勿在公共設備上勾選此項</div>
+                <div style="font-size:11px;color:rgba(255,165,0,0.75);margin-top:5px;padding-left:28px;">⚠️ 請勿在公共設備上勾選此項</div>
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;">
                 <button onclick="closeAdminLogin()" style="flex:1;padding:12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>

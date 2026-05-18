@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v51';
+﻿    const APP_VERSION = 'v52';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2982,7 +2982,7 @@
                 </div>`).join('');
             return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
                 <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${d.total}球）</span></div>
-                <div style="position:relative;aspect-ratio:1;width:100%;max-width:180px;margin:0 auto 10px;"><canvas id="${chartId}"></canvas></div>
+                <div style="position:relative;aspect-ratio:1;width:100%;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
                 <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
                     <span style="background:#fee2e2;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#dc2626;">內角 ${d.pct(d.inner)}%</span>
                     <span style="background:#dbeafe;border-radius:5px;padding:3px 7px;font-size:13px;font-weight:700;color:#2563eb;">外角 ${d.pct(d.outer)}%</span>
@@ -3005,7 +3005,7 @@
             const canvas = document.getElementById(canvasId);
             if (!canvas) return null;
             const types = d.typeBreakdown.map(t=>t.type);
-            return _makeDoughnut(canvas, types, d.typeBreakdown.map(t=>t.cnt),
+            return _makeCompactDoughnut(canvas, types, d.typeBreakdown.map(t=>t.cnt),
                 types.map(t => PITCH_COLORS[t]||'#999'), d.total);
         };
         innerOuterRHBChartInstance = makeChart(rhb, 'innerOuterRHBChart');
@@ -3041,7 +3041,7 @@
                     </div>`).join('');
                 return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
                     <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}打席）</span></div>
-                    <div style="position:relative;aspect-ratio:1;width:100%;max-width:180px;margin:0 auto 10px;"><canvas id="${chartId}"></canvas></div>
+                    <div style="position:relative;aspect-ratio:1;width:100%;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
                     <div style="border-top:1px solid ${color}30;padding-top:6px;">${rows}</div>
                 </div>`;
             }
@@ -3078,8 +3078,11 @@
             fps.forEach(p => { if(p.type) tc[p.type] = (tc[p.type]||0)+1; });
             const sorted = Object.entries(tc).sort((a,b)=>b[1]-a[1]);
             const types = sorted.map(e=>e[0]);
-            return _makeDoughnut(canvas, types, sorted.map(e=>e[1]),
-                types.map(t => PITCH_COLORS[t]||'#999'), fps.length);
+            // 全部首球用大圖（外標籤），RHB/LHB用緊湊圖
+            const isFull = canvasId === 'firstPitchAllChart';
+            return isFull
+                ? _makeDoughnut(canvas, types, sorted.map(e=>e[1]), types.map(t => PITCH_COLORS[t]||'#999'), fps.length)
+                : _makeCompactDoughnut(canvas, types, sorted.map(e=>e[1]), types.map(t => PITCH_COLORS[t]||'#999'), fps.length);
         };
         firstPitchAllChartInstance = makeChart(firstPitches, 'firstPitchAllChart');
         firstPitchRHBChartInstance = makeChart(rhb, 'firstPitchRHBChart');
@@ -3391,7 +3394,7 @@
             }).join('');
             return `<div style="background:${color}08;border:2px solid ${color};border-radius:8px;padding:12px;">
                 <div style="font-size:15px;font-weight:900;color:${color};margin-bottom:8px;">${label} <span style="font-size:12px;font-weight:400;color:#6b7280;">（${total}球）</span></div>
-                <div style="position:relative;aspect-ratio:1;width:100%;max-width:180px;margin:0 auto 10px;"><canvas id="${chartId}"></canvas></div>
+                <div style="position:relative;aspect-ratio:1;width:100%;margin:0 auto 4px;"><canvas id="${chartId}"></canvas></div>
                 <div style="border-top:1px solid ${color}30;padding-top:6px;">
                     <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:3px;">⚾ 球種</div>
                     ${typeRows}
@@ -3414,7 +3417,7 @@
             ps.forEach(p => { if(p.type) tc[p.type] = (tc[p.type]||0)+1; });
             const sorted = Object.entries(tc).sort((a,b)=>b[1]-a[1]);
             const types = sorted.map(e=>e[0]);
-            return _makeDoughnut(canvas, types, sorted.map(e=>e[1]),
+            return _makeCompactDoughnut(canvas, types, sorted.map(e=>e[1]),
                 types.map(t => PITCH_COLORS[t]||'#999'), ps.length);
         };
         twoStrikeRHBChartInstance = makeChart(rhb, 'twoStrikeRHBChart');
@@ -3549,6 +3552,53 @@
     let firstPitchLHBChartInstance = null;
     let twoStrikeRHBChartInstance = null;
     let twoStrikeLHBChartInstance = null;
+
+    // 緊湊型甜甜圈：legend-bottom，無外部標籤，用於 RHB/LHB 並排區塊
+    function _makeCompactDoughnut(canvas, types, counts, colors, total) {
+        const id = 'compactCenter_' + (canvas.id || Math.random().toString(36).slice(2));
+        const centerPlugin = {
+            id,
+            afterDraw(chart) {
+                const { ctx, chartArea: { left, right, top, bottom } } = chart;
+                const cx = (left + right) / 2, cy = (top + bottom) / 2;
+                ctx.save();
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.font = "bold 20px 'Oswald','Noto Sans TC',sans-serif";
+                ctx.fillStyle = '#003d79';
+                ctx.fillText(total, cx, cy - 9);
+                ctx.font = "9px 'Noto Sans TC',sans-serif";
+                ctx.fillStyle = '#9ca3af';
+                ctx.fillText('球', cx, cy + 9);
+                ctx.restore();
+            }
+        };
+        return new Chart(canvas, {
+            type: 'doughnut',
+            plugins: [centerPlugin],
+            data: { labels: types, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '52%',
+                layout: { padding: 4 },
+                plugins: {
+                    legend: {
+                        display: true, position: 'bottom',
+                        labels: {
+                            font: { size: 11, weight: '700' }, padding: 8,
+                            usePointStyle: true, pointStyleWidth: 10, color: '#374151',
+                            generateLabels: chart => chart.data.labels.map((label, i) => ({
+                                text: `${label} ${((chart.data.datasets[0].data[i] / total) * 100).toFixed(0)}%`,
+                                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                                strokeStyle: chart.data.datasets[0].backgroundColor[i],
+                                pointStyle: 'circle', index: i
+                            }))
+                        }
+                    },
+                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} 球 (${((ctx.parsed / total) * 100).toFixed(1)}%)` } },
+                    datalabels: { display: false }
+                }
+            }
+        });
+    }
 
     // 共用甜甜圈圖建立函式：外置標籤 + 引導線 + 中間總球數
     function _makeDoughnut(canvas, types, counts, colors, total) {
