@@ -1641,7 +1641,25 @@
     // index 0 unused; 1-9 = batting order slots
     let lineup = gameState.lineups.teamB; // 預設上半局：B 隊打擊，autoUpdateBatterInfoByInning() 會動態切換
 
+    // 依局數上下半判斷打擊隊名稱：上半局=先攻(team.name)打，下半局=後攻(team.opponent)打
+    function getBattingTeamName() {
+        const ti = currentTeam !== null ? currentTeam : (slotA.team !== null ? slotA.team : (slotB.team !== null ? slotB.team : null));
+        if (ti === null) return null;
+        const team = allData.teams[ti];
+        if (!team) return null;
+        return gameState.half === '上' ? (team.name || '先攻') : (team.opponent || '後攻');
+    }
+
+    function updateBattingTeamUI() {
+        const name = getBattingTeamName();
+        const btn   = document.getElementById('lineupModalOpenBtn');
+        const title = document.getElementById('lineupModalTitle');
+        if (btn)   btn.textContent   = name ? `📋 ${name}` : '📋 設定打序';
+        if (title) title.textContent = name ? `📋 ${name} 打擊順序` : '📋 打擊順序設定';
+    }
+
     function openLineupModal() {
+        updateBattingTeamUI();
         const container = document.getElementById('lineupRows');
         container.innerHTML = '';
         for (let i = 1; i <= 9; i++) {
@@ -1728,6 +1746,7 @@
 
         // 將 lineup 參考指向當前打擊隊，讓打序 Modal 也連動
         lineup = gameState.lineups[battingTeam];
+        updateBattingTeamUI();
 
         // 計算本次打者的棒次（0-based index → 1-based order）
         const batterOrder = gameState.currentBatterIndex[battingTeam] + 1;
