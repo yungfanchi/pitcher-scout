@@ -486,6 +486,14 @@
             .chart-box { flex:1 1 100%; max-width:280px; margin:0 auto; }
         }
 
+        /* ===== 球種/配球模式 行版型 ===== */
+        .pattern-row { display:flex; gap:16px; align-items:center; }
+        .pattern-chart-canvas { flex:0 0 38%; min-width:220px; max-width:300px; position:relative; aspect-ratio:1; }
+        @media (max-width:580px) {
+            .pattern-row { flex-wrap:wrap; }
+            .pattern-chart-canvas { flex:1 1 100%; max-width:260px; min-width:0; margin:0 auto; }
+        }
+
         /* ===== TABS ===== */
         .tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
         .tab-btn { padding:10px 20px; border:2px solid var(--ct-blue); background:white; cursor:pointer; border-radius:8px 8px 0 0; font-weight:700; color:var(--ct-blue-dark); transition:all 0.2s; -webkit-user-select:none; user-select:none; font-size:15px; }
