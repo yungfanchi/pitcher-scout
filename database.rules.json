@@ -1,8 +1,8 @@
 {
   "rules": {
     "teams": {
+      ".read": "auth != null",
       "$teamCode": {
-        ".read": "auth != null",
         ".write": "auth != null"
       }
     },
