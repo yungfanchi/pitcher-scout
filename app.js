@@ -297,52 +297,23 @@
     function checkForUpdate(regParam) {
         if (!('serviceWorker' in navigator)) return;
 
-        const showModal = () => {
-            const m = document.getElementById('updateModal');
-            if (m && m.style.display !== 'flex') m.style.display = 'flex';
-        };
-
         const setup = (reg) => {
             if (!reg) return;
 
-            // 新 SW 接管後重新整理一次（iOS/Android 相容）
-            // 用 flag 防止因輪詢造成的連續重載
-            let _reloading = false;
+            // SW 接管後只 reload 一次（flag 防止連續觸發）
+            let _reloaded = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (_reloading) return;
-                _reloading = true;
+                if (_reloaded) return;
+                _reloaded = true;
                 window.location.reload();
             });
 
-            // 靜默更新：有等待的新版本就直接送 SKIP_WAITING，不打擾使用者
-            const autoActivate = (sw) => {
-                sw.postMessage({ type: 'SKIP_WAITING' });
-            };
-
-            // App 重開時若已有等待的新版本，直接接管
-            if (reg.waiting) { autoActivate(reg.waiting); return; }
-
-            // 新 SW 安裝完成 → 自動接管
-            reg.addEventListener('updatefound', () => {
-                const nw = reg.installing;
-                if (!nw) return;
-                nw.addEventListener('statechange', () => {
-                    if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                        autoActivate(nw);
-                    }
-                });
-            });
-
-            const poll = () => reg.update().catch(() => {});
-
-            // 立即檢查
-            poll();
-            // 每 5 分鐘定期檢查
-            setInterval(poll, 5 * 60 * 1000);
-            // 手機/平板從背景切回前景時立即檢查
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') poll();
-            });
+            // 頁面載入時若已有等待的新版本，直接接管（一次 reload 即完成更新）
+            // 不在 session 內對 updatefound 做 autoActivate，避免輪詢/CDN 快取不一致造成重載迴圈
+            if (reg.waiting) {
+                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+            // 瀏覽器本身在每次頁面載入時都會自動比對 sw.js，無需額外輪詢
         };
 
         if (regParam) { setup(regParam); }
