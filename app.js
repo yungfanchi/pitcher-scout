@@ -305,21 +305,30 @@
         const setup = (reg) => {
             if (!reg) return;
 
-            // 新 SW 接管後重新整理（iOS/Android 相容，不用 reload(true)）
+            // 新 SW 接管後重新整理一次（iOS/Android 相容）
+            // 用 flag 防止因輪詢造成的連續重載
+            let _reloading = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (_reloading) return;
+                _reloading = true;
                 window.location.reload();
             });
 
-            // App 重開時若已有等待的新版本，直接顯示
-            if (reg.waiting) { showModal(); return; }
+            // 靜默更新：有等待的新版本就直接送 SKIP_WAITING，不打擾使用者
+            const autoActivate = (sw) => {
+                sw.postMessage({ type: 'SKIP_WAITING' });
+            };
 
-            // 新 SW 安裝完成 → 顯示更新提示
+            // App 重開時若已有等待的新版本，直接接管
+            if (reg.waiting) { autoActivate(reg.waiting); return; }
+
+            // 新 SW 安裝完成 → 自動接管
             reg.addEventListener('updatefound', () => {
                 const nw = reg.installing;
                 if (!nw) return;
                 nw.addEventListener('statechange', () => {
                     if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                        showModal();
+                        autoActivate(nw);
                     }
                 });
             });
@@ -328,9 +337,9 @@
 
             // 立即檢查
             poll();
-            // 每 5 分鐘定期檢查（電腦長時間開著也能收到更新）
+            // 每 5 分鐘定期檢查
             setInterval(poll, 5 * 60 * 1000);
-            // 手機/平板從背景切回前景時立即檢查（解決 PWA 不更新的主因）
+            // 手機/平板從背景切回前景時立即檢查
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') poll();
             });
