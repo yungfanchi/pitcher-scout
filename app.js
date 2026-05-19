@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v93';
+﻿    const APP_VERSION = 'v94';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2165,6 +2165,15 @@
         allData.teams[teamIndex].pitchers.splice(pitcherIndex, 1);
         if (currentTeam === teamIndex && currentPitcher === pitcherIndex) { currentTeam = null; currentPitcher = null; }
         else if (currentTeam === teamIndex && currentPitcher > pitcherIndex) currentPitcher--;
+        // 同步修正 slotA / slotB 的投手索引
+        if (slotA.team === teamIndex) {
+            if (slotA.pitcher === pitcherIndex) slotA = { team: null, pitcher: null };
+            else if (slotA.pitcher > pitcherIndex) slotA.pitcher--;
+        }
+        if (slotB.team === teamIndex) {
+            if (slotB.pitcher === pitcherIndex) slotB = { team: null, pitcher: null };
+            else if (slotB.pitcher > pitcherIndex) slotB.pitcher--;
+        }
         updateTeamList(); updateSlotDisplay(); updateStats(); updatePitchLog(); saveToLocalStorage();
     }
 
@@ -4975,7 +4984,7 @@
 
         activeFirebaseRef = getDataRef();
         activeFirebaseRef.on('value', snap => {
-            if (Date.now() - lastSaveTime < 3000) return; // 忽略自己剛寫入觸發的更新
+            if (Date.now() - lastSaveTime < 10000) return; // 忽略自己剛寫入觸發的更新（10秒保護，防慢網路）
             const teams = normalizeTeamsData(snap.val());
             if (!teams) return;
             allData.teams = teams;
@@ -4993,6 +5002,7 @@
         try {
             getDataRef().set(getFirebasePayload())
                 .then(() => {
+                    lastSaveTime = Date.now(); // 寫入完成後再刷新，避免慢網路 > 3 秒被 listener 覆蓋
                     setSyncStatus(true);
                     pendingSync = false;
                     try { localStorage.removeItem('_pendingSync'); } catch(e) {}
@@ -5012,6 +5022,17 @@
     }
 
     function pullFromFirebase() {
+        // 若本機有未上傳的離線資料，先警告再詢問
+        const hasPending = localStorage.getItem('_pendingSync') === '1';
+        if (hasPending) {
+            const ok = confirm(
+                '⚠️ 你有本機離線記錄尚未上傳至雲端！\n\n' +
+                '若直接從雲端拉取，這些離線資料將永久遺失。\n\n' +
+                '建議：先按「上傳至雲端」再拉取。\n\n' +
+                '確定要放棄本機記錄並覆蓋嗎？'
+            );
+            if (!ok) return;
+        }
         getDataRef().once('value')
             .then(snap => {
                 const teams = normalizeTeamsData(snap.val());
@@ -5019,11 +5040,12 @@
                     alert('雲端目前無資料，請先按「☁️ 上傳至雲端」把本機數據上傳。');
                     return;
                 }
-                if (!confirm(`雲端有 ${teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
+                if (!hasPending && !confirm(`雲端有 ${teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
                 allData.teams = teams;
                 allData.pitcherDB = {};
                 rebuildPitcherDB();
                 try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+                try { localStorage.removeItem('_pendingSync'); } catch(e) {}
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
                 alert('✅ 已從雲端拉取最新數據！');
             })
