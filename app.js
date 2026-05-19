@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v88';
+﻿    const APP_VERSION = 'v89';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -297,6 +297,11 @@
     function checkForUpdate(regParam) {
         if (!('serviceWorker' in navigator)) return;
 
+        const showUpdateModal = () => {
+            const m = document.getElementById('updateModal');
+            if (m) m.style.display = 'flex';
+        };
+
         const setup = (reg) => {
             if (!reg) return;
 
@@ -308,19 +313,16 @@
                 window.location.reload();
             });
 
-            const activate = (sw) => sw.postMessage({ type: 'SKIP_WAITING' });
+            // 頁面載入時若已有等待的新版本，提示用戶
+            if (reg.waiting) { showUpdateModal(); return; }
 
-            // 頁面載入時若已有等待的新版本，直接接管
-            if (reg.waiting) { activate(reg.waiting); return; }
-
-            // 同一 session 內裝好的新版本也自動接管（讓 v77 等舊裝置當次就能更新）
-            // 不使用輪詢，依賴瀏覽器原生的每次載入自動比對
+            // 同一 session 內發現新版本，提示用戶（不強制自動更新）
             reg.addEventListener('updatefound', () => {
                 const nw = reg.installing;
                 if (!nw) return;
                 nw.addEventListener('statechange', () => {
                     if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                        activate(nw);
+                        showUpdateModal();
                     }
                 });
             });
@@ -4908,6 +4910,21 @@
     function listenFirebase() {
         if (firebaseListening) return;
         firebaseListening = true;
+
+        // 若上次 app 關閉前有未同步資料，先補傳再監聽（防止 app 重開後雲端舊資料覆蓋本地新資料）
+        if (localStorage.getItem('_pendingSync') === '1') {
+            console.log('[Firebase] 偵測到未同步資料，先補傳至雲端...');
+            lastSaveTime = Date.now(); // 讓下方 on('value') 忽略這次補傳的回呼
+            getDataRef().set(getFirebasePayload())
+                .then(() => {
+                    pendingSync = false;
+                    try { localStorage.removeItem('_pendingSync'); } catch(e) {}
+                    setSyncStatus(true);
+                    console.log('[Firebase] 補傳完成');
+                })
+                .catch(e => console.warn('[Firebase] 補傳失敗:', e.code));
+        }
+
         activeFirebaseRef = getDataRef();
         activeFirebaseRef.on('value', snap => {
             if (Date.now() - lastSaveTime < 3000) return; // 忽略自己剛寫入觸發的更新
@@ -4927,15 +4944,21 @@
         saveToLocalStorage();
         try {
             getDataRef().set(getFirebasePayload())
-                .then(() => { setSyncStatus(true); pendingSync = false; })
+                .then(() => {
+                    setSyncStatus(true);
+                    pendingSync = false;
+                    try { localStorage.removeItem('_pendingSync'); } catch(e) {}
+                })
                 .catch(e => {
                     console.warn('[Firebase] 寫入失敗，標記待同步:', e.code);
                     pendingSync = true;
+                    try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
                     setSyncStatus(false);
                 });
         } catch(e) {
             console.warn('[Firebase] 離線，資料已存本地，待連線後自動同步');
             pendingSync = true;
+            try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
             setSyncStatus(false);
         }
     }
