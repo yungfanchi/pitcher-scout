@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v99';
+﻿    const APP_VERSION = 'v100';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -1548,7 +1548,7 @@
                     allData.teams = teams;
                     allData.pitcherDB = {};
                     rebuildPitcherDB();
-                    try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+                    saveToLocalStorage();
                 }
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
                 if (btn) {
@@ -1682,7 +1682,7 @@
             }
         ];
         rebuildPitcherDB();
-        try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+        saveToLocalStorage();
     } // end _removedInjectDemoData_DISABLED
 
     // ====== TAIWAN FLAG ======
@@ -4099,7 +4099,7 @@
                 rebuildPitcherDB();
                 currentTeam = null; currentPitcher = null;
                 slotA = {team:null,pitcher:null}; slotB = {team:null,pitcher:null};
-                try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+                saveToLocalStorage();
                 saveToFirebase();
                 updateTeamList(); updateSlotDisplay(); updateScoreboard();
                 alert('✅ 數據還原成功！已同步至雲端');
@@ -4909,7 +4909,7 @@
         allData.teams = teams;
         allData.pitcherDB = {};
         rebuildPitcherDB();
-        try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+        saveToLocalStorage();
     }
 
     function forceSyncToFirebase() {
@@ -5030,7 +5030,7 @@
             allData.teams = teams;
             allData.pitcherDB = {};
             rebuildPitcherDB();
-            try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+            saveToLocalStorage();
             updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
             setSyncStatus(true);
         });
@@ -5089,7 +5089,7 @@
                 allData.teams = teams;
                 allData.pitcherDB = {};
                 rebuildPitcherDB();
-                try { localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData)); } catch(e) {}
+                saveToLocalStorage();
                 try { localStorage.removeItem('_pendingSync'); } catch(e) {}
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
                 alert('✅ 已從雲端拉取最新數據！');
