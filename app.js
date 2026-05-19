@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v100';
+﻿    const APP_VERSION = 'v101';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -329,17 +329,18 @@
                 });
             });
 
-            // 切回 App 時重新檢查是否有新版本（手機背景後台常見場景）
+            // 切回 App 時重新檢查（手機背景後台常見場景）
+            const checkUpdate = () => {
+                if (navigator.onLine) reg.update().catch(() => {});
+            };
             document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible' && navigator.onLine) {
-                    reg.update().catch(() => {});
-                }
+                if (document.visibilityState === 'visible') checkUpdate();
             });
+            // iOS Safari 有時不觸發 visibilitychange，用 focus 事件補位
+            window.addEventListener('focus', checkUpdate);
 
             // 每 30 分鐘定期檢查（長時間使用不關 App 的情況）
-            setInterval(() => {
-                if (navigator.onLine) reg.update().catch(() => {});
-            }, 30 * 60 * 1000);
+            setInterval(checkUpdate, 30 * 60 * 1000);
         };
 
         if (regParam) { setup(regParam); }

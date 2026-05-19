@@ -1207,7 +1207,9 @@
         });
     } else if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
+            // updateViaCache:'none' 確保每次 update() 都跳過 HTTP 快取直接抓新版 sw.js
+            // 解決 GitHub Pages 10 分鐘快取導致手機/平板偵測不到新版的問題
+            navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
                 .then(reg => {
                     if (typeof checkForUpdate === 'function') checkForUpdate(reg);
                 })
