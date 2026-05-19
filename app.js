@@ -372,9 +372,8 @@
             if (el) el.textContent = msg;
         };
 
-        const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pageW = pdf.internal.pageSize.getWidth();
-        const pageH = pdf.internal.pageSize.getHeight();
+        // A4 寬度基準（mm），頁高依內容決定
+        const pageW = 210;
 
         const allTabs = [
             { id: 'statsTab',    label: '統計', upd: () => updateStats() },
@@ -383,7 +382,8 @@
         ];
         const tabs = allTabs.filter(t => tabIds.includes(t.id));
 
-        let firstPage = true;
+        // 先截所有 tab 的 canvas，再一次組 PDF（避免頁面切到一半）
+        const captures = [];
         for (let ti = 0; ti < tabs.length; ti++) {
             const tab = tabs[ti];
             setProg(`截圖 ${tab.label} (${ti+1}/${tabs.length})`);
@@ -402,7 +402,6 @@
             tabEl.style.setProperty('overflow', 'visible', 'important');
             tabEl.style.setProperty('max-height', 'none', 'important');
 
-            // 強制 reflow 取得正確尺寸
             const captureW = tabEl.scrollWidth;
             const captureH = tabEl.scrollHeight;
 
@@ -420,7 +419,6 @@
                 logging: false,
                 imageTimeout: 15000,
                 onclone: (_doc, clonedEl) => {
-                    // 在 clone 的 DOM 裡移除所有可能造成截圖不完整的限制
                     clonedEl.style.setProperty('height', 'auto', 'important');
                     clonedEl.style.setProperty('overflow', 'visible', 'important');
                     clonedEl.style.setProperty('max-height', 'none', 'important');
@@ -432,29 +430,34 @@
                 }
             });
 
-            // 還原 inline style
             tabEl.style.removeProperty('height');
             tabEl.style.removeProperty('overflow');
             tabEl.style.removeProperty('max-height');
 
+            // 計算此 tab 在 A4 寬度下的實際高度（mm）
             const pxPerMm = canvas.width / pageW;
             const imgHeightMm = canvas.height / pxPerMm;
-            const pagesNeeded = Math.ceil(imgHeightMm / pageH);
-            const slicePx = Math.ceil(canvas.height / pagesNeeded);
+            captures.push({ canvas, imgHeightMm });
 
-            for (let s = 0; s < pagesNeeded; s++) {
-                if (!firstPage) pdf.addPage();
-                firstPage = false;
-                const srcY = s * slicePx;
-                const srcH = Math.min(slicePx, canvas.height - srcY);
-                const sliceC = document.createElement('canvas');
-                sliceC.width = canvas.width;
-                sliceC.height = srcH;
-                sliceC.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-                const sliceH_mm = srcH / pxPerMm;
-                pdf.addImage(sliceC.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, sliceH_mm);
-            }
             await new Promise(r => setTimeout(r, 150));
+        }
+
+        if (!captures.length) { toast.remove(); return; }
+
+        // 第一頁：以第一個 tab 內容高度建立 PDF
+        setProg('組合 PDF...');
+        const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
+        const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, captures[0].imgHeightMm] });
+        captures[0].canvas && pdf.addImage(
+            captures[0].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, captures[0].imgHeightMm
+        );
+
+        // 後續頁：每頁尺寸符合該 tab 內容高度
+        for (let i = 1; i < captures.length; i++) {
+            pdf.addPage([pageW, captures[i].imgHeightMm]);
+            pdf.addImage(
+                captures[i].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, captures[i].imgHeightMm
+            );
         }
 
         setProg('儲存中...');
@@ -3055,8 +3058,25 @@
                 const el = document.getElementById(id);
                 if (el) el.textContent = id.includes('Strike')||id.includes('Ball')||id.includes('Swing')||id.includes('Wild') ? '0%' : '0';
             });
+            const infoEl = document.getElementById('statsPitcherInfo');
+            if (infoEl) infoEl.style.display = 'none';
             return;
         }
+
+        // 更新投手資訊欄
+        const _p = allData.teams[currentTeam]?.pitchers[currentPitcher];
+        const _t = allData.teams[currentTeam];
+        const infoEl = document.getElementById('statsPitcherInfo');
+        if (infoEl && _p) {
+            document.getElementById('spName').textContent =
+                [_p.number ? '#' + _p.number : '', _p.name].filter(Boolean).join('  ');
+            document.getElementById('spMeta').textContent =
+                [_p.hand, _p.role, _p.style].filter(Boolean).join(' · ');
+            document.getElementById('spGame').textContent =
+                [_t?.gameName, _t?.name, _t?.opponent ? 'vs ' + _t.opponent : '', _t?.date].filter(Boolean).join('　');
+            infoEl.style.display = 'block';
+        }
+
         populateFilterDropdown();
         const pitches = getFilteredPitches(currentTeam, currentPitcher);
         const total = pitches.length;
