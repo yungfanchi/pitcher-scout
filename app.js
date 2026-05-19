@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v96';
+﻿    const APP_VERSION = 'v97';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2514,14 +2514,14 @@
 
         allData.teams[currentTeam].pitchers[currentPitcher].pitches.push({...currentPitch});
 
-        // 投球總數上限警告（接近 localStorage 容量時提醒備份）
-        const totalPitches = allData.teams.reduce(
-            (sum, t) => sum + (t.pitchers||[]).reduce((s, p) => s + (p.pitches||[]).length, 0), 0);
-        if (totalPitches === 2000 || totalPitches === 3000 || totalPitches === 5000) {
+        // 接近 localStorage 容量時提醒備份（10MB 上限，超過 7MB 時警告）
+        const dataStr = JSON.stringify(allData);
+        const dataMB = dataStr.length / (1024 * 1024);
+        if (dataMB > 7) {
             const w = document.getElementById('lsWarning');
             if (w) {
                 w.style.display = 'block';
-                w.textContent = `⚠️ 已累積 ${totalPitches} 筆球數，建議點「備份數據」下載保存並清理舊場次，以確保儲存空間充足`;
+                w.textContent = `⚠️ 本機儲存已用 ${dataMB.toFixed(1)}MB（上限 10MB），建議點「備份數據」下載後清理舊場次資料`;
             }
         }
 
