@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "teams": {
+      "$teamCode": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+      }
+    },
+    "pitcherScoutData": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

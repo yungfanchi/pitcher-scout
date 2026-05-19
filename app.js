@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v86';
+﻿    const APP_VERSION = 'v88';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -5019,16 +5019,27 @@
             const ao = document.getElementById('authOverlay');
             const msp = document.getElementById('modeSelectionPage');
             if (!user) {
-                // 未登入：顯示 authOverlay
+                // 完全未認證：先做匿名登入，讓 DB 規則 auth != null 能通過
+                userSession = null;
+                USER_TEAM_REF = null;
+                try { await firebase.auth().signInAnonymously(); } catch(e) {
+                    // 匿名登入失敗（例如未啟用）：仍顯示登入畫面
+                    if (ao) ao.style.display = 'flex';
+                    if (msp) msp.style.display = 'none';
+                    setTimeout(loadRememberedLogin, 80);
+                }
+                return;
+            }
+            if (user.isAnonymous) {
+                // 匿名認證成功：顯示自訂密碼登入畫面（球隊代碼 + 密碼）
                 userSession = null;
                 USER_TEAM_REF = null;
                 if (ao) ao.style.display = 'flex';
                 if (msp) msp.style.display = 'none';
-                // 自動填入已記住的登入資訊
                 setTimeout(loadRememberedLogin, 80);
                 return;
             }
-            // 登入成功：取得使用者權限
+            // 非匿名（未來 email 登入 SaaS 流程）：取得使用者權限
             userSession = user;
             try {
                 const snap = await db.ref('users/' + user.uid).once('value');
