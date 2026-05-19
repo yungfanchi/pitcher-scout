@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v90';
+﻿    const APP_VERSION = 'v91';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2058,11 +2058,19 @@
     }
 
     function updateSlotDisplay() {
+        const aHasPitcher = slotA.team !== null && slotA.pitcher !== null && allData.teams[slotA.team];
+        const bHasPitcher = slotB.team !== null && slotB.pitcher !== null && allData.teams[slotB.team];
+        const onlyOne = aHasPitcher !== bHasPitcher; // XOR: exactly one slot filled
+
         ['A','B'].forEach(slot => {
             const s = slot === 'A' ? slotA : slotB;
             const contentEl = document.getElementById('slot' + slot + 'Content');
             const slotEl = document.getElementById('slot' + slot);
             slotEl.classList.toggle('active-slot', activeSlot === slot);
+
+            // Hide empty slot when only one pitcher is loaded
+            const hasPitcher = slot === 'A' ? aHasPitcher : bHasPitcher;
+            slotEl.style.display = (onlyOne && !hasPitcher) ? 'none' : '';
 
             if (s.team !== null && s.pitcher !== null && allData.teams[s.team]) {
                 const team = allData.teams[s.team];
@@ -2150,15 +2158,30 @@
     }
 
     function updateBattingTeamUI() {
-        const name = getBattingTeamName();
-        const btn   = document.getElementById('lineupModalOpenBtn');
-        const title = document.getElementById('lineupModalTitle');
-        if (btn)   btn.textContent   = name ? `📋 ${name}` : '📋 設定打序';
-        if (title) title.textContent = name ? `📋 ${name} 打擊順序` : '📋 打擊順序設定';
+        const ti = currentTeam !== null ? currentTeam : (slotA.team !== null ? slotA.team : (slotB.team !== null ? slotB.team : null));
+        const team = ti !== null ? allData.teams[ti] : null;
+        const awayBtn = document.getElementById('lineupBtnAway');
+        const homeBtn = document.getElementById('lineupBtnHome');
+        const title   = document.getElementById('lineupModalTitle');
+        if (awayBtn) awayBtn.textContent = team?.name ? `📋 ${team.name}` : '📋 先攻';
+        if (homeBtn) homeBtn.textContent = team?.opponent ? `📋 ${team.opponent}` : '📋 後攻';
+        if (title)   title.textContent   = '📋 打擊順序設定';
     }
 
-    function openLineupModal() {
-        updateBattingTeamUI();
+    function openLineupModal(side) {
+        // side: 'teamA' (後攻) or 'teamB' (先攻); default to current batting team
+        const targetSide = side || (gameState.half === '上' ? 'teamB' : 'teamA');
+        lineup = gameState.lineups[targetSide];
+
+        const ti = currentTeam !== null ? currentTeam : (slotA.team !== null ? slotA.team : (slotB.team !== null ? slotB.team : null));
+        const team = ti !== null ? allData.teams[ti] : null;
+        const teamName = targetSide === 'teamB'
+            ? (team?.name || '先攻')
+            : (team?.opponent || '後攻');
+
+        const title = document.getElementById('lineupModalTitle');
+        if (title) title.textContent = `📋 ${teamName} 打擊順序`;
+
         const container = document.getElementById('lineupRows');
         container.innerHTML = '';
         for (let i = 1; i <= 9; i++) {
@@ -2597,11 +2620,12 @@
 
         const outcomes = pitch.outcomes && pitch.outcomes.length > 0 ? pitch.outcomes : (pitch.outcome ? [pitch.outcome] : []);
         const isOut = outcomes.some(o => OUT_OUTCOMES.includes(o));
+        const isDoublePlay = outcomes.includes('雙殺');
         const isPA  = outcomes.some(o => ['一壘安打','二壘安打','三壘安打','全壘打','內野安打',
             '保送','觸身球','野選','失誤','不死三振','Push'].includes(o));
 
         if (isOut) {
-            gameState.outs++;
+            gameState.outs += isDoublePlay ? 2 : 1;
             gameState.strikes = 0; gameState.balls = 0;
             if (gameState.outs >= 3) {
                 // 三出局換局：自動觸發，重置計數與壘包
