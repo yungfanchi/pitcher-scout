@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v95';
+﻿    const APP_VERSION = 'v96';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -51,7 +51,9 @@
 
     // ====== PITCHER DB HELPERS ======
     function getPitcherKey(name, number) {
-        return `${name}#${number || ''}`;
+        const n = (name || '').trim() || '未命名';
+        const num = (number !== null && number !== undefined) ? String(number).trim() : '';
+        return `${n}#${num}`;
     }
 
     function getGameKey(teamIndex) {
@@ -2511,6 +2513,17 @@
         currentPitch.outcome = currentPitch.outcomes.length > 0 ? currentPitch.outcomes[0] : null;
 
         allData.teams[currentTeam].pitchers[currentPitcher].pitches.push({...currentPitch});
+
+        // 投球總數上限警告（接近 localStorage 容量時提醒備份）
+        const totalPitches = allData.teams.reduce(
+            (sum, t) => sum + (t.pitchers||[]).reduce((s, p) => s + (p.pitches||[]).length, 0), 0);
+        if (totalPitches === 2000 || totalPitches === 3000 || totalPitches === 5000) {
+            const w = document.getElementById('lsWarning');
+            if (w) {
+                w.style.display = 'block';
+                w.textContent = `⚠️ 已累積 ${totalPitches} 筆球數，建議點「備份數據」下載保存並清理舊場次，以確保儲存空間充足`;
+            }
+        }
 
         // Sync to pitcherDB (cumulative across games)
         const pitcher = allData.teams[currentTeam].pitchers[currentPitcher];
@@ -5123,6 +5136,23 @@
         document.querySelectorAll('.modal-content').forEach(el => {
             el.addEventListener('click', e => e.stopPropagation());
         });
+
+        // 好球帶格子鍵盤支援（平板外接鍵盤 / 無障礙操作）
+        document.querySelectorAll('.zone-cell').forEach(cell => {
+            cell.setAttribute('tabindex', '0');
+            cell.setAttribute('role', 'button');
+            cell.setAttribute('aria-label', `投球落點 ${cell.dataset.zone}`);
+        });
+        const strikeZone = document.getElementById('strikeZone');
+        if (strikeZone) {
+            strikeZone.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const cell = e.target.closest('.zone-cell');
+                    if (cell) { e.preventDefault(); selectZone(cell.dataset.zone); }
+                }
+            });
+        }
+
         initFirebaseAuth();
     });
 
