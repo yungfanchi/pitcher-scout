@@ -407,6 +407,9 @@
                         clonedMain.style.setProperty('overflow', 'visible', 'important');
                         clonedMain.style.setProperty('height', 'auto', 'important');
                     }
+                    // PDF 輸出時隱藏篩選場次列（投手資訊欄已提供識別資料）
+                    const filterRow = _doc.getElementById('statsHeaderRow');
+                    if (filterRow) filterRow.style.setProperty('display', 'none', 'important');
                 }
             });
 

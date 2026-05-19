@@ -385,10 +385,10 @@
         .pa-divider { border:none; border-top:2px dashed var(--ct-gold); margin:6px 0; opacity:0.5; }
 
         /* ===== STATS ===== */
-        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
-        .stat-card { background:linear-gradient(135deg,var(--ct-blue-dark) 0%,var(--ct-blue) 100%); color:white; padding:10px 12px; border-radius:10px; text-align:center; border-bottom:4px solid var(--ct-red); border-top:2px solid var(--ct-gold); box-shadow:0 4px 12px rgba(0,61,121,0.15); }
-        .stat-value { font-size:26px; font-weight:700; margin:3px 0; color:var(--ct-gold); font-family:'Bebas Neue','Oswald',sans-serif; letter-spacing:1px; }
-        .stat-label { font-size:12px; opacity:0.95; font-weight:500; }
+        .stats-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+        .stat-card { background:linear-gradient(135deg,var(--ct-blue-dark) 0%,var(--ct-blue) 100%); color:white; padding:8px 6px; border-radius:10px; text-align:center; border-bottom:4px solid var(--ct-red); border-top:2px solid var(--ct-gold); box-shadow:0 4px 12px rgba(0,61,121,0.15); }
+        .stat-value { font-size:22px; font-weight:700; margin:2px 0; color:var(--ct-gold); font-family:'Bebas Neue','Oswald',sans-serif; letter-spacing:1px; }
+        .stat-label { font-size:11px; opacity:0.95; font-weight:500; }
 
         /* ===== HEATMAP - Unified ===== */
         .unified-heatmap-section { margin-top:6px; }
@@ -635,8 +635,9 @@
             .speed-grid { display:flex; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; gap:4px; padding-bottom:2px; }
             .speed-grid::-webkit-scrollbar { display:none; }
             .speed-btn { flex-shrink:0; width:44px; height:38px; font-size:12px; font-weight:900; }
-            .stat-card { padding:12px; }
-            .stat-value { font-size:20px; }
+            .stats-grid { grid-template-columns:repeat(4,1fr); }
+            .stat-card { padding:8px 4px; }
+            .stat-value { font-size:18px; }
             .batter-details { grid-template-columns:1fr 1fr; }
             .dual-pitcher-cards { grid-template-columns:1fr; }
             /* 小手機九宮格 */
