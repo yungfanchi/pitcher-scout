@@ -357,13 +357,12 @@
     }
 
     // ====== 截圖 PDF 共用助手 ======
-    // 切換到統計/分析/對比三分頁 → html2canvas 截圖 → jsPDF 組成 PDF 下載
-    async function _captureAndBuildPDF(filename) {
+    // tabIds: 要截圖的分頁 id 陣列，預設全部三頁
+    async function _captureAndBuildPDF(filename, tabIds = ['statsTab', 'analysisTab', 'compareTab']) {
         if (typeof html2canvas === 'undefined') { alert('截圖套件未載入，請重新整理頁面'); return; }
         const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
         if (!JSPDF) { alert('PDF 套件未載入，請重新整理頁面'); return; }
 
-        // 小型右下角提示（非全螢幕遮罩）
         const toast = document.createElement('div');
         toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:rgba(0,30,80,0.92);color:white;padding:10px 16px;border-radius:8px;z-index:99999;font-size:13px;font-family:"Noto Sans TC",sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
         toast.innerHTML = '📄 正在產生 PDF... <span id="_pdfToastProg" style="color:#ffd700;margin-left:6px;">準備中</span>';
@@ -377,16 +376,17 @@
         const pageW = pdf.internal.pageSize.getWidth();
         const pageH = pdf.internal.pageSize.getHeight();
 
-        const tabs = [
+        const allTabs = [
             { id: 'statsTab',    label: '統計', upd: () => updateStats() },
             { id: 'analysisTab', label: '分析', upd: () => updateStats() },
             { id: 'compareTab',  label: '對比', upd: () => updateCompare() },
         ];
+        const tabs = allTabs.filter(t => tabIds.includes(t.id));
 
         let firstPage = true;
         for (let ti = 0; ti < tabs.length; ti++) {
             const tab = tabs[ti];
-            setProg(`截圖 ${tab.label} (${ti+1}/3)`);
+            setProg(`截圖 ${tab.label} (${ti+1}/${tabs.length})`);
 
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             const tabEl = document.getElementById(tab.id);
@@ -394,22 +394,48 @@
             tabEl.classList.add('active');
             tab.upd();
 
-            await new Promise(r => setTimeout(r, 1400));
+            // 等 Chart.js 渲染完成
+            await new Promise(r => setTimeout(r, 1600));
 
-            const savedStyle = { height: tabEl.style.height, overflow: tabEl.style.overflow, maxHeight: tabEl.style.maxHeight };
-            tabEl.style.cssText += ';height:auto!important;overflow:visible!important;max-height:none!important;';
+            // 展開元素讓 scrollHeight 反映完整高度
+            tabEl.style.setProperty('height', 'auto', 'important');
+            tabEl.style.setProperty('overflow', 'visible', 'important');
+            tabEl.style.setProperty('max-height', 'none', 'important');
+
+            // 強制 reflow 取得正確尺寸
+            const captureW = tabEl.scrollWidth;
+            const captureH = tabEl.scrollHeight;
 
             const canvas = await html2canvas(tabEl, {
-                scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#f8f9fa',
-                scrollX: 0, scrollY: 0,
-                width: tabEl.scrollWidth, height: tabEl.scrollHeight,
-                windowWidth: tabEl.scrollWidth, windowHeight: tabEl.scrollHeight,
-                logging: false, imageTimeout: 10000
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#f8f9fa',
+                scrollX: 0,
+                scrollY: 0,
+                width: captureW,
+                height: captureH,
+                windowWidth: Math.max(captureW, 1280),
+                windowHeight: captureH + 200,
+                logging: false,
+                imageTimeout: 15000,
+                onclone: (_doc, clonedEl) => {
+                    // 在 clone 的 DOM 裡移除所有可能造成截圖不完整的限制
+                    clonedEl.style.setProperty('height', 'auto', 'important');
+                    clonedEl.style.setProperty('overflow', 'visible', 'important');
+                    clonedEl.style.setProperty('max-height', 'none', 'important');
+                    const clonedMain = _doc.querySelector('.main-content');
+                    if (clonedMain) {
+                        clonedMain.style.setProperty('overflow', 'visible', 'important');
+                        clonedMain.style.setProperty('height', 'auto', 'important');
+                    }
+                }
             });
 
-            tabEl.style.height = savedStyle.height;
-            tabEl.style.overflow = savedStyle.overflow;
-            tabEl.style.maxHeight = savedStyle.maxHeight;
+            // 還原 inline style
+            tabEl.style.removeProperty('height');
+            tabEl.style.removeProperty('overflow');
+            tabEl.style.removeProperty('max-height');
 
             const pxPerMm = canvas.width / pageW;
             const imgHeightMm = canvas.height / pxPerMm;
@@ -602,21 +628,25 @@
         const origSlotA = { ...slotA };
         const origSlotB = { ...slotB };
         const origActive = activeSlot;
+        const origCurrentTeam = currentTeam;
+        const origCurrentPitcher = currentPitcher;
         const origTabEl = document.querySelector('.tab-content.active');
         const origTabId = origTabEl?.id || 'recordTab';
 
         const tempIndex = allData.teams.length;
         allData.teams.push(syntheticTeam);
 
-        // 4. 設定 slotA 指向合成投手
+        // 4. 設定 slotA + currentTeam/currentPitcher 指向合成投手
         slotA = { team: tempIndex, pitcher: 0 };
         activeSlot = 'A';
+        currentTeam = tempIndex;
+        currentPitcher = 0;
         if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
 
         const fileBase = `投手報告_${pitcherName}${handSuffix}_${new Date().toISOString().split('T')[0]}.pdf`;
 
         try {
-            await _captureAndBuildPDF(fileBase);
+            await _captureAndBuildPDF(fileBase, ['statsTab', 'analysisTab']);
         } catch (e) {
             console.error('[PDF]', e);
             alert('PDF 產生失敗：' + e.message);
@@ -626,6 +656,8 @@
             slotA = origSlotA;
             slotB = origSlotB;
             activeSlot = origActive;
+            currentTeam = origCurrentTeam;
+            currentPitcher = origCurrentPitcher;
             if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(origTabId)?.classList.add('active');
