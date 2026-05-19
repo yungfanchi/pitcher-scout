@@ -1201,12 +1201,20 @@
 
     <!-- PWA: Service Worker Registration + Install Prompt -->
     <script>
-    // ====== SERVICE WORKER (Real file - works on HTTPS/GitHub Pages) ======
-    if ('serviceWorker' in navigator) {
+    // ====== SERVICE WORKER ======
+    // ?reset 參數：強制清除所有舊 SW 並重載（解決版本卡住問題）
+    if ('serviceWorker' in navigator && new URLSearchParams(location.search).has('reset')) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+            Promise.all(regs.map(r => r.unregister())).then(() => {
+                caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).finally(() => {
+                    location.replace(location.pathname);
+                });
+            });
+        });
+    } else if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
                 .then(reg => {
-                    // 直接傳 reg 給 checkForUpdate，避免再次 getRegistration() 的 race condition
                     if (typeof checkForUpdate === 'function') checkForUpdate(reg);
                 })
                 .catch(err => console.log('SW registration failed:', err));
