@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v97';
+﻿    const APP_VERSION = 'v98';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -312,9 +312,7 @@
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (_reloaded) return;
                 _reloaded = true;
-                if (navigator.onLine) {
-                    window.location.reload();
-                }
+                window.location.reload();
             });
 
             // 頁面載入時若已有等待的新版本，提示用戶
@@ -359,7 +357,13 @@
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistration().then(reg => {
                 if (reg && reg.waiting) {
-                    // SKIP_WAITING → controllerchange → window.location.reload()
+                    // SKIP_WAITING → controllerchange → reload
+                    // 備援倒數：若 controllerchange 3 秒內未觸發（電腦端偶發），強制 reload
+                    const fallback = setTimeout(() => window.location.reload(), 3000);
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                        clearTimeout(fallback);
+                        window.location.reload();
+                    }, { once: true });
                     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
                 } else {
                     window.location.reload();

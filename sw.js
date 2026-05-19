@@ -1,6 +1,6 @@
 // 投手情蒐系統 - Service Worker
 // 更新版本號可強制所有裝置重新快取
-const CACHE_NAME = 'pitcher-scout-v97';
+const CACHE_NAME = 'pitcher-scout-v98';
 
 // 需要離線快取的資源
 const ASSETS_TO_CACHE = [
@@ -71,9 +71,10 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 本地資源：Network First，有更新就用新的，離線走快取
+  // 本地資源：Network First，加 no-cache 確保更新後 reload 不抓瀏覽器 HTTP 快取
+  const noCache = new Request(event.request, { cache: 'no-cache' });
   event.respondWith(
-    fetch(event.request)
+    fetch(noCache)
       .then(response => {
         if (response && response.status === 200) {
           const clone = response.clone();
