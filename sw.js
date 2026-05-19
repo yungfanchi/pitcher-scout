@@ -1,6 +1,6 @@
 // 投手情蒐系統 - Service Worker
 // 更新版本號可強制所有裝置重新快取
-const CACHE_NAME = 'pitcher-scout-v79';
+const CACHE_NAME = 'pitcher-scout-v80';
 
 // 需要離線快取的資源
 const ASSETS_TO_CACHE = [
@@ -13,7 +13,7 @@ const ASSETS_TO_CACHE = [
   './icon-512.png'
 ];
 
-// ====== 安裝：快取所有靜態資源（等待用戶確認才接管）======
+// ====== 安裝：快取靜態資源後立即接管（不等使用者確認）======
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -22,7 +22,7 @@ self.addEventListener('install', event => {
           return cache.add('./index.html');
         });
       })
-    // 不呼叫 skipWaiting()，讓頁面有機會顯示更新提示
+      .then(() => self.skipWaiting())  // 安裝完成立即接管，controllerchange 觸發 reload
   );
 });
 
