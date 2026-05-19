@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v98';
+﻿    const APP_VERSION = 'v99';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2501,7 +2501,8 @@
         currentPitch.pinchHit = isPinch;
 
         const speedVal = document.getElementById('pitchSpeed').value;
-        currentPitch.speed = speedVal ? parseInt(speedVal) : null;
+        const speedParsed = parseInt(speedVal);
+        currentPitch.speed = (!isNaN(speedParsed) && speedParsed > 0) ? speedParsed : null;
         currentPitch.note = document.getElementById('pitchNote').value.trim() || null;
         currentPitch.timestamp = new Date().toISOString();
         currentPitch.basesSnapshot = [...gameState.bases]; // [1b, 2b, 3b]
@@ -2782,7 +2783,7 @@
                 gameState.outs = 0;
                 gameState.bases = [false, false, false];
                 if (gameState.half === '上') { gameState.half = '下'; }
-                else { gameState.half = '上'; gameState.inning++; }
+                else { gameState.half = '上'; gameState.inning = Math.min(20, gameState.inning + 1); }
                 if (currentTeam !== null) {
                     const score = getTeamScore();
                     score.half = gameState.half;
@@ -4444,10 +4445,6 @@
         const hasA = slotA.team !== null && slotA.pitcher !== null && allData.teams[slotA.team];
         const hasB = slotB.team !== null && slotB.pitcher !== null && allData.teams[slotB.team];
 
-        // 清除對比頁圖表
-        [comparePitchAChart, comparePitchBChart, compareEffectAChart, compareEffectBChart].forEach(c => { if(c) c.destroy(); });
-        comparePitchAChart = comparePitchBChart = compareEffectAChart = compareEffectBChart = null;
-
         const noDataMsg = '<div style="text-align:center;color:#9ca3af;padding:32px;font-size:14px;">請先在左側選擇兩位投手（Slot A 和 Slot B）再進行對比</div>';
         if (!hasA && !hasB) {
             ['compareHeader','compareBasic','comparePitchTypes','compareHeatmaps','comparePatterns','compareEffectiveness'].forEach(id => {
@@ -4455,6 +4452,10 @@
             });
             return;
         }
+
+        // 有資料才銷毀舊圖表並重建
+        [comparePitchAChart, comparePitchBChart, compareEffectAChart, compareEffectBChart].forEach(c => { if(c) c.destroy(); });
+        comparePitchAChart = comparePitchBChart = compareEffectAChart = compareEffectBChart = null;
 
         const pitcherA = hasA ? allData.teams[slotA.team].pitchers[slotA.pitcher] : null;
         const pitcherB = hasB ? allData.teams[slotB.team].pitchers[slotB.pitcher] : null;
@@ -4800,6 +4801,7 @@
     // 動態 DB_KEY：根據球隊代碼隔離數據
     let DB_KEY = 'pitcherScoutData'; // 預設，登入後會更新為 teams/{teamCode}/data
     let lastSaveTime = 0;
+    let _fbSaveTimer = null; // debounce timer for Firebase writes
     let firebaseListening = false;
     let activeFirebaseRef = null; // 記錄目前監聽的 ref，供 logout 時正確移除
     let isOnline = navigator.onLine;
@@ -5036,27 +5038,32 @@
 
     function saveToFirebase() {
         lastSaveTime = Date.now();
-        saveToLocalStorage();
-        try {
-            getDataRef().set(getFirebasePayload())
-                .then(() => {
-                    lastSaveTime = Date.now(); // 寫入完成後再刷新，避免慢網路 > 3 秒被 listener 覆蓋
-                    setSyncStatus(true);
-                    pendingSync = false;
-                    try { localStorage.removeItem('_pendingSync'); } catch(e) {}
-                })
-                .catch(e => {
-                    console.warn('[Firebase] 寫入失敗，標記待同步:', e.code);
-                    pendingSync = true;
-                    try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
-                    setSyncStatus(false);
-                });
-        } catch(e) {
-            console.warn('[Firebase] 離線，資料已存本地，待連線後自動同步');
-            pendingSync = true;
-            try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
-            setSyncStatus(false);
-        }
+        saveToLocalStorage(); // 本機備份立即寫，不 debounce
+
+        // 300ms debounce：短時間連續記球合併成一次 Firebase 寫入，避免網路抖動時競態
+        clearTimeout(_fbSaveTimer);
+        _fbSaveTimer = setTimeout(() => {
+            try {
+                getDataRef().set(getFirebasePayload())
+                    .then(() => {
+                        lastSaveTime = Date.now(); // 寫入完成後再刷新，避免慢網路 > 10 秒被 listener 覆蓋
+                        setSyncStatus(true);
+                        pendingSync = false;
+                        try { localStorage.removeItem('_pendingSync'); } catch(e) {}
+                    })
+                    .catch(e => {
+                        console.warn('[Firebase] 寫入失敗，標記待同步:', e.code);
+                        pendingSync = true;
+                        try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
+                        setSyncStatus(false);
+                    });
+            } catch(e) {
+                console.warn('[Firebase] 離線，資料已存本地，待連線後自動同步');
+                pendingSync = true;
+                try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
+                setSyncStatus(false);
+            }
+        }, 300);
     }
 
     function pullFromFirebase() {
