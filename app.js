@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v92';
+﻿    const APP_VERSION = 'v93';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -310,7 +310,9 @@
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (_reloaded) return;
                 _reloaded = true;
-                window.location.reload();
+                if (navigator.onLine) {
+                    window.location.reload();
+                }
             });
 
             // 頁面載入時若已有等待的新版本，提示用戶
@@ -326,6 +328,18 @@
                     }
                 });
             });
+
+            // 切回 App 時重新檢查是否有新版本（手機背景後台常見場景）
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && navigator.onLine) {
+                    reg.update().catch(() => {});
+                }
+            });
+
+            // 每 30 分鐘定期檢查（長時間使用不關 App 的情況）
+            setInterval(() => {
+                if (navigator.onLine) reg.update().catch(() => {});
+            }, 30 * 60 * 1000);
         };
 
         if (regParam) { setup(regParam); }
@@ -333,6 +347,12 @@
     }
 
     function doForceUpdate() {
+        // 離線狀態下不重新整理，避免白畫面
+        if (!navigator.onLine) {
+            document.getElementById('updateModal').style.display = 'none';
+            alert('目前離線中，資料不受影響。\n待下次連線開啟 App 時會自動套用新版本。');
+            return;
+        }
         document.getElementById('updateModal').style.display = 'none';
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistration().then(reg => {

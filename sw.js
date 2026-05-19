@@ -1,6 +1,6 @@
 // 投手情蒐系統 - Service Worker
 // 更新版本號可強制所有裝置重新快取
-const CACHE_NAME = 'pitcher-scout-v92';
+const CACHE_NAME = 'pitcher-scout-v93';
 
 // 需要離線快取的資源
 const ASSETS_TO_CACHE = [
@@ -16,12 +16,12 @@ const ASSETS_TO_CACHE = [
 // ====== 安裝：快取靜態資源，由 app.js 決定何時接管 ======
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(ASSETS_TO_CACHE).catch(() => {
-          return cache.add('./index.html');
-        });
-      })
+    caches.open(CACHE_NAME).then(cache => {
+      // 逐檔快取，部分失敗不影響其他檔案（避免全或無導致快取不完整）
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map(url => cache.add(url).catch(() => {}))
+      );
+    })
     // skipWaiting 由 app.js 發送 SKIP_WAITING 訊息觸發，避免輪詢造成重載迴圈
   );
 });
