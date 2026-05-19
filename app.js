@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v91';
+﻿    const APP_VERSION = 'v92';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2014,6 +2014,10 @@
         activeSlot = activeSlot === 'A' ? 'B' : 'A';
         document.getElementById('slotA').classList.toggle('active-slot', activeSlot === 'A');
         document.getElementById('slotB').classList.toggle('active-slot', activeSlot === 'B');
+
+        // 同步 half 與 batter info：slot A 投→上半局對手打，slot B 投→下半局對手打
+        gameState.half = activeSlot === 'A' ? '上' : '下';
+        autoUpdateBatterInfoByInning();
 
         updateSlotDisplay();
         updatePitchLog();
