@@ -191,7 +191,7 @@
         <div style="background:white;border-radius:14px;width:100%;max-width:480px;margin:0 auto;border-top:4px solid var(--ct-blue-dark);">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:2px solid #e5e7eb;">
                 <div id="lineupModalTitle" style="font-size:17px;font-weight:900;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;">📋 打擊順序設定</div>
-                <span onclick="closeLineupModal()" style="font-size:26px;cursor:pointer;color:var(--ct-red);line-height:1;touch-action:manipulation;">&times;</span>
+                <span onclick="saveLineup()" style="font-size:26px;cursor:pointer;color:var(--ct-red);line-height:1;touch-action:manipulation;" title="儲存並關閉">&times;</span>
             </div>
             <div style="padding:12px 20px 0;">
                 <div style="display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:6px;margin-bottom:6px;font-size:11px;font-weight:700;color:#6b7280;text-align:center;">
@@ -579,7 +579,7 @@
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">棒次</span>
                             <button class="order-adj-btn" onclick="adjustBatterOrder(-1)">◀</button>
-                            <input type="number" id="batterOrder" placeholder="1-9" min="1" max="9" inputmode="numeric" autocomplete="off" style="flex:1;padding:8px;text-align:center;font-weight:900;font-size:18px;" onkeydown="if(event.key==='Enter')this.blur()">
+                            <input type="number" id="batterOrder" placeholder="1-9" min="1" max="9" inputmode="numeric" autocomplete="off" style="flex:1;padding:8px;text-align:center;font-weight:900;font-size:18px;" onkeydown="if(event.key==='Enter')this.blur()" oninput="const v=parseInt(this.value);if(!isNaN(v)){if(v<1)this.value=1;else if(v>9)this.value=9;}">
                             <button class="order-adj-btn" onclick="adjustBatterOrder(1)">▶</button>
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;">

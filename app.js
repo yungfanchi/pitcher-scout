@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v94';
+﻿    const APP_VERSION = 'v95';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -523,6 +523,13 @@
             sel.innerHTML += `<option value="${name}">${name}${info.number ? ' #' + info.number : ''} (${gameCount} 場)</option>`;
         });
 
+        // 自動帶入當前情蒐投手
+        const activeS = activeSlot === 'A' ? slotA : slotB;
+        const activePitcher = (activeS.team !== null && activeS.pitcher !== null)
+            ? allData.teams[activeS.team]?.pitchers[activeS.pitcher] : null;
+        const autoSelected = activePitcher?.name && pitcherMap[activePitcher.name];
+        if (autoSelected) sel.value = activePitcher.name;
+
         // 重置 UI 狀態
         document.getElementById('pdfScopeSection').style.display = 'none';
         document.getElementById('pdfGameSelectWrap').style.display = 'none';
@@ -536,6 +543,9 @@
         if (handSec) handSec.style.display = 'none';
 
         document.getElementById('pdfFilterModal').style.display = 'flex';
+
+        // 若自動帶入投手，觸發選單連動讓 Step 2 顯示
+        if (autoSelected) onPDFPitcherChange();
     }
 
     function closePDFFilter() {
@@ -2451,6 +2461,17 @@
         '內野安打','一壘安打','二壘安打','三壘安打','全壘打','保送','觸身球','野選','趁傳出局','失誤','違規打擊','Push'];
 
     function toggleOutcome(btn) {
+        const resultGroups = ['out-btn', 'hit-btn', 'reach-btn'];
+        const clickedGroup = resultGroups.find(c => btn.classList.contains(c));
+
+        // 點擊出局/安打/上壘任一組時，取消其他兩組的所有已選項（三組互斥）
+        if (clickedGroup && !btn.classList.contains('selected')) {
+            resultGroups.filter(c => c !== clickedGroup).forEach(c => {
+                document.querySelectorAll(`.outcome-btn.${c}.selected`)
+                    .forEach(b => b.classList.remove('selected'));
+            });
+        }
+
         btn.classList.toggle('selected');
         currentPitch.outcomes = Array.from(document.querySelectorAll('.outcome-btn.selected')).map(b => b.dataset.outcome);
         // 不在此修改 gameState，避免雙重計算；由 recordPitch → updateGameStateFromPitch 統一處理
