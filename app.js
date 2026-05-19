@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v77';
+﻿    const APP_VERSION = 'v85';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -308,12 +308,22 @@
                 window.location.reload();
             });
 
-            // 頁面載入時若已有等待的新版本，直接接管（一次 reload 即完成更新）
-            // 不在 session 內對 updatefound 做 autoActivate，避免輪詢/CDN 快取不一致造成重載迴圈
-            if (reg.waiting) {
-                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-            }
-            // 瀏覽器本身在每次頁面載入時都會自動比對 sw.js，無需額外輪詢
+            const activate = (sw) => sw.postMessage({ type: 'SKIP_WAITING' });
+
+            // 頁面載入時若已有等待的新版本，直接接管
+            if (reg.waiting) { activate(reg.waiting); return; }
+
+            // 同一 session 內裝好的新版本也自動接管（讓 v77 等舊裝置當次就能更新）
+            // 不使用輪詢，依賴瀏覽器原生的每次載入自動比對
+            reg.addEventListener('updatefound', () => {
+                const nw = reg.installing;
+                if (!nw) return;
+                nw.addEventListener('statechange', () => {
+                    if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                        activate(nw);
+                    }
+                });
+            });
         };
 
         if (regParam) { setup(regParam); }
@@ -1532,11 +1542,13 @@
         updateScoreboard();
         renderCountLights();
         renderBases();
-        // 顯示版本號：登入頁 + 主介面
+        // 顯示版本號：登入頁 + 主介面 + 側邊欄底部
         const verEl = document.getElementById('appVersionDisplay');
         if (verEl) verEl.textContent = APP_VERSION;
         const verMainEl = document.getElementById('appVersionMain');
         if (verMainEl) verMainEl.textContent = APP_VERSION;
+        const verLabel = document.getElementById('appVersionLabel');
+        if (verLabel) verLabel.textContent = APP_VERSION;
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
     }
 
