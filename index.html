@@ -1019,19 +1019,9 @@
         <div class="container">
             <h2>💾 數據管理</h2>
             <div class="record-controls">
-                <button class="btn btn-primary" onclick="manualSave()">💾 儲存資料</button>
-                <button class="btn btn-success" onclick="exportAllData()">📥 匯出所有數據</button>
                 <button class="btn btn-warning" onclick="exportCurrentPitcher()" style="color:var(--ct-blue-dark);">📊 匯出當前投手</button>
                 <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-                <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">📤 匯入數據</button>
                 <button class="btn btn-primary" onclick="openPDFFilter()" style="background:#dc2626;border-color:#dc2626;">📄 匯出 PDF</button>
-            </div>
-            <div class="auto-save-toggle">
-                <label class="switch">
-                    <input type="checkbox" id="autoSaveToggle" onchange="toggleAutoSave()">
-                    <span class="slider"></span>
-                </label>
-                <span><strong>網頁自動儲存：</strong><span id="autoSaveStatus">關閉</span> <span style="color:#6b7280;font-size:12px;">（建議手動按「儲存資料」）</span></span>
             </div>
         </div>
     </div>
