@@ -426,7 +426,6 @@
 
         // 第一頁：以第一個 tab 內容高度建立 PDF
         setProg('組合 PDF...');
-        const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
         const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, captures[0].imgHeightMm] });
         captures[0].canvas && pdf.addImage(
             captures[0].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, captures[0].imgHeightMm
