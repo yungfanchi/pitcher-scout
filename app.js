@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v76';
+﻿    const APP_VERSION = 'v77';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -356,132 +356,106 @@
         }
     }
 
-    // ====== 截圖 PDF（完全按畫面） ======
-    async function generateScreenshotPDF() {
-        // 取得投手名（供檔名用，沒有也無妨）
-        const _sd = activeSlot === 'A' ? slotA : slotB;
-        const _p = (_sd.team !== null && _sd.pitcher !== null) ? allData.teams[_sd.team]?.pitchers[_sd.pitcher] : null;
-        const pitcherLabel = _p?.name || '投手報告';
-
+    // ====== 截圖 PDF 共用助手 ======
+    // 切換到統計/分析/對比三分頁 → html2canvas 截圖 → jsPDF 組成 PDF 下載
+    async function _captureAndBuildPDF(filename) {
         if (typeof html2canvas === 'undefined') { alert('截圖套件未載入，請重新整理頁面'); return; }
         const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
         if (!JSPDF) { alert('PDF 套件未載入，請重新整理頁面'); return; }
 
-        // 記住目前分頁
+        // 小型右下角提示（非全螢幕遮罩）
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:rgba(0,30,80,0.92);color:white;padding:10px 16px;border-radius:8px;z-index:99999;font-size:13px;font-family:"Noto Sans TC",sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+        toast.innerHTML = '📄 正在產生 PDF... <span id="_pdfToastProg" style="color:#ffd700;margin-left:6px;">準備中</span>';
+        document.body.appendChild(toast);
+        const setProg = (msg) => {
+            const el = document.getElementById('_pdfToastProg');
+            if (el) el.textContent = msg;
+        };
+
+        const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+
+        const tabs = [
+            { id: 'statsTab',    label: '統計', upd: () => updateStats() },
+            { id: 'analysisTab', label: '分析', upd: () => updateStats() },
+            { id: 'compareTab',  label: '對比', upd: () => updateCompare() },
+        ];
+
+        let firstPage = true;
+        for (let ti = 0; ti < tabs.length; ti++) {
+            const tab = tabs[ti];
+            setProg(`截圖 ${tab.label} (${ti+1}/3)`);
+
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const tabEl = document.getElementById(tab.id);
+            if (!tabEl) continue;
+            tabEl.classList.add('active');
+            tab.upd();
+
+            await new Promise(r => setTimeout(r, 1400));
+
+            const savedStyle = { height: tabEl.style.height, overflow: tabEl.style.overflow, maxHeight: tabEl.style.maxHeight };
+            tabEl.style.cssText += ';height:auto!important;overflow:visible!important;max-height:none!important;';
+
+            const canvas = await html2canvas(tabEl, {
+                scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#f8f9fa',
+                scrollX: 0, scrollY: 0,
+                width: tabEl.scrollWidth, height: tabEl.scrollHeight,
+                windowWidth: tabEl.scrollWidth, windowHeight: tabEl.scrollHeight,
+                logging: false, imageTimeout: 10000
+            });
+
+            tabEl.style.height = savedStyle.height;
+            tabEl.style.overflow = savedStyle.overflow;
+            tabEl.style.maxHeight = savedStyle.maxHeight;
+
+            const pxPerMm = canvas.width / pageW;
+            const imgHeightMm = canvas.height / pxPerMm;
+            const pagesNeeded = Math.ceil(imgHeightMm / pageH);
+            const slicePx = Math.ceil(canvas.height / pagesNeeded);
+
+            for (let s = 0; s < pagesNeeded; s++) {
+                if (!firstPage) pdf.addPage();
+                firstPage = false;
+                const srcY = s * slicePx;
+                const srcH = Math.min(slicePx, canvas.height - srcY);
+                const sliceC = document.createElement('canvas');
+                sliceC.width = canvas.width;
+                sliceC.height = srcH;
+                sliceC.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+                const sliceH_mm = srcH / pxPerMm;
+                pdf.addImage(sliceC.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, sliceH_mm);
+            }
+            await new Promise(r => setTimeout(r, 150));
+        }
+
+        setProg('儲存中...');
+        await new Promise(r => setTimeout(r, 200));
+        pdf.save(filename);
+        toast.remove();
+    }
+
+    // ====== 截圖 PDF（無 Modal，直接使用當前畫面）======
+    async function generateScreenshotPDF() {
+        const _sd = activeSlot === 'A' ? slotA : slotB;
+        const _p = (_sd.team !== null && _sd.pitcher !== null) ? allData.teams[_sd.team]?.pitchers[_sd.pitcher] : null;
+        const pitcherLabel = _p?.name || '投手報告';
+
         const origTabEl = document.querySelector('.tab-content.active');
         const origTabId = origTabEl?.id || 'recordTab';
 
-        // 建立 Loading 遮罩
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,20,60,0.88);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:"Noto Sans TC",sans-serif;';
-        overlay.innerHTML = `
-            <div style="font-size:52px;margin-bottom:16px;">📸</div>
-            <div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;letter-spacing:3px;margin-bottom:10px;">正在產生截圖 PDF</div>
-            <div id="_pdfProg" style="font-size:14px;color:#ffd700;margin-bottom:20px;min-height:20px;">準備中...</div>
-            <div style="width:320px;height:6px;background:rgba(255,255,255,0.15);border-radius:3px;overflow:hidden;">
-                <div id="_pdfBar" style="height:100%;background:linear-gradient(90deg,#ffd700,#ff8c00);width:0%;transition:width 0.4s;border-radius:3px;"></div>
-            </div>
-            <div style="margin-top:18px;font-size:12px;color:rgba(255,255,255,0.45);">請稍候，截圖需要數秒鐘</div>`;
-        document.body.appendChild(overlay);
-        const prog = (msg, pct) => {
-            const p = document.getElementById('_pdfProg');
-            const b = document.getElementById('_pdfBar');
-            if (p) p.textContent = msg;
-            if (b) b.style.width = pct + '%';
-        };
-
         try {
-            const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const pageW = pdf.internal.pageSize.getWidth();
-            const pageH = pdf.internal.pageSize.getHeight();
-
-            const tabs = [
-                { id: 'statsTab',    label: '📊 統計', upd: () => updateStats() },
-                { id: 'analysisTab', label: '🔍 分析', upd: () => updateStats() },
-                { id: 'compareTab',  label: '⚔️ 對比', upd: () => updateCompare() },
-            ];
-
-            let firstPage = true;
-            for (let ti = 0; ti < tabs.length; ti++) {
-                const tab = tabs[ti];
-                prog(`切換到 ${tab.label} 分頁...`, ti * 28 + 5);
-
-                // 啟用該分頁
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                const tabEl = document.getElementById(tab.id);
-                if (!tabEl) continue;
-                tabEl.classList.add('active');
-                tab.upd();
-
-                // 等待圖表渲染
-                await new Promise(r => setTimeout(r, 1400));
-                prog(`截圖 ${tab.label}...`, ti * 28 + 18);
-
-                // 暫時展開以捕捉完整高度
-                const savedStyle = { height: tabEl.style.height, overflow: tabEl.style.overflow, maxHeight: tabEl.style.maxHeight };
-                tabEl.style.cssText += ';height:auto!important;overflow:visible!important;max-height:none!important;';
-
-                const canvas = await html2canvas(tabEl, {
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#f8f9fa',
-                    scrollX: 0,
-                    scrollY: 0,
-                    width: tabEl.scrollWidth,
-                    height: tabEl.scrollHeight,
-                    windowWidth: tabEl.scrollWidth,
-                    windowHeight: tabEl.scrollHeight,
-                    logging: false,
-                    imageTimeout: 10000
-                });
-
-                // 還原樣式
-                tabEl.style.height    = savedStyle.height;
-                tabEl.style.overflow  = savedStyle.overflow;
-                tabEl.style.maxHeight = savedStyle.maxHeight;
-
-                prog(`${tab.label} 加入 PDF...`, (ti + 1) * 28);
-
-                // 計算分頁
-                const pxPerMm = canvas.width / pageW;
-                const imgHeightMm = canvas.height / pxPerMm;
-                const pagesNeeded = Math.ceil(imgHeightMm / pageH);
-                const slicePx = Math.ceil(canvas.height / pagesNeeded);
-
-                for (let s = 0; s < pagesNeeded; s++) {
-                    if (!firstPage) pdf.addPage();
-                    firstPage = false;
-
-                    const srcY    = s * slicePx;
-                    const srcH    = Math.min(slicePx, canvas.height - srcY);
-                    const sliceW  = canvas.width;
-                    const sliceC  = document.createElement('canvas');
-                    sliceC.width  = sliceW;
-                    sliceC.height = srcH;
-                    sliceC.getContext('2d').drawImage(canvas, 0, srcY, sliceW, srcH, 0, 0, sliceW, srcH);
-
-                    const sliceH_mm = srcH / pxPerMm;
-                    pdf.addImage(sliceC.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, sliceH_mm);
-                }
-                await new Promise(r => setTimeout(r, 200));
-            }
-
-            prog('儲存中...', 95);
-            await new Promise(r => setTimeout(r, 200));
             const fname = `投手報告_${pitcherLabel}_${new Date().toISOString().split('T')[0]}.pdf`;
-            pdf.save(fname);
-            prog('✅ 完成！', 100);
-            await new Promise(r => setTimeout(r, 600));
-
+            await _captureAndBuildPDF(fname);
         } catch (err) {
             console.error('[截圖PDF]', err);
-            alert('PDF 產生失敗：' + err.message + '\n\n建議重新整理頁面後再試。');
+            alert('PDF 產生失敗：' + err.message);
         } finally {
-            // 還原原本分頁
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(origTabId)?.classList.add('active');
-            overlay.remove();
+            document.querySelector('[id^="_pdfToast"]')?.parentElement?.remove();
         }
     }
 
@@ -576,19 +550,88 @@
         document.getElementById('pdfGameSelectWrap').style.display = isSingle ? 'block' : 'none';
     }
 
-    // 點擊「產生 PDF」按鈕
-    function generatePDF() {
+    // 點擊「產生 PDF」按鈕 — 走截圖流程
+    async function generatePDF() {
         const pitcherName = document.getElementById('pdfPitcherSelect').value;
         const scopeEl = document.querySelector('input[name="pdfScope"]:checked');
         const scope = scopeEl ? scopeEl.value : 'all';
         const gameIndex = scope === 'single' ? document.getElementById('pdfGameSelect').value : 'all';
+        const handEl = document.querySelector('input[name="pdfHand"]:checked');
+        const handFilter = handEl ? handEl.value : 'all';
 
         if (!pitcherName) { alert('請選擇投手'); return; }
         if (scope === 'single' && !gameIndex) { alert('請選擇場次'); return; }
 
-        const handEl = document.querySelector('input[name="pdfHand"]:checked');
-        const handFilter = handEl ? handEl.value : 'all';
-        exportToPDF(pitcherName, gameIndex, handFilter);
+        // 1. 收集該投手符合條件的所有球
+        let refPitcher = null;
+        const aggregated = [];
+        allData.teams.forEach((team, ti) => {
+            if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
+            (team.pitchers || []).forEach(p => {
+                if (p.name !== pitcherName) return;
+                if (!refPitcher) refPitcher = p;
+                (p.pitches || []).forEach(pitch => aggregated.push(pitch));
+            });
+        });
+        const filtered = handFilter === 'left' ? aggregated.filter(p => p.batterHand === '左打') :
+                         handFilter === 'right' ? aggregated.filter(p => p.batterHand === '右打') :
+                         aggregated;
+        if (!filtered.length) { alert('所選條件無投球數據'); return; }
+
+        closePDFFilter();
+
+        // 2. 建立合成投手放到 allData.teams
+        const handSuffix = handFilter === 'left' ? ' (對左打)' : handFilter === 'right' ? ' (對右打)' : '';
+        const syntheticTeam = {
+            gameName: '📄 PDF 報告',
+            name: refPitcher?.name || pitcherName,
+            opponent: handSuffix.trim() || '全部打者',
+            date: new Date().toISOString().split('T')[0],
+            pitchers: [{
+                name: pitcherName + handSuffix,
+                number: refPitcher?.number || '',
+                hand: refPitcher?.hand || '',
+                role: refPitcher?.role || '',
+                style: refPitcher?.style || '',
+                pitches: filtered,
+                score: { home:0, away:0, inning:1, half:'上' }
+            }]
+        };
+
+        // 3. 保存狀態
+        const origSlotA = { ...slotA };
+        const origSlotB = { ...slotB };
+        const origActive = activeSlot;
+        const origTabEl = document.querySelector('.tab-content.active');
+        const origTabId = origTabEl?.id || 'recordTab';
+
+        const tempIndex = allData.teams.length;
+        allData.teams.push(syntheticTeam);
+
+        // 4. 設定 slotA 指向合成投手
+        slotA = { team: tempIndex, pitcher: 0 };
+        activeSlot = 'A';
+        if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
+
+        const fileBase = `投手報告_${pitcherName}${handSuffix}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+        try {
+            await _captureAndBuildPDF(fileBase);
+        } catch (e) {
+            console.error('[PDF]', e);
+            alert('PDF 產生失敗：' + e.message);
+        } finally {
+            // 5. 清理：移除合成投手，還原狀態
+            allData.teams.splice(tempIndex, 1);
+            slotA = origSlotA;
+            slotB = origSlotB;
+            activeSlot = origActive;
+            if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(origTabId)?.classList.add('active');
+            if (origTabId === 'statsTab' || origTabId === 'analysisTab') updateStats();
+            else if (origTabId === 'compareTab') updateCompare();
+        }
     }
 
     // ===== 核心過濾函式（PDF 實體導出預留殼） =====
