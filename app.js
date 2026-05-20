@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v112';
+﻿    const APP_VERSION = 'v113';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2340,6 +2340,15 @@
         // Auto-fill current batter if order is set
         const order = parseInt(document.getElementById('batterOrder').value);
         if (order >= 1 && order <= 9) applyLineupToUI(order);
+        // ★ 聯動模式：打擊順序 Modal 儲存後同步到打者側欄
+        if (_bmState.recMode === 'linked') {
+            // 判斷剛存的是哪一隊（lineup 指向 gameState.lineups.teamA or .teamB）
+            const savedSide = (lineup === gameState.lineups.teamA) ? 'A' : 'B';
+            const bmTeam = (allData.bm && allData.bm.attackingTeam) || 'B';
+            if (savedSide === bmTeam) {
+                _syncGameStateToBmLineup(bmTeam);
+            }
+        }
     }
 
     function applyLineupToUI(order) {
@@ -7562,6 +7571,7 @@
         _initBmData();
         allData.bm.lineup[idx][field] = val;
         saveToLocalStorage();
+        if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
     }
 
     function toggleBmLineupHand(idx, btn) {
@@ -7572,6 +7582,43 @@
         btn.textContent = next;
         btn.classList.toggle('bm-on', next === '右打');
         saveToLocalStorage();
+        if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
+    }
+
+    // ★ 聯動打線同步：打者側欄 → gameState
+    function _syncBmLineupToGameState() {
+        _initBmData();
+        // B隊進攻 = 先攻 = teamB；A隊進攻 = 後攻 = teamA
+        const gsKey = (allData.bm.attackingTeam === 'B') ? 'teamB' : 'teamA';
+        allData.bm.lineup.forEach((p, i) => {
+            if (!gameState.lineups[gsKey][i + 1]) gameState.lineups[gsKey][i + 1] = {};
+            gameState.lineups[gsKey][i + 1].number = p.number || '';
+            gameState.lineups[gsKey][i + 1].name   = p.name   || '';
+            gameState.lineups[gsKey][i + 1].hand   = p.hand   || '右打';
+        });
+    }
+
+    // ★ 聯動打線同步：gameState → 打者側欄（有資料才蓋入）
+    function _syncGameStateToBmLineup(attackingTeam) {
+        const gsKey = (attackingTeam === 'B') ? 'teamB' : 'teamA';
+        const gsLineup = gameState.lineups[gsKey];
+        let hasData = false;
+        for (let i = 1; i <= 9; i++) {
+            if (gsLineup[i] && gsLineup[i].number) { hasData = true; break; }
+        }
+        if (!hasData) return false;
+        _initBmData();
+        for (let i = 1; i <= 9; i++) {
+            const p = gsLineup[i] || {};
+            allData.bm.lineup[i - 1] = {
+                number: p.number || '',
+                name:   p.name   || '',
+                hand:   p.hand   || '右打'
+            };
+        }
+        _renderBmLineup();
+        saveToLocalStorage();
+        return true;
     }
 
     function copyLastBmLineup() {
@@ -7641,6 +7688,10 @@
         saveToLocalStorage();
         // ★ 自動連動：選了賽事→聯動模式；選不連動→獨立模式
         switchBmRecordMode(allData.bm.gameIdx >= 0 ? 'linked' : 'standalone');
+        // ★ 聯動模式：自動帶入對應隊的打線（優先從 gameState 帶入）
+        if (allData.bm.gameIdx >= 0) {
+            _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
+        }
     }
 
     function selectBmTeam(t) {
@@ -7651,6 +7702,10 @@
         if (ta) ta.classList.toggle('bm-on', t==='A');
         if (tb) tb.classList.toggle('bm-on', t==='B');
         saveToLocalStorage();
+        // ★ 聯動模式：切換進攻隊時自動帶入對應打線
+        if (_bmState.recMode === 'linked') {
+            _syncGameStateToBmLineup(t);
+        }
     }
 
     // ── 記錄模式切換 ──
