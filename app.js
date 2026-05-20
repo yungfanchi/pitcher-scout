@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v120';
+﻿    const APP_VERSION = 'v121';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7451,7 +7451,12 @@
         spStrikes: 0,
         spPitches: [],
         spSelectedOutcome: null,  // 獨立模式打席結果
-        spHitLoc: null            // 獨立模式落點
+        spHitLoc: null,           // 獨立模式落點
+        // 獨立模式比賽狀態
+        spInning: 1,
+        spHalf: '上',
+        spOuts: 0,
+        spBases: [false,false,false]
     };
 
     // ── 一鍵切換模式（情蒐員快速切換投手／打者）──
@@ -7619,7 +7624,11 @@
         _bmState.tab = tab;
         if (tab==='stats')      _renderBmStats();
         if (tab==='analysis')   _renderBmAnalysis();
-        if (tab==='record')     { _renderBmOutcomeButtons(); _renderBmBatterDisplay(); _renderBmSpZoneGrid(); }
+        if (tab==='record') {
+            _renderBmOutcomeButtons();
+            _renderBmBatterDisplay();
+            if (_bmState.recMode === 'standalone') _renderSpOutcomeButtons();
+        }
         if (tab==='batterdata') { refreshBatterList(); }
     }
 
@@ -7824,10 +7833,13 @@
         if (ta) ta.classList.toggle('bm-on', t==='A');
         if (tb) tb.classList.toggle('bm-on', t==='B');
         saveToLocalStorage();
-        // ★ 聯動模式：切換進攻隊時自動帶入對應打線
+        // ★ 聯動模式：切換進攻隊時自動帶入對應打線，打者從第一棒開始
         if (_bmState.recMode === 'linked') {
             _syncGameStateToBmLineup(t);
+            _bmState.currentOrder = 0;
         }
+        _renderBmBatterDisplay();
+        resetBmLinkedForm();
     }
 
     // ── 記錄模式切換 ──
@@ -7841,10 +7853,13 @@
         const sr = document.getElementById('bmStandaloneRecord');
         if (lr) lr.style.display = mode==='linked' ? '' : 'none';
         if (sr) sr.style.display = mode==='standalone' ? '' : 'none';
-        // 槽位卡只在聯動模式顯示
-        const cs = document.getElementById('bmCurrentSection');
-        if (cs) cs.style.display = mode==='linked' ? '' : 'none';
-        if (mode==='standalone') _renderBmSpZoneGrid();
+        // 雙槽位卡（聯動）vs 單槽位（獨立）
+        const cs   = document.getElementById('bmCurrentSection');
+        const spcs = document.getElementById('bmSpCurrentSection');
+        if (cs)   cs.style.display   = mode==='linked'     ? '' : 'none';
+        if (spcs) spcs.style.display = mode==='standalone' ? '' : 'none';
+        // 獨立模式初始化結果按鈕與球場圖
+        if (mode==='standalone') { _renderSpOutcomeButtons(); }
 
         // ★ 側欄：聯動顯示比賽下拉，獨立顯示賽事資訊表單
         const linkedSec = document.getElementById('bmLinkedGameSection');
@@ -7947,37 +7962,54 @@
         { label:'雙殺',   cls:'bm-out' },
         { label:'野選',   cls:'' },
         { label:'失誤',   cls:'' },
-        { label:'捕逸',   cls:'bm-bb' },
     ];
     const BM_BALL_IN_PLAY = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
 
     const BM_OUTCOME_GROUPS = [
         { label:'出局', color:'#dc0000', outcomes: ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'] },
         { label:'安打', color:'#16a34a', outcomes: ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'] },
-        { label:'上壘', color:'#0051a5', outcomes: ['保送','觸身球','故意四壞','捕逸'] },
+        { label:'上壘', color:'#0051a5', outcomes: ['保送','觸身球','故意四壞'] },
         { label:'其他', color:'#6b7280', outcomes: ['野選','失誤'] },
     ];
     // 各 outcome 對應的 cls（供 grouped 渲染使用）
     const BM_OUTCOME_CLS = {};
     BM_OUTCOMES.forEach(o => { BM_OUTCOME_CLS[o.label] = o.cls; });
 
-    function _renderBmOutcomeButtons() {
-        const container = document.getElementById('bmOutcomeBtns');
+    // ── 共用：渲染分組打席結果按鈕 ──
+    function _renderGroupedOutcomes(containerId, selectedOutcome, clickFn) {
+        const container = document.getElementById(containerId);
         if (!container) return;
+        container.style.flexDirection = 'column';
         container.innerHTML = BM_OUTCOME_GROUPS.map(g => {
             const btns = g.outcomes.map(label => {
                 const cls = BM_OUTCOME_CLS[label] || '';
-                const active = _bmState.selectedOutcome === label ? ' bm-on' : '';
+                const active = selectedOutcome === label ? ' bm-on' : '';
                 return `<button class="bm-outcome-btn ${cls}${active}"
-                    onclick="selectBmOutcome('${label}',this)"
-                    ontouchend="event.preventDefault();selectBmOutcome('${label}',this)">${label}</button>`;
+                    onclick="${clickFn}('${label}',this)"
+                    ontouchend="event.preventDefault();${clickFn}('${label}',this)">${label}</button>`;
             }).join('');
-            return `<span class="bm-outcome-group-label" style="color:${g.color};">${g.label}</span>${btns}`;
+            return `<div class="bm-outcome-group">
+                <span class="bm-outcome-group-label" style="color:${g.color};font-size:11px;font-weight:800;display:block;margin-bottom:4px;">${g.label}</span>
+                <div style="display:flex;flex-wrap:wrap;gap:5px;">${btns}</div>
+            </div>`;
         }).join('');
+    }
+
+    function _renderBmOutcomeButtons() {
+        _renderGroupedOutcomes('bmOutcomeBtns', _bmState.selectedOutcome, 'selectBmOutcome');
         // 同步渲染內嵌球場圖（只在第一次，避免重複建立）
         const wrap = document.getElementById('bmHitMapWrap');
         if (wrap && !wrap.querySelector('svg')) {
             wrap.innerHTML = buildFieldSVG('', 'bm');
+        }
+    }
+
+    function _renderSpOutcomeButtons() {
+        _renderGroupedOutcomes('spOutcomeBtns', _bmState.spSelectedOutcome, 'selectSpOutcomeInline');
+        // 渲染獨立模式球場圖
+        const wrap = document.getElementById('spHitMapWrap');
+        if (wrap && !wrap.querySelector('svg')) {
+            wrap.innerHTML = buildFieldSVG('', 'sp');
         }
     }
 
@@ -7987,6 +8019,19 @@
         if (btn) btn.classList.add('bm-on');
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+    }
+
+    // ── 取得聯動模式的球隊名稱 ──
+    function _getBmTeamNames() {
+        _initBmData();
+        let nameA = 'A隊（後攻）', nameB = 'B隊（先攻）';
+        const gi = allData.bm.gameIdx;
+        if (gi >= 0 && allData.teams && allData.teams[gi]) {
+            const t = allData.teams[gi];
+            if (t.name)     nameA = t.name;
+            if (t.opponent) nameB = t.opponent;
+        }
+        return { nameA, nameB };
     }
 
     function _renderBmBatterDisplay() {
@@ -7999,7 +8044,7 @@
         const nameTxt  = batter.name  || '（未填姓名）';
         const handTxt  = batter.hand  || '---';
 
-        // ── 記錄卡（緊湊） ──
+        // ── 緊湊記錄卡（攻守顯示） ──
         const orderEl = document.getElementById('bmCurOrder');
         const numEl   = document.getElementById('bmCurBatterNum');
         const nameEl  = document.getElementById('bmCurBatterName');
@@ -8009,17 +8054,48 @@
         if (nameEl)  nameEl.textContent  = nameTxt;
         if (handEl)  handEl.textContent  = handTxt;
 
-        // ── 槽位卡（大型顯示） ──
-        const slotOrder = document.getElementById('bmSlotOrder');
-        const slotNum   = document.getElementById('bmSlotNum');
-        const slotName  = document.getElementById('bmSlotName');
-        const slotHand  = document.getElementById('bmSlotHand');
-        const slotTrait = document.getElementById('bmSlotTrait');
-        if (slotOrder) slotOrder.textContent = orderTxt;
-        if (slotNum)   slotNum.textContent   = numTxt;
-        if (slotName)  slotName.textContent  = nameTxt;
-        if (slotHand)  slotHand.textContent  = handTxt;
-        if (slotTrait) slotTrait.textContent = batter.trait || '';
+        // ── 雙槽位卡（聯動模式）──
+        const attackingTeam = allData.bm.attackingTeam || 'B';
+        const isA = attackingTeam === 'A';
+        const { nameA, nameB } = _getBmTeamNames();
+
+        // 更新隊名標籤
+        const ta = document.getElementById('bmSlotTeamA');
+        const tb = document.getElementById('bmSlotTeamB');
+        if (ta) ta.textContent = nameA;
+        if (tb) tb.textContent = nameB;
+
+        // 進攻槽位：顯示當前打者
+        const actNum   = document.getElementById(isA ? 'bmSlotNumA'   : 'bmSlotNumB');
+        const actName  = document.getElementById(isA ? 'bmSlotNameA'  : 'bmSlotNameB');
+        const actOrder = document.getElementById(isA ? 'bmSlotOrderA' : 'bmSlotOrderB');
+        const actHand  = document.getElementById(isA ? 'bmSlotHandA'  : 'bmSlotHandB');
+        if (actNum)   actNum.textContent   = numTxt;
+        if (actName)  actName.textContent  = nameTxt;
+        if (actOrder) actOrder.textContent = orderTxt;
+        if (actHand)  actHand.textContent  = handTxt;
+
+        // 守備槽位：顯示等待
+        const inactNum   = document.getElementById(isA ? 'bmSlotNumB'   : 'bmSlotNumA');
+        const inactName  = document.getElementById(isA ? 'bmSlotNameB'  : 'bmSlotNameA');
+        const inactOrder = document.getElementById(isA ? 'bmSlotOrderB' : 'bmSlotOrderA');
+        const inactHand  = document.getElementById(isA ? 'bmSlotHandB'  : 'bmSlotHandA');
+        if (inactNum)   inactNum.textContent   = '⚾';
+        if (inactName)  inactName.textContent  = '守備中';
+        if (inactOrder) inactOrder.textContent = '---';
+        if (inactHand)  inactHand.textContent  = '';
+
+        // active-slot 樣式
+        const slotA = document.getElementById('bmSlotCardA');
+        const slotB = document.getElementById('bmSlotCardB');
+        if (slotA) slotA.classList.toggle('active-slot', isA);
+        if (slotB) slotB.classList.toggle('active-slot', !isA);
+
+        // active-indicator
+        const indA = document.getElementById('bmActiveIndA');
+        const indB = document.getElementById('bmActiveIndB');
+        if (indA) indA.style.display = isA ? '' : 'none';
+        if (indB) indB.style.display = isA ? 'none' : '';
 
         // ── 補填輸入框 ──
         const patchEl = document.getElementById('bmNamePatch');
@@ -8069,6 +8145,92 @@
         if (!el) return;
         allData.bm.lineup[_bmState.currentOrder].trait = el.value.trim();
         saveToLocalStorage();
+    }
+
+    // ── 獨立模式：比賽狀態控制 ──
+    function selectSpHalf(half) {
+        _bmState.spHalf = half;
+        const t = document.getElementById('spHalfTopBtn');
+        const b = document.getElementById('spHalfBotBtn');
+        if (t) t.classList.toggle('bm-on', half==='上');
+        if (b) b.classList.toggle('bm-on', half==='下');
+    }
+
+    function toggleSpBase(idx) {
+        _bmState.spBases[idx] = !_bmState.spBases[idx];
+        const ids = ['spBase1','spBase2','spBase3'];
+        const labels = ['一壘','二壘','三壘'];
+        const btn = document.getElementById(ids[idx]);
+        if (btn) {
+            btn.classList.toggle('bm-on', _bmState.spBases[idx]);
+            btn.textContent = (_bmState.spBases[idx] ? '●' : '') + labels[idx];
+        }
+    }
+
+    function setSpOuts(n) {
+        _bmState.spOuts = n + 1 > _bmState.spOuts ? n + 1 : n;
+        const max = 3;
+        ['spOD0','spOD1','spOD2'].forEach((id, i) => {
+            const dot = document.getElementById(id);
+            if (dot) {
+                const lit = i < _bmState.spOuts;
+                dot.classList.toggle('bm-on', lit);
+                dot.textContent = lit ? '●' : '○';
+            }
+        });
+    }
+
+    // ── 獨立模式：打席結果選擇（內嵌式，非彈窗） ──
+    function selectSpOutcomeInline(outcome, btn) {
+        _bmState.spSelectedOutcome = outcome;
+        _bmState.spHitLoc = null;
+        document.querySelectorAll('#spOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        if (btn) btn.classList.add('bm-on');
+        // 清除落點高亮
+        const svg = document.getElementById('fieldSVG_sp');
+        if (svg) _zoneHighlight(null, svg);
+        const lbl = document.getElementById('spHitZoneLabel');
+        if (lbl) lbl.textContent = '';
+        const confirmBtn = document.getElementById('spConfirmBtn');
+        if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+    }
+
+    // ── 獨立模式：確認打席（內嵌式） ──
+    function confirmSpAtBatInline() {
+        const outcome = _bmState.spSelectedOutcome;
+        if (!outcome) return;
+        const number = (document.getElementById('spBatterNum')?.value  || '').trim();
+        const name   = (document.getElementById('spBatterName')?.value || '').trim();
+        const inning = parseInt(document.getElementById('spInning')?.value) || 1;
+        const rec = {
+            number, name, order: 0,
+            hand: _bmState.spHand,
+            inning, half: _bmState.spHalf,
+            outs: _bmState.spOuts,
+            bases: [..._bmState.spBases],
+            pitcherHand: _bmState.spPh,
+            outcome,
+            hitLocation: _bmState.spHitLoc || null,
+            mode: 'standalone',
+            pitches: [],
+            gameIdx: -1,
+            ts: Date.now()
+        };
+        _initBmData();
+        allData.bm.atBats.push(rec);
+        saveToLocalStorage();
+        saveBmToFirebase();
+        // Reset form
+        _bmState.spSelectedOutcome = null;
+        _bmState.spHitLoc = null;
+        document.querySelectorAll('#spOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        const svg = document.getElementById('fieldSVG_sp');
+        if (svg) _zoneHighlight(null, svg);
+        const lbl = document.getElementById('spHitZoneLabel');
+        if (lbl) lbl.textContent = '';
+        const confirmBtn = document.getElementById('spConfirmBtn');
+        if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
+        _renderSpRecentLog();
     }
 
     function selectBmHalf(half) {
@@ -8339,8 +8501,8 @@
         const overlay = document.getElementById('spOutcomeOverlay');
         if (overlay) overlay.remove();
 
-        const numEl  = document.getElementById('spNumber');
-        const nameEl = document.getElementById('spName');
+        const numEl  = document.getElementById('spBatterNum');
+        const nameEl = document.getElementById('spBatterName');
         const number = numEl ? numEl.value.trim() : '';
         const name   = nameEl ? nameEl.value.trim() : '';
 

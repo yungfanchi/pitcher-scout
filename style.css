@@ -1071,9 +1071,12 @@
 /* 打席結果分組標題 */
 .bm-outcome-group-label { display:block; font-size:10px; font-weight:800; letter-spacing:0.4px; margin-top:5px; margin-bottom:2px; }
 /* 模式切換（小型，Tab列右側） */
-#bmModeToggleCompact { display:flex; border:1.5px solid #d1d5db; border-radius:8px; overflow:hidden; flex-shrink:0; align-self:flex-end; margin-bottom:8px; }
-#bmModeToggleCompact .bm-mode-btn { padding:5px 10px; font-size:11px; border:none; border-left:1px solid #d1d5db; line-height:1.3; }
+#bmModeToggleCompact { display:flex; border:2px solid #d1d5db; border-radius:10px; overflow:hidden; flex-shrink:0; align-self:flex-end; margin-bottom:4px; }
+#bmModeToggleCompact .bm-mode-btn { padding:9px 20px; font-size:14px; font-weight:700; border:none; border-left:2px solid #d1d5db; line-height:1.3; cursor:pointer; font-family:inherit; transition:background 0.15s,color 0.15s; }
 #bmModeToggleCompact .bm-mode-btn:first-child { border-left:none; }
+#bmModeToggleCompact .bm-mode-btn.bm-on { background:#003d79; color:white; }
+/* 打席結果分組容器 */
+.bm-outcome-group { margin-bottom:2px; }
 
 /* ─── 打者情蒐槽位（仿 dual-pitcher-section）─── */
 .bm-current-section {

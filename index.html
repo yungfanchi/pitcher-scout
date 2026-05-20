@@ -1092,36 +1092,72 @@
     <!-- ════ 打者情蒐模式（與投手模式共用 mainContent 容器）════ -->
     <div id="batterModeWrapper" style="display:none;">
 
-    <!-- 打者情蒐槽位（仿投手 dual-pitcher-section） -->
+    <!-- 聯動模式：雙槽位（A=後攻 / B=先攻，隊名自動帶入） -->
     <div class="bm-current-section" id="bmCurrentSection">
         <h2>🏏 當前情蒐打者</h2>
-        <div class="bm-batter-slot">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <button onclick="prevBmBatter()" class="bm-slot-nav" ontouchend="event.preventDefault();prevBmBatter()">◀</button>
-                <div style="flex:1;text-align:center;min-width:0;">
-                    <div id="bmSlotOrder" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:1px;margin-bottom:2px;">打序 ①</div>
-                    <div id="bmSlotNum" style="font-size:30px;font-weight:900;font-family:'Oswald',sans-serif;color:#ffd700;line-height:1;">#--</div>
-                    <div id="bmSlotName" style="font-size:18px;font-weight:700;color:white;margin-top:4px;">（未填姓名）</div>
-                    <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px;">
-                        <span id="bmSlotHand">右打</span><span id="bmSlotTrait" style="color:#ffd700;font-style:italic;margin-left:8px;"></span>
-                    </div>
+        <div class="dual-pitcher-cards">
+            <!-- Slot A（後攻） -->
+            <div class="pitcher-slot pitcher-slot-a" id="bmSlotCardA" onclick="selectBmTeam('A')">
+                <div class="active-indicator" id="bmActiveIndA" style="display:none;"></div>
+                <div class="pitcher-slot-team" id="bmSlotTeamA">A隊（後攻）</div>
+                <div class="pitcher-slot-name" id="bmSlotNumA">#--</div>
+                <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameA">（未設打線）</div>
+                <div class="pitcher-slot-meta">
+                    <span class="pitcher-slot-badge" id="bmSlotOrderA">---</span>
+                    <span class="pitcher-slot-badge" id="bmSlotHandA"></span>
                 </div>
-                <button onclick="nextBmBatter()" class="bm-slot-nav" ontouchend="event.preventDefault();nextBmBatter()">▶</button>
             </div>
-            <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center;">
-                <input type="text" id="bmNamePatch" placeholder="補填姓名" autocomplete="off"
-                    class="bm-slot-input"
-                    onblur="patchBmBatterName()" onkeydown="if(event.key==='Enter')this.blur()">
-                <input type="text" id="bmTraitPatch" placeholder="打者特性（選填）" autocomplete="off"
-                    class="bm-slot-input bm-slot-input-trait"
-                    onblur="patchBmBatterTrait()" onkeydown="if(event.key==='Enter')this.blur()">
-                <span style="font-size:11px;color:rgba(255,255,255,0.5);flex-shrink:0;">對戰</span>
-                <button id="bmPhLBtn" class="bm-slot-ph-btn" onclick="selectBmPh('左投')">左投</button>
-                <button id="bmPhRBtn" class="bm-slot-ph-btn bm-on" onclick="selectBmPh('右投')">右投</button>
+            <!-- Slot B（先攻） -->
+            <div class="pitcher-slot pitcher-slot-b active-slot" id="bmSlotCardB" onclick="selectBmTeam('B')">
+                <div class="active-indicator" id="bmActiveIndB"></div>
+                <div class="pitcher-slot-team" id="bmSlotTeamB">B隊（先攻）</div>
+                <div class="pitcher-slot-name" id="bmSlotNumB">#--</div>
+                <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameB">（未填姓名）</div>
+                <div class="pitcher-slot-meta">
+                    <span class="pitcher-slot-badge" id="bmSlotOrderB">打序①</span>
+                    <span class="pitcher-slot-badge" id="bmSlotHandB">右打</span>
+                </div>
+            </div>
+        </div>
+        <!-- 補填資訊（當前進攻隊打者） -->
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="bmNamePatch" placeholder="補填姓名" autocomplete="off"
+                class="bm-slot-input"
+                onblur="patchBmBatterName()" onkeydown="if(event.key==='Enter')this.blur()">
+            <input type="text" id="bmTraitPatch" placeholder="打者特性（選填）" autocomplete="off"
+                class="bm-slot-input bm-slot-input-trait"
+                onblur="patchBmBatterTrait()" onkeydown="if(event.key==='Enter')this.blur()">
+            <span style="font-size:11px;color:rgba(255,255,255,0.5);flex-shrink:0;">對戰</span>
+            <button id="bmPhLBtn" class="bm-slot-ph-btn" onclick="selectBmPh('左投')">左投</button>
+            <button id="bmPhRBtn" class="bm-slot-ph-btn bm-on" onclick="selectBmPh('右投')">右投</button>
+        </div>
+        <div style="text-align:center;margin-top:6px;font-size:11px;color:rgba(255,255,255,0.4);">
+            點擊卡片切換進攻隊伍 · ◀ ▶ 切換打者 · 資訊可即時補填
+        </div>
+    </div>
+
+    <!-- 獨立模式：單一打者槽位 -->
+    <div class="bm-current-section" id="bmSpCurrentSection" style="display:none;">
+        <h2>🏏 當前打者</h2>
+        <div class="bm-batter-slot">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <input type="number" id="spBatterNum" placeholder="#背號" inputmode="numeric"
+                    class="bm-slot-input" style="max-width:80px;flex:0 0 auto;"
+                    onkeydown="if(event.key==='Enter')this.blur()">
+                <input type="text" id="spBatterName" placeholder="姓名（選填）" autocomplete="off"
+                    class="bm-slot-input" style="flex:1;min-width:100px;"
+                    onkeydown="if(event.key==='Enter')this.blur()">
+                <button id="spHandLBtn" class="bm-slot-ph-btn" onclick="selectSpHand('左打')">左打</button>
+                <button id="spHandRBtn" class="bm-slot-ph-btn bm-on" onclick="selectSpHand('右打')">右打</button>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+                <span style="font-size:11px;color:rgba(255,255,255,0.5);">對戰</span>
+                <button id="spPhLBtn" class="bm-slot-ph-btn" onclick="selectSpPh('左投')">左投</button>
+                <button id="spPhRBtn" class="bm-slot-ph-btn bm-on" onclick="selectSpPh('右投')">右投</button>
             </div>
         </div>
         <div style="text-align:center;margin-top:6px;font-size:11px;color:rgba(255,255,255,0.4);">
-            點擊 ◀ ▶ 切換當前打者 · 資訊可即時補填
+            輸入背號姓名後選擇結果確認記錄
         </div>
     </div>
 
@@ -1221,78 +1257,48 @@
 
             <!-- ==== 獨立模式 ==== -->
             <div id="bmStandaloneRecord" style="display:none;">
-                <!-- 選打者 -->
-                <div class="bm-card" style="margin-top:10px;">
-                    <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:8px;">打者</div>
-                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                        <input type="number" id="spNumber" placeholder="背號" inputmode="numeric"
-                            style="width:64px;padding:8px;text-align:center;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit;">
-                        <input type="text" id="spName" placeholder="姓名（選填）" autocomplete="off"
-                            style="flex:1;min-width:80px;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;">
-                        <button id="spHandLBtn" class="bm-ph-btn" onclick="selectSpHand('左打')">左打</button>
-                        <button id="spHandRBtn" class="bm-ph-btn bm-on" onclick="selectSpHand('右打')">右打</button>
-                    </div>
-                    <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
-                        <span style="font-size:12px;color:#6b7280;">對戰</span>
-                        <button id="spPhLBtn" class="bm-ph-btn" onclick="selectSpPh('左投')">左投</button>
-                        <button id="spPhRBtn" class="bm-ph-btn bm-on" onclick="selectSpPh('右投')">右投</button>
-                    </div>
-                </div>
-
-                <!-- 球數 + 已記錄球 -->
-                <div class="bm-card" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <span style="font-size:12px;color:#6b7280;">目前球數</span>
-                        <span id="spCountDisplay" style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#1e3a5f;margin-left:8px;">0B 0S</span>
-                    </div>
-                    <div style="font-size:12px;color:#6b7280;">已記 <span id="spPitchCount" style="font-weight:900;color:#003d79;font-size:16px;">0</span> 球</div>
-                </div>
-                <div class="bm-card" style="margin-top:4px;padding:8px 12px;">
-                    <div id="spPitchLog" style="font-size:11px;color:#6b7280;max-height:56px;overflow-y:auto;line-height:1.6;"></div>
-                </div>
-
-                <!-- 球種 -->
-                <div class="bm-card" style="margin-top:8px;">
-                    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">球種</div>
-                    <div style="display:flex;flex-wrap:wrap;gap:5px;">
-                        <button class="sp-type-btn" onclick="selectSpType('四縫線',this)">四縫線</button>
-                        <button class="sp-type-btn" onclick="selectSpType('二縫線',this)">二縫線</button>
-                        <button class="sp-type-btn" onclick="selectSpType('滑球',this)">滑球</button>
-                        <button class="sp-type-btn" onclick="selectSpType('曲球',this)">曲球</button>
-                        <button class="sp-type-btn" onclick="selectSpType('指叉球',this)">指叉球</button>
-                        <button class="sp-type-btn" onclick="selectSpType('變速球',this)">變速球</button>
-                        <button class="sp-type-btn" onclick="selectSpType('其他',this)">其他</button>
+                <!-- ─ 比賽狀態卡 ─ -->
+                <div class="bm-card bm-batter-card" style="margin-top:10px;">
+                    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+                        <span style="font-size:12px;font-weight:700;color:#374151;">第</span>
+                        <input type="number" id="spInning" value="1" min="1" max="15" inputmode="numeric"
+                            style="width:38px;padding:3px;text-align:center;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;"
+                            onkeydown="if(event.key==='Enter')this.blur()">
+                        <span style="font-size:12px;font-weight:700;color:#374151;">局</span>
+                        <button id="spHalfTopBtn" class="bm-toggle-btn bm-on" onclick="selectSpHalf('上')">上半</button>
+                        <button id="spHalfBotBtn" class="bm-toggle-btn" onclick="selectSpHalf('下')">下半</button>
+                        <div style="width:1px;height:28px;background:#d1d5db;margin:0 4px;flex-shrink:0;"></div>
+                        <span style="font-size:11px;color:#6b7280;">壘上</span>
+                        <button class="bm-base-btn" id="spBase1" onclick="toggleSpBase(0)">一壘</button>
+                        <button class="bm-base-btn" id="spBase2" onclick="toggleSpBase(1)">二壘</button>
+                        <button class="bm-base-btn" id="spBase3" onclick="toggleSpBase(2)">三壘</button>
+                        <span style="font-size:11px;color:#6b7280;margin-left:auto;">出局</span>
+                        <button class="bm-out-dot" id="spOD0" onclick="setSpOuts(0)">○</button>
+                        <button class="bm-out-dot" id="spOD1" onclick="setSpOuts(1)">○</button>
+                        <button class="bm-out-dot" id="spOD2" onclick="setSpOuts(2)">○</button>
                     </div>
                 </div>
 
-                <!-- 投球位置 -->
-                <div class="bm-card" style="margin-top:8px;">
-                    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">投球位置 <span id="spZoneLabel" style="color:#003d79;font-weight:900;font-size:13px;"></span></div>
-                    <div id="spZoneGrid" style="max-width:260px;margin:0 auto;"></div>
-                </div>
-
-                <!-- 打者反應 -->
-                <div class="bm-card" style="margin-top:8px;">
-                    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打者反應</div>
-                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                        <button class="sp-react-btn" onclick="selectSpReact('看球',this)">👁 看球</button>
-                        <button class="sp-react-btn" onclick="selectSpReact('揮棒落空',this)">❌ 揮棒落空</button>
-                        <button class="sp-react-btn" onclick="selectSpReact('擦棒/界外',this)">↩ 擦棒/界外</button>
-                        <button class="sp-react-btn" onclick="selectSpReact('打進場內',this)">⚾ 打進場內</button>
+                <!-- 落點圖 + 打席結果 -->
+                <div style="display:flex;gap:10px;margin-top:10px;align-items:flex-start;">
+                    <div class="bm-card" style="flex:0 0 auto;padding:8px;min-width:0;">
+                        <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">
+                            🗺️ 落點<span id="spHitZoneLabel" style="color:#003d79;font-size:12px;font-weight:900;margin-left:4px;"></span>
+                        </div>
+                        <div id="spHitMapWrap" style="width:240px;"></div>
+                    </div>
+                    <div class="bm-card" style="flex:1 1 160px;padding:10px;min-width:0;">
+                        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
+                        <div id="spOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;"></div>
                     </div>
                 </div>
 
-                <!-- 操作按鈕 -->
-                <div style="display:flex;gap:8px;margin-top:12px;">
-                    <button id="spRecordBtn" onclick="recordSpPitch()" disabled
-                        style="flex:1;padding:13px;background:#0051a5;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;opacity:0.4;">
-                        ➕ 記錄這球
-                    </button>
-                    <button onclick="endSpAtBat()"
-                        style="padding:13px 16px;background:#dc0000;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
-                        結束打席
-                    </button>
-                </div>
+                <!-- 確認按鈕 -->
+                <button id="spConfirmBtn" onclick="confirmSpAtBatInline()" disabled
+                    style="width:100%;margin-top:12px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
+                    ✅ 確認記錄
+                </button>
+
                 <!-- 最近記錄 -->
                 <div style="margin-top:14px;">
                     <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">📋 最近記錄</div>
