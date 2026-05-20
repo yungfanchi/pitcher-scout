@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v119';
+﻿    const APP_VERSION = 'v120';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7841,6 +7841,9 @@
         const sr = document.getElementById('bmStandaloneRecord');
         if (lr) lr.style.display = mode==='linked' ? '' : 'none';
         if (sr) sr.style.display = mode==='standalone' ? '' : 'none';
+        // 槽位卡只在聯動模式顯示
+        const cs = document.getElementById('bmCurrentSection');
+        if (cs) cs.style.display = mode==='linked' ? '' : 'none';
         if (mode==='standalone') _renderBmSpZoneGrid();
 
         // ★ 側欄：聯動顯示比賽下拉，獨立顯示賽事資訊表單
@@ -7989,20 +7992,40 @@
     function _renderBmBatterDisplay() {
         _initBmData();
         const order = _bmState.currentOrder;
-        const batter = allData.bm.lineup[order] || {number:'',name:'',hand:'右打'};
+        const batter = allData.bm.lineup[order] || {number:'',name:'',hand:'右打',trait:''};
         const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+        const orderTxt = `打序 ${nums[order]||String(order+1)}`;
+        const numTxt   = batter.number ? `#${batter.number}` : '#--';
+        const nameTxt  = batter.name  || '（未填姓名）';
+        const handTxt  = batter.hand  || '---';
+
+        // ── 記錄卡（緊湊） ──
         const orderEl = document.getElementById('bmCurOrder');
         const numEl   = document.getElementById('bmCurBatterNum');
         const nameEl  = document.getElementById('bmCurBatterName');
         const handEl  = document.getElementById('bmCurHand');
-        const patchEl  = document.getElementById('bmNamePatch');
-        const traitEl  = document.getElementById('bmTraitPatch');
-        if (orderEl)  orderEl.textContent  = `打序 ${nums[order]||String(order+1)}`;
-        if (numEl)    numEl.textContent    = batter.number ? `#${batter.number}` : '#--';
-        if (nameEl)   nameEl.textContent   = batter.name || '（未填姓名）';
-        if (handEl)   handEl.textContent   = batter.hand || '---';
-        if (patchEl)  patchEl.value  = batter.name  || '';
-        if (traitEl)  traitEl.value  = batter.trait || '';
+        if (orderEl) orderEl.textContent = orderTxt;
+        if (numEl)   numEl.textContent   = numTxt;
+        if (nameEl)  nameEl.textContent  = nameTxt;
+        if (handEl)  handEl.textContent  = handTxt;
+
+        // ── 槽位卡（大型顯示） ──
+        const slotOrder = document.getElementById('bmSlotOrder');
+        const slotNum   = document.getElementById('bmSlotNum');
+        const slotName  = document.getElementById('bmSlotName');
+        const slotHand  = document.getElementById('bmSlotHand');
+        const slotTrait = document.getElementById('bmSlotTrait');
+        if (slotOrder) slotOrder.textContent = orderTxt;
+        if (slotNum)   slotNum.textContent   = numTxt;
+        if (slotName)  slotName.textContent  = nameTxt;
+        if (slotHand)  slotHand.textContent  = handTxt;
+        if (slotTrait) slotTrait.textContent = batter.trait || '';
+
+        // ── 補填輸入框 ──
+        const patchEl = document.getElementById('bmNamePatch');
+        const traitEl = document.getElementById('bmTraitPatch');
+        if (patchEl) patchEl.value = batter.name  || '';
+        if (traitEl) traitEl.value = batter.trait || '';
     }
 
     function prevBmBatter() {
