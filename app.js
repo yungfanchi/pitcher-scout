@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v117';
+﻿    const APP_VERSION = 'v118';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -6701,7 +6701,7 @@
         _hitLocSelectedLoc = null;
     }
 
-    // ── 打擊落點：區域選擇（取代舊版自由點擊） ──
+    // ── 打擊落點：區域選擇 ──
 
     // 各區域代表座標（SVG 300x280 座標系，本壘板在 150,272）
     const ZONE_SVG_COORDS = {
@@ -6714,19 +6714,17 @@
         '一短': { x: 175, y: 249 }
     };
 
-    function selectHitZone(zone, el) {
-        // 清除所有高亮
-        const svg = document.getElementById('fieldSVGInteractive');
+    // 共用：清除 SVG 內所有高亮，並高亮 el
+    function _zoneHighlight(el, svg) {
         if (svg) {
             svg.querySelectorAll('[data-zone]').forEach(z => {
                 z.setAttribute('data-selected', '0');
                 z.style.fill = z.getAttribute('data-fill') || '';
                 z.style.fillOpacity = '0.88';
-                z.style.stroke = 'rgba(0,0,0,0.4)';
+                z.style.stroke = 'rgba(0,0,0,0.35)';
                 z.style.strokeWidth = '0.8';
             });
         }
-        // 高亮選中區域
         if (el) {
             el.setAttribute('data-selected', '1');
             el.style.fill = '#fbbf24';
@@ -6734,14 +6732,35 @@
             el.style.stroke = '#ea580c';
             el.style.strokeWidth = '2';
         }
-        // 取得代表座標
+    }
+
+    // Modal 落點選擇（彈窗使用）
+    function selectHitZone(zone, el) {
+        _zoneHighlight(el, el ? el.closest('svg') : document.getElementById('fieldSVGInteractive'));
         const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
         _hitLocSelectedLoc = { zone, x: c.x / 300, y: c.y / 280 };
-        // 更新標籤 & 確認鈕
         const zoneLabel = document.getElementById('hitLocZoneLabel');
         if (zoneLabel) zoneLabel.textContent = `落點：${zone}`;
         const confirmBtn = document.getElementById('hitLocConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+    }
+
+    // 聯動模式內嵌球場圖落點選擇
+    function selectBmHitZone(zone, el) {
+        _zoneHighlight(el, el ? el.closest('svg') : document.getElementById('fieldSVG_bm'));
+        const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
+        _bmState.hitLoc = { zone, x: c.x / 300, y: c.y / 280 };
+        const lbl = document.getElementById('bmHitZoneLabel');
+        if (lbl) lbl.textContent = zone;
+    }
+
+    // 獨立模式打席結果選擇器中的落點選擇
+    function selectSpHitZone(zone, el) {
+        _zoneHighlight(el, el ? el.closest('svg') : document.getElementById('fieldSVG_sp'));
+        const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
+        _bmState.spHitLoc = { zone, x: c.x / 300, y: c.y / 280 };
+        const lbl = document.getElementById('spHitZoneLabel');
+        if (lbl) lbl.textContent = zone;
     }
 
     function confirmHitLocation() {
@@ -6760,19 +6779,23 @@
 
     // ── 建立球場 SVG（真實扇形球場，本壘板在底部） ──
     // viewBox 300x280，本壘板 (150,272)
-    // 座標計算：f(θ,R) = (150+R·sinθ, 272-R·cosθ)，θ從CF方向順時針為正
-    // R_out=180（外野牆）  R_mid=100（內外野分界）  R_shallow=52（淺/深內野分界）
+    // interactive: false=靜態  true=彈窗  'bm'=聯動內嵌  'sp'=獨立內嵌
     function buildFieldSVG(dotsHTML = '', interactive = false) {
-        const id = interactive ? 'fieldSVGInteractive' : `fieldSVGStatic_${Date.now()}`;
+        const isBm   = interactive === 'bm';
+        const isSp   = interactive === 'sp';
+        const isAny  = interactive !== false;
+        const id     = isBm ? 'fieldSVG_bm' : isSp ? 'fieldSVG_sp' :
+                       (interactive === true) ? 'fieldSVGInteractive' : `fieldSVGStatic_${Date.now()}`;
+        const fn     = isBm ? 'selectBmHitZone' : isSp ? 'selectSpHitZone' : 'selectHitZone';
 
         // 產生可點擊或靜態的區域 path
         function zp(name, d, fill) {
-            if (interactive) {
+            if (isAny) {
                 return `<path d="${d}" fill="${fill}" fill-opacity="0.88"
                     stroke="rgba(0,0,0,0.35)" stroke-width="0.8"
                     data-zone="${name}" data-fill="${fill}" data-selected="0"
-                    onclick="selectHitZone('${name}',this)"
-                    ontouchstart="selectHitZone('${name}',this);event.preventDefault()"
+                    onclick="${fn}('${name}',this)"
+                    ontouchstart="${fn}('${name}',this);event.preventDefault()"
                     onmouseenter="if(this.dataset.selected!=='1'){this.style.fillOpacity='1';}"
                     onmouseleave="if(this.dataset.selected!=='1'){this.style.fillOpacity='0.88';}"
                     style="cursor:pointer;"/>`;
@@ -7413,6 +7436,7 @@
         recMode: 'linked',     // 'linked'|'standalone'
         currentOrder: 0,       // 0-based index (0=打序1)
         selectedOutcome: null,
+        hitLoc: null,          // 聯動模式落點（內嵌球場圖選取）
         pitcherHand: '右投',
         half: '上',
         outs: 0,
@@ -7425,7 +7449,9 @@
         spReact: null,
         spBalls: 0,
         spStrikes: 0,
-        spPitches: []
+        spPitches: [],
+        spSelectedOutcome: null,  // 獨立模式打席結果
+        spHitLoc: null            // 獨立模式落點
     };
 
     // ── 一鍵切換模式（情蒐員快速切換投手／打者）──
@@ -7930,6 +7956,11 @@
                 ${o.label}
             </button>`
         ).join('');
+        // 同步渲染內嵌球場圖（只在第一次，避免重複建立）
+        const wrap = document.getElementById('bmHitMapWrap');
+        if (wrap && !wrap.querySelector('svg')) {
+            wrap.innerHTML = buildFieldSVG('', 'bm');
+        }
     }
 
     function selectBmOutcome(outcome, btn) {
@@ -7970,9 +8001,15 @@
 
     function resetBmLinkedForm() {
         _bmState.selectedOutcome = null;
+        _bmState.hitLoc = null;
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
         document.querySelectorAll('.bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        // 清除球場圖高亮
+        const svg = document.getElementById('fieldSVG_bm');
+        if (svg) _zoneHighlight(null, svg);
+        const lbl = document.getElementById('bmHitZoneLabel');
+        if (lbl) lbl.textContent = '';
     }
 
     function patchBmBatterName() {
@@ -8049,26 +8086,18 @@
             ts: Date.now()
         };
 
-        const isBip = BM_BALL_IN_PLAY.includes(_bmState.selectedOutcome);
-        const doSave = (loc) => {
-            if (loc) rec.hitLocation = loc;
-            allData.bm.atBats.push(rec);
-            saveToLocalStorage();
-            saveBmToFirebase();
-            _bmState.currentOrder = (_bmState.currentOrder + 1) % 9;
-            resetBmLinkedForm();
-            _renderBmBatterDisplay();
-            _renderBmRecentLog();
-            const outLabels = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'];
-            const newOuts = (_bmState.outs + (outLabels.includes(_bmState.selectedOutcome) ? 1 : 0)) % 3;
-            setBmOuts(newOuts);
-        };
-
-        if (isBip) {
-            showHitLocationModal((loc) => doSave(loc));
-        } else {
-            doSave(null);
-        }
+        const outLabels = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'];
+        // 直接使用內嵌球場圖選取的落點（不再跳 modal）
+        if (_bmState.hitLoc) rec.hitLocation = _bmState.hitLoc;
+        allData.bm.atBats.push(rec);
+        saveToLocalStorage();
+        saveBmToFirebase();
+        _bmState.currentOrder = (_bmState.currentOrder + 1) % 9;
+        resetBmLinkedForm();
+        _renderBmBatterDisplay();
+        _renderBmRecentLog();
+        const newOuts = (_bmState.outs + (outLabels.includes(rec.outcome) ? 1 : 0)) % 3;
+        setBmOuts(newOuts);
     }
 
     function _renderBmRecentLog() {
@@ -8202,23 +8231,63 @@
     }
 
     function endSpAtBat() {
+        _bmState.spSelectedOutcome = null;
+        _bmState.spHitLoc = null;
         const outcomeDiv = document.createElement('div');
         outcomeDiv.id = 'spOutcomeOverlay';
-        outcomeDiv.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+        outcomeDiv.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;overflow-y:auto;';
         outcomeDiv.innerHTML = `
-            <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto;">
-                <h3 style="margin:0 0 14px;font-size:16px;font-family:'Oswald','Noto Sans TC',sans-serif;">打席結果</h3>
-                <div style="display:flex;flex-wrap:wrap;gap:6px;" id="spOutcomePicker">
-                    ${BM_OUTCOMES.map(o=>`<button class="bm-outcome-btn ${o.cls}" onclick="confirmSpAtBat('${o.label}')"
-                        ontouchend="event.preventDefault();confirmSpAtBat('${o.label}')" style="font-size:13px;">${o.label}</button>`).join('')}
+            <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:460px;margin:auto;">
+                <h3 style="margin:0 0 12px;font-size:16px;font-family:'Oswald','Noto Sans TC',sans-serif;">打席結果</h3>
+                <!-- 打席結果按鈕 -->
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;" id="spOutcomePicker">
+                    ${BM_OUTCOMES.map(o=>`<button class="bm-outcome-btn ${o.cls}"
+                        onclick="selectSpAtBatOutcome('${o.label}',this)"
+                        ontouchend="event.preventDefault();selectSpAtBatOutcome('${o.label}',this)"
+                        style="font-size:13px;">${o.label}</button>`).join('')}
                 </div>
-                <button onclick="document.getElementById('spOutcomeOverlay').remove()"
-                    style="margin-top:14px;width:100%;padding:10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
+                <!-- 球場落點圖（進場球才顯示） -->
+                <div id="spHitMapSection" style="display:none;margin-bottom:12px;">
+                    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">
+                        🗺️ 打擊落點（可選）<span id="spHitZoneLabel" style="color:#003d79;font-weight:900;margin-left:4px;"></span>
+                    </div>
+                    <div id="spHitMapWrap" style="max-width:280px;margin:0 auto;"></div>
+                </div>
+                <!-- 確認 / 取消 -->
+                <div style="display:flex;gap:8px;margin-top:4px;">
+                    <button onclick="document.getElementById('spOutcomeOverlay').remove()"
+                        style="flex:1;padding:10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
+                    <button id="spConfirmAtBatBtn" onclick="confirmSpAtBat()" disabled
+                        style="flex:2;padding:10px;background:#003d79;color:white;border:none;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;opacity:0.4;touch-action:manipulation;">
+                        ✅ 確認打席</button>
+                </div>
             </div>`;
         document.body.appendChild(outcomeDiv);
     }
 
-    function confirmSpAtBat(outcome) {
+    function selectSpAtBatOutcome(outcome, btn) {
+        _bmState.spSelectedOutcome = outcome;
+        _bmState.spHitLoc = null;
+        document.querySelectorAll('#spOutcomePicker .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        if (btn) btn.classList.add('bm-on');
+        const isBip = BM_BALL_IN_PLAY.includes(outcome);
+        const section = document.getElementById('spHitMapSection');
+        if (section) {
+            section.style.display = isBip ? 'block' : 'none';
+            if (isBip) {
+                const wrap = document.getElementById('spHitMapWrap');
+                if (wrap && !wrap.querySelector('svg')) wrap.innerHTML = buildFieldSVG('', 'sp');
+            }
+        }
+        const lbl = document.getElementById('spHitZoneLabel');
+        if (lbl) lbl.textContent = '';
+        const confirmBtn = document.getElementById('spConfirmAtBatBtn');
+        if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+    }
+
+    function confirmSpAtBat() {
+        const outcome = _bmState.spSelectedOutcome;
+        if (!outcome) return;
         const overlay = document.getElementById('spOutcomeOverlay');
         if (overlay) overlay.remove();
 
@@ -8237,36 +8306,30 @@
             bases: [false,false,false],
             pitcherHand: _bmState.spPh,
             outcome,
-            hitLocation: null,
+            hitLocation: _bmState.spHitLoc || null,
             mode: 'standalone',
             pitches: [..._bmState.spPitches],
             gameIdx: -1,
             ts: Date.now()
         };
 
-        const isBip = BM_BALL_IN_PLAY.includes(outcome);
-        const doSave = (loc) => {
-            if (loc) rec.hitLocation = loc;
-            _initBmData();
-            allData.bm.atBats.push(rec);
-            saveToLocalStorage();
-            saveBmToFirebase();
-            _bmState.spPitches = []; _bmState.spBalls = 0; _bmState.spStrikes = 0;
-            _bmState.spType = null; _bmState.spZone = null; _bmState.spReact = null;
-            const countEl = document.getElementById('spCountDisplay');
-            if (countEl) countEl.textContent = '0B 0S';
-            const pcEl = document.getElementById('spPitchCount');
-            if (pcEl) pcEl.textContent = '0';
-            const logEl = document.getElementById('spPitchLog');
-            if (logEl) logEl.textContent = '';
-            document.querySelectorAll('.sp-type-btn,.sp-react-btn').forEach(b => b.classList.remove('sp-on'));
-            _renderBmSpZoneGrid();
-            _checkSpRecordReady();
-            _renderSpRecentLog();
-        };
-
-        if (isBip) showHitLocationModal(loc => doSave(loc));
-        else doSave(null);
+        _initBmData();
+        allData.bm.atBats.push(rec);
+        saveToLocalStorage();
+        saveBmToFirebase();
+        _bmState.spPitches = []; _bmState.spBalls = 0; _bmState.spStrikes = 0;
+        _bmState.spType = null; _bmState.spZone = null; _bmState.spReact = null;
+        _bmState.spSelectedOutcome = null; _bmState.spHitLoc = null;
+        const countEl = document.getElementById('spCountDisplay');
+        if (countEl) countEl.textContent = '0B 0S';
+        const pcEl = document.getElementById('spPitchCount');
+        if (pcEl) pcEl.textContent = '0';
+        const logEl = document.getElementById('spPitchLog');
+        if (logEl) logEl.textContent = '';
+        document.querySelectorAll('.sp-type-btn,.sp-react-btn').forEach(b => b.classList.remove('sp-on'));
+        _renderBmSpZoneGrid();
+        _checkSpRecordReady();
+        _renderSpRecentLog();
     }
 
     function _renderSpRecentLog() {
