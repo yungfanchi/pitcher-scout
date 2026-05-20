@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v115';
+﻿    const APP_VERSION = 'v116';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7656,22 +7656,47 @@
             lineup: Array.from({length:9}, () => ({number:'',name:'',hand:'右打'})),
             gameIdx: -1,
             attackingTeam: 'B',
-            atBats: []
+            atBats: [],
+            spGameName: '', spTeamName: '', spOpponent: '', spDate: ''
         };
         _renderBmLineup();
+        _renderBmSpInfo();
         saveToLocalStorage();
         saveToFirebase();
         alert('✅ 打者資料已全部清除');
+    }
+
+    // 清除全部投手賽事（含投球記錄與打者名稱），管理員用
+    function resetAllTeamsData() {
+        if (!confirm('確定清除全部投手賽事資料？\n所有球隊、投球記錄、打者名稱都將永久刪除！\n此操作無法還原！')) return;
+        allData.teams = [];
+        allData.pitcherDB = {};
+        allData.bm = {
+            lineup: Array.from({length:9}, () => ({number:'',name:'',hand:'右打'})),
+            gameIdx: -1,
+            attackingTeam: 'B',
+            atBats: [],
+            spGameName: '', spTeamName: '', spOpponent: '', spDate: ''
+        };
+        updateTeamList();
+        updateSlotDisplay();
+        _renderBmLineup();
+        _populateBmGameSelect();
+        saveToLocalStorage();
+        saveToFirebase();
+        alert('✅ 全部資料已清除，系統已重置');
     }
 
     // ── 比賽連動選擇 ──
     function _populateBmGameSelect() {
         const sel = document.getElementById('bmGameSelect');
         if (!sel) return;
-        sel.innerHTML = '<option value="-1">— 不連動，純獨立記錄 —</option>';
+        sel.innerHTML = '<option value="-1" style="background:#003d79;color:white;">— 不連動，純獨立記錄 —</option>';
         (allData.teams||[]).forEach((t,i) => {
             const opt = document.createElement('option');
             opt.value = i;
+            opt.style.background = '#003d79';
+            opt.style.color = 'white';
             opt.textContent = `${t.gameName||''}  ${t.name||''}  vs  ${t.opponent||''}  ${t.date||''}`;
             sel.appendChild(opt);
         });
