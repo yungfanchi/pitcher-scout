@@ -1066,8 +1066,14 @@
 .bm-stats-table tr:hover td { background: #f0f7ff; }
 .bm-stats-table td:first-child { text-align: left; font-weight: 700; }
 .bm-stats-highlight { color: #dc0000; font-weight: 900; }
-/* 打者Tab active狀態 */
-.tab-btn.bm-tab.bm-tab-active { background: rgba(255,255,255,0.22); color: white; border-bottom: 2px solid #ffd700; }
+/* 打者Tab active狀態 — 同投手模式反白效果 */
+.tab-btn.bm-tab.bm-tab-active { background: #003d79 !important; color: white !important; border-color: #003d79; box-shadow: 0 -2px 8px rgba(0,61,121,0.2); }
+/* 打席結果分組標題 */
+.bm-outcome-group-label { display:block; font-size:10px; font-weight:800; letter-spacing:0.4px; margin-top:5px; margin-bottom:2px; }
+/* 模式切換（小型，Tab列右側） */
+#bmModeToggleCompact { display:flex; border:1.5px solid #d1d5db; border-radius:8px; overflow:hidden; flex-shrink:0; align-self:flex-end; margin-bottom:8px; }
+#bmModeToggleCompact .bm-mode-btn { padding:5px 10px; font-size:11px; border:none; border-left:1px solid #d1d5db; line-height:1.3; }
+#bmModeToggleCompact .bm-mode-btn:first-child { border-left:none; }
 
 /* 獨立模式球格 */
 .sp-zone-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 3px; }

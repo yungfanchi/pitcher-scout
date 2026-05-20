@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v118';
+﻿    const APP_VERSION = 'v119';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7626,7 +7626,9 @@
     // ── 初始化 bm 資料 ──
     function _initBmData() {
         if (!allData.bm) allData.bm = {};
-        if (!allData.bm.lineup) allData.bm.lineup = Array.from({length:9}, () => ({number:'',name:'',hand:'右打'}));
+        if (!allData.bm.lineup) allData.bm.lineup = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''}));
+        // 舊資料補 trait 欄位
+        allData.bm.lineup.forEach(b => { if (!('trait' in b)) b.trait = ''; });
         if (!allData.bm.atBats) allData.bm.atBats = [];
         if (!('gameIdx' in allData.bm)) allData.bm.gameIdx = -1;
         if (!allData.bm.attackingTeam) allData.bm.attackingTeam = 'B';
@@ -7946,16 +7948,29 @@
     ];
     const BM_BALL_IN_PLAY = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
 
+    const BM_OUTCOME_GROUPS = [
+        { label:'出局', color:'#dc0000', outcomes: ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'] },
+        { label:'安打', color:'#16a34a', outcomes: ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'] },
+        { label:'上壘', color:'#0051a5', outcomes: ['保送','觸身球','故意四壞','捕逸'] },
+        { label:'其他', color:'#6b7280', outcomes: ['野選','失誤'] },
+    ];
+    // 各 outcome 對應的 cls（供 grouped 渲染使用）
+    const BM_OUTCOME_CLS = {};
+    BM_OUTCOMES.forEach(o => { BM_OUTCOME_CLS[o.label] = o.cls; });
+
     function _renderBmOutcomeButtons() {
         const container = document.getElementById('bmOutcomeBtns');
         if (!container) return;
-        container.innerHTML = BM_OUTCOMES.map(o =>
-            `<button class="bm-outcome-btn ${o.cls}${_bmState.selectedOutcome===o.label?' bm-on':''}"
-                onclick="selectBmOutcome('${o.label}',this)"
-                ontouchend="event.preventDefault();selectBmOutcome('${o.label}',this)">
-                ${o.label}
-            </button>`
-        ).join('');
+        container.innerHTML = BM_OUTCOME_GROUPS.map(g => {
+            const btns = g.outcomes.map(label => {
+                const cls = BM_OUTCOME_CLS[label] || '';
+                const active = _bmState.selectedOutcome === label ? ' bm-on' : '';
+                return `<button class="bm-outcome-btn ${cls}${active}"
+                    onclick="selectBmOutcome('${label}',this)"
+                    ontouchend="event.preventDefault();selectBmOutcome('${label}',this)">${label}</button>`;
+            }).join('');
+            return `<span class="bm-outcome-group-label" style="color:${g.color};">${g.label}</span>${btns}`;
+        }).join('');
         // 同步渲染內嵌球場圖（只在第一次，避免重複建立）
         const wrap = document.getElementById('bmHitMapWrap');
         if (wrap && !wrap.querySelector('svg')) {
@@ -7980,12 +7995,14 @@
         const numEl   = document.getElementById('bmCurBatterNum');
         const nameEl  = document.getElementById('bmCurBatterName');
         const handEl  = document.getElementById('bmCurHand');
-        const patchEl = document.getElementById('bmNamePatch');
-        if (orderEl) orderEl.textContent = `打序 ${nums[order]||String(order+1)}`;
-        if (numEl)   numEl.textContent = batter.number ? `#${batter.number}` : '#--';
-        if (nameEl)  nameEl.textContent = batter.name || '（未填姓名）';
-        if (handEl)  handEl.textContent = batter.hand || '---';
-        if (patchEl) patchEl.value = batter.name || '';
+        const patchEl  = document.getElementById('bmNamePatch');
+        const traitEl  = document.getElementById('bmTraitPatch');
+        if (orderEl)  orderEl.textContent  = `打序 ${nums[order]||String(order+1)}`;
+        if (numEl)    numEl.textContent    = batter.number ? `#${batter.number}` : '#--';
+        if (nameEl)   nameEl.textContent   = batter.name || '（未填姓名）';
+        if (handEl)   handEl.textContent   = batter.hand || '---';
+        if (patchEl)  patchEl.value  = batter.name  || '';
+        if (traitEl)  traitEl.value  = batter.trait || '';
     }
 
     function prevBmBatter() {
@@ -8020,6 +8037,14 @@
         allData.bm.lineup[_bmState.currentOrder].name = val;
         const nameEl = document.getElementById('bmCurBatterName');
         if (nameEl) nameEl.textContent = val || '（未填姓名）';
+        saveToLocalStorage();
+    }
+
+    function patchBmBatterTrait() {
+        _initBmData();
+        const el = document.getElementById('bmTraitPatch');
+        if (!el) return;
+        allData.bm.lineup[_bmState.currentOrder].trait = el.value.trim();
         saveToLocalStorage();
     }
 
