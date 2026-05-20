@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v106';
+﻿    const APP_VERSION = 'v107';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7357,9 +7357,9 @@
         setTimeout(() => {
             _showBatterModeUI();
             _initBmData();
-            switchBatterTab(null, 'lineup');
             _renderBmLineup();
             _populateBmGameSelect();
+            switchBatterTab(null, 'record');
         }, 300);
     }
 
@@ -7372,16 +7372,23 @@
     }
 
     function _showBatterModeUI() {
-        // 隱藏投手專用元素
+        // 隱藏投手主內容專用元素
         ['dualPitcherSection','pitcherTabBar',
          'recordTab','statsTab','analysisTab','compareTab','batterTab']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
-        // 隱藏側欄（打者模式不需要）
-        const sidebar = document.querySelector('.sidebar');
-        if (sidebar) sidebar.style.display = 'none';
-        const toggle = document.getElementById('toggleSidebar');
-        if (toggle) toggle.style.display = 'none';
-        // 顯示打者UI
+        // 隱藏投手側欄專用區塊，顯示打者側欄
+        ['adminPanel','teamList','scoutBottomBar','viewerBottomBar']
+            .forEach(id => { const el=document.getElementById(id); if(el) el._bmSaved=el.style.display; if(el) el.style.display='none'; });
+        const tmEl = document.querySelector('.team-management');
+        if (tmEl) { tmEl._bmSaved = tmEl.style.display; tmEl.style.display = 'none'; }
+        const bmSide = document.getElementById('bmSidebarContent');
+        if (bmSide) bmSide.style.display = 'flex';
+        // 側欄 header 切換
+        const hp = document.getElementById('sidebarHeaderPitcher');
+        const hb = document.getElementById('sidebarHeaderBatter');
+        if (hp) hp.style.display = 'none';
+        if (hb) hb.style.display = '';
+        // 顯示打者主內容
         const bw = document.getElementById('batterModeWrapper');
         if (bw) bw.style.display = 'block';
         // 標題
@@ -7394,13 +7401,25 @@
     }
 
     function _hideBatterModeUI() {
+        // 恢復投手主內容元素
         ['dualPitcherSection','pitcherTabBar',
          'recordTab','statsTab','analysisTab','compareTab','batterTab']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display=''; });
-        const sidebar = document.querySelector('.sidebar');
-        if (sidebar) sidebar.style.display = '';
-        const toggle = document.getElementById('toggleSidebar');
-        if (toggle) toggle.style.display = '';
+        // 恢復投手側欄
+        ['adminPanel','teamList','scoutBottomBar','viewerBottomBar']
+            .forEach(id => {
+                const el=document.getElementById(id);
+                if(el) el.style.display = (el._bmSaved !== undefined ? el._bmSaved : '');
+            });
+        const tmEl = document.querySelector('.team-management');
+        if (tmEl) tmEl.style.display = tmEl._bmSaved !== undefined ? tmEl._bmSaved : '';
+        const bmSide = document.getElementById('bmSidebarContent');
+        if (bmSide) bmSide.style.display = 'none';
+        // 恢復 header
+        const hp = document.getElementById('sidebarHeaderPitcher');
+        const hb = document.getElementById('sidebarHeaderBatter');
+        if (hp) hp.style.display = '';
+        if (hb) hb.style.display = 'none';
         const bw = document.getElementById('batterModeWrapper');
         if (bw) bw.style.display = 'none';
         // 恢復標題
@@ -7415,10 +7434,10 @@
 
     // ── 打者模式 Tab 切換 ──
     function switchBatterTab(e, tab) {
-        ['bmLineupTab','bmRecordTab','bmStatsTab','bmAnalysisTab']
+        ['bmRecordTab','bmStatsTab','bmAnalysisTab']
             .forEach(id => { const el=document.getElementById(id); if(el) { el.style.display='none'; el.classList.remove('active'); } });
         document.querySelectorAll('.bm-tab').forEach(b => b.classList.remove('bm-tab-active'));
-        const tabMap = { lineup:'bmLineupTab', record:'bmRecordTab', stats:'bmStatsTab', analysis:'bmAnalysisTab' };
+        const tabMap = { record:'bmRecordTab', stats:'bmStatsTab', analysis:'bmAnalysisTab' };
         const target = document.getElementById(tabMap[tab]);
         if (target) { target.style.display=''; target.classList.add('active'); }
         if (e && e.target) e.target.classList.add('bm-tab-active');

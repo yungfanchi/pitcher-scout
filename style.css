@@ -1106,3 +1106,54 @@
 .bm-log-hit { color: #16a34a; }
 .bm-log-out { color: #dc2626; }
 .bm-log-bb  { color: #9333ea; }
+
+/* 側欄打線管理 - 緊湊版 */
+#bmSidebarContent .bm-lineup-row {
+    padding: 4px 0;
+    gap: 4px;
+}
+#bmSidebarContent .bm-lineup-order {
+    color: #ffd700;
+    font-size: 12px;
+}
+#bmSidebarContent .bm-lineup-num {
+    width: 44px;
+    padding: 4px 3px;
+    font-size: 12px;
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    color: white;
+}
+#bmSidebarContent .bm-lineup-name {
+    padding: 4px 5px;
+    font-size: 12px;
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    color: white;
+}
+#bmSidebarContent .bm-lineup-name::placeholder { color: rgba(255,255,255,0.35); }
+#bmSidebarContent .bm-lineup-num::placeholder  { color: rgba(255,255,255,0.35); }
+#bmSidebarContent .bm-lineup-hand {
+    padding: 4px 6px;
+    font-size: 11px;
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.7);
+}
+#bmSidebarContent .bm-lineup-hand.bm-on {
+    background: #003d79;
+    color: white;
+    border-color: rgba(255,215,0,0.5);
+}
+.bm-sidebar-team {
+    background: rgba(255,255,255,0.08) !important;
+    border-color: rgba(255,255,255,0.2) !important;
+    color: rgba(255,255,255,0.7) !important;
+    font-size: 12px;
+    padding: 6px 8px;
+}
+.bm-sidebar-team.bm-on {
+    background: rgba(0,81,165,0.7) !important;
+    border-color: rgba(255,215,0,0.5) !important;
+    color: white !important;
+}
