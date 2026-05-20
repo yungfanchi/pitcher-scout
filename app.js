@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v108';
+﻿    const APP_VERSION = 'v109';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7405,21 +7405,7 @@
         ['dualPitcherSection','pitcherTabBar',
          'recordTab','statsTab','analysisTab','compareTab','batterTab']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display=''; });
-        // 恢復投手側欄：只在曾進過打者模式（有儲存值）時才還原，避免清掉 enterSystem 設定的 none
-        ['adminPanel','teamList','scoutBottomBar','viewerBottomBar']
-            .forEach(id => {
-                const el=document.getElementById(id);
-                if (el && el._bmSaved !== undefined) {
-                    el.style.display = el._bmSaved;
-                    delete el._bmSaved;
-                }
-                // _bmSaved 未定義代表 _showBatterModeUI 從未執行過，不動 display，保持 enterSystem 設定的值
-            });
-        const tmEl = document.querySelector('.team-management');
-        if (tmEl && tmEl._bmSaved !== undefined) {
-            tmEl.style.display = tmEl._bmSaved;
-            delete tmEl._bmSaved;
-        }
+        // 清除打者側欄
         const bmSide = document.getElementById('bmSidebarContent');
         if (bmSide) bmSide.style.display = 'none';
         // 恢復 header
@@ -7436,7 +7422,43 @@
             sub.innerHTML = '投手情蒐系統 · PITCHER SCOUTING ';
             if (vSpan) sub.appendChild(vSpan);
         }
+        // ★ 重新強制執行帳號安全 UI（防止打者模式返回時洩漏受限功能）
+        _reEnforceUIPermissions();
         switchTab(null, 'record');
+    }
+
+    // ★ 統一安全 UI 強制執行：任何模式切換、登入後都呼叫此函式確保正確權限
+    function _reEnforceUIPermissions() {
+        const isAdmin  = (typeof currentTeamCode !== 'undefined' && currentTeamCode === 'ADMIN');
+        const isViewer = (userRole === 'view' || userRole === 'viewer');
+
+        // 管理員專用元素：嚴格只對 ADMIN 顯示
+        ['adminPanel','createTeamBtn','adminInjectWrap'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = isAdmin ? (id === 'adminPanel' ? 'block' : 'block') : 'none';
+        });
+
+        // teamList、team-management：已登入就顯示（但觀看者後續在 applyViewOnlyMode 限制）
+        const teamListEl = document.getElementById('teamList');
+        if (teamListEl && !isViewer) teamListEl.style.display = '';
+        const tmEl = document.querySelector('.team-management');
+        if (tmEl && !isViewer) tmEl.style.display = '';
+
+        // 底部工具列：scout vs viewer
+        const sb = document.getElementById('scoutBottomBar');
+        const vb = document.getElementById('viewerBottomBar');
+        if (isViewer) {
+            if (sb) sb.style.display = 'none';
+            if (vb) vb.style.display = 'block';
+        } else {
+            if (sb) sb.style.display = '';
+            if (vb) vb.style.display = 'none';
+        }
+
+        // 觀看者：重新套用所有唯讀限制
+        if (isViewer) {
+            setTimeout(() => { if (typeof applyViewOnlyMode === 'function') applyViewOnlyMode(); }, 80);
+        }
     }
 
     // ── 打者模式 Tab 切換 ──
