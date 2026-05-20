@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v111';
+﻿    const APP_VERSION = 'v112';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7594,6 +7594,22 @@
         allData.bm.lineup = Array.from({length:9}, () => ({number:'',name:'',hand:'右打'}));
         _renderBmLineup();
         saveToLocalStorage();
+        saveToFirebase();
+    }
+
+    // 全清打者資料（打線 + 所有打席記錄）
+    function resetAllBmData() {
+        if (!confirm('確定清除全部打者資料？（打線 + 所有打席記錄 + 分析數據）\n此操作無法還原！')) return;
+        allData.bm = {
+            lineup: Array.from({length:9}, () => ({number:'',name:'',hand:'右打'})),
+            gameIdx: -1,
+            attackingTeam: 'B',
+            atBats: []
+        };
+        _renderBmLineup();
+        saveToLocalStorage();
+        saveToFirebase();
+        alert('✅ 打者資料已全部清除');
     }
 
     // ── 比賽連動選擇 ──
@@ -7620,8 +7636,11 @@
     function onBmGameChange() {
         const sel = document.getElementById('bmGameSelect');
         _initBmData();
-        allData.bm.gameIdx = parseInt(sel.value)||(-1);
+        const idx = parseInt(sel.value);
+        allData.bm.gameIdx = isNaN(idx) ? -1 : idx;
         saveToLocalStorage();
+        // ★ 自動連動：選了賽事→聯動模式；選不連動→獨立模式
+        switchBmRecordMode(allData.bm.gameIdx >= 0 ? 'linked' : 'standalone');
     }
 
     function selectBmTeam(t) {
@@ -7646,6 +7665,24 @@
         if (lr) lr.style.display = mode==='linked' ? '' : 'none';
         if (sr) sr.style.display = mode==='standalone' ? '' : 'none';
         if (mode==='standalone') _renderBmSpZoneGrid();
+        // ★ 反向連動：切換模式按鈕時同步更新側欄下拉選單
+        const sel = document.getElementById('bmGameSelect');
+        if (sel) {
+            if (mode === 'standalone') {
+                sel.value = '-1'; // 切獨立→側欄選「不連動」
+                _initBmData();
+                allData.bm.gameIdx = -1;
+                saveToLocalStorage();
+            } else if (mode === 'linked') {
+                // 切聯動→若側欄還在「不連動」且有可選賽事，自動選第一場
+                if (parseInt(sel.value) < 0 && sel.options.length > 1) {
+                    sel.selectedIndex = 1;
+                    _initBmData();
+                    allData.bm.gameIdx = parseInt(sel.options[1].value);
+                    saveToLocalStorage();
+                }
+            }
+        }
     }
 
     // ── 聯動模式：打席記錄 ──
