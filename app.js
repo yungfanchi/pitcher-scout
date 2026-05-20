@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v110';
+﻿    const APP_VERSION = 'v111';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -4533,7 +4533,6 @@
         else if (tab==='stats') { document.getElementById('statsTab').classList.add('active'); updateStats(); }
         else if (tab==='analysis') { document.getElementById('analysisTab').classList.add('active'); updateStats(); }
         else if (tab==='compare') { document.getElementById('compareTab').classList.add('active'); updateCompare(); }
-        else if (tab==='batter') { document.getElementById('batterTab').classList.add('active'); refreshBatterList(); }
         // 程式化切換時自動將對應 tab-btn 標為 active
         if (!e || !e.target) {
             document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -7414,7 +7413,7 @@
     function _showBatterModeUI() {
         // 隱藏投手主內容專用元素
         ['dualPitcherSection','pitcherTabBar',
-         'recordTab','statsTab','analysisTab','compareTab','batterTab']
+         'recordTab','statsTab','analysisTab','compareTab','pitcherDataMgmt']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
         // 隱藏投手側欄專用區塊（adminPanel, teamList, team-management）
         ['adminPanel','teamList']
@@ -7444,7 +7443,7 @@
     function _hideBatterModeUI() {
         // 恢復投手主內容元素
         ['dualPitcherSection','pitcherTabBar',
-         'recordTab','statsTab','analysisTab','compareTab','batterTab']
+         'recordTab','statsTab','analysisTab','compareTab','pitcherDataMgmt']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display=''; });
         // 隱藏打者側欄 / 主內容
         const bmSide = document.getElementById('bmSidebarContent');
@@ -7508,10 +7507,10 @@
 
     // ── 打者模式 Tab 切換 ──
     function switchBatterTab(e, tab) {
-        ['bmRecordTab','bmStatsTab','bmAnalysisTab']
+        ['bmRecordTab','bmStatsTab','bmAnalysisTab','bmBatterDataTab']
             .forEach(id => { const el=document.getElementById(id); if(el) { el.style.display='none'; el.classList.remove('active'); } });
         document.querySelectorAll('.bm-tab').forEach(b => b.classList.remove('bm-tab-active'));
-        const tabMap = { record:'bmRecordTab', stats:'bmStatsTab', analysis:'bmAnalysisTab' };
+        const tabMap = { record:'bmRecordTab', stats:'bmStatsTab', analysis:'bmAnalysisTab', batterdata:'bmBatterDataTab' };
         const target = document.getElementById(tabMap[tab]);
         if (target) { target.style.display=''; target.classList.add('active'); }
         if (e && e.target) e.target.classList.add('bm-tab-active');
@@ -7521,9 +7520,10 @@
             });
         }
         _bmState.tab = tab;
-        if (tab==='stats')    _renderBmStats();
-        if (tab==='analysis') _renderBmAnalysis();
-        if (tab==='record')   { _renderBmOutcomeButtons(); _renderBmBatterDisplay(); _renderBmSpZoneGrid(); }
+        if (tab==='stats')      _renderBmStats();
+        if (tab==='analysis')   _renderBmAnalysis();
+        if (tab==='record')     { _renderBmOutcomeButtons(); _renderBmBatterDisplay(); _renderBmSpZoneGrid(); }
+        if (tab==='batterdata') { refreshBatterList(); }
     }
 
     // ── 初始化 bm 資料 ──
