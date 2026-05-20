@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v116';
+﻿    const APP_VERSION = 'v117';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2651,20 +2651,6 @@
         updateStats();
         saveToLocalStorage();
         saveToFirebase();
-
-        // 若有進場（球被打進場內），顯示打擊落點選擇
-        const _isBallInPlay = currentPitch.outcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o));
-        if (_isBallInPlay) {
-            const _pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
-            const _justRecorded = _pitches[_pitches.length - 1];
-            showHitLocationModal((loc) => {
-                if (loc && _justRecorded) {
-                    _justRecorded.hitLocation = loc;
-                    saveToLocalStorage();
-                    saveToFirebase();
-                }
-            });
-        }
 
         document.querySelectorAll('.pitch-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.zone-cell').forEach(c => c.classList.remove('selected'));
@@ -6715,47 +6701,47 @@
         _hitLocSelectedLoc = null;
     }
 
-    function onFieldTap(e) {
-        e.preventDefault();
+    // ── 打擊落點：區域選擇（取代舊版自由點擊） ──
+
+    // 各區域代表座標（SVG 300x280 座標系，本壘板在 150,272）
+    const ZONE_SVG_COORDS = {
+        'LF':   { x: 66,  y: 159 }, 'LCF':  { x: 106, y: 136 },
+        'CF':   { x: 150, y: 125 }, 'RCF':  { x: 194, y: 136 },
+        'RF':   { x: 234, y: 159 },
+        '3B':   { x: 97,  y: 208 }, 'SS':   { x: 132, y: 196 },
+        '2B':   { x: 168, y: 196 }, '1B':   { x: 203, y: 208 },
+        '三短': { x: 125, y: 249 }, 'P':    { x: 150, y: 250 },
+        '一短': { x: 175, y: 249 }
+    };
+
+    function selectHitZone(zone, el) {
+        // 清除所有高亮
         const svg = document.getElementById('fieldSVGInteractive');
-        if (!svg) return;
-        const rect = svg.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const xPct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        const yPct = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-        const svgX = xPct * 300;
-        const svgY = yPct * 280;
-        _hitLocSelectedLoc = { x: xPct, y: yPct, zone: getFieldZone(xPct, yPct) };
-        const dot = document.getElementById('hitLocSelectedDot');
-        if (dot) { dot.setAttribute('cx', svgX.toFixed(1)); dot.setAttribute('cy', svgY.toFixed(1)); }
+        if (svg) {
+            svg.querySelectorAll('[data-zone]').forEach(z => {
+                z.setAttribute('data-selected', '0');
+                z.style.fill = z.getAttribute('data-fill') || '';
+                z.style.fillOpacity = '0.88';
+                z.style.stroke = 'rgba(0,0,0,0.4)';
+                z.style.strokeWidth = '0.8';
+            });
+        }
+        // 高亮選中區域
+        if (el) {
+            el.setAttribute('data-selected', '1');
+            el.style.fill = '#fbbf24';
+            el.style.fillOpacity = '1';
+            el.style.stroke = '#ea580c';
+            el.style.strokeWidth = '2';
+        }
+        // 取得代表座標
+        const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
+        _hitLocSelectedLoc = { zone, x: c.x / 300, y: c.y / 280 };
+        // 更新標籤 & 確認鈕
         const zoneLabel = document.getElementById('hitLocZoneLabel');
-        if (zoneLabel) zoneLabel.textContent = `落點：${_hitLocSelectedLoc.zone}`;
+        if (zoneLabel) zoneLabel.textContent = `落點：${zone}`;
         const confirmBtn = document.getElementById('hitLocConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
-    }
-
-    function getFieldZone(xPct, yPct) {
-        // yPct: 0=外野頂, 1=本壘底
-        if (yPct < 0.38) {
-            if (xPct < 0.18) return 'LF';
-            if (xPct < 0.38) return 'LCF';
-            if (xPct < 0.62) return 'CF';
-            if (xPct < 0.82) return 'RCF';
-            return 'RF';
-        } else if (yPct < 0.73) {
-            if (xPct < 0.27) return '3B側界外';
-            if (xPct < 0.41) return '3B';
-            if (xPct < 0.49) return 'SS';
-            if (xPct < 0.51) return 'P';
-            if (xPct < 0.59) return '2B';
-            if (xPct < 0.73) return '1B';
-            return '1B側界外';
-        } else {
-            if (xPct < 0.42) return '三短';
-            if (xPct < 0.58) return '本壘前';
-            return '一短';
-        }
     }
 
     function confirmHitLocation() {
@@ -6772,38 +6758,114 @@
         if (cb) cb(null);
     }
 
-    // 建立球場 SVG 字串（可帶入落點圓點）
+    // ── 建立球場 SVG（真實扇形球場，本壘板在底部） ──
+    // viewBox 300x280，本壘板 (150,272)
+    // 座標計算：f(θ,R) = (150+R·sinθ, 272-R·cosθ)，θ從CF方向順時針為正
+    // R_out=180（外野牆）  R_mid=100（內外野分界）  R_shallow=52（淺/深內野分界）
     function buildFieldSVG(dotsHTML = '', interactive = false) {
         const id = interactive ? 'fieldSVGInteractive' : `fieldSVGStatic_${Date.now()}`;
-        const tapAttrs = interactive
-            ? `onclick="onFieldTap(event)" ontouchstart="onFieldTap(event)" style="cursor:crosshair;touch-action:none;"`
-            : `style="pointer-events:none;"`;
-        return `<svg id="${id}" viewBox="0 0 300 280" ${tapAttrs}
-            style="width:100%;max-width:300px;border-radius:10px;background:#155215;display:block;">
-          <ellipse cx="150" cy="130" rx="152" ry="132" fill="#1e6b1e" opacity="0.6"/>
-          <circle cx="150" cy="190" r="70" fill="#a07840" opacity="0.55"/>
-          <line x1="150" y1="258" x2="8" y2="12" stroke="white" stroke-width="1.5" opacity="0.7"/>
-          <line x1="150" y1="258" x2="292" y2="12" stroke="white" stroke-width="1.5" opacity="0.7"/>
-          <path d="M 8,12 Q 150,-10 292,12" fill="none" stroke="white" stroke-width="1.5" opacity="0.7"/>
-          <polygon points="150,258 230,188 150,118 70,188" fill="none" stroke="white" stroke-width="2"/>
-          <circle cx="150" cy="190" r="7" fill="#c8a060" stroke="white" stroke-width="1.2"/>
-          <rect x="143" y="251" width="14" height="14" fill="white" transform="rotate(45,150,258)"/>
-          <rect x="224" y="182" width="12" height="12" fill="white"/>
-          <rect x="144" y="112" width="12" height="12" fill="white" transform="rotate(45,150,118)"/>
-          <rect x="64" y="182" width="12" height="12" fill="white"/>
-          <text x="150" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="bold" font-family="sans-serif">CF</text>
-          <text x="48"  y="76" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="sans-serif">LF</text>
-          <text x="252" y="76" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="sans-serif">RF</text>
-          <text x="88"  y="54" text-anchor="middle" fill="white" font-size="9"  font-family="sans-serif">LCF</text>
-          <text x="212" y="54" text-anchor="middle" fill="white" font-size="9"  font-family="sans-serif">RCF</text>
-          <text x="88"  y="170" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">SS</text>
-          <text x="214" y="170" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">2B</text>
-          <text x="58"  y="196" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">3B</text>
-          <text x="244" y="196" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">1B</text>
-          <text x="98"  y="240" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">三短</text>
-          <text x="202" y="240" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">一短</text>
+
+        // 產生可點擊或靜態的區域 path
+        function zp(name, d, fill) {
+            if (interactive) {
+                return `<path d="${d}" fill="${fill}" fill-opacity="0.88"
+                    stroke="rgba(0,0,0,0.35)" stroke-width="0.8"
+                    data-zone="${name}" data-fill="${fill}" data-selected="0"
+                    onclick="selectHitZone('${name}',this)"
+                    ontouchstart="selectHitZone('${name}',this);event.preventDefault()"
+                    onmouseenter="if(this.dataset.selected!=='1'){this.style.fillOpacity='1';}"
+                    onmouseleave="if(this.dataset.selected!=='1'){this.style.fillOpacity='0.88';}"
+                    style="cursor:pointer;"/>`;
+            }
+            return `<path d="${d}" fill="${fill}" fill-opacity="0.88"
+                stroke="rgba(0,0,0,0.35)" stroke-width="0.8" style="pointer-events:none;"/>`;
+        }
+
+        const GR = '#2d6b21';  // 外野草地綠
+        const DT = '#9a6428';  // 內野土色
+        const DS = '#b07a32';  // 淺內野（較亮）
+
+        // ── 外野五區（R 100→180）──
+        // LF  θ:-45°→-27°
+        const LF  = zp('LF',  'M 79 201 L 23 145 A 180 180 0 0 1 68 112 L 105 183 A 100 100 0 0 0 79 201 Z',  GR);
+        // LCF θ:-27°→-9°
+        const LCF = zp('LCF', 'M 105 183 L 68 112 A 180 180 0 0 1 122 94 L 134 173 A 100 100 0 0 0 105 183 Z', GR);
+        // CF  θ:-9°→+9°
+        const CF  = zp('CF',  'M 134 173 L 122 94 A 180 180 0 0 1 178 94 L 166 173 A 100 100 0 0 0 134 173 Z',  GR);
+        // RCF θ:+9°→+27°
+        const RCF = zp('RCF', 'M 166 173 L 178 94 A 180 180 0 0 1 232 112 L 195 183 A 100 100 0 0 0 166 173 Z', GR);
+        // RF  θ:+27°→+45°
+        const RF  = zp('RF',  'M 195 183 L 232 112 A 180 180 0 0 1 277 145 L 221 201 A 100 100 0 0 0 195 183 Z', GR);
+
+        // ── 深內野四區（R 52→100）──
+        // 3B  θ:-45°→-22°
+        const i3B = zp('3B', 'M 113 235 L 79 201 A 100 100 0 0 1 113 179 L 131 224 A 52 52 0 0 0 113 235 Z', DT);
+        // SS  θ:-22°→0°
+        const SS  = zp('SS', 'M 131 224 L 113 179 A 100 100 0 0 1 150 172 L 150 220 A 52 52 0 0 0 131 224 Z', DT);
+        // 2B  θ:0°→+22°
+        const i2B = zp('2B', 'M 150 220 L 150 172 A 100 100 0 0 1 188 179 L 170 224 A 52 52 0 0 0 150 220 Z', DT);
+        // 1B  θ:+22°→+45°
+        const i1B = zp('1B', 'M 170 224 L 188 179 A 100 100 0 0 1 221 201 L 187 235 A 52 52 0 0 0 170 224 Z', DT);
+
+        // ── 淺內野三區（R 0→52）──
+        // 三短 θ:-45°→-15°
+        const san = zp('三短', 'M 150 272 L 113 235 A 52 52 0 0 1 137 222 Z', DS);
+        // P    θ:-15°→+15°
+        const P   = zp('P',   'M 150 272 L 137 222 A 52 52 0 0 1 164 222 Z', DS);
+        // 一短 θ:+15°→+45°
+        const yi  = zp('一短', 'M 150 272 L 164 222 A 52 52 0 0 1 187 235 Z', DS);
+
+        return `<svg id="${id}" viewBox="0 0 300 280"
+            style="width:100%;max-width:310px;border-radius:12px;display:block;background:#162e12;touch-action:none;">
+
+          <!-- 公平區域底色 -->
+          <path d="M 150 272 L 23 145 A 180 180 0 0 1 277 145 Z" fill="#1f4a18"/>
+
+          <!-- 外野區域 -->
+          ${LF}${LCF}${CF}${RCF}${RF}
+
+          <!-- 深內野（土色環帶） -->
+          ${i3B}${SS}${i2B}${i1B}
+
+          <!-- 淺內野（近本壘） -->
+          ${san}${P}${yi}
+
+          <!-- 界外線 -->
+          <line x1="150" y1="272" x2="23" y2="145" stroke="white" stroke-width="1.5" opacity="0.55" style="pointer-events:none;"/>
+          <line x1="150" y1="272" x2="277" y2="145" stroke="white" stroke-width="1.5" opacity="0.55" style="pointer-events:none;"/>
+          <!-- 外野牆弧線 -->
+          <path d="M 23 145 A 180 180 0 0 1 277 145" fill="none" stroke="white" stroke-width="1.5" opacity="0.4" style="pointer-events:none;"/>
+
+          <!-- 壘包路徑（菱形） -->
+          <polyline points="150,272 203,219 150,166 97,219 150,272"
+            fill="none" stroke="white" stroke-width="1.5" opacity="0.5" style="pointer-events:none;"/>
+
+          <!-- 投手丘 -->
+          <circle cx="150" cy="208" r="5" fill="#c8a060" stroke="white" stroke-width="1" style="pointer-events:none;"/>
+
+          <!-- 壘包 -->
+          <polygon points="150,265 155,272 150,279 145,272" fill="white" style="pointer-events:none;"/><!-- 本壘 -->
+          <rect x="200" y="216" width="7" height="7" fill="white" style="pointer-events:none;"/><!-- 1B -->
+          <rect x="147" y="163" width="7" height="7" fill="white" transform="rotate(45 150.5 166.5)" style="pointer-events:none;"/><!-- 2B -->
+          <rect x="94"  y="216" width="7" height="7" fill="white" style="pointer-events:none;"/><!-- 3B -->
+
+          <!-- 區域標籤 -->
+          <text x="66"  y="157" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">LF</text>
+          <text x="106" y="134" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">LCF</text>
+          <text x="150" y="124" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">CF</text>
+          <text x="194" y="134" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">RCF</text>
+          <text x="234" y="157" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">RF</text>
+
+          <text x="93"  y="208" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">3B</text>
+          <text x="129" y="195" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">SS</text>
+          <text x="171" y="195" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">2B</text>
+          <text x="207" y="208" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">1B</text>
+
+          <text x="123" y="252" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">三短</text>
+          <text x="150" y="256" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">P</text>
+          <text x="177" y="252" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">一短</text>
+
           ${dotsHTML}
-          ${interactive ? '<circle id="hitLocSelectedDot" cx="-100" cy="-100" r="9" fill="#facc15" stroke="#ea580c" stroke-width="2"/>' : ''}
         </svg>`;
     }
 
