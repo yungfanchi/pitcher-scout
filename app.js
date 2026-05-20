@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v107';
+﻿    const APP_VERSION = 'v108';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7405,14 +7405,21 @@
         ['dualPitcherSection','pitcherTabBar',
          'recordTab','statsTab','analysisTab','compareTab','batterTab']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display=''; });
-        // 恢復投手側欄
+        // 恢復投手側欄：只在曾進過打者模式（有儲存值）時才還原，避免清掉 enterSystem 設定的 none
         ['adminPanel','teamList','scoutBottomBar','viewerBottomBar']
             .forEach(id => {
                 const el=document.getElementById(id);
-                if(el) el.style.display = (el._bmSaved !== undefined ? el._bmSaved : '');
+                if (el && el._bmSaved !== undefined) {
+                    el.style.display = el._bmSaved;
+                    delete el._bmSaved;
+                }
+                // _bmSaved 未定義代表 _showBatterModeUI 從未執行過，不動 display，保持 enterSystem 設定的值
             });
         const tmEl = document.querySelector('.team-management');
-        if (tmEl) tmEl.style.display = tmEl._bmSaved !== undefined ? tmEl._bmSaved : '';
+        if (tmEl && tmEl._bmSaved !== undefined) {
+            tmEl.style.display = tmEl._bmSaved;
+            delete tmEl._bmSaved;
+        }
         const bmSide = document.getElementById('bmSidebarContent');
         if (bmSide) bmSide.style.display = 'none';
         // 恢復 header
