@@ -5453,7 +5453,7 @@
             const remCb = document.getElementById('authRememberMe');
             if (remCb && remCb.checked) saveRememberedLogin(code, pw, 'scout');
             else forgetSavedLogin();
-            enterSystem('scout');
+            showModeSelectionAfterLogin('scout');
             return;
         }
 
@@ -5485,7 +5485,7 @@
                 const remCb = document.getElementById('authRememberMe');
                 if (remCb && remCb.checked) saveRememberedLogin(code, pw, 'scout');
                 else forgetSavedLogin();
-                enterSystem('scout');
+                showModeSelectionAfterLogin('scout');
             } else {
                 errEl.textContent = '❌ 密碼錯誤，請再試一次';
                 document.getElementById('authPassword').value = '';
@@ -5497,7 +5497,7 @@
                 errEl.textContent = '❌ Firebase 權限不足，請聯絡管理員檢查 Security Rules';
             } else if (await _checkCachedCredential(code, 'scout', pw)) {
                 currentTeamCode = code;
-                enterSystem('scout');
+                showModeSelectionAfterLogin('scout');
             } else {
                 errEl.textContent = '❌ 連線失敗（' + (e.code || e.message) + '），且無離線快取';
             }
@@ -5515,7 +5515,7 @@
         if (cachedCode && await _checkCachedCredential(cachedCode, 'view', viewPw)) {
             currentTeamCode = cachedCode;
             try { localStorage.setItem('lastTeamCode', cachedCode); } catch(e) {}
-            enterSystem('view');
+            showModeSelectionAfterLogin('view');
             return;
         }
 
@@ -5552,7 +5552,7 @@
             const remCb = document.getElementById('authRememberMe');
             if (remCb && remCb.checked) saveRememberedLogin('', viewPw, 'viewer');
             else forgetSavedLogin();
-            enterSystem('view');
+            showModeSelectionAfterLogin('view');
         } catch(e) {
             errEl.textContent = '❌ 連線失敗，請稍後再試';
         }
@@ -5678,7 +5678,7 @@
                 try { localStorage.removeItem(REM_ADMIN_CODE); localStorage.removeItem(REM_ADMIN_PW); } catch(e) {}
             }
             closeAdminLogin();
-            enterSystem('scout');
+            showModeSelectionAfterLogin('scout');
         } else {
             errEl.textContent = '❌ 代碼或密碼錯誤';
             document.getElementById('adminLoginPw').value = '';
