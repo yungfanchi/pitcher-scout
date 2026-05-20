@@ -28,6 +28,7 @@
     let editingPitchIndex = null;
     let statsFilter = 'all'; // 'all' or a gameKey
     let expandedGames = new Set(); // track which game groups are expanded
+    let userMode = 'pitcher'; // 'pitcher' | 'batter'
 
     // ====== MULTI-TENANT AUTH ======
     let userSession = null;      // Firebase Auth user object
@@ -1611,6 +1612,49 @@
     // injectDemoData 已移除，上線版禁止自動覆蓋真實資料
     function injectDemoData() {
         console.warn('[injectDemoData] 已停用。如需測試資料請手動於 Firebase Console 新增。');
+        // bm 打者模式示範資料（可從 console 呼叫此函式注入）
+        const demoBm = {
+            lineup: [
+                { number: '5',  name: '陳傑憲', hand: '右打' },
+                { number: '23', name: '林立',   hand: '右打' },
+                { number: '7',  name: '鄭宗哲', hand: '右打' },
+                { number: '2',  name: '曾峻岳', hand: '右打' },
+                { number: '15', name: '吳念庭', hand: '左打' },
+                { number: '34', name: '高宇杰', hand: '右打' },
+                { number: '9',  name: '林子偉', hand: '左打' },
+                { number: '18', name: '陳晨威', hand: '右打' },
+                { number: '28', name: '呂彥青', hand: '右打' },
+            ],
+            gameIdx: 0,
+            attackingTeam: 'B',
+            atBats: [
+                { number:'5',  name:'陳傑憲', order:1, hand:'右打', inning:1, half:'上', outs:0, bases:[false,false,false], pitcherHand:'右投', outcome:'一壘安打',  hitLocation:{x:0.22,y:0.45,zone:'3B'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3600000 },
+                { number:'23', name:'林立',   order:2, hand:'右打', inning:1, half:'上', outs:0, bases:[true,false,false],  pitcherHand:'右投', outcome:'三振',      hitLocation:null, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3550000 },
+                { number:'7',  name:'鄭宗哲', order:3, hand:'右打', inning:1, half:'上', outs:1, bases:[true,false,false],  pitcherHand:'右投', outcome:'二壘安打',  hitLocation:{x:0.25,y:0.2,zone:'LCF'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3500000 },
+                { number:'2',  name:'曾峻岳', order:4, hand:'右打', inning:1, half:'上', outs:1, bases:[false,false,true],  pitcherHand:'右投', outcome:'飛球出局',  hitLocation:{x:0.5,y:0.15,zone:'CF'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3450000 },
+                { number:'15', name:'吳念庭', order:5, hand:'左打', inning:2, half:'上', outs:0, bases:[false,false,false], pitcherHand:'右投', outcome:'保送',      hitLocation:null, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3000000 },
+                { number:'34', name:'高宇杰', order:6, hand:'右打', inning:2, half:'上', outs:0, bases:[false,false,false], pitcherHand:'右投', outcome:'滾地球出局', hitLocation:{x:0.55,y:0.55,zone:'2B'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-2950000 },
+                { number:'5',  name:'陳傑憲', order:1, hand:'右打', inning:3, half:'上', outs:0, bases:[false,false,false], pitcherHand:'左投', outcome:'三振',      hitLocation:null, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-2400000 },
+                { number:'23', name:'林立',   order:2, hand:'右打', inning:3, half:'上', outs:1, bases:[false,false,false], pitcherHand:'左投', outcome:'一壘安打',  hitLocation:{x:0.72,y:0.42,zone:'1B'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-2350000 },
+                { number:'7',  name:'鄭宗哲', order:3, hand:'右打', inning:3, half:'上', outs:1, bases:[true,false,false],  pitcherHand:'左投', outcome:'全壘打',    hitLocation:{x:0.5,y:0.08,zone:'CF'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-2300000 },
+                { number:'5',  name:'陳傑憲', order:0, hand:'右打', inning:1, half:'上', outs:0, bases:[false,false,false], pitcherHand:'左投', outcome:'三振', hitLocation:null, mode:'standalone',
+                    pitches:[
+                        {type:'四縫線',zone:'5',reaction:'看球',isStrike:true},
+                        {type:'四縫線',zone:'2',reaction:'揮棒落空',isStrike:true},
+                        {type:'滑球',zone:'B9',reaction:'看球',isStrike:false},
+                        {type:'滑球',zone:'6',reaction:'揮棒落空',isStrike:true}
+                    ], gameIdx:1, ts: Date.now()-1800000 },
+                { number:'23', name:'林立', order:0, hand:'右打', inning:1, half:'上', outs:1, bases:[false,false,false], pitcherHand:'左投', outcome:'一壘安打', hitLocation:{x:0.68,y:0.35,zone:'RF'}, mode:'standalone',
+                    pitches:[
+                        {type:'四縫線',zone:'3',reaction:'看球',isStrike:true},
+                        {type:'變速球',zone:'B7',reaction:'揮棒落空',isStrike:true},
+                        {type:'四縫線',zone:'6',reaction:'打進場內',isStrike:true}
+                    ], gameIdx:1, ts: Date.now()-1750000 },
+            ]
+        };
+        allData.bm = demoBm;
+        saveToLocalStorage();
+        console.log('[injectDemoData] bm 示範資料已注入，可切換到打者模式查看');
     }
     /* ── 以下為已停用的舊測試資料產生器 ── */
     function _removedInjectDemoData_DISABLED() {
@@ -4896,7 +4940,8 @@
         // pitcherDB is rebuilt from teams on load anyway
         const clean = {
             teams: JSON.parse(JSON.stringify(data.teams || [])),
-            batterData: JSON.parse(JSON.stringify(data.batterData || []))
+            batterData: JSON.parse(JSON.stringify(data.batterData || [])),
+            bm: JSON.parse(JSON.stringify(data.bm || { lineup: [], gameIdx:-1, attackingTeam:'B', atBats:[] }))
         };
         return clean;
     }
@@ -5085,6 +5130,12 @@
                 allData.batterData = raw.batterData;
             } else if (!allData.batterData) {
                 allData.batterData = [];
+            }
+            // 同步打者情蒐模式資料（bm路徑）
+            if (raw && raw.bm) {
+                allData.bm = raw.bm;
+            } else if (!allData.bm) {
+                allData.bm = { lineup: Array.from({length:9},()=>({number:'',name:'',hand:'右打'})), gameIdx:-1, attackingTeam:'B', atBats:[] };
             }
             rebuildPitcherDB();
             saveToLocalStorage();
@@ -7277,24 +7328,830 @@
     // 保留舊名供相容性
     function showLegacyLogin() { showAdminLogin(); }
 
-    // 點擊「投手情蒐模式」按鈕後進入系統
-    function enterPitcherMode() {
+    // ── 打者情蒐模式進入/切換 ──
+
+    let _bmState = {
+        recMode: 'linked',     // 'linked'|'standalone'
+        currentOrder: 0,       // 0-based index (0=打序1)
+        selectedOutcome: null,
+        pitcherHand: '右投',
+        half: '上',
+        outs: 0,
+        bases: [false,false,false],
+        // standalone
+        spHand: '右打',
+        spPh: '右投',
+        spType: null,
+        spZone: null,
+        spReact: null,
+        spBalls: 0,
+        spStrikes: 0,
+        spPitches: []
+    };
+
+    function enterBatterMode() {
+        userMode = 'batter';
         controlUserRolePermissions(userRole);
         const legacyRole = (userRole === 'viewer') ? 'view' : 'scout';
         enterSystem(legacyRole);
+        setTimeout(() => {
+            _showBatterModeUI();
+            _initBmData();
+            switchBatterTab(null, 'lineup');
+            _renderBmLineup();
+            _populateBmGameSelect();
+        }, 300);
     }
 
-    // 點擊「打者情蒐模式」按鈕後進入系統並自動切到打者 Tab
-    function enterBatterMode() {
+    function enterPitcherMode() {
+        userMode = 'pitcher';
         controlUserRolePermissions(userRole);
         const legacyRole = (userRole === 'viewer') ? 'view' : 'scout';
         enterSystem(legacyRole);
-        // 進系統後切到打者 Tab（等資料載入完）
-        setTimeout(() => {
-            switchTab(null, 'batter');
-            // 預設顯示「獨立情蒐」模式（兩台平板分工時，打者那台主要用獨立模式）
-            if (typeof switchBatterSource === 'function') switchBatterSource('standalone');
-        }, 250);
+        setTimeout(() => { _hideBatterModeUI(); }, 100);
+    }
+
+    function _showBatterModeUI() {
+        // 隱藏投手專用元素
+        ['dualPitcherSection','pitcherTabBar',
+         'recordTab','statsTab','analysisTab','compareTab','batterTab']
+            .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+        // 隱藏側欄（打者模式不需要）
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.style.display = 'none';
+        const toggle = document.getElementById('toggleSidebar');
+        if (toggle) toggle.style.display = 'none';
+        // 顯示打者UI
+        const bw = document.getElementById('batterModeWrapper');
+        if (bw) bw.style.display = 'block';
+        // 標題
+        const sub = document.getElementById('headerTeamSub');
+        if (sub) {
+            const vSpan = sub.querySelector('#appVersionMain');
+            sub.innerHTML = '打者情蒐系統 · BATTER SCOUTING ';
+            if (vSpan) sub.appendChild(vSpan);
+        }
+    }
+
+    function _hideBatterModeUI() {
+        ['dualPitcherSection','pitcherTabBar',
+         'recordTab','statsTab','analysisTab','compareTab','batterTab']
+            .forEach(id => { const el=document.getElementById(id); if(el) el.style.display=''; });
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.style.display = '';
+        const toggle = document.getElementById('toggleSidebar');
+        if (toggle) toggle.style.display = '';
+        const bw = document.getElementById('batterModeWrapper');
+        if (bw) bw.style.display = 'none';
+        // 恢復標題
+        const sub = document.getElementById('headerTeamSub');
+        if (sub) {
+            const vSpan = sub.querySelector('#appVersionMain');
+            sub.innerHTML = '投手情蒐系統 · PITCHER SCOUTING ';
+            if (vSpan) sub.appendChild(vSpan);
+        }
+        switchTab(null, 'record');
+    }
+
+    // ── 打者模式 Tab 切換 ──
+    function switchBatterTab(e, tab) {
+        ['bmLineupTab','bmRecordTab','bmStatsTab','bmAnalysisTab']
+            .forEach(id => { const el=document.getElementById(id); if(el) { el.style.display='none'; el.classList.remove('active'); } });
+        document.querySelectorAll('.bm-tab').forEach(b => b.classList.remove('bm-tab-active'));
+        const tabMap = { lineup:'bmLineupTab', record:'bmRecordTab', stats:'bmStatsTab', analysis:'bmAnalysisTab' };
+        const target = document.getElementById(tabMap[tab]);
+        if (target) { target.style.display=''; target.classList.add('active'); }
+        if (e && e.target) e.target.classList.add('bm-tab-active');
+        else {
+            document.querySelectorAll('.bm-tab').forEach(b => {
+                if ((b.getAttribute('onclick')||'').includes(`'${tab}'`)) b.classList.add('bm-tab-active');
+            });
+        }
+        _bmState.tab = tab;
+        if (tab==='stats')    _renderBmStats();
+        if (tab==='analysis') _renderBmAnalysis();
+        if (tab==='record')   { _renderBmOutcomeButtons(); _renderBmBatterDisplay(); _renderBmSpZoneGrid(); }
+    }
+
+    // ── 初始化 bm 資料 ──
+    function _initBmData() {
+        if (!allData.bm) allData.bm = {};
+        if (!allData.bm.lineup) allData.bm.lineup = Array.from({length:9}, () => ({number:'',name:'',hand:'右打'}));
+        if (!allData.bm.atBats) allData.bm.atBats = [];
+        if (!('gameIdx' in allData.bm)) allData.bm.gameIdx = -1;
+        if (!allData.bm.attackingTeam) allData.bm.attackingTeam = 'B';
+    }
+
+    // ── 打線管理 ──
+    function _renderBmLineup() {
+        _initBmData();
+        const container = document.getElementById('bmLineupRows');
+        if (!container) return;
+        const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+        container.innerHTML = allData.bm.lineup.map((b,i) => `
+            <div class="bm-lineup-row">
+                <span class="bm-lineup-order">${nums[i]}</span>
+                <input type="number" class="bm-lineup-num" placeholder="背號" inputmode="numeric"
+                    value="${b.number||''}" min="0" max="99"
+                    onchange="saveBmLineupCell(${i},'number',this.value)"
+                    onkeydown="if(event.key==='Enter')this.blur()">
+                <input type="text" class="bm-lineup-name" placeholder="姓名（選填）"
+                    value="${b.name||''}" autocomplete="off"
+                    onblur="saveBmLineupCell(${i},'name',this.value)"
+                    onkeydown="if(event.key==='Enter')this.blur()">
+                <button class="bm-lineup-hand${b.hand==='右打'?' bm-on':''}" onclick="toggleBmLineupHand(${i},this)">
+                    ${b.hand==='右打'?'右打':'左打'}
+                </button>
+            </div>`).join('');
+    }
+
+    function saveBmLineupCell(idx, field, val) {
+        _initBmData();
+        allData.bm.lineup[idx][field] = val;
+        saveToLocalStorage();
+    }
+
+    function toggleBmLineupHand(idx, btn) {
+        _initBmData();
+        const current = allData.bm.lineup[idx].hand;
+        const next = current === '右打' ? '左打' : '右打';
+        allData.bm.lineup[idx].hand = next;
+        btn.textContent = next;
+        btn.classList.toggle('bm-on', next === '右打');
+        saveToLocalStorage();
+    }
+
+    function copyLastBmLineup() {
+        const ab = (allData.bm && allData.bm.atBats) ? [...allData.bm.atBats] : [];
+        if (ab.length === 0) { alert('尚無上場打線可複製'); return; }
+        const lineupMap = {};
+        ab.forEach(a => { if (a.order && !lineupMap[a.order]) lineupMap[a.order] = a; });
+        for (let i=1;i<=9;i++) {
+            if (lineupMap[i]) {
+                allData.bm.lineup[i-1] = { number: String(lineupMap[i].number||''), name: lineupMap[i].name||'', hand: lineupMap[i].hand||'右打' };
+            }
+        }
+        _renderBmLineup();
+        saveToLocalStorage();
+    }
+
+    function clearBmLineup() {
+        if (!confirm('確定清空本場打線？')) return;
+        _initBmData();
+        allData.bm.lineup = Array.from({length:9}, () => ({number:'',name:'',hand:'右打'}));
+        _renderBmLineup();
+        saveToLocalStorage();
+    }
+
+    // ── 比賽連動選擇 ──
+    function _populateBmGameSelect() {
+        const sel = document.getElementById('bmGameSelect');
+        if (!sel) return;
+        sel.innerHTML = '<option value="-1">— 不連動，純獨立記錄 —</option>';
+        (allData.teams||[]).forEach((t,i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `${t.gameName||''}  ${t.name||''}  vs  ${t.opponent||''}  ${t.date||''}`;
+            sel.appendChild(opt);
+        });
+        _initBmData();
+        sel.value = allData.bm.gameIdx;
+        const ta = document.getElementById('bmTeamABtn');
+        const tb = document.getElementById('bmTeamBBtn');
+        if (ta && tb) {
+            ta.classList.toggle('bm-on', allData.bm.attackingTeam === 'A');
+            tb.classList.toggle('bm-on', allData.bm.attackingTeam === 'B');
+        }
+    }
+
+    function onBmGameChange() {
+        const sel = document.getElementById('bmGameSelect');
+        _initBmData();
+        allData.bm.gameIdx = parseInt(sel.value)||(-1);
+        saveToLocalStorage();
+    }
+
+    function selectBmTeam(t) {
+        _initBmData();
+        allData.bm.attackingTeam = t;
+        const ta = document.getElementById('bmTeamABtn');
+        const tb = document.getElementById('bmTeamBBtn');
+        if (ta) ta.classList.toggle('bm-on', t==='A');
+        if (tb) tb.classList.toggle('bm-on', t==='B');
+        saveToLocalStorage();
+    }
+
+    // ── 記錄模式切換 ──
+    function switchBmRecordMode(mode) {
+        _bmState.recMode = mode;
+        const lb = document.getElementById('bmModeLinkedBtn');
+        const sb = document.getElementById('bmModeStandaloneBtn');
+        if (lb) lb.classList.toggle('bm-on', mode==='linked');
+        if (sb) sb.classList.toggle('bm-on', mode==='standalone');
+        const lr = document.getElementById('bmLinkedRecord');
+        const sr = document.getElementById('bmStandaloneRecord');
+        if (lr) lr.style.display = mode==='linked' ? '' : 'none';
+        if (sr) sr.style.display = mode==='standalone' ? '' : 'none';
+        if (mode==='standalone') _renderBmSpZoneGrid();
+    }
+
+    // ── 聯動模式：打席記錄 ──
+    const BM_OUTCOMES = [
+        { label:'三振',    cls:'bm-out' },
+        { label:'不死三振', cls:'bm-out' },
+        { label:'保送',    cls:'bm-bb' },
+        { label:'觸身球',  cls:'bm-bb' },
+        { label:'故意四壞', cls:'bm-bb' },
+        { label:'內野安打', cls:'bm-hit' },
+        { label:'一壘安打', cls:'bm-hit' },
+        { label:'二壘安打', cls:'bm-hit' },
+        { label:'三壘安打', cls:'bm-hit' },
+        { label:'全壘打',  cls:'bm-hit' },
+        { label:'滾地球出局', cls:'bm-out' },
+        { label:'飛球出局',   cls:'bm-out' },
+        { label:'平飛球出局', cls:'bm-out' },
+        { label:'犧牲觸擊',  cls:'bm-out' },
+        { label:'高飛犧牲打', cls:'bm-out' },
+        { label:'雙殺',   cls:'bm-out' },
+        { label:'野選',   cls:'' },
+        { label:'失誤',   cls:'' },
+        { label:'捕逸',   cls:'bm-bb' },
+    ];
+    const BM_BALL_IN_PLAY = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
+
+    function _renderBmOutcomeButtons() {
+        const container = document.getElementById('bmOutcomeBtns');
+        if (!container) return;
+        container.innerHTML = BM_OUTCOMES.map(o =>
+            `<button class="bm-outcome-btn ${o.cls}${_bmState.selectedOutcome===o.label?' bm-on':''}"
+                onclick="selectBmOutcome('${o.label}',this)"
+                ontouchend="event.preventDefault();selectBmOutcome('${o.label}',this)">
+                ${o.label}
+            </button>`
+        ).join('');
+    }
+
+    function selectBmOutcome(outcome, btn) {
+        _bmState.selectedOutcome = outcome;
+        document.querySelectorAll('.bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        if (btn) btn.classList.add('bm-on');
+        const confirmBtn = document.getElementById('bmConfirmBtn');
+        if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+    }
+
+    function _renderBmBatterDisplay() {
+        _initBmData();
+        const order = _bmState.currentOrder;
+        const batter = allData.bm.lineup[order] || {number:'',name:'',hand:'右打'};
+        const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+        const orderEl = document.getElementById('bmCurOrder');
+        const numEl   = document.getElementById('bmCurBatterNum');
+        const nameEl  = document.getElementById('bmCurBatterName');
+        const handEl  = document.getElementById('bmCurHand');
+        const patchEl = document.getElementById('bmNamePatch');
+        if (orderEl) orderEl.textContent = `打序 ${nums[order]||String(order+1)}`;
+        if (numEl)   numEl.textContent = batter.number ? `#${batter.number}` : '#--';
+        if (nameEl)  nameEl.textContent = batter.name || '（未填姓名）';
+        if (handEl)  handEl.textContent = batter.hand || '---';
+        if (patchEl) patchEl.value = batter.name || '';
+    }
+
+    function prevBmBatter() {
+        _bmState.currentOrder = (_bmState.currentOrder + 8) % 9;
+        _renderBmBatterDisplay();
+        resetBmLinkedForm();
+    }
+    function nextBmBatter() {
+        _bmState.currentOrder = (_bmState.currentOrder + 1) % 9;
+        _renderBmBatterDisplay();
+        resetBmLinkedForm();
+    }
+
+    function resetBmLinkedForm() {
+        _bmState.selectedOutcome = null;
+        const confirmBtn = document.getElementById('bmConfirmBtn');
+        if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
+        document.querySelectorAll('.bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+    }
+
+    function patchBmBatterName() {
+        _initBmData();
+        const el = document.getElementById('bmNamePatch');
+        if (!el) return;
+        const val = el.value.trim();
+        allData.bm.lineup[_bmState.currentOrder].name = val;
+        const nameEl = document.getElementById('bmCurBatterName');
+        if (nameEl) nameEl.textContent = val || '（未填姓名）';
+        saveToLocalStorage();
+    }
+
+    function selectBmHalf(half) {
+        _bmState.half = half;
+        const topBtn = document.getElementById('bmHalfTopBtn');
+        const botBtn = document.getElementById('bmHalfBotBtn');
+        if (topBtn) topBtn.classList.toggle('bm-on', half==='上');
+        if (botBtn) botBtn.classList.toggle('bm-on', half==='下');
+    }
+
+    function setBmOuts(n) {
+        _bmState.outs = n;
+        for (let i=0;i<3;i++) {
+            const btn = document.getElementById(`bmOD${i}`);
+            if (!btn) continue;
+            btn.classList.toggle('bm-on', i < n);
+            btn.textContent = i < n ? '●' : '○';
+        }
+    }
+
+    function toggleBmBase(idx) {
+        _bmState.bases[idx] = !_bmState.bases[idx];
+        const ids = ['bmBase1','bmBase2','bmBase3'];
+        const labels = ['一壘','二壘','三壘'];
+        const btn = document.getElementById(ids[idx]);
+        if (btn) {
+            btn.classList.toggle('bm-on', _bmState.bases[idx]);
+            btn.textContent = (_bmState.bases[idx] ? '●' : '') + labels[idx];
+        }
+    }
+
+    function selectBmPh(hand) {
+        _bmState.pitcherHand = hand;
+        const lBtn = document.getElementById('bmPhLBtn');
+        const rBtn = document.getElementById('bmPhRBtn');
+        if (lBtn) lBtn.classList.toggle('bm-on', hand==='左投');
+        if (rBtn) rBtn.classList.toggle('bm-on', hand==='右投');
+    }
+
+    function confirmBmLinkedAtBat() {
+        if (!_bmState.selectedOutcome) return;
+        _initBmData();
+        const order = _bmState.currentOrder;
+        const batter = allData.bm.lineup[order] || {number:'',name:'',hand:'右打'};
+        const inningEl = document.getElementById('bmInning');
+        const inning = parseInt((inningEl && inningEl.value) || '1') || 1;
+
+        const rec = {
+            number: batter.number || '',
+            name:   batter.name   || '',
+            order:  order + 1,
+            hand:   batter.hand   || '右打',
+            inning,
+            half:   _bmState.half,
+            outs:   _bmState.outs,
+            bases:  [..._bmState.bases],
+            pitcherHand: _bmState.pitcherHand,
+            outcome: _bmState.selectedOutcome,
+            hitLocation: null,
+            mode: 'linked',
+            pitches: [],
+            gameIdx: allData.bm.gameIdx,
+            ts: Date.now()
+        };
+
+        const isBip = BM_BALL_IN_PLAY.includes(_bmState.selectedOutcome);
+        const doSave = (loc) => {
+            if (loc) rec.hitLocation = loc;
+            allData.bm.atBats.push(rec);
+            saveToLocalStorage();
+            saveBmToFirebase();
+            _bmState.currentOrder = (_bmState.currentOrder + 1) % 9;
+            resetBmLinkedForm();
+            _renderBmBatterDisplay();
+            _renderBmRecentLog();
+            const outLabels = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'];
+            const newOuts = (_bmState.outs + (outLabels.includes(_bmState.selectedOutcome) ? 1 : 0)) % 3;
+            setBmOuts(newOuts);
+        };
+
+        if (isBip) {
+            showHitLocationModal((loc) => doSave(loc));
+        } else {
+            doSave(null);
+        }
+    }
+
+    function _renderBmRecentLog() {
+        const container = document.getElementById('bmRecentLog');
+        if (!container || !allData.bm) return;
+        const recent = [...(allData.bm.atBats||[])].slice(-5).reverse();
+        const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const BB  = ['保送','觸身球','故意四壞','捕逸'];
+        container.innerHTML = recent.length === 0 ? '<div style="color:#9ca3af;font-size:12px;">尚無記錄</div>' :
+            recent.map(r => {
+                const cls = HIT.includes(r.outcome) ? 'bm-log-hit' : BB.includes(r.outcome) ? 'bm-log-bb' : 'bm-log-out';
+                const zone = r.hitLocation ? ` → ${r.hitLocation.zone}` : '';
+                return `<div class="bm-log-row">
+                    <span>#${r.number||'?'} ${r.name||''} <span style="font-size:11px;color:#9ca3af;">${r.inning}局${r.half}</span></span>
+                    <span class="bm-log-outcome ${cls}">${r.outcome}${zone}</span>
+                </div>`;
+            }).join('');
+    }
+
+    // ── 獨立模式：逐球記錄 ──
+
+    function _renderBmSpZoneGrid() {
+        const container = document.getElementById('spZoneGrid');
+        if (!container) return;
+        const cells = [
+            ['B1','B2','B3','B4','B5'],
+            ['B6','1','2','3','B7'],
+            ['B8','4','5','6','B9'],
+            ['B10','7','8','9','B11'],
+            ['B12','B13','B14','B15','B16']
+        ];
+        container.innerHTML = `<div class="sp-zone-grid">` +
+            cells.flat().map(key => {
+                const isStrike = /^[1-9]$/.test(key);
+                const selected = _bmState.spZone === key;
+                return `<div class="sp-zone-cell${isStrike?' sp-strike':''}${selected?' sp-on':''}"
+                    onclick="selectSpZone('${key}',this)" ontouchend="event.preventDefault();selectSpZone('${key}',this)">
+                    ${isStrike ? key : ''}
+                </div>`;
+            }).join('') + '</div>';
+    }
+
+    function selectSpType(type, btn) {
+        _bmState.spType = type;
+        document.querySelectorAll('.sp-type-btn').forEach(b => b.classList.remove('sp-on'));
+        if (btn) btn.classList.add('sp-on');
+        _checkSpRecordReady();
+    }
+
+    function selectSpZone(zone, cell) {
+        _bmState.spZone = zone;
+        document.querySelectorAll('.sp-zone-cell').forEach(c => c.classList.remove('sp-on'));
+        if (cell) cell.classList.add('sp-on');
+        const lbl = document.getElementById('spZoneLabel');
+        if (lbl) lbl.textContent = /^[1-9]$/.test(zone) ? `好球帶 ${zone}` : `壞球 ${zone}`;
+        _checkSpRecordReady();
+    }
+
+    function selectSpHand(hand) {
+        _bmState.spHand = hand;
+        const lBtn = document.getElementById('spHandLBtn');
+        const rBtn = document.getElementById('spHandRBtn');
+        if (lBtn) lBtn.classList.toggle('bm-on', hand==='左打');
+        if (rBtn) rBtn.classList.toggle('bm-on', hand==='右打');
+    }
+
+    function selectSpPh(ph) {
+        _bmState.spPh = ph;
+        const lBtn = document.getElementById('spPhLBtn');
+        const rBtn = document.getElementById('spPhRBtn');
+        if (lBtn) lBtn.classList.toggle('bm-on', ph==='左投');
+        if (rBtn) rBtn.classList.toggle('bm-on', ph==='右投');
+    }
+
+    function selectSpReact(react, btn) {
+        _bmState.spReact = react;
+        document.querySelectorAll('.sp-react-btn').forEach(b => b.classList.remove('sp-on'));
+        if (btn) btn.classList.add('sp-on');
+        _checkSpRecordReady();
+    }
+
+    function _checkSpRecordReady() {
+        const ready = !!(_bmState.spType && _bmState.spZone && _bmState.spReact);
+        const btn = document.getElementById('spRecordBtn');
+        if (btn) { btn.disabled = !ready; btn.style.opacity = ready ? '1' : '0.4'; }
+    }
+
+    function recordSpPitch() {
+        if (!_bmState.spType || !_bmState.spZone || !_bmState.spReact) return;
+        const isStrikeZone = /^[1-9]$/.test(_bmState.spZone);
+        const react = _bmState.spReact;
+        let isStrike = false;
+        if (react === '揮棒落空') isStrike = true;
+        else if (react === '擦棒/界外') {
+            isStrike = _bmState.spStrikes < 2;
+        } else if (react === '看球') isStrike = isStrikeZone;
+        else if (react === '打進場內') isStrike = true;
+
+        const pitch = {
+            type:    _bmState.spType,
+            zone:    _bmState.spZone,
+            reaction: react,
+            isStrike
+        };
+        _bmState.spPitches.push(pitch);
+
+        if (isStrike && !(_bmState.spStrikes === 2 && react === '擦棒/界外')) {
+            _bmState.spStrikes = Math.min(_bmState.spStrikes + 1, 2);
+        } else if (!isStrike) {
+            _bmState.spBalls = Math.min(_bmState.spBalls + 1, 3);
+        }
+
+        const countEl = document.getElementById('spCountDisplay');
+        if (countEl) countEl.textContent = `${_bmState.spBalls}B ${_bmState.spStrikes}S`;
+        const pcEl = document.getElementById('spPitchCount');
+        if (pcEl) pcEl.textContent = _bmState.spPitches.length;
+        const logEl = document.getElementById('spPitchLog');
+        if (logEl) {
+            logEl.textContent = _bmState.spPitches.map((p,i) =>
+                `${i+1}. ${p.type} [${p.zone}] ${p.reaction}`
+            ).join('　');
+        }
+
+        _bmState.spType = null; _bmState.spZone = null; _bmState.spReact = null;
+        document.querySelectorAll('.sp-type-btn').forEach(b => b.classList.remove('sp-on'));
+        document.querySelectorAll('.sp-react-btn').forEach(b => b.classList.remove('sp-on'));
+        _renderBmSpZoneGrid();
+        const lbl = document.getElementById('spZoneLabel');
+        if (lbl) lbl.textContent = '';
+        _checkSpRecordReady();
+    }
+
+    function endSpAtBat() {
+        const outcomeDiv = document.createElement('div');
+        outcomeDiv.id = 'spOutcomeOverlay';
+        outcomeDiv.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+        outcomeDiv.innerHTML = `
+            <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto;">
+                <h3 style="margin:0 0 14px;font-size:16px;font-family:'Oswald','Noto Sans TC',sans-serif;">打席結果</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;" id="spOutcomePicker">
+                    ${BM_OUTCOMES.map(o=>`<button class="bm-outcome-btn ${o.cls}" onclick="confirmSpAtBat('${o.label}')"
+                        ontouchend="event.preventDefault();confirmSpAtBat('${o.label}')" style="font-size:13px;">${o.label}</button>`).join('')}
+                </div>
+                <button onclick="document.getElementById('spOutcomeOverlay').remove()"
+                    style="margin-top:14px;width:100%;padding:10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
+            </div>`;
+        document.body.appendChild(outcomeDiv);
+    }
+
+    function confirmSpAtBat(outcome) {
+        const overlay = document.getElementById('spOutcomeOverlay');
+        if (overlay) overlay.remove();
+
+        const numEl  = document.getElementById('spNumber');
+        const nameEl = document.getElementById('spName');
+        const number = numEl ? numEl.value.trim() : '';
+        const name   = nameEl ? nameEl.value.trim() : '';
+
+        const rec = {
+            number, name,
+            order: 0,
+            hand:  _bmState.spHand,
+            inning: 1,
+            half: '上',
+            outs: 0,
+            bases: [false,false,false],
+            pitcherHand: _bmState.spPh,
+            outcome,
+            hitLocation: null,
+            mode: 'standalone',
+            pitches: [..._bmState.spPitches],
+            gameIdx: -1,
+            ts: Date.now()
+        };
+
+        const isBip = BM_BALL_IN_PLAY.includes(outcome);
+        const doSave = (loc) => {
+            if (loc) rec.hitLocation = loc;
+            _initBmData();
+            allData.bm.atBats.push(rec);
+            saveToLocalStorage();
+            saveBmToFirebase();
+            _bmState.spPitches = []; _bmState.spBalls = 0; _bmState.spStrikes = 0;
+            _bmState.spType = null; _bmState.spZone = null; _bmState.spReact = null;
+            const countEl = document.getElementById('spCountDisplay');
+            if (countEl) countEl.textContent = '0B 0S';
+            const pcEl = document.getElementById('spPitchCount');
+            if (pcEl) pcEl.textContent = '0';
+            const logEl = document.getElementById('spPitchLog');
+            if (logEl) logEl.textContent = '';
+            document.querySelectorAll('.sp-type-btn,.sp-react-btn').forEach(b => b.classList.remove('sp-on'));
+            _renderBmSpZoneGrid();
+            _checkSpRecordReady();
+            _renderSpRecentLog();
+        };
+
+        if (isBip) showHitLocationModal(loc => doSave(loc));
+        else doSave(null);
+    }
+
+    function _renderSpRecentLog() {
+        const container = document.getElementById('spRecentLog');
+        if (!container || !allData.bm) return;
+        const standaloneABs = [...(allData.bm.atBats||[])].filter(a=>a.mode==='standalone').slice(-5).reverse();
+        const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const BB  = ['保送','觸身球','故意四壞','捕逸'];
+        container.innerHTML = standaloneABs.length === 0 ? '<div style="color:#9ca3af;font-size:12px;">尚無記錄</div>' :
+            standaloneABs.map(r => {
+                const cls = HIT.includes(r.outcome) ? 'bm-log-hit' : BB.includes(r.outcome) ? 'bm-log-bb' : 'bm-log-out';
+                const zone = r.hitLocation ? ` → ${r.hitLocation.zone}` : '';
+                return `<div class="bm-log-row">
+                    <span>#${r.number||'?'} ${r.name||''} <span style="font-size:11px;color:#9ca3af;">${r.pitches.length}球</span></span>
+                    <span class="bm-log-outcome ${cls}">${r.outcome}${zone}</span>
+                </div>`;
+            }).join('');
+    }
+
+    // ── 統計 Tab ──
+    function _renderBmStats() {
+        const container = document.getElementById('bmStatsContent');
+        if (!container) return;
+        _initBmData();
+        const atBats = allData.bm.atBats || [];
+        if (atBats.length === 0) {
+            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無打席記錄</div>';
+            return;
+        }
+        const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const BB  = ['保送','觸身球','故意四壞','捕逸'];
+        const PA_END = [...HIT,...BB,'三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
+
+        const batterMap = {};
+        atBats.forEach(ab => {
+            const key = ab.number || '?';
+            if (!batterMap[key]) batterMap[key] = { number:ab.number, name:ab.name, hand:ab.hand, abs:[] };
+            else if (ab.name && !batterMap[key].name) batterMap[key].name = ab.name;
+            batterMap[key].abs.push(ab);
+        });
+
+        const rows = Object.values(batterMap).map(b => {
+            const abs = b.abs;
+            const pa  = abs.filter(a => PA_END.includes(a.outcome)).length;
+            const hits = abs.filter(a => HIT.includes(a.outcome)).length;
+            const k    = abs.filter(a => a.outcome==='三振'||a.outcome==='不死三振').length;
+            const bb   = abs.filter(a => BB.includes(a.outcome)).length;
+            const avg  = pa > 0 ? (hits/pa).toFixed(3).replace(/^0/,'') : '---';
+            return { ...b, pa, hits, k, bb, avg };
+        }).sort((a,b) => b.pa - a.pa);
+
+        container.innerHTML = `
+            <h2>📊 打者成績一覽</h2>
+            <div style="overflow-x:auto;">
+            <table class="bm-stats-table">
+                <thead><tr>
+                    <th>打者</th><th>打席</th><th>安打</th><th>打率</th><th>三振</th><th>保送</th>
+                </tr></thead>
+                <tbody>
+                ${rows.map(r => `<tr onclick="showBmBatterDetail('${r.number}')" style="cursor:pointer;">
+                    <td>#${r.number} ${r.name||''}<br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
+                    <td>${r.pa}</td>
+                    <td>${r.hits}</td>
+                    <td class="${parseFloat(r.avg)>=0.3?'bm-stats-highlight':''}">${r.avg}</td>
+                    <td>${r.k}</td>
+                    <td>${r.bb}</td>
+                </tr>`).join('')}
+                </tbody>
+            </table>
+            </div>
+            <div style="font-size:12px;color:#6b7280;margin-top:8px;">點擊打者列可查看落點圖與詳細分析</div>
+            <div id="bmBatterDetailSection"></div>`;
+    }
+
+    function showBmBatterDetail(number) {
+        _initBmData();
+        const atBats = (allData.bm.atBats||[]).filter(a => String(a.number) === String(number));
+        if (atBats.length === 0) return;
+        const b = { number, name: atBats.find(a=>a.name)?.name||'', hand: atBats[0].hand||'右打' };
+        const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const BB  = ['保送','觸身球','故意四壞','捕逸'];
+
+        const locs = atBats.filter(a=>a.hitLocation);
+        const dotsHTML = locs.map(a => {
+            const sx = (a.hitLocation.x * 300).toFixed(1), sy = (a.hitLocation.y * 280).toFixed(1);
+            const isHit = HIT.includes(a.outcome);
+            return `<circle cx="${sx}" cy="${sy}" r="7" fill="${isHit?'#22c55e':'#ef4444'}"
+                stroke="${isHit?'#15803d':'#b91c1c'}" stroke-width="1.5" opacity="0.85"/>`;
+        }).join('');
+
+        const standalonePitches = atBats.filter(a=>a.mode==='standalone').flatMap(a=>a.pitches||[]);
+        let pitchBreakdown = '';
+        if (standalonePitches.length > 0) {
+            const typeMap = {};
+            standalonePitches.forEach(p => {
+                if (!typeMap[p.type]) typeMap[p.type] = { total:0, swing:0, contact:0 };
+                typeMap[p.type].total++;
+                if (p.reaction !== '看球') typeMap[p.type].swing++;
+                if (p.reaction === '打進場內') typeMap[p.type].contact++;
+            });
+            pitchBreakdown = `<h3 style="margin-top:16px;">⚾ 球種面對紀錄（獨立模式）</h3><div style="overflow-x:auto;"><table class="bm-stats-table"><thead><tr><th>球種</th><th>球數</th><th>揮棒</th><th>揮棒率</th><th>接觸</th></tr></thead><tbody>`+
+                Object.entries(typeMap).sort((a,b)=>b[1].total-a[1].total).map(([t,c])=>
+                    `<tr><td>${t}</td><td>${c.total}</td><td>${c.swing}</td><td>${c.total>0?Math.round(c.swing/c.total*100):0}%</td><td>${c.contact}</td></tr>`
+                ).join('') + '</tbody></table></div>';
+        }
+
+        const detailEl = document.getElementById('bmBatterDetailSection');
+        if (!detailEl) return;
+        detailEl.innerHTML = `
+            <hr style="margin:20px 0;">
+            <h2>#${b.number} ${b.name||'（未填姓名）'} · ${b.hand}</h2>
+            <h3>🗺️ 打擊落點圖</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
+                <div>${buildFieldSVG(dotsHTML)}</div>
+                <div style="flex:1;min-width:120px;font-size:12px;">
+                    <span style="color:#22c55e;">● 安打</span>　<span style="color:#ef4444;">● 出局/其他</span>
+                    <div style="margin-top:8px;color:#6b7280;">共 ${locs.length} 筆落點記錄</div>
+                </div>
+            </div>
+            ${pitchBreakdown}
+            <h3 style="margin-top:16px;">📋 打席記錄</h3>
+            <div>${atBats.map((a,i)=>{
+                const cls = HIT.includes(a.outcome)?'bm-log-hit':BB.includes(a.outcome)?'bm-log-bb':'bm-log-out';
+                const zone = a.hitLocation ? ` → ${a.hitLocation.zone}` : '';
+                return `<div class="bm-log-row"><span style="color:#6b7280;">${i+1}. ${a.mode==='linked'?'🔗':'📝'} ${a.pitcherHand||''}</span>
+                    <span class="bm-log-outcome ${cls}">${a.outcome}${zone}</span></div>`;
+            }).join('')}</div>`;
+        detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ── 分析 Tab ──
+    function _renderBmAnalysis() {
+        const container = document.getElementById('bmAnalysisContent');
+        if (!container) return;
+        _initBmData();
+        const atBats = allData.bm.atBats || [];
+        if (atBats.length < 3) {
+            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">記錄至少 3 個打席後顯示分析</div>';
+            return;
+        }
+        const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const BB  = ['保送','觸身球','故意四壞','捕逸'];
+        const BIP = BM_BALL_IN_PLAY;
+
+        function pct(n,t) { return t>0 ? Math.round(n/t*100) : 0; }
+
+        const pa   = atBats.length;
+        const hits  = atBats.filter(a=>HIT.includes(a.outcome)).length;
+        const k     = atBats.filter(a=>a.outcome==='三振'||a.outcome==='不死三振').length;
+        const bb    = atBats.filter(a=>BB.includes(a.outcome)).length;
+        const avg   = pa>0 ? (hits/pa).toFixed(3) : '.000';
+
+        const vsL = atBats.filter(a=>a.pitcherHand==='左投');
+        const vsR = atBats.filter(a=>a.pitcherHand==='右投');
+        function getStats(abs) {
+            const h = abs.filter(a=>HIT.includes(a.outcome)).length;
+            const p = abs.length;
+            return { pa:p, avg: p>0?(h/p).toFixed(3):'.---', k:abs.filter(a=>a.outcome==='三振').length, bb:abs.filter(a=>BB.includes(a.outcome)).length };
+        }
+        const vsLStat = getStats(vsL), vsRStat = getStats(vsR);
+
+        const dirC = {'左':0,'中':0,'右':0};
+        const DIR_MAP = { 'LF':'左','LCF':'左中','CF':'中','RCF':'右中','RF':'右',
+            '3B':'左','SS':'左中','2B':'右中','1B':'右','三短':'左','一短':'右','P':'中','本壘前':'中' };
+        atBats.forEach(a => { if (a.hitLocation) { const d=DIR_MAP[a.hitLocation.zone]; if(d) dirC[d in dirC ? d : d.includes('左')?'左':d.includes('右')?'右':'中']++; } });
+        const dirTotal = Object.values(dirC).reduce((s,v)=>s+v,0);
+
+        container.innerHTML = `
+            <h2>🔍 整體分析</h2>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+                <div class="bm-card" style="flex:1;min-width:80px;text-align:center;">
+                    <div style="font-size:22px;font-weight:900;color:#003d79;font-family:'Oswald',sans-serif;">${avg}</div>
+                    <div style="font-size:11px;color:#6b7280;">整體打率</div>
+                </div>
+                <div class="bm-card" style="flex:1;min-width:80px;text-align:center;">
+                    <div style="font-size:22px;font-weight:900;color:#dc0000;font-family:'Oswald',sans-serif;">${pct(k,pa)}%</div>
+                    <div style="font-size:11px;color:#6b7280;">三振率</div>
+                </div>
+                <div class="bm-card" style="flex:1;min-width:80px;text-align:center;">
+                    <div style="font-size:22px;font-weight:900;color:#9333ea;font-family:'Oswald',sans-serif;">${pct(bb,pa)}%</div>
+                    <div style="font-size:11px;color:#6b7280;">保送率</div>
+                </div>
+            </div>
+
+            <h2>⚔️ 對陣左右投分析</h2>
+            <div style="overflow-x:auto;">
+            <table class="bm-stats-table">
+                <thead><tr><th>對陣</th><th>打席</th><th>打率</th><th>三振</th><th>保送</th></tr></thead>
+                <tbody>
+                    <tr><td>vs 左投</td><td>${vsLStat.pa}</td><td>${vsLStat.avg}</td><td>${vsLStat.k}</td><td>${vsLStat.bb}</td></tr>
+                    <tr><td>vs 右投</td><td>${vsRStat.pa}</td><td>${vsRStat.avg}</td><td>${vsRStat.k}</td><td>${vsRStat.bb}</td></tr>
+                </tbody>
+            </table></div>
+
+            ${dirTotal > 0 ? `
+            <h2 style="margin-top:16px;">🧭 打擊方向</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                ${['左','中','右'].map(d=>`<div class="bm-card" style="flex:1;text-align:center;min-width:70px;">
+                    <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${pct(dirC[d],dirTotal)}%</div>
+                    <div style="font-size:11px;color:#6b7280;">${d === '左' ? '⬅ 拉打' : d === '右' ? '推打 ➡' : '中間'}</div>
+                    <div style="font-size:12px;font-weight:700;color:#374151;">${dirC[d]} 筆</div>
+                </div>`).join('')}
+            </div>` : ''}
+        `;
+    }
+
+    // ── Firebase 打者模式同步 ──
+    function saveBmToFirebase() {
+        if (!allData.bm) return;
+        if (typeof USER_TEAM_REF !== 'undefined' && USER_TEAM_REF) {
+            try {
+                USER_TEAM_REF.child('bm').set(JSON.parse(JSON.stringify(allData.bm)))
+                    .catch(e => console.warn('[Firebase] bm 寫入失敗:', e));
+            } catch(e) {}
+        } else if (typeof db !== 'undefined' && db) {
+            try {
+                db.ref('pitcherScoutData/bm').set(JSON.parse(JSON.stringify(allData.bm)))
+                    .catch(e => console.warn('[Firebase] admin bm 寫入失敗:', e));
+            } catch(e) {}
+        }
+    }
+
+    function syncBmData(btn) {
+        if (btn) btn.textContent = '⏳ 同步中...';
+        saveBmToFirebase();
+        setTimeout(() => { if (btn) btn.textContent = '☁️ 同步'; }, 1500);
     }
 
     // 頁面初始化（不依賴 Auth，僅載入本機資料與 UI）

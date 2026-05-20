@@ -799,3 +799,310 @@
             .batter-stats-grid { grid-template-columns:repeat(2,1fr); }
             .bac-v { font-size:17px; }
         }
+
+/* ════ 打者情蒐模式 ════ */
+.bm-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.bm-mode-toggle {
+    display: flex;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+.bm-mode-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: white;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+    transition: background 0.15s, color 0.15s;
+}
+.bm-mode-btn.bm-on {
+    background: #003d79;
+    color: white;
+}
+.bm-team-btn {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+}
+.bm-team-btn.bm-on {
+    background: #003d79;
+    color: white;
+    border-color: #003d79;
+}
+.bm-toggle-btn {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+}
+.bm-toggle-btn.bm-on {
+    background: #003d79;
+    color: white;
+    border-color: #003d79;
+}
+.bm-out-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #d1d5db;
+    background: white;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.1s;
+}
+.bm-out-dot.bm-on {
+    background: #dc0000;
+    border-color: #dc0000;
+    color: white;
+}
+.bm-base-btn {
+    padding: 5px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #374151;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+}
+.bm-base-btn.bm-on {
+    background: #f59e0b;
+    border-color: #d97706;
+    color: white;
+    font-weight: 700;
+}
+.bm-batter-card {
+    background: linear-gradient(135deg, #f0f7ff, #e8f4fd);
+    border-color: #bfdbfe;
+}
+.bm-nav-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid #d1d5db;
+    background: white;
+    font-size: 16px;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.bm-ph-btn {
+    padding: 5px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #374151;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+}
+.bm-ph-btn.bm-on {
+    background: #0051a5;
+    border-color: #0051a5;
+    color: white;
+    font-weight: 700;
+}
+.bm-outcome-btn {
+    padding: 7px 11px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: white;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+    transition: background 0.1s, color 0.1s;
+    min-height: 36px;
+}
+.bm-outcome-btn.bm-on {
+    background: #003d79;
+    color: white;
+    border-color: #003d79;
+}
+.bm-outcome-btn.bm-hit    { border-color: #16a34a; color: #15803d; }
+.bm-outcome-btn.bm-hit.bm-on { background: #16a34a; color: white; border-color: #16a34a; }
+.bm-outcome-btn.bm-out    { border-color: #dc2626; color: #dc2626; }
+.bm-outcome-btn.bm-out.bm-on { background: #dc2626; color: white; border-color: #dc2626; }
+.bm-outcome-btn.bm-bb     { border-color: #9333ea; color: #7e22ce; }
+.bm-outcome-btn.bm-bb.bm-on  { background: #9333ea; color: white; border-color: #9333ea; }
+.bm-action-btn {
+    padding: 7px 12px;
+    border: 1px solid;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+}
+.bm-lineup-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+.bm-lineup-order {
+    width: 22px;
+    font-size: 13px;
+    font-weight: 900;
+    color: #003d79;
+    text-align: center;
+    flex-shrink: 0;
+}
+.bm-lineup-num {
+    width: 52px;
+    padding: 5px 4px;
+    text-align: center;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+}
+.bm-lineup-name {
+    flex: 1;
+    padding: 5px 6px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    min-width: 0;
+}
+.bm-lineup-hand {
+    padding: 5px 7px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    background: white;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.bm-lineup-hand.bm-on {
+    background: #003d79;
+    color: white;
+    border-color: #003d79;
+}
+/* 獨立模式 */
+.sp-type-btn {
+    padding: 7px 11px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: white;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+    min-height: 36px;
+}
+.sp-type-btn.sp-on {
+    background: #0051a5;
+    color: white;
+    border-color: #0051a5;
+}
+.sp-react-btn {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+    min-height: 40px;
+}
+.sp-react-btn.sp-on {
+    background: #1e3a5f;
+    color: white;
+    border-color: #1e3a5f;
+}
+/* 打者模式統計 */
+.bm-stats-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+.bm-stats-table th { background: #003d79; color: white; padding: 8px 6px; text-align: center; font-size: 12px; }
+.bm-stats-table td { padding: 7px 6px; text-align: center; border-bottom: 1px solid #f3f4f6; }
+.bm-stats-table tr:hover td { background: #f0f7ff; }
+.bm-stats-table td:first-child { text-align: left; font-weight: 700; }
+.bm-stats-highlight { color: #dc0000; font-weight: 900; }
+/* 打者Tab active狀態 */
+.tab-btn.bm-tab.bm-tab-active { background: rgba(255,255,255,0.22); color: white; border-bottom: 2px solid #ffd700; }
+
+/* 獨立模式球格 */
+.sp-zone-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 3px; }
+.sp-zone-cell {
+    aspect-ratio: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: white;
+    font-size: 11px;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    color: #374151;
+    min-height: 40px;
+}
+.sp-zone-cell.sp-strike { background: #dbeafe; border-color: #3b82f6; }
+.sp-zone-cell.sp-on     { background: #003d79 !important; color: white !important; border-color: #003d79 !important; }
+
+/* 最近記錄條目 */
+.bm-log-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 7px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    background: #f9fafb;
+    border: 1px solid #f3f4f6;
+}
+.bm-log-outcome { font-weight: 700; }
+.bm-log-hit { color: #16a34a; }
+.bm-log-out { color: #dc2626; }
+.bm-log-bb  { color: #9333ea; }
