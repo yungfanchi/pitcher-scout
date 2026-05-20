@@ -133,11 +133,11 @@
                 <div style="font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Oswald','Noto Sans TC',sans-serif;">投手情蒐模式</div>
                 <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:6px;">記錄與分析投球數據</div>
             </button>
-            <button type="button" disabled
-                style="flex:1;min-width:200px;max-width:240px;padding:28px 20px;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.1);border-radius:16px;color:rgba(255,255,255,0.35);cursor:not-allowed;font-family:inherit;opacity:0.5;">
+            <button type="button" onclick="enterBatterMode()" ontouchend="event.preventDefault();enterBatterMode()"
+                style="flex:1;min-width:200px;max-width:240px;padding:28px 20px;background:rgba(255,255,255,0.08);border:2px solid rgba(220,0,0,0.6);border-radius:16px;color:white;cursor:pointer;font-family:inherit;touch-action:manipulation;">
                 <div style="font-size:36px;margin-bottom:10px;">🏏</div>
                 <div style="font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Oswald','Noto Sans TC',sans-serif;">打者情蒐模式</div>
-                <div style="font-size:12px;margin-top:6px;">開發中，敬請期待</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:6px;">記錄與分析打者數據</div>
             </button>
         </div>
         <div style="margin-top:28px;">
@@ -164,10 +164,10 @@
                 <div class="mode-card-title">投手模式</div>
                 <div class="mode-card-sub">記錄與分析投球數據</div>
             </button>
-            <button type="button" class="mode-card disabled" disabled>
-                <div class="mode-card-icon">⚾</div>
+            <button type="button" class="mode-card" onclick="enterBatterMode()" ontouchend="event.preventDefault();enterBatterMode()">
+                <div class="mode-card-icon">🏏</div>
                 <div class="mode-card-title">打者模式</div>
-                <div class="mode-card-sub">開發中，敬請期待</div>
+                <div class="mode-card-sub">記錄與分析打者數據</div>
             </button>
         </div>
         <div style="margin-top:24px;">

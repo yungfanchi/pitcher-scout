@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v102';
+﻿    const APP_VERSION = 'v103';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -4458,11 +4458,18 @@
     function switchTab(e, tab) {
         document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-        e.target.classList.add('active');
+        if (e && e.target) e.target.classList.add('active');
         if (tab==='record') document.getElementById('recordTab').classList.add('active');
         else if (tab==='stats') { document.getElementById('statsTab').classList.add('active'); updateStats(); }
         else if (tab==='analysis') { document.getElementById('analysisTab').classList.add('active'); updateStats(); }
         else if (tab==='compare') { document.getElementById('compareTab').classList.add('active'); updateCompare(); }
+        else if (tab==='batter') { document.getElementById('batterTab').classList.add('active'); refreshBatterList(); }
+        // 程式化切換時自動將對應 tab-btn 標為 active
+        if (!e || !e.target) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if ((btn.getAttribute('onclick')||'').includes(`'${tab}'`)) btn.classList.add('active');
+            });
+        }
     }
 
     // ====== PITCHER COMPARE ======
@@ -4871,7 +4878,8 @@
         // Only store teams data, skip pitcherDB (has invalid key chars)
         // pitcherDB is rebuilt from teams on load anyway
         const clean = {
-            teams: JSON.parse(JSON.stringify(data.teams || []))
+            teams: JSON.parse(JSON.stringify(data.teams || [])),
+            batterData: JSON.parse(JSON.stringify(data.batterData || []))
         };
         return clean;
     }
@@ -5050,13 +5058,23 @@
         activeFirebaseRef = getDataRef();
         activeFirebaseRef.on('value', snap => {
             if (Date.now() - lastSaveTime < 10000) return; // 忽略自己剛寫入觸發的更新（10秒保護，防慢網路）
-            const teams = normalizeTeamsData(snap.val());
+            const raw = snap.val();
+            const teams = normalizeTeamsData(raw);
             if (!teams) return;
             allData.teams = teams;
             allData.pitcherDB = {};
+            // 同步打者獨立情蒐資料（若 Firebase 中有）
+            if (raw && Array.isArray(raw.batterData)) {
+                allData.batterData = raw.batterData;
+            } else if (!allData.batterData) {
+                allData.batterData = [];
+            }
             rebuildPitcherDB();
             saveToLocalStorage();
             updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+            if (typeof refreshBatterList === 'function' && document.getElementById('batterTab')?.classList.contains('active')) {
+                refreshBatterList();
+            }
             setSyncStatus(true);
         });
     }
@@ -5064,6 +5082,14 @@
     function saveToFirebase() {
         lastSaveTime = Date.now();
         saveToLocalStorage(); // 本機備份立即寫，不 debounce
+
+        // SaaS 模式：將 batterData 寫入獨立節點（legacy 模式已透過 sanitizeForFirebase 一併寫入）
+        if (USER_TEAM_REF && allData.batterData) {
+            try {
+                USER_TEAM_REF.child('batterData').set(JSON.parse(JSON.stringify(allData.batterData)))
+                    .catch(e => console.warn('[Firebase] batterData 寫入失敗:', e.code));
+            } catch(e) {}
+        }
 
         // 300ms debounce：短時間連續記球合併成一次 Firebase 寫入，避免網路抖動時競態
         clearTimeout(_fbSaveTimer);
@@ -6411,11 +6437,131 @@
                 }
             ];
 
+            // ── 為示範資料附加打者姓名 + 打擊落點（讓打者情蒐功能有可看的資料）──
+            // 依對手球隊 + 背號 對應到打者姓名
+            const BATTER_NAMES = {
+                '日本': { 7:'山田由香', 3:'佐藤美咲', 22:'鈴木花子', 15:'高橋愛', 11:'伊藤茜', 18:'渡邊麻衣', 2:'田中沙織', 24:'中村優子', 1:'小林彩香' },
+                '美國': { 5:'Smith', 9:'Johnson', 12:'Williams', 23:'Brown', 8:'Jones', 14:'Garcia', 3:'Miller', 17:'Davis', 6:'Rodriguez' },
+                '韓國': { 4:'金智妍', 8:'李秀珍', 16:'朴敏惠', 21:'崔恩珠', 9:'鄭素英', 25:'姜美京', 13:'尹智慧', 7:'吳善花', 19:'林娜英' },
+                '加拿大': { 10:'Anderson', 22:'Thompson', 6:'Wilson', 18:'Martin', 3:'Taylor', 14:'Lee', 27:'White', 5:'Harris', 8:'Clark' },
+                '澳洲': { 11:'Walker', 23:'Hall', 7:'Allen', 4:'Young', 16:'King', 28:'Wright', 9:'Scott', 12:'Green', 19:'Baker' }
+            };
+            // 落點隨機產生器：根據打擊結果決定落點區域
+            function generateHitLocation(outcome) {
+                const r = () => Math.random();
+                let zone, x, y;
+                if (outcome === '全壘打') {
+                    zone = ['LF','CF','RF'][Math.floor(r()*3)];
+                    y = 0.05 + r() * 0.15;
+                } else if (outcome === '三壘安打' || outcome === '二壘安打') {
+                    zone = ['LF','LCF','CF','RCF','RF'][Math.floor(r()*5)];
+                    y = 0.15 + r() * 0.2;
+                } else if (outcome === '一壘安打' || outcome === '飛球出局' || outcome === '高飛犧牲打') {
+                    zone = ['LF','LCF','CF','RCF','RF'][Math.floor(r()*5)];
+                    y = 0.2 + r() * 0.3;
+                } else if (outcome === '內野安打' || outcome === '滾地球出局') {
+                    zone = ['3B','SS','2B','1B','P'][Math.floor(r()*5)];
+                    y = 0.45 + r() * 0.25;
+                } else if (outcome === '犧牲觸擊') {
+                    zone = ['三短','本壘前','一短'][Math.floor(r()*3)];
+                    y = 0.78 + r() * 0.15;
+                } else if (outcome === '平飛球出局') {
+                    zone = ['LCF','CF','RCF'][Math.floor(r()*3)];
+                    y = 0.3 + r() * 0.2;
+                } else {
+                    zone = ['LF','CF','RF'][Math.floor(r()*3)];
+                    y = 0.3 + r() * 0.3;
+                }
+                // 依 zone 設定 x（加些隨機）
+                const zoneXBase = { 'LF':0.1, 'LCF':0.27, 'CF':0.5, 'RCF':0.73, 'RF':0.9,
+                                   '3B':0.34, 'SS':0.45, 'P':0.5, '2B':0.55, '1B':0.66,
+                                   '三短':0.32, '本壘前':0.5, '一短':0.68 };
+                x = (zoneXBase[zone] || 0.5) + (r() - 0.5) * 0.08;
+                x = Math.max(0.05, Math.min(0.95, x));
+                return { x: parseFloat(x.toFixed(3)), y: parseFloat(y.toFixed(3)), zone };
+            }
+            // 處理每場每球：附加 batterName + hitLocation
+            const PA_END = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','三振','不死三振',
+                '內野安打','一壘安打','二壘安打','三壘安打','全壘打','保送','觸身球','野選','失誤'];
+            const BIP = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','雙殺',
+                '內野安打','一壘安打','二壘安打','三壘安打','全壘打','野選','失誤'];
+            demoTeams.forEach(team => {
+                const names = BATTER_NAMES[team.opponent] || {};
+                team.pitchers.forEach(pitcher => {
+                    pitcher.pitches.forEach(pitch => {
+                        // batterName
+                        if (pitch.batterNumber && names[pitch.batterNumber]) {
+                            pitch.batterName = names[pitch.batterNumber];
+                        }
+                        // hitLocation（球有進場時）
+                        if (pitch.outcomes && pitch.outcomes.some(o => BIP.includes(o))) {
+                            const outcome = pitch.outcomes.find(o => BIP.includes(o));
+                            pitch.hitLocation = generateHitLocation(outcome);
+                        }
+                    });
+                });
+            });
+
+            // ── 獨立打者情蒐示範資料（3 位打者，每位 5-7 個打席）──
+            const demoBatterData = [
+                {
+                    id: Date.now(), name: '張育成', number: '5', hand: '右打',
+                    team: '富邦悍將', gameName: '2026 中職春訓對抗賽', date: '2026-03-15',
+                    atBats: [
+                        { inning:1, half:'上', balls:1, strikes:2, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'一壘安打', hitLocation:{x:0.28,y:0.32,zone:'LCF'}, note:'高滑球推打反向', timestamp:'2026-03-15T13:10:00Z' },
+                        { inning:3, half:'上', balls:0, strikes:1, runnersOn:true, isBunt:false, isRunAndHit:true, isPinch:false,
+                          outcome:'二壘安打', hitLocation:{x:0.72,y:0.25,zone:'RCF'}, note:'跑打成功', timestamp:'2026-03-15T13:35:00Z' },
+                        { inning:5, half:'上', balls:0, strikes:2, runnersOn:true, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'三振', hitLocation:null, note:'外角滑球揮空', timestamp:'2026-03-15T14:00:00Z' },
+                        { inning:7, half:'上', balls:3, strikes:1, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'保送', hitLocation:null, note:null, timestamp:'2026-03-15T14:25:00Z' },
+                        { inning:9, half:'上', balls:1, strikes:1, runnersOn:true, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'全壘打', hitLocation:{x:0.18,y:0.08,zone:'LF'}, note:'掃出左外野', timestamp:'2026-03-15T14:55:00Z' },
+                    ]
+                },
+                {
+                    id: Date.now()+1, name: '陳子豪', number: '32', hand: '左打',
+                    team: '中信兄弟', gameName: '2026 中職春訓對抗賽', date: '2026-03-18',
+                    atBats: [
+                        { inning:1, half:'下', balls:0, strikes:0, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'滾地球出局', hitLocation:{x:0.66,y:0.55,zone:'1B'}, note:'內角速球擠到右半邊', timestamp:'2026-03-18T18:35:00Z' },
+                        { inning:3, half:'下', balls:2, strikes:1, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'一壘安打', hitLocation:{x:0.86,y:0.32,zone:'RF'}, note:'拉右外野空檔', timestamp:'2026-03-18T19:05:00Z' },
+                        { inning:5, half:'下', balls:1, strikes:0, runnersOn:true, isBunt:true, isRunAndHit:false, isPinch:false,
+                          outcome:'犧牲觸擊', hitLocation:{x:0.32,y:0.82,zone:'三短'}, note:'戰術短打', timestamp:'2026-03-18T19:30:00Z' },
+                        { inning:7, half:'下', balls:0, strikes:2, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'飛球出局', hitLocation:{x:0.78,y:0.22,zone:'RCF'}, note:null, timestamp:'2026-03-18T20:00:00Z' },
+                        { inning:8, half:'下', balls:3, strikes:2, runnersOn:true, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'二壘安打', hitLocation:{x:0.88,y:0.18,zone:'RF'}, note:'追平比數', timestamp:'2026-03-18T20:25:00Z' },
+                        { inning:10, half:'下', balls:1, strikes:1, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:true,
+                          outcome:'三振', hitLocation:null, note:'代打三振', timestamp:'2026-03-18T20:55:00Z' },
+                    ]
+                },
+                {
+                    id: Date.now()+2, name: '林安可', number: '12', hand: '右打',
+                    team: '統一獅', gameName: '2026 中職春訓對抗賽', date: '2026-03-22',
+                    atBats: [
+                        { inning:2, half:'上', balls:1, strikes:1, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'平飛球出局', hitLocation:{x:0.5,y:0.42,zone:'CF'}, note:'平飛被接殺', timestamp:'2026-03-22T13:20:00Z' },
+                        { inning:4, half:'上', balls:2, strikes:2, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'全壘打', hitLocation:{x:0.5,y:0.05,zone:'CF'}, note:'扛中外野大牆', timestamp:'2026-03-22T13:50:00Z' },
+                        { inning:6, half:'上', balls:0, strikes:1, runnersOn:true, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'三壘安打', hitLocation:{x:0.12,y:0.12,zone:'LF'}, note:null, timestamp:'2026-03-22T14:20:00Z' },
+                        { inning:8, half:'上', balls:1, strikes:2, runnersOn:false, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'三振', hitLocation:null, note:null, timestamp:'2026-03-22T14:50:00Z' },
+                        { inning:9, half:'上', balls:2, strikes:0, runnersOn:true, isBunt:false, isRunAndHit:false, isPinch:false,
+                          outcome:'一壘安打', hitLocation:{x:0.62,y:0.36,zone:'RCF'}, note:'掃中右外野', timestamp:'2026-03-22T15:15:00Z' },
+                    ]
+                }
+            ];
+
             // 寫入管理員專屬路徑（pitcherScoutData），不觸碰 teams/{code}
-            await db.ref('pitcherScoutData').set({ teams: demoTeams });
+            await db.ref('pitcherScoutData').set({ teams: demoTeams, batterData: demoBatterData });
 
             // 注入完成後立即更新本地狀態與 UI（不等 Firebase listener）
             allData.teams    = JSON.parse(JSON.stringify(demoTeams));
+            allData.batterData = JSON.parse(JSON.stringify(demoBatterData));
             allData.pitcherDB = {};
             rebuildPitcherDB();
             saveToLocalStorage();
@@ -7119,6 +7265,19 @@
         controlUserRolePermissions(userRole);
         const legacyRole = (userRole === 'viewer') ? 'view' : 'scout';
         enterSystem(legacyRole);
+    }
+
+    // 點擊「打者情蒐模式」按鈕後進入系統並自動切到打者 Tab
+    function enterBatterMode() {
+        controlUserRolePermissions(userRole);
+        const legacyRole = (userRole === 'viewer') ? 'view' : 'scout';
+        enterSystem(legacyRole);
+        // 進系統後切到打者 Tab（等資料載入完）
+        setTimeout(() => {
+            switchTab(null, 'batter');
+            // 預設顯示「獨立情蒐」模式（兩台平板分工時，打者那台主要用獨立模式）
+            if (typeof switchBatterSource === 'function') switchBatterSource('standalone');
+        }, 250);
     }
 
     // 頁面初始化（不依賴 Auth，僅載入本機資料與 UI）
