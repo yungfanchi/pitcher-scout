@@ -371,9 +371,9 @@
 
         <!-- ====== 打者情蒐模式側欄（打線管理）====== -->
         <div id="bmSidebarContent" style="display:none;flex-direction:column;flex:1;overflow-y:auto;min-height:0;">
-            <!-- 比賽連動 -->
-            <div style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.1);">
-                <div style="font-size:11px;font-weight:700;color:rgba(255,215,0,0.8);letter-spacing:1px;margin-bottom:6px;">🔗 比賽連動（選填）</div>
+            <!-- 連動模式：選擇比賽 -->
+            <div id="bmLinkedGameSection" style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.1);">
+                <div style="font-size:11px;font-weight:700;color:rgba(255,215,0,0.8);letter-spacing:1px;margin-bottom:6px;">🔗 比賽連動</div>
                 <select id="bmGameSelect" onchange="onBmGameChange()"
                     style="width:100%;padding:7px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);font-family:inherit;font-size:12px;background:rgba(255,255,255,0.1);color:white;margin-bottom:6px;">
                     <option value="-1" style="background:#003d79;">— 不連動 —</option>
@@ -381,6 +381,30 @@
                 <div style="display:flex;gap:5px;">
                     <button id="bmTeamABtn" class="bm-team-btn bm-sidebar-team" onclick="selectBmTeam('A')">A隊 進攻</button>
                     <button id="bmTeamBBtn" class="bm-team-btn bm-sidebar-team bm-on" onclick="selectBmTeam('B')">B隊 進攻</button>
+                </div>
+            </div>
+
+            <!-- 獨立模式：填寫賽事資訊 -->
+            <div id="bmStandaloneGameSection" style="display:none;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.1);">
+                <div style="font-size:11px;font-weight:700;color:rgba(255,215,0,0.8);letter-spacing:1px;margin-bottom:8px;">📝 賽事資訊</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <input id="bmSpGameName" type="text" placeholder="賽事名稱（例：2026 世界盃）" autocomplete="off"
+                        onblur="saveBmSpInfo()"
+                        onkeydown="if(event.key==='Enter')this.blur()"
+                        style="width:100%;padding:7px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);font-family:inherit;font-size:12px;background:rgba(255,255,255,0.1);color:white;box-sizing:border-box;">
+                    <div style="display:flex;gap:5px;">
+                        <input id="bmSpTeamName" type="text" placeholder="我方隊名" autocomplete="off"
+                            onblur="saveBmSpInfo()"
+                            onkeydown="if(event.key==='Enter')this.blur()"
+                            style="flex:1;padding:7px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);font-family:inherit;font-size:12px;background:rgba(255,255,255,0.1);color:white;box-sizing:border-box;">
+                        <span style="color:rgba(255,255,255,0.5);line-height:32px;font-size:12px;">vs</span>
+                        <input id="bmSpOpponent" type="text" placeholder="對手" autocomplete="off"
+                            onblur="saveBmSpInfo()"
+                            onkeydown="if(event.key==='Enter')this.blur()"
+                            style="flex:1;padding:7px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);font-family:inherit;font-size:12px;background:rgba(255,255,255,0.1);color:white;box-sizing:border-box;">
+                    </div>
+                    <input id="bmSpDate" type="date" onchange="saveBmSpInfo()"
+                        style="width:100%;padding:7px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);font-family:inherit;font-size:12px;background:rgba(255,255,255,0.1);color:white;box-sizing:border-box;">
                 </div>
             </div>
             <!-- 打線 -->

@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v113';
+﻿    const APP_VERSION = 'v114';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7542,6 +7542,11 @@
         if (!allData.bm.atBats) allData.bm.atBats = [];
         if (!('gameIdx' in allData.bm)) allData.bm.gameIdx = -1;
         if (!allData.bm.attackingTeam) allData.bm.attackingTeam = 'B';
+        // 獨立模式賽事資訊欄位
+        if (!('spGameName' in allData.bm)) allData.bm.spGameName = '';
+        if (!('spTeamName' in allData.bm)) allData.bm.spTeamName = '';
+        if (!('spOpponent'  in allData.bm)) allData.bm.spOpponent  = '';
+        if (!('spDate'      in allData.bm)) allData.bm.spDate      = '';
     }
 
     // ── 打線管理 ──
@@ -7720,11 +7725,20 @@
         if (lr) lr.style.display = mode==='linked' ? '' : 'none';
         if (sr) sr.style.display = mode==='standalone' ? '' : 'none';
         if (mode==='standalone') _renderBmSpZoneGrid();
+
+        // ★ 側欄：聯動顯示比賽下拉，獨立顯示賽事資訊表單
+        const linkedSec = document.getElementById('bmLinkedGameSection');
+        const standalSec = document.getElementById('bmStandaloneGameSection');
+        if (linkedSec)  linkedSec.style.display  = mode === 'linked'     ? '' : 'none';
+        if (standalSec) standalSec.style.display  = mode === 'standalone' ? '' : 'none';
+        // 獨立模式：還原已儲存的賽事資訊
+        if (mode === 'standalone') _renderBmSpInfo();
+
         // ★ 反向連動：切換模式按鈕時同步更新側欄下拉選單
         const sel = document.getElementById('bmGameSelect');
         if (sel) {
             if (mode === 'standalone') {
-                sel.value = '-1'; // 切獨立→側欄選「不連動」
+                sel.value = '-1';
                 _initBmData();
                 allData.bm.gameIdx = -1;
                 saveToLocalStorage();
@@ -7738,6 +7752,29 @@
                 }
             }
         }
+    }
+
+    // ── 獨立模式賽事資訊 ──
+    function saveBmSpInfo() {
+        _initBmData();
+        allData.bm.spGameName = (document.getElementById('bmSpGameName')?.value || '').trim();
+        allData.bm.spTeamName = (document.getElementById('bmSpTeamName')?.value || '').trim();
+        allData.bm.spOpponent = (document.getElementById('bmSpOpponent')?.value || '').trim();
+        allData.bm.spDate     = (document.getElementById('bmSpDate')?.value     || '').trim();
+        saveToLocalStorage();
+        saveToFirebase();
+    }
+
+    function _renderBmSpInfo() {
+        _initBmData();
+        const gn = document.getElementById('bmSpGameName');
+        const tn = document.getElementById('bmSpTeamName');
+        const op = document.getElementById('bmSpOpponent');
+        const dt = document.getElementById('bmSpDate');
+        if (gn) gn.value = allData.bm.spGameName || '';
+        if (tn) tn.value = allData.bm.spTeamName || '';
+        if (op) op.value = allData.bm.spOpponent  || '';
+        if (dt) dt.value = allData.bm.spDate       || '';
     }
 
     // ── 聯動模式：打席記錄 ──
