@@ -1227,18 +1227,18 @@
                 </div>
 
                 <!-- 打擊落點圖 + 打席結果（並排，加大） -->
-                <div style="display:flex;gap:10px;margin-top:10px;align-items:flex-start;">
-                    <!-- 左：打擊落點圖（加大） -->
-                    <div class="bm-card" style="flex:0 0 auto;padding:8px;min-width:0;">
+                <div style="display:flex;gap:12px;margin-top:10px;align-items:flex-start;flex-wrap:nowrap;">
+                    <!-- 左：打擊落點圖（放大） -->
+                    <div class="bm-card" style="flex:0 0 310px;padding:8px;">
                         <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">
                             🗺️ 落點<span id="bmHitZoneLabel" style="color:#003d79;font-size:12px;font-weight:900;margin-left:4px;"></span>
                         </div>
-                        <div id="bmHitMapWrap" style="width:240px;"></div>
+                        <div id="bmHitMapWrap" style="width:100%;"></div>
                     </div>
-                    <!-- 右：打席結果（加大按鈕） -->
-                    <div class="bm-card" style="flex:1 1 160px;padding:10px;min-width:0;">
+                    <!-- 右：打席結果 -->
+                    <div class="bm-card" style="flex:1 1 0;padding:10px;min-width:180px;">
                         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
-                        <div id="bmOutcomeBtns" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+                        <div id="bmOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;"></div>
                     </div>
                 </div>
 
@@ -1280,14 +1280,14 @@
                 </div>
 
                 <!-- 落點圖 + 打席結果 -->
-                <div style="display:flex;gap:10px;margin-top:10px;align-items:flex-start;">
-                    <div class="bm-card" style="flex:0 0 auto;padding:8px;min-width:0;">
+                <div style="display:flex;gap:12px;margin-top:10px;align-items:flex-start;flex-wrap:nowrap;">
+                    <div class="bm-card" style="flex:0 0 310px;padding:8px;">
                         <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">
                             🗺️ 落點<span id="spHitZoneLabel" style="color:#003d79;font-size:12px;font-weight:900;margin-left:4px;"></span>
                         </div>
-                        <div id="spHitMapWrap" style="width:240px;"></div>
+                        <div id="spHitMapWrap" style="width:100%;"></div>
                     </div>
-                    <div class="bm-card" style="flex:1 1 160px;padding:10px;min-width:0;">
+                    <div class="bm-card" style="flex:1 1 0;padding:10px;min-width:180px;">
                         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
                         <div id="spOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;"></div>
                     </div>
