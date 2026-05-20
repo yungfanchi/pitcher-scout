@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v109';
+﻿    const APP_VERSION = 'v110';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -1428,6 +1428,10 @@
             if (injectWrap) injectWrap.style.display = 'none';
         }
         loadTeamHeader(currentTeamCode);
+        // 登入後顯示一鍵切換模式列
+        const msBar = document.getElementById('modeSwitchBar');
+        if (msBar) msBar.style.display = '';
+        _updateModeToggleBtn();
         listenFirebase();
         if (role === 'view') {
             document.getElementById('viewOnlyBanner').style.display = 'block';
@@ -1497,6 +1501,11 @@
         if (ao) ao.style.display = 'flex';
         const msp = document.getElementById('modeSelectionPage');
         if (msp) msp.style.display = 'none';
+        // 隱藏模式切換列
+        const msBar = document.getElementById('modeSwitchBar');
+        if (msBar) msBar.style.display = 'none';
+        // 重置至投手模式
+        userMode = 'pitcher';
         setTimeout(loadRememberedLogin, 80);
     }
 
@@ -7349,6 +7358,23 @@
         spPitches: []
     };
 
+    // ── 一鍵切換模式（情蒐員快速切換投手／打者）──
+    function switchToMode(mode) {
+        if (mode === userMode) return; // 已在此模式，不重複執行
+        if (mode === 'batter') {
+            userMode = 'batter';
+            _showBatterModeUI();
+            _initBmData();
+            _renderBmLineup();
+            _populateBmGameSelect();
+            switchBatterTab(null, 'record');
+        } else {
+            userMode = 'pitcher';
+            _hideBatterModeUI();
+        }
+        _updateModeToggleBtn();
+    }
+
     function enterBatterMode() {
         userMode = 'batter';
         controlUserRolePermissions(userRole);
@@ -7360,6 +7386,7 @@
             _renderBmLineup();
             _populateBmGameSelect();
             switchBatterTab(null, 'record');
+            _updateModeToggleBtn();
         }, 300);
     }
 
@@ -7368,7 +7395,20 @@
         controlUserRolePermissions(userRole);
         const legacyRole = (userRole === 'viewer') ? 'view' : 'scout';
         enterSystem(legacyRole);
-        setTimeout(() => { _hideBatterModeUI(); }, 100);
+        setTimeout(() => { _hideBatterModeUI(); _updateModeToggleBtn(); }, 100);
+    }
+
+    // ── 更新側欄模式切換 pill 的視覺狀態 ──
+    function _updateModeToggleBtn() {
+        const pb = document.getElementById('modeTogglePitcher');
+        const bb = document.getElementById('modeToggleBatter');
+        if (!pb || !bb) return;
+        const isBatter = (userMode === 'batter');
+        // 活躍：金黃底深藍字；非活躍：半透明白
+        pb.style.background = isBatter ? 'rgba(255,255,255,0.1)' : 'rgba(255,215,0,0.9)';
+        pb.style.color      = isBatter ? 'rgba(255,255,255,0.6)' : '#003d79';
+        bb.style.background = isBatter ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.1)';
+        bb.style.color      = isBatter ? '#003d79' : 'rgba(255,255,255,0.6)';
     }
 
     function _showBatterModeUI() {
@@ -7376,11 +7416,12 @@
         ['dualPitcherSection','pitcherTabBar',
          'recordTab','statsTab','analysisTab','compareTab','batterTab']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
-        // 隱藏投手側欄專用區塊，顯示打者側欄
-        ['adminPanel','teamList','scoutBottomBar','viewerBottomBar']
-            .forEach(id => { const el=document.getElementById(id); if(el) el._bmSaved=el.style.display; if(el) el.style.display='none'; });
+        // 隱藏投手側欄專用區塊（adminPanel, teamList, team-management）
+        ['adminPanel','teamList']
+            .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
         const tmEl = document.querySelector('.team-management');
-        if (tmEl) { tmEl._bmSaved = tmEl.style.display; tmEl.style.display = 'none'; }
+        if (tmEl) tmEl.style.display = 'none';
+        // 顯示打者側欄
         const bmSide = document.getElementById('bmSidebarContent');
         if (bmSide) bmSide.style.display = 'flex';
         // 側欄 header 切換
@@ -7388,10 +7429,10 @@
         const hb = document.getElementById('sidebarHeaderBatter');
         if (hp) hp.style.display = 'none';
         if (hb) hb.style.display = '';
-        // 顯示打者主內容
+        // 顯示打者主內容（現在同在 mainContent 內）
         const bw = document.getElementById('batterModeWrapper');
-        if (bw) bw.style.display = 'block';
-        // 標題
+        if (bw) bw.style.display = '';
+        // 標題副標題
         const sub = document.getElementById('headerTeamSub');
         if (sub) {
             const vSpan = sub.querySelector('#appVersionMain');
@@ -7405,16 +7446,16 @@
         ['dualPitcherSection','pitcherTabBar',
          'recordTab','statsTab','analysisTab','compareTab','batterTab']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display=''; });
-        // 清除打者側欄
+        // 隱藏打者側欄 / 主內容
         const bmSide = document.getElementById('bmSidebarContent');
         if (bmSide) bmSide.style.display = 'none';
+        const bw = document.getElementById('batterModeWrapper');
+        if (bw) bw.style.display = 'none';
         // 恢復 header
         const hp = document.getElementById('sidebarHeaderPitcher');
         const hb = document.getElementById('sidebarHeaderBatter');
         if (hp) hp.style.display = '';
         if (hb) hb.style.display = 'none';
-        const bw = document.getElementById('batterModeWrapper');
-        if (bw) bw.style.display = 'none';
         // 恢復標題
         const sub = document.getElementById('headerTeamSub');
         if (sub) {
@@ -7431,20 +7472,21 @@
     function _reEnforceUIPermissions() {
         const isAdmin  = (typeof currentTeamCode !== 'undefined' && currentTeamCode === 'ADMIN');
         const isViewer = (userRole === 'view' || userRole === 'viewer');
+        const isBatter = (userMode === 'batter');
 
-        // 管理員專用元素：嚴格只對 ADMIN 顯示
+        // 管理員專用元素：嚴格只對 ADMIN 顯示（打者模式下也隱藏，避免干擾側欄）
         ['adminPanel','createTeamBtn','adminInjectWrap'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.style.display = isAdmin ? (id === 'adminPanel' ? 'block' : 'block') : 'none';
+            if (el) el.style.display = (isAdmin && !isBatter) ? 'block' : 'none';
         });
 
-        // teamList、team-management：已登入就顯示（但觀看者後續在 applyViewOnlyMode 限制）
+        // teamList、team-management：投手模式才顯示（打者模式用 bmSidebarContent）
         const teamListEl = document.getElementById('teamList');
-        if (teamListEl && !isViewer) teamListEl.style.display = '';
+        if (teamListEl) teamListEl.style.display = (!isBatter && !isViewer) ? '' : 'none';
         const tmEl = document.querySelector('.team-management');
-        if (tmEl && !isViewer) tmEl.style.display = '';
+        if (tmEl) tmEl.style.display = (!isBatter && !isViewer) ? '' : 'none';
 
-        // 底部工具列：scout vs viewer
+        // 底部工具列：scout vs viewer（兩種模式共用）
         const sb = document.getElementById('scoutBottomBar');
         const vb = document.getElementById('viewerBottomBar');
         if (isViewer) {
@@ -7454,6 +7496,9 @@
             if (sb) sb.style.display = '';
             if (vb) vb.style.display = 'none';
         }
+
+        // 更新模式切換 pill 視覺
+        _updateModeToggleBtn();
 
         // 觀看者：重新套用所有唯讀限制
         if (isViewer) {

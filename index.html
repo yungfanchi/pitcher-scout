@@ -353,6 +353,22 @@
             <h2 id="sidebarHeaderBatter" style="display:none;">🏏 打線管理</h2>
         </div>
 
+        <!-- ====== 一鍵切換模式列（登入後顯示）====== -->
+        <div id="modeSwitchBar" style="display:none;margin-bottom:8px;">
+            <div style="display:flex;gap:4px;background:rgba(0,0,0,0.25);border-radius:8px;padding:3px;">
+                <button id="modeTogglePitcher" onclick="switchToMode('pitcher')"
+                    style="flex:1;padding:8px 4px;border-radius:6px;font-size:12px;font-weight:900;cursor:pointer;font-family:inherit;touch-action:manipulation;transition:all 0.2s;border:none;
+                           background:rgba(255,215,0,0.9);color:#003d79;letter-spacing:0.5px;">
+                    📝 投手模式
+                </button>
+                <button id="modeToggleBatter" onclick="switchToMode('batter')"
+                    style="flex:1;padding:8px 4px;border-radius:6px;font-size:12px;font-weight:900;cursor:pointer;font-family:inherit;touch-action:manipulation;transition:all 0.2s;border:none;
+                           background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);letter-spacing:0.5px;">
+                    🏏 打者模式
+                </button>
+            </div>
+        </div>
+
         <!-- ====== 打者情蒐模式側欄（打線管理）====== -->
         <div id="bmSidebarContent" style="display:none;flex-direction:column;flex:1;overflow-y:auto;min-height:0;">
             <!-- 比賽連動 -->
@@ -378,14 +394,6 @@
                 </div>
                 <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:6px;">背號必填・姓名可事後補填</div>
                 <div id="bmLineupRows"></div>
-            </div>
-            <!-- 底部：同步 + 登出 -->
-            <div style="padding:10px 12px;border-top:1px solid rgba(255,255,255,0.1);">
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
-                    <button onclick="syncBmData(this)" class="bottom-action-btn" style="background:rgba(100,255,180,0.2);color:#6ee7b7;border:1px solid rgba(100,255,180,0.3);">☁️ 同步</button>
-                    <button onclick="refreshData(this)" class="bottom-action-btn" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.2);">🔄 重整</button>
-                    <button onclick="logout()" class="bottom-action-btn" style="background:rgba(220,0,0,0.6);color:white;border:1px solid rgba(220,0,0,0.5);">🚪 登出</button>
-                </div>
             </div>
         </div>
 
@@ -1112,10 +1120,9 @@
                 <button class="btn btn-primary" onclick="openPDFFilter()" style="background:#dc2626;border-color:#dc2626;">📄 匯出 PDF</button>
             </div>
         </div>
-    </div>
 
-<!-- ════ 打者情蒐模式（獨立 UI）════ -->
-<div id="batterModeWrapper" style="display:none;">
+    <!-- ════ 打者情蒐模式（與投手模式共用 mainContent 容器）════ -->
+    <div id="batterModeWrapper" style="display:none;">
 
     <!-- Tab列 -->
     <div class="container" style="padding-top:10px;padding-bottom:0;">
@@ -1300,7 +1307,9 @@
             <div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無資料</div>
         </div>
     </div>
-</div>
+    </div><!-- /batterModeWrapper -->
+
+    </div><!-- /mainContent -->
 
     <!-- 新增投手彈窗 - 支援兩隊對戰組合 -->
     <div id="addPitcherModal" class="modal">
