@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v103';
+﻿    const APP_VERSION = 'v104';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -161,6 +161,23 @@
         document.getElementById('loginError').textContent = '';
     }
 
+    // 登入成功後顯示模式選擇頁（兩台平板可分別選投手 / 打者模式）
+    function showModeSelectionAfterLogin(role) {
+        userRole = role;
+        const ls = document.getElementById('loginScreen'); if (ls) ls.style.display = 'none';
+        const ao = document.getElementById('authOverlay'); if (ao) ao.style.display = 'none';
+        const mss = document.getElementById('modeSelectScreen'); if (mss) mss.style.display = 'none';
+        const msp = document.getElementById('modeSelectionPage');
+        if (msp) {
+            msp.style.display = 'flex';
+            const info = document.getElementById('modeSelectionUserInfo');
+            if (info) info.textContent = `${currentTeamCode || ''}　｜　${role === 'view' ? '觀看者' : '情蒐員'}`;
+        } else {
+            // fallback：找不到模式選擇頁時直接進系統
+            enterSystem(role);
+        }
+    }
+
     async function doLogin() {
         try { document.activeElement && document.activeElement.blur(); } catch(e) {}
         const teamCodeEl = document.getElementById('loginTeamCode');
@@ -176,7 +193,7 @@
             if (inputHash === ADMIN_PW_HASH) {
                 currentTeamCode = 'ADMIN';
                 await _cacheCredential(teamCode, 'scout', pw);
-                enterSystem('scout');
+                showModeSelectionAfterLogin('scout');
                 return;
             }
         }
@@ -185,7 +202,7 @@
         if (await _checkCachedCredential(teamCode, selectedLoginRole, pw)) {
             currentTeamCode = teamCode;
             try { localStorage.setItem('lastTeamCode', teamCode); } catch(e) {}
-            enterSystem(selectedLoginRole);
+            showModeSelectionAfterLogin(selectedLoginRole);
             return;
         }
 
@@ -212,7 +229,7 @@
                     currentTeamCode = teamCode;
                     await _cacheCredential(teamCode, selectedLoginRole, pw); // 快取供離線使用
                     try { localStorage.setItem('lastTeamCode', teamCode); } catch(e) {}
-                    enterSystem(selectedLoginRole);
+                    showModeSelectionAfterLogin(selectedLoginRole);
                 } else {
                     document.getElementById('loginError').textContent = '❌ 密碼錯誤，請再試一次';
                     document.getElementById('loginPw').value = '';
@@ -223,7 +240,7 @@
                 if (await _checkCachedCredential(teamCode, selectedLoginRole, pw)) {
                     currentTeamCode = teamCode;
                     try { localStorage.setItem('lastTeamCode', teamCode); } catch(e2) {}
-                    enterSystem(selectedLoginRole);
+                    showModeSelectionAfterLogin(selectedLoginRole);
                 } else {
                     document.getElementById('loginError').textContent = '❌ 連線失敗，且無離線快取';
                 }
