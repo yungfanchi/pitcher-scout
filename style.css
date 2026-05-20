@@ -731,3 +731,71 @@
         @keyframes pfFade { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
         /* View-only overlay */
         #viewOnlyBanner { display:none; position:fixed; top:0; left:0; right:0; z-index:500; background:linear-gradient(90deg,#b45309,#d97706); color:white; text-align:center; padding:8px; font-size:13px; font-weight:700; letter-spacing:1px; }
+
+        /* ===== 打者情蒐 ===== */
+        /* 來源切換按鈕 */
+        .batter-src-btn {
+            padding:8px 16px; border:2px solid #d1d5db; border-radius:8px;
+            background:white; color:#6b7280; font-size:13px; font-weight:700;
+            cursor:pointer; font-family:inherit; transition:all 0.15s;
+        }
+        .batter-src-btn.active {
+            background:var(--ct-blue-dark); color:white; border-color:var(--ct-blue-dark);
+        }
+        /* 打者列表 */
+        .batter-list-item {
+            display:flex; align-items:center; justify-content:space-between;
+            background:white; border-radius:10px; padding:12px 14px;
+            margin-bottom:8px; cursor:pointer; border:1px solid #e5e7eb;
+            transition:box-shadow 0.15s, transform 0.1s;
+        }
+        .batter-list-item:active { transform:scale(0.98); }
+        .batter-list-item:hover { box-shadow:0 2px 12px rgba(0,0,0,0.08); }
+        .bli-left { flex:1; min-width:0; }
+        .bli-name { font-size:15px; font-weight:900; color:#111827; }
+        .bli-meta { font-size:12px; color:#6b7280; margin-top:2px; }
+        .bli-arrow { font-size:20px; color:#9ca3af; flex-shrink:0; margin-left:8px; }
+        /* 基礎數據格 */
+        .batter-stats-grid {
+            display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+        }
+        .bsc {
+            background:white; border-radius:8px; padding:10px 6px;
+            text-align:center; border:1px solid #e5e7eb;
+        }
+        .bsc-v { font-size:18px; font-weight:900; color:var(--ct-blue-dark); font-family:'Oswald',sans-serif; }
+        .bsc-l { font-size:10px; color:#6b7280; margin-top:2px; }
+        /* 分析卡片 */
+        .bac {
+            background:white; border-radius:10px; padding:14px;
+            margin-bottom:10px; border:1px solid #e5e7eb;
+        }
+        .bac-title { font-size:13px; font-weight:900; color:#003d79; margin-bottom:10px; }
+        .bac-row { display:flex; gap:8px; }
+        .bac-stat { flex:1; text-align:center; }
+        .bac-v { font-size:20px; font-weight:900; color:#111827; font-family:'Oswald',sans-serif; }
+        .bac-l { font-size:11px; color:#6b7280; margin-top:2px; line-height:1.3; }
+        .bac-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .bac-table th { background:#f3f4f6; padding:5px 8px; text-align:left; font-weight:700; color:#374151; }
+        .bac-table td { padding:5px 8px; border-bottom:1px solid #f3f4f6; color:#374151; }
+        /* 打席結果按鈕（在記錄打席 Modal 中） */
+        .atbat-outcome-btn {
+            padding:9px 4px; border:2px solid #d1d5db; border-radius:7px;
+            background:white; color:#374151; font-size:13px; font-weight:700;
+            cursor:pointer; font-family:inherit; transition:all 0.12s;
+        }
+        .atbat-outcome-btn.selected {
+            background:var(--ct-blue-dark); color:white; border-color:var(--ct-blue-dark);
+        }
+        .atbat-outcome-btn:active { transform:scale(0.95); }
+        /* 打者 Modal 顯示控制（flex overlay） */
+        #hitLocationModal, #addBatterModal, #recordAtBatModal { display:none; }
+        #hitLocationModal.show, #addBatterModal.show, #recordAtBatModal.show { display:flex; }
+        /* 讓 hitLocConfirmBtn disabled 時透明 */
+        #hitLocConfirmBtn:not([disabled]) { opacity:1 !important; }
+        #hitLocConfirmBtn[disabled] { opacity:0.4; cursor:not-allowed; }
+        /* 手機版數據格改 2 欄 */
+        @media (max-width:480px) {
+            .batter-stats-grid { grid-template-columns:repeat(2,1fr); }
+            .bac-v { font-size:17px; }
+        }

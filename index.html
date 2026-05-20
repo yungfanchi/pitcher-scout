@@ -482,6 +482,7 @@
                 <button class="tab-btn" onclick="switchTab(event,'stats')">📊 統計</button>
                 <button class="tab-btn" onclick="switchTab(event,'analysis')">📈 分析</button>
                 <button class="tab-btn" onclick="switchTab(event,'compare')">⚔️ 對比</button>
+                <button class="tab-btn" onclick="switchTab(event,'batter');refreshBatterList()">🏏 打者</button>
             </div>
         </div>
 
@@ -1018,6 +1019,53 @@
             </div>
         </div>
 
+        <!-- 打者情蒐分頁 -->
+        <div id="batterTab" class="tab-content">
+            <!-- 打者列表 -->
+            <div id="batterListView">
+                <div class="container">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                        <h2 style="margin:0;border:none;padding:0;">🏏 打者情蒐</h2>
+                        <button id="batterAddNewBtn" class="btn btn-danger" onclick="openAddBatterModal()" style="display:none;">＋ 新增打者</button>
+                    </div>
+                    <!-- 來源切換 -->
+                    <div style="display:flex;gap:6px;margin-bottom:14px;">
+                        <button id="batterSrcPitcher" class="batter-src-btn active" onclick="switchBatterSource('pitcher')">📊 從投手記錄</button>
+                        <button id="batterSrcStandalone" class="batter-src-btn" onclick="switchBatterSource('standalone')">📝 獨立情蒐</button>
+                    </div>
+                    <div id="batterList"></div>
+                </div>
+            </div>
+
+            <!-- 打者詳情 -->
+            <div id="batterDetailView" style="display:none;">
+                <!-- 頂部導覽 -->
+                <div class="container" style="padding-top:10px;padding-bottom:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <button onclick="closeBatterDetail()" style="background:none;border:1px solid #d1d5db;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">← 返回</button>
+                        <h2 id="batterDetailName" style="margin:0;border:none;padding:0;flex:1;"></h2>
+                        <button onclick="screenshotBatterAnalysis()" style="background:#003d79;color:white;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📸 截圖</button>
+                    </div>
+                </div>
+                <!-- 基礎數據 -->
+                <div class="container">
+                    <h2>📊 基礎數據</h2>
+                    <div id="batterDetailStats"></div>
+                </div>
+                <!-- 打擊落點圖 -->
+                <div class="container">
+                    <h2>🗺️ 打擊落點圖</h2>
+                    <div id="batterHitMapContainer"></div>
+                </div>
+                <!-- 傾向分析 -->
+                <div class="container">
+                    <div id="batterAnalysisCards"></div>
+                </div>
+                <!-- 打席記錄（獨立情蒐才顯示） -->
+                <div id="batterAtBatLogSection" style="display:none;"></div>
+            </div>
+        </div>
+
         <!-- 數據管理 -->
         <div class="container">
             <h2>💾 數據管理</h2>
@@ -1175,6 +1223,154 @@
                     ✅ 儲存修改
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- ====== 打擊落點 Modal ====== -->
+    <div id="hitLocationModal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;flex-direction:column;padding:16px;box-sizing:border-box;">
+        <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <h2 style="margin:0;font-size:17px;">🗺️ 打擊落點</h2>
+                <button onclick="skipHitLocation()" style="background:#6b7280;color:white;border:none;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">跳過</button>
+            </div>
+            <div id="hitLocFieldWrap" style="margin-bottom:10px;"></div>
+            <div id="hitLocZoneLabel" style="text-align:center;font-size:14px;font-weight:700;color:#003d79;min-height:22px;margin-bottom:12px;">請點擊球場位置</div>
+            <button id="hitLocConfirmBtn" onclick="confirmHitLocation()" disabled
+                style="width:100%;padding:14px;background:var(--ct-red);color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;opacity:0.5;transition:opacity 0.2s;"
+                onmouseenter="if(!this.disabled)this.style.opacity=0.85;" onmouseleave="if(!this.disabled)this.style.opacity=1;"
+                onfocus="this.style.opacity=this.disabled?'0.5':'1'">✅ 確認落點</button>
+        </div>
+    </div>
+
+    <!-- ====== 新增打者 Modal ====== -->
+    <div id="addBatterModal" style="display:none;position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+        <div style="background:white;border-radius:16px;padding:22px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <h2 style="margin:0;font-size:17px;">📝 新增打者（獨立情蒐）</h2>
+                <button onclick="closeAddBatterModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;">✕</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <input id="newBatterName" type="text" placeholder="打者姓名 *" autocomplete="off"
+                    style="padding:10px 12px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;width:100%;box-sizing:border-box;">
+                <input id="newBatterNumber" type="text" placeholder="背號（選填）" autocomplete="off"
+                    style="padding:10px 12px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;width:100%;box-sizing:border-box;">
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">慣用手</div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="new-batter-hand-btn active" data-hand="右打" onclick="selectNewBatterHand('右打',this)"
+                            style="flex:1;padding:10px;border:2px solid #003d79;border-radius:8px;background:#003d79;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">右打</button>
+                        <button class="new-batter-hand-btn" data-hand="左打" onclick="selectNewBatterHand('左打',this)"
+                            style="flex:1;padding:10px;border:2px solid #d1d5db;border-radius:8px;background:white;color:#374151;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">左打</button>
+                    </div>
+                </div>
+                <input id="newBatterTeam" type="text" placeholder="所屬球隊（選填）" autocomplete="off"
+                    style="padding:10px 12px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;width:100%;box-sizing:border-box;">
+                <input id="newBatterGame" type="text" placeholder="賽事名稱（選填）" autocomplete="off"
+                    style="padding:10px 12px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;width:100%;box-sizing:border-box;">
+                <input id="newBatterDate" type="date"
+                    style="padding:10px 12px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;width:100%;box-sizing:border-box;">
+                <div style="display:flex;gap:8px;margin-top:4px;">
+                    <button onclick="closeAddBatterModal()"
+                        style="flex:1;padding:12px;border:1px solid #d1d5db;border-radius:8px;background:white;font-size:15px;cursor:pointer;font-family:inherit;">取消</button>
+                    <button onclick="confirmAddBatter()"
+                        style="flex:2;padding:12px;border:none;border-radius:8px;background:var(--ct-red);color:white;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">建立打者</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== 記錄打席 Modal ====== -->
+    <div id="recordAtBatModal" style="display:none;position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px;box-sizing:border-box;overflow-y:auto;">
+        <div style="background:white;border-radius:16px;padding:22px;width:100%;max-width:460px;box-shadow:0 8px 40px rgba(0,0,0,0.35);margin:auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <h2 style="margin:0;font-size:17px;">⚾ 記錄打席</h2>
+                <button onclick="closeRecordAtBatModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;">✕</button>
+            </div>
+            <!-- 局數 + 上下局 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:4px;">局數</div>
+                    <input id="atBatInning" type="number" min="1" max="20" value="1" style="width:100%;padding:9px 10px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;box-sizing:border-box;">
+                </div>
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:4px;">上/下半局</div>
+                    <select id="atBatHalf" style="width:100%;padding:9px 10px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;box-sizing:border-box;">
+                        <option value="上">上半局</option>
+                        <option value="下">下半局</option>
+                    </select>
+                </div>
+            </div>
+            <!-- 球數（打席結束時） -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:4px;">壞球數（打席結束時）</div>
+                    <select id="atBatBalls" style="width:100%;padding:9px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;box-sizing:border-box;">
+                        <option>0</option><option>1</option><option>2</option><option>3</option><option>4</option>
+                    </select>
+                </div>
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:4px;">好球數（打席結束時）</div>
+                    <select id="atBatStrikes" style="width:100%;padding:9px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;box-sizing:border-box;">
+                        <option>0</option><option>1</option><option>2</option><option>3</option>
+                    </select>
+                </div>
+            </div>
+            <!-- 壘上狀況 -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px;background:#f9fafb;border-radius:8px;">
+                <input type="checkbox" id="atBatRunnersOn" style="width:18px;height:18px;cursor:pointer;">
+                <label for="atBatRunnersOn" style="font-size:14px;font-weight:700;cursor:pointer;">有人在壘</label>
+            </div>
+            <!-- 打席結果 -->
+            <div style="margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">打席結果 *</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:6px;">
+                    <button class="atbat-outcome-btn" data-outcome="一壘安打" onclick="selectAtBatOutcome('一壘安打',this)">一安</button>
+                    <button class="atbat-outcome-btn" data-outcome="二壘安打" onclick="selectAtBatOutcome('二壘安打',this)">二安</button>
+                    <button class="atbat-outcome-btn" data-outcome="三壘安打" onclick="selectAtBatOutcome('三壘安打',this)">三安</button>
+                    <button class="atbat-outcome-btn" data-outcome="全壘打" onclick="selectAtBatOutcome('全壘打',this)">全壘</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:6px;">
+                    <button class="atbat-outcome-btn" data-outcome="內野安打" onclick="selectAtBatOutcome('內野安打',this)">內安</button>
+                    <button class="atbat-outcome-btn" data-outcome="滾地球出局" onclick="selectAtBatOutcome('滾地球出局',this)">滾地</button>
+                    <button class="atbat-outcome-btn" data-outcome="飛球出局" onclick="selectAtBatOutcome('飛球出局',this)">飛球</button>
+                    <button class="atbat-outcome-btn" data-outcome="平飛球出局" onclick="selectAtBatOutcome('平飛球出局',this)">平飛</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:6px;">
+                    <button class="atbat-outcome-btn" data-outcome="高飛犧牲打" onclick="selectAtBatOutcome('高飛犧牲打',this)">高犧</button>
+                    <button class="atbat-outcome-btn" data-outcome="犧牲觸擊" onclick="selectAtBatOutcome('犧牲觸擊',this)">犧觸</button>
+                    <button class="atbat-outcome-btn" data-outcome="雙殺" onclick="selectAtBatOutcome('雙殺',this)">雙殺</button>
+                    <button class="atbat-outcome-btn" data-outcome="三振" onclick="selectAtBatOutcome('三振',this)">三振</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
+                    <button class="atbat-outcome-btn" data-outcome="保送" onclick="selectAtBatOutcome('保送',this)">保送</button>
+                    <button class="atbat-outcome-btn" data-outcome="觸身球" onclick="selectAtBatOutcome('觸身球',this)">觸身</button>
+                    <button class="atbat-outcome-btn" data-outcome="野選" onclick="selectAtBatOutcome('野選',this)">野選</button>
+                    <button class="atbat-outcome-btn" data-outcome="失誤" onclick="selectAtBatOutcome('失誤',this)">失誤</button>
+                </div>
+            </div>
+            <!-- 落點（只在球有進場時顯示） -->
+            <div id="atBatHitLocRow" style="display:none;margin-bottom:10px;">
+                <button onclick="openHitLocationForAtBat()"
+                    style="width:100%;padding:10px;border:2px dashed #003d79;border-radius:8px;background:#eff6ff;color:#003d79;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
+                    🗺️ <span id="atBatHitLocLabel">未選擇（點此選擇落點）</span>
+                </button>
+            </div>
+            <!-- 戰術標籤 -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:10px;background:#f9fafb;border-radius:8px;">
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;cursor:pointer;">
+                    <input type="checkbox" id="atBatIsBunt" style="width:16px;height:16px;">短打</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;cursor:pointer;">
+                    <input type="checkbox" id="atBatIsRunAndHit" style="width:16px;height:16px;">跑打</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;cursor:pointer;">
+                    <input type="checkbox" id="atBatIsPinch" style="width:16px;height:16px;">代打</label>
+            </div>
+            <!-- 備註 -->
+            <input id="atBatNote" type="text" placeholder="📝 備註（選填）" autocomplete="off"
+                style="width:100%;padding:9px 12px;border:2px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit;box-sizing:border-box;margin-bottom:12px;"
+                onkeydown="if(event.key==='Enter')confirmRecordAtBat()">
+            <!-- 確認 -->
+            <button onclick="confirmRecordAtBat()"
+                style="width:100%;padding:14px;border:none;border-radius:10px;background:var(--ct-red);color:white;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;">✅ 確認打席</button>
         </div>
     </div>
 

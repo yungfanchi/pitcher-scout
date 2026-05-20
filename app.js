@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v101';
+﻿    const APP_VERSION = 'v102';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2466,6 +2466,9 @@
     // 打席結束（進入下一打者）的結果清單
     const PA_ENDING = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','三振','不死三振',
         '內野安打','一壘安打','二壘安打','三壘安打','全壘打','保送','觸身球','野選','趁傳出局','失誤','違規打擊','Push'];
+    // 球有進場（落點有意義）的打席結果
+    const BALL_IN_PLAY_OUTCOMES = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','雙殺',
+        '內野安打','一壘安打','二壘安打','三壘安打','全壘打','野選','失誤'];
 
     function toggleOutcome(btn) {
         const resultGroups = ['out-btn', 'hit-btn', 'reach-btn'];
@@ -2500,6 +2503,12 @@
         currentPitch.batterNumber = batterNumber || null;
         currentPitch.batterOrder = batterOrder || null;
         currentPitch.pinchHit = isPinch;
+
+        // 從打序表查詢打者姓名（用於打者情蒐聚合）
+        const _battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+        const _bOrderIdx = (parseInt(batterOrder) || 1) - 1;
+        const _lineupEntry = gameState.lineups[_battingTeam][Math.max(0, _bOrderIdx)];
+        currentPitch.batterName = (_lineupEntry && _lineupEntry.name) ? _lineupEntry.name.trim() : '';
 
         const speedVal = document.getElementById('pitchSpeed').value;
         const speedParsed = parseInt(speedVal);
@@ -2563,6 +2572,21 @@
         updateStats();
         saveToLocalStorage();
         saveToFirebase();
+
+        // 若有進場（球被打進場內），顯示打擊落點選擇
+        const _isBallInPlay = currentPitch.outcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o));
+        if (_isBallInPlay) {
+            const _pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
+            const _justRecorded = _pitches[_pitches.length - 1];
+            showHitLocationModal((loc) => {
+                if (loc && _justRecorded) {
+                    _justRecorded.hitLocation = loc;
+                    saveToLocalStorage();
+                    saveToFirebase();
+                }
+            });
+        }
+
         document.querySelectorAll('.pitch-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.zone-cell').forEach(c => c.classList.remove('selected'));
         document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
@@ -5113,6 +5137,7 @@
             try {
                 allData = JSON.parse(saved);
                 if (!allData.pitcherDB) allData.pitcherDB = {};
+                if (!allData.batterData) allData.batterData = [];
                 if (Object.keys(allData.pitcherDB).length === 0 && allData.teams.some(t => t.pitchers.some(p => p.pitches.length > 0))) {
                     rebuildPitcherDB();
                 }
@@ -6417,6 +6442,673 @@
             if (btn) { btn.textContent = '❌ 失敗'; btn.disabled = false; }
             alert('注入失敗：' + e.message);
         }
+    }
+
+    // ====== 打者情蒐模組 ======
+
+    let _hitLocCallback = null;
+    let _hitLocSelectedLoc = null;
+    let _batterSource = 'pitcher'; // 'pitcher' | 'standalone'
+    let _currentBatterView = null; // { name, source, idx }
+    let _editingAtBatBatterIdx = null;
+    let _atBatHitLocation = null;
+    let _newBatterHand = '右打';
+
+    function initBatterData() {
+        if (!allData.batterData) allData.batterData = [];
+    }
+
+    // ── 打擊落點 Modal ──
+
+    function showHitLocationModal(callback) {
+        initBatterData();
+        _hitLocCallback = callback;
+        _hitLocSelectedLoc = null;
+
+        // 每次顯示都重新注入帶互動的 SVG（確保事件綁定正確）
+        const wrap = document.getElementById('hitLocFieldWrap');
+        if (wrap) wrap.innerHTML = buildFieldSVG('', true);
+
+        const modal = document.getElementById('hitLocationModal');
+        const confirmBtn = document.getElementById('hitLocConfirmBtn');
+        const zoneLabel = document.getElementById('hitLocZoneLabel');
+        if (modal) modal.style.display = 'flex';
+        if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
+        if (zoneLabel) zoneLabel.textContent = '請點擊球場位置';
+    }
+
+    function closeHitLocationModal() {
+        const modal = document.getElementById('hitLocationModal');
+        if (modal) modal.style.display = 'none';
+        _hitLocCallback = null;
+        _hitLocSelectedLoc = null;
+    }
+
+    function onFieldTap(e) {
+        e.preventDefault();
+        const svg = document.getElementById('fieldSVGInteractive');
+        if (!svg) return;
+        const rect = svg.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const xPct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const yPct = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+        const svgX = xPct * 300;
+        const svgY = yPct * 280;
+        _hitLocSelectedLoc = { x: xPct, y: yPct, zone: getFieldZone(xPct, yPct) };
+        const dot = document.getElementById('hitLocSelectedDot');
+        if (dot) { dot.setAttribute('cx', svgX.toFixed(1)); dot.setAttribute('cy', svgY.toFixed(1)); }
+        const zoneLabel = document.getElementById('hitLocZoneLabel');
+        if (zoneLabel) zoneLabel.textContent = `落點：${_hitLocSelectedLoc.zone}`;
+        const confirmBtn = document.getElementById('hitLocConfirmBtn');
+        if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+    }
+
+    function getFieldZone(xPct, yPct) {
+        // yPct: 0=外野頂, 1=本壘底
+        if (yPct < 0.38) {
+            if (xPct < 0.18) return 'LF';
+            if (xPct < 0.38) return 'LCF';
+            if (xPct < 0.62) return 'CF';
+            if (xPct < 0.82) return 'RCF';
+            return 'RF';
+        } else if (yPct < 0.73) {
+            if (xPct < 0.27) return '3B側界外';
+            if (xPct < 0.41) return '3B';
+            if (xPct < 0.49) return 'SS';
+            if (xPct < 0.51) return 'P';
+            if (xPct < 0.59) return '2B';
+            if (xPct < 0.73) return '1B';
+            return '1B側界外';
+        } else {
+            if (xPct < 0.42) return '三短';
+            if (xPct < 0.58) return '本壘前';
+            return '一短';
+        }
+    }
+
+    function confirmHitLocation() {
+        if (!_hitLocSelectedLoc) return;
+        const loc = _hitLocSelectedLoc;
+        const cb = _hitLocCallback;
+        closeHitLocationModal();
+        if (cb) cb(loc);
+    }
+
+    function skipHitLocation() {
+        const cb = _hitLocCallback;
+        closeHitLocationModal();
+        if (cb) cb(null);
+    }
+
+    // 建立球場 SVG 字串（可帶入落點圓點）
+    function buildFieldSVG(dotsHTML = '', interactive = false) {
+        const id = interactive ? 'fieldSVGInteractive' : `fieldSVGStatic_${Date.now()}`;
+        const tapAttrs = interactive
+            ? `onclick="onFieldTap(event)" ontouchstart="onFieldTap(event)" style="cursor:crosshair;touch-action:none;"`
+            : `style="pointer-events:none;"`;
+        return `<svg id="${id}" viewBox="0 0 300 280" ${tapAttrs}
+            style="width:100%;max-width:300px;border-radius:10px;background:#155215;display:block;">
+          <ellipse cx="150" cy="130" rx="152" ry="132" fill="#1e6b1e" opacity="0.6"/>
+          <circle cx="150" cy="190" r="70" fill="#a07840" opacity="0.55"/>
+          <line x1="150" y1="258" x2="8" y2="12" stroke="white" stroke-width="1.5" opacity="0.7"/>
+          <line x1="150" y1="258" x2="292" y2="12" stroke="white" stroke-width="1.5" opacity="0.7"/>
+          <path d="M 8,12 Q 150,-10 292,12" fill="none" stroke="white" stroke-width="1.5" opacity="0.7"/>
+          <polygon points="150,258 230,188 150,118 70,188" fill="none" stroke="white" stroke-width="2"/>
+          <circle cx="150" cy="190" r="7" fill="#c8a060" stroke="white" stroke-width="1.2"/>
+          <rect x="143" y="251" width="14" height="14" fill="white" transform="rotate(45,150,258)"/>
+          <rect x="224" y="182" width="12" height="12" fill="white"/>
+          <rect x="144" y="112" width="12" height="12" fill="white" transform="rotate(45,150,118)"/>
+          <rect x="64" y="182" width="12" height="12" fill="white"/>
+          <text x="150" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="bold" font-family="sans-serif">CF</text>
+          <text x="48"  y="76" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="sans-serif">LF</text>
+          <text x="252" y="76" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="sans-serif">RF</text>
+          <text x="88"  y="54" text-anchor="middle" fill="white" font-size="9"  font-family="sans-serif">LCF</text>
+          <text x="212" y="54" text-anchor="middle" fill="white" font-size="9"  font-family="sans-serif">RCF</text>
+          <text x="88"  y="170" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">SS</text>
+          <text x="214" y="170" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">2B</text>
+          <text x="58"  y="196" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">3B</text>
+          <text x="244" y="196" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">1B</text>
+          <text x="98"  y="240" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">三短</text>
+          <text x="202" y="240" text-anchor="middle" fill="white" font-size="9" font-family="sans-serif">一短</text>
+          ${dotsHTML}
+          ${interactive ? '<circle id="hitLocSelectedDot" cx="-100" cy="-100" r="9" fill="#facc15" stroke="#ea580c" stroke-width="2"/>' : ''}
+        </svg>`;
+    }
+
+    // ── 打者 Tab ──
+
+    function switchBatterSource(src) {
+        _batterSource = src;
+        document.getElementById('batterSrcPitcher').classList.toggle('active', src === 'pitcher');
+        document.getElementById('batterSrcStandalone').classList.toggle('active', src === 'standalone');
+        const addBtn = document.getElementById('batterAddNewBtn');
+        if (addBtn) addBtn.style.display = src === 'standalone' ? 'inline-block' : 'none';
+        refreshBatterList();
+    }
+
+    function refreshBatterList() {
+        initBatterData();
+        const listEl = document.getElementById('batterList');
+        if (!listEl) return;
+
+        if (_batterSource === 'pitcher') {
+            // 從投手記錄聚合（依打者姓名）
+            const batterMap = new Map();
+            allData.teams.forEach((team, ti) => {
+                team.pitchers.forEach(pitcher => {
+                    pitcher.pitches.forEach(pitch => {
+                        const name = (pitch.batterName || '').trim();
+                        if (!name) return;
+                        if (!batterMap.has(name)) {
+                            batterMap.set(name, { name, pitches: [], games: new Set(), hand: pitch.batterHand || '' });
+                        }
+                        const entry = batterMap.get(name);
+                        entry.pitches.push({ ...pitch, _ti: ti });
+                        const gk = [team.gameName, team.date].filter(Boolean).join(' ');
+                        if (gk) entry.games.add(gk);
+                    });
+                });
+            });
+
+            if (batterMap.size === 0) {
+                listEl.innerHTML = `<div style="text-align:center;padding:28px 16px;color:#6b7280;">
+                  <div style="font-size:36px;margin-bottom:10px;">📋</div>
+                  <div style="font-weight:700;margin-bottom:4px;">尚無打者資料</div>
+                  <div style="font-size:12px;">記錄投球時，請先在「打序表」填入打者姓名，系統才能自動聚合打者資料。</div>
+                </div>`;
+                return;
+            }
+            listEl.innerHTML = [...batterMap.values()].map(entry => {
+                const pa = entry.pitches.filter(p => p.outcomes && p.outcomes.some(o => PA_ENDING.includes(o))).length;
+                return `<div class="batter-list-item" onclick="showBatterDetail('${entry.name.replace(/'/g,"\\'")}','pitcher')">
+                  <div class="bli-left">
+                    <div class="bli-name">${entry.name}</div>
+                    <div class="bli-meta">${entry.hand}　${pa} 打席　${entry.games.size} 場次</div>
+                  </div>
+                  <div class="bli-arrow">›</div>
+                </div>`;
+            }).join('');
+
+        } else {
+            // 獨立情蒐
+            if (allData.batterData.length === 0) {
+                listEl.innerHTML = `<div style="text-align:center;padding:28px 16px;color:#6b7280;">
+                  <div style="font-size:36px;margin-bottom:10px;">📝</div>
+                  <div style="font-weight:700;margin-bottom:4px;">尚無獨立打者記錄</div>
+                  <div style="font-size:12px;">點擊右上角「新增打者」開始記錄</div>
+                </div>`;
+                return;
+            }
+            listEl.innerHTML = allData.batterData.map((b, idx) => {
+                const pa = (b.atBats || []).length;
+                return `<div class="batter-list-item" onclick="showBatterDetail('${b.name.replace(/'/g,"\\'")}','standalone',${idx})">
+                  <div class="bli-left">
+                    <div class="bli-name">${b.name}${b.number ? ` #${b.number}` : ''}</div>
+                    <div class="bli-meta">${b.hand || ''}　${b.team || ''}　${pa} 打席</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <button class="btn btn-danger" style="padding:6px 10px;font-size:12px;" onclick="event.stopPropagation();openRecordAtBat(${idx})">+ 打席</button>
+                    <div class="bli-arrow">›</div>
+                  </div>
+                </div>`;
+            }).join('');
+        }
+    }
+
+    function showBatterDetail(name, source, idx) {
+        _currentBatterView = { name, source, idx };
+        document.getElementById('batterListView').style.display = 'none';
+        document.getElementById('batterDetailView').style.display = 'block';
+        document.getElementById('batterDetailName').textContent = name;
+        const atBatLogEl = document.getElementById('batterAtBatLogSection');
+        if (atBatLogEl) atBatLogEl.style.display = source === 'standalone' ? 'block' : 'none';
+        renderBatterDetail(name, source, idx);
+    }
+
+    function closeBatterDetail() {
+        _currentBatterView = null;
+        document.getElementById('batterListView').style.display = 'block';
+        document.getElementById('batterDetailView').style.display = 'none';
+    }
+
+    function renderBatterDetail(name, source, idx) {
+        let pitches = [];
+        let atBats = [];
+        if (source === 'pitcher') {
+            allData.teams.forEach((team, ti) => {
+                team.pitchers.forEach(p => {
+                    p.pitches.forEach(pitch => {
+                        if ((pitch.batterName || '').trim() === name.trim()) {
+                            pitches.push({ ...pitch, _ti: ti });
+                        }
+                    });
+                });
+            });
+        } else {
+            const batter = allData.batterData[idx];
+            if (batter) atBats = batter.atBats || [];
+        }
+        renderBatterStats(pitches, atBats, source);
+        renderBatterHitMap(pitches, atBats, source);
+        renderBatterAnalysis(pitches, atBats, source);
+        if (source === 'standalone') renderAtBatLog(atBats, idx);
+    }
+
+    function renderBatterStats(pitches, atBats, source) {
+        const el = document.getElementById('batterDetailStats');
+        if (!el) return;
+        const HIT_OUTCOMES = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+
+        if (source === 'pitcher') {
+            const pa = pitches.filter(p => p.outcomes && p.outcomes.some(o => PA_ENDING.includes(o))).length;
+            const hits = pitches.filter(p => p.outcomes && p.outcomes.some(o => HIT_OUTCOMES.includes(o))).length;
+            const k = pitches.filter(p => p.outcomes && (p.outcomes.includes('三振') || p.outcomes.includes('不死三振'))).length;
+            const bb = pitches.filter(p => p.outcomes && p.outcomes.includes('保送')).length;
+            const avg = pa > 0 ? (hits / pa).toFixed(3) : '.000';
+            const totalP = pitches.length;
+            const strikeP = pitches.filter(p => p.zone && /^[1-9]$/.test(p.zone)).length;
+            const swingP = pitches.filter(p => p.swing || p.foul).length;
+            el.innerHTML = `<div class="batter-stats-grid">
+              <div class="bsc"><div class="bsc-v">${pa}</div><div class="bsc-l">打席</div></div>
+              <div class="bsc"><div class="bsc-v">${hits}</div><div class="bsc-l">安打</div></div>
+              <div class="bsc"><div class="bsc-v">${avg}</div><div class="bsc-l">打擊率</div></div>
+              <div class="bsc"><div class="bsc-v">${k}</div><div class="bsc-l">三振</div></div>
+              <div class="bsc"><div class="bsc-v">${bb}</div><div class="bsc-l">保送</div></div>
+              <div class="bsc"><div class="bsc-v">${totalP}</div><div class="bsc-l">面對球數</div></div>
+              <div class="bsc"><div class="bsc-v">${totalP > 0 ? Math.round(strikeP/totalP*100) : 0}%</div><div class="bsc-l">好球帶進球率</div></div>
+              <div class="bsc"><div class="bsc-v">${totalP > 0 ? Math.round(swingP/totalP*100) : 0}%</div><div class="bsc-l">揮棒率</div></div>
+            </div>`;
+        } else {
+            const pa = atBats.length;
+            const hits = atBats.filter(ab => HIT_OUTCOMES.includes(ab.outcome)).length;
+            const k = atBats.filter(ab => ab.outcome === '三振' || ab.outcome === '不死三振').length;
+            const bb = atBats.filter(ab => ab.outcome === '保送').length;
+            const bunts = atBats.filter(ab => ab.isBunt).length;
+            const avg = pa > 0 ? (hits / pa).toFixed(3) : '.000';
+            el.innerHTML = `<div class="batter-stats-grid">
+              <div class="bsc"><div class="bsc-v">${pa}</div><div class="bsc-l">打席</div></div>
+              <div class="bsc"><div class="bsc-v">${hits}</div><div class="bsc-l">安打</div></div>
+              <div class="bsc"><div class="bsc-v">${avg}</div><div class="bsc-l">打擊率</div></div>
+              <div class="bsc"><div class="bsc-v">${k}</div><div class="bsc-l">三振</div></div>
+              <div class="bsc"><div class="bsc-v">${bb}</div><div class="bsc-l">保送</div></div>
+              <div class="bsc"><div class="bsc-v">${bunts}</div><div class="bsc-l">短打次數</div></div>
+            </div>`;
+        }
+    }
+
+    function renderBatterHitMap(pitches, atBats, source) {
+        const container = document.getElementById('batterHitMapContainer');
+        if (!container) return;
+        const HIT_OUTCOMES = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        let locs = [];
+
+        if (source === 'pitcher') {
+            locs = pitches.filter(p => p.hitLocation && p.outcomes && p.outcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o)))
+                .map(p => ({ x: p.hitLocation.x, y: p.hitLocation.y, zone: p.hitLocation.zone,
+                    isHit: p.outcomes.some(o => HIT_OUTCOMES.includes(o)), outcome: (p.outcomes||[])[0] || '' }));
+        } else {
+            locs = atBats.filter(ab => ab.hitLocation)
+                .map(ab => ({ x: ab.hitLocation.x, y: ab.hitLocation.y, zone: ab.hitLocation.zone,
+                    isHit: HIT_OUTCOMES.includes(ab.outcome), outcome: ab.outcome || '' }));
+        }
+
+        const zoneCounts = {};
+        locs.forEach(l => {
+            if (!zoneCounts[l.zone]) zoneCounts[l.zone] = { total: 0, hits: 0 };
+            zoneCounts[l.zone].total++;
+            if (l.isHit) zoneCounts[l.zone].hits++;
+        });
+
+        const dotsHTML = locs.map(l => {
+            const sx = (l.x * 300).toFixed(1), sy = (l.y * 280).toFixed(1);
+            const fill = l.isHit ? '#22c55e' : '#ef4444';
+            const stroke = l.isHit ? '#15803d' : '#b91c1c';
+            return `<circle cx="${sx}" cy="${sy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5" opacity="0.85"/>`;
+        }).join('');
+
+        const zoneRows = Object.entries(zoneCounts).sort((a,b) => b[1].total - a[1].total)
+            .map(([zone, c]) => `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f3f4f6;font-size:12px;">
+                <span>${zone}</span><span><b>${c.total}</b>${c.hits > 0 ? ` (${c.hits} 安打)` : ''}</span>
+            </div>`).join('');
+
+        container.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
+          <div style="flex:0 0 auto;">${buildFieldSVG(dotsHTML)}
+            <div style="display:flex;gap:14px;margin-top:8px;justify-content:center;font-size:12px;">
+              <span><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#22c55e;vertical-align:middle;margin-right:3px;"></span>安打</span>
+              <span><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#ef4444;vertical-align:middle;margin-right:3px;"></span>出局/野選</span>
+            </div>
+          </div>
+          ${locs.length === 0 ? `<div style="color:#9ca3af;font-size:13px;padding:16px 0;">
+              尚無落點記錄<br><small>${source==='pitcher'?'記錄投球後選擇打擊落點':'新增打席時選擇落點'}</small></div>` :
+            `<div style="flex:1;min-width:130px;">
+               <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">落點分布</div>
+               ${zoneRows}
+             </div>`}
+        </div>`;
+    }
+
+    function renderBatterAnalysis(pitches, atBats, source) {
+        const el = document.getElementById('batterAnalysisCards');
+        if (!el) return;
+        const HIT_OUTCOMES = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const DIR_MAP = { 'LF':'左','LCF':'左中','CF':'中','RCF':'右中','RF':'右',
+            '3B':'左','SS':'左中','2B':'右中','1B':'右','三短':'左','一短':'右','P':'中','本壘前':'中' };
+
+        function pct(n, total) { return total > 0 ? Math.round(n / total * 100) : 0; }
+        function avg(hits, pa) { return pa > 0 ? (hits / pa).toFixed(3) : '.000'; }
+
+        if (source === 'pitcher') {
+            if (pitches.length === 0) { el.innerHTML = ''; return; }
+
+            // 打擊方向
+            const dirC = { '左':0,'中':0,'右':0 };
+            const dirTotal = pitches.filter(p => p.hitLocation).length;
+            pitches.forEach(p => { if (p.hitLocation) { const d = DIR_MAP[p.hitLocation.zone]; if (d) dirC[d]++; } });
+
+            // 打擊類型
+            const typeC = { '安打':0,'飛球':0,'滾地':0,'平飛':0,'短打':0,'三振':0,'保送':0 };
+            const paList = pitches.filter(p => p.outcomes && p.outcomes.some(o => PA_ENDING.includes(o)));
+            paList.forEach(p => {
+                if (p.outcomes.some(o => HIT_OUTCOMES.includes(o))) typeC['安打']++;
+                else if (p.outcomes.some(o => ['飛球出局','高飛犧牲打'].includes(o))) typeC['飛球']++;
+                else if (p.outcomes.includes('滾地球出局')) typeC['滾地']++;
+                else if (p.outcomes.includes('平飛球出局')) typeC['平飛']++;
+                else if (p.outcomes.includes('犧牲觸擊')) typeC['短打']++;
+                else if (p.outcomes.includes('三振')) typeC['三振']++;
+                else if (p.outcomes.includes('保送')) typeC['保送']++;
+            });
+
+            // 球種弱點
+            const pitchR = {};
+            paList.forEach(p => {
+                if (!p.type) return;
+                if (!pitchR[p.type]) pitchR[p.type] = { pa:0, k:0, hits:0 };
+                pitchR[p.type].pa++;
+                if (p.outcomes.includes('三振')) pitchR[p.type].k++;
+                if (p.outcomes.some(o => HIT_OUTCOMES.includes(o))) pitchR[p.type].hits++;
+            });
+
+            // 球數傾向
+            const countPA = {}, countHits = {};
+            paList.forEach(p => {
+                const key = `${p.balls||0}-${p.strikes||0}`;
+                countPA[key] = (countPA[key]||0)+1;
+                if (p.outcomes.some(o => HIT_OUTCOMES.includes(o))) countHits[key] = (countHits[key]||0)+1;
+            });
+
+            // 壘上應對
+            const baseR = { '空壘':{pa:0,hits:0},'有人在壘':{pa:0,hits:0} };
+            paList.forEach(p => {
+                const k = p.runnersOn ? '有人在壘' : '空壘';
+                baseR[k].pa++;
+                if (p.outcomes.some(o => HIT_OUTCOMES.includes(o))) baseR[k].hits++;
+            });
+
+            el.innerHTML = `
+              ${dirTotal > 0 ? `<div class="bac">
+                <div class="bac-title">打擊方向傾向</div>
+                <div class="bac-row">
+                  ${['左','中','右'].map(d => `<div class="bac-stat"><div class="bac-v">${pct(dirC[d],dirTotal)}%</div><div class="bac-l">${d}（${dirC[d]}）</div></div>`).join('')}
+                </div></div>` : ''}
+
+              ${paList.length > 0 ? `<div class="bac">
+                <div class="bac-title">打擊類型分布</div>
+                <div class="bac-row" style="flex-wrap:wrap;">
+                  ${Object.entries(typeC).filter(([,v])=>v>0).map(([t,n]) => `<div class="bac-stat"><div class="bac-v">${pct(n,paList.length)}%</div><div class="bac-l">${t}（${n}）</div></div>`).join('')}
+                </div></div>` : ''}
+
+              ${Object.keys(pitchR).length > 0 ? `<div class="bac">
+                <div class="bac-title">球種弱點（各球種打席結果）</div>
+                <table class="bac-table">
+                  <tr><th>球種</th><th>打席</th><th>安打</th><th>打擊率</th><th>三振率</th></tr>
+                  ${Object.entries(pitchR).sort((a,b)=>b[1].pa-a[1].pa).map(([t,r]) =>
+                    `<tr><td>${t}</td><td>${r.pa}</td><td>${r.hits}</td><td>${avg(r.hits,r.pa)}</td><td>${pct(r.k,r.pa)}%</td></tr>`).join('')}
+                </table></div>` : ''}
+
+              ${Object.keys(countPA).length > 0 ? `<div class="bac">
+                <div class="bac-title">球數傾向（打席結束時球數分布）</div>
+                <table class="bac-table">
+                  <tr><th>球數</th><th>打席次數</th><th>安打</th><th>打擊率</th></tr>
+                  ${Object.entries(countPA).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([count,pa]) =>
+                    `<tr><td>${count}</td><td>${pa}</td><td>${countHits[count]||0}</td><td>${avg(countHits[count]||0,pa)}</td></tr>`).join('')}
+                </table></div>` : ''}
+
+              <div class="bac">
+                <div class="bac-title">壘上狀況應對</div>
+                <div class="bac-row">
+                  ${Object.entries(baseR).map(([s,r]) => `<div class="bac-stat"><div class="bac-v">${avg(r.hits,r.pa)}</div><div class="bac-l">${s}<br><small>${r.pa} 打席</small></div></div>`).join('')}
+                </div></div>`;
+
+        } else {
+            // 獨立情蒐
+            if (atBats.length === 0) { el.innerHTML = ''; return; }
+
+            const dirTotal_s = atBats.filter(ab => ab.hitLocation).length;
+            const dirC_s = { '左':0,'中':0,'右':0 };
+            atBats.forEach(ab => { if (ab.hitLocation) { const d = DIR_MAP[ab.hitLocation.zone]; if (d) dirC_s[d]++; } });
+
+            const typeC_s = { '安打':0,'飛球':0,'滾地':0,'平飛':0,'短打':0,'三振':0,'保送':0,'其他':0 };
+            atBats.forEach(ab => {
+                if (!ab.outcome) return;
+                if (HIT_OUTCOMES.includes(ab.outcome)) typeC_s['安打']++;
+                else if (['飛球出局','高飛犧牲打'].includes(ab.outcome)) typeC_s['飛球']++;
+                else if (ab.outcome === '滾地球出局') typeC_s['滾地']++;
+                else if (ab.outcome === '平飛球出局') typeC_s['平飛']++;
+                else if (ab.outcome === '犧牲觸擊' || ab.isBunt) typeC_s['短打']++;
+                else if (ab.outcome === '三振') typeC_s['三振']++;
+                else if (ab.outcome === '保送') typeC_s['保送']++;
+                else typeC_s['其他']++;
+            });
+
+            const baseR_s = { '空壘':{pa:0,hits:0},'有人在壘':{pa:0,hits:0} };
+            atBats.forEach(ab => {
+                const k = ab.runnersOn ? '有人在壘' : '空壘';
+                baseR_s[k].pa++;
+                if (HIT_OUTCOMES.includes(ab.outcome)) baseR_s[k].hits++;
+            });
+
+            const bunts = atBats.filter(ab => ab.isBunt).length;
+            const runHit = atBats.filter(ab => ab.isRunAndHit).length;
+            const pinch = atBats.filter(ab => ab.isPinch).length;
+
+            el.innerHTML = `
+              ${dirTotal_s > 0 ? `<div class="bac">
+                <div class="bac-title">打擊方向傾向</div>
+                <div class="bac-row">
+                  ${['左','中','右'].map(d => `<div class="bac-stat"><div class="bac-v">${pct(dirC_s[d],dirTotal_s)}%</div><div class="bac-l">${d}（${dirC_s[d]}）</div></div>`).join('')}
+                </div></div>` : ''}
+
+              ${atBats.length > 0 ? `<div class="bac">
+                <div class="bac-title">打擊類型分布</div>
+                <div class="bac-row" style="flex-wrap:wrap;">
+                  ${Object.entries(typeC_s).filter(([,v])=>v>0).map(([t,n]) => `<div class="bac-stat"><div class="bac-v">${pct(n,atBats.length)}%</div><div class="bac-l">${t}（${n}）</div></div>`).join('')}
+                </div></div>` : ''}
+
+              ${(bunts+runHit+pinch) > 0 ? `<div class="bac">
+                <div class="bac-title">戰術時間點</div>
+                <div class="bac-row">
+                  <div class="bac-stat"><div class="bac-v">${bunts}</div><div class="bac-l">短打</div></div>
+                  <div class="bac-stat"><div class="bac-v">${runHit}</div><div class="bac-l">跑打</div></div>
+                  <div class="bac-stat"><div class="bac-v">${pinch}</div><div class="bac-l">代打</div></div>
+                </div></div>` : ''}
+
+              <div class="bac">
+                <div class="bac-title">壘上狀況應對</div>
+                <div class="bac-row">
+                  ${Object.entries(baseR_s).map(([s,r]) => `<div class="bac-stat"><div class="bac-v">${avg(r.hits,r.pa)}</div><div class="bac-l">${s}<br><small>${r.pa} 打席</small></div></div>`).join('')}
+                </div></div>`;
+        }
+    }
+
+    function renderAtBatLog(atBats, batterIdx) {
+        const el = document.getElementById('batterAtBatLogSection');
+        if (!el) return;
+        const HIT_OUTCOMES = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        el.innerHTML = `<div class="container">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <h2 style="margin:0;border:none;padding:0;">📋 打席記錄</h2>
+            <button class="btn btn-danger" onclick="openRecordAtBat(${batterIdx})">+ 新增打席</button>
+          </div>
+          ${atBats.length === 0 ? '<div style="text-align:center;padding:16px;color:#6b7280;">尚無打席記錄</div>' :
+            atBats.map((ab, i) => {
+              const isHit = HIT_OUTCOMES.includes(ab.outcome);
+              const borderColor = isHit ? '#22c55e' : ab.outcome === '三振' ? '#ef4444' : '#94a3b8';
+              return `<div style="background:white;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:4px solid ${borderColor};">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <div style="font-weight:700;font-size:14px;">
+                    ${ab.inning ? `第${ab.inning}局${ab.half||''}` : ''}
+                    <span style="color:${isHit?'#16a34a':'#374151'};margin-left:6px;">${ab.outcome||''}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    ${ab.hitLocation ? `<span style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px;">${ab.hitLocation.zone}</span>` : ''}
+                    <button onclick="deleteAtBat(${batterIdx},${i})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px;padding:2px 4px;" title="刪除">🗑</button>
+                  </div>
+                </div>
+                <div style="font-size:12px;color:#6b7280;margin-top:3px;">
+                  ${ab.runnersOn?'有人在壘':'空壘'}
+                  ${ab.balls!==undefined?` · ${ab.balls}B ${ab.strikes}S`:''}
+                  ${ab.isBunt?' · 短打':''}${ab.isRunAndHit?' · 跑打':''}${ab.isPinch?' · 代打':''}
+                  ${ab.note?` · ${ab.note}`:''}
+                </div>
+              </div>`;
+            }).join('')}
+        </div>`;
+    }
+
+    // ── 新增打者 Modal ──
+
+    function openAddBatterModal() {
+        _newBatterHand = '右打';
+        ['newBatterName','newBatterNumber','newBatterTeam','newBatterGame'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        const dateEl = document.getElementById('newBatterDate');
+        if (dateEl) dateEl.value = new Date().toISOString().slice(0,10);
+        document.querySelectorAll('.new-batter-hand-btn').forEach(b => b.classList.toggle('active', b.dataset.hand === '右打'));
+        document.getElementById('addBatterModal').style.display = 'flex';
+    }
+
+    function closeAddBatterModal() {
+        document.getElementById('addBatterModal').style.display = 'none';
+    }
+
+    function selectNewBatterHand(hand, btn) {
+        _newBatterHand = hand;
+        document.querySelectorAll('.new-batter-hand-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+    }
+
+    function confirmAddBatter() {
+        const name = (document.getElementById('newBatterName').value || '').trim();
+        if (!name) { alert('請輸入打者姓名'); return; }
+        initBatterData();
+        allData.batterData.push({
+            id: Date.now(), name,
+            number: (document.getElementById('newBatterNumber').value||'').trim(),
+            hand: _newBatterHand,
+            team: (document.getElementById('newBatterTeam').value||'').trim(),
+            gameName: (document.getElementById('newBatterGame').value||'').trim(),
+            date: document.getElementById('newBatterDate').value || '',
+            atBats: []
+        });
+        saveToLocalStorage();
+        saveToFirebase();
+        closeAddBatterModal();
+        _batterSource = 'standalone';
+        switchBatterSource('standalone');
+        const idx = allData.batterData.length - 1;
+        showBatterDetail(name, 'standalone', idx);
+    }
+
+    // ── 記錄打席 Modal ──
+
+    function openRecordAtBat(batterIdx) {
+        _editingAtBatBatterIdx = batterIdx;
+        _atBatHitLocation = null;
+        const fields = { atBatInning: gameState.inning||'1', atBatBalls:'0', atBatStrikes:'0' };
+        Object.entries(fields).forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.value = v; });
+        const halfEl = document.getElementById('atBatHalf');
+        if (halfEl) halfEl.value = gameState.half || '上';
+        ['atBatRunnersOn','atBatIsBunt','atBatIsRunAndHit','atBatIsPinch'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.checked = false;
+        });
+        const noteEl = document.getElementById('atBatNote'); if (noteEl) noteEl.value = '';
+        const locLabel = document.getElementById('atBatHitLocLabel');
+        if (locLabel) locLabel.textContent = '未選擇（點此選擇落點）';
+        document.querySelectorAll('.atbat-outcome-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById('atBatHitLocRow').style.display = 'none';
+        document.getElementById('recordAtBatModal').style.display = 'flex';
+    }
+
+    function closeRecordAtBatModal() {
+        document.getElementById('recordAtBatModal').style.display = 'none';
+    }
+
+    function selectAtBatOutcome(outcome, btn) {
+        document.querySelectorAll('.atbat-outcome-btn').forEach(b => b.classList.remove('selected'));
+        if (btn) btn.classList.add('selected');
+        const ballInPlay = BALL_IN_PLAY_OUTCOMES.includes(outcome);
+        document.getElementById('atBatHitLocRow').style.display = ballInPlay ? 'block' : 'none';
+    }
+
+    function openHitLocationForAtBat() {
+        document.getElementById('recordAtBatModal').style.display = 'none';
+        showHitLocationModal((loc) => {
+            _atBatHitLocation = loc;
+            const label = document.getElementById('atBatHitLocLabel');
+            if (label) label.textContent = loc ? `落點：${loc.zone}` : '未選擇（點此選擇落點）';
+            document.getElementById('recordAtBatModal').style.display = 'flex';
+        });
+    }
+
+    function confirmRecordAtBat() {
+        const outcomeEl = document.querySelectorAll('.atbat-outcome-btn.selected')[0];
+        const outcome = outcomeEl ? outcomeEl.dataset.outcome : '';
+        if (!outcome) { alert('請選擇打席結果'); return; }
+        const atBat = {
+            inning: parseInt(document.getElementById('atBatInning').value)||1,
+            half: document.getElementById('atBatHalf').value,
+            balls: parseInt(document.getElementById('atBatBalls').value)||0,
+            strikes: parseInt(document.getElementById('atBatStrikes').value)||0,
+            runnersOn: document.getElementById('atBatRunnersOn').checked,
+            isBunt: document.getElementById('atBatIsBunt').checked,
+            isRunAndHit: document.getElementById('atBatIsRunAndHit').checked,
+            isPinch: document.getElementById('atBatIsPinch').checked,
+            outcome, hitLocation: _atBatHitLocation,
+            note: (document.getElementById('atBatNote').value||'').trim()||null,
+            timestamp: new Date().toISOString()
+        };
+        allData.batterData[_editingAtBatBatterIdx].atBats.push(atBat);
+        saveToLocalStorage();
+        saveToFirebase();
+        closeRecordAtBatModal();
+        const batter = allData.batterData[_editingAtBatBatterIdx];
+        renderBatterDetail(batter.name, 'standalone', _editingAtBatBatterIdx);
+    }
+
+    function deleteAtBat(batterIdx, atBatIdx) {
+        if (!confirm('確定刪除此打席記錄？')) return;
+        allData.batterData[batterIdx].atBats.splice(atBatIdx, 1);
+        saveToLocalStorage();
+        saveToFirebase();
+        const batter = allData.batterData[batterIdx];
+        renderBatterDetail(batter.name, 'standalone', batterIdx);
+    }
+
+    // ── 打者分析截圖 ──
+
+    function screenshotBatterAnalysis() {
+        const el = document.getElementById('batterDetailView');
+        if (!el) { alert('截圖失敗：找不到分析頁面'); return; }
+        html2canvas(el, { backgroundColor:'#f8f9fa', scale:2, useCORS:true, allowTaint:false })
+            .then(canvas => {
+                const link = document.createElement('a');
+                const name = _currentBatterView ? _currentBatterView.name : '打者分析';
+                link.download = `${name}_打者分析_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }).catch(() => alert('截圖失敗，請稍後再試'));
     }
 
     // 保留舊名供相容性
