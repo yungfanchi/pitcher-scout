@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v114';
+﻿    const APP_VERSION = 'v115';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7683,6 +7683,7 @@
             ta.classList.toggle('bm-on', allData.bm.attackingTeam === 'A');
             tb.classList.toggle('bm-on', allData.bm.attackingTeam === 'B');
         }
+        _updateBmTeamBtns(); // 進入打者模式時帶入球隊名稱
     }
 
     function onBmGameChange() {
@@ -7697,6 +7698,7 @@
         if (allData.bm.gameIdx >= 0) {
             _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
         }
+        _updateBmTeamBtns();
     }
 
     function selectBmTeam(t) {
@@ -7733,6 +7735,7 @@
         if (standalSec) standalSec.style.display  = mode === 'standalone' ? '' : 'none';
         // 獨立模式：還原已儲存的賽事資訊
         if (mode === 'standalone') _renderBmSpInfo();
+        _updateBmTeamBtns();
 
         // ★ 反向連動：切換模式按鈕時同步更新側欄下拉選單
         const sel = document.getElementById('bmGameSelect');
@@ -7754,6 +7757,34 @@
         }
     }
 
+    // ★ 更新 A隊/B隊進攻 按鈕顯示實際球隊名稱
+    function _updateBmTeamBtns() {
+        const ta = document.getElementById('bmTeamABtn');
+        const tb = document.getElementById('bmTeamBBtn');
+        if (!ta || !tb) return;
+
+        let nameA = 'A隊'; // 後攻
+        let nameB = 'B隊'; // 先攻
+
+        if (_bmState.recMode === 'linked') {
+            _initBmData();
+            const gi = allData.bm.gameIdx;
+            if (gi >= 0 && allData.teams && allData.teams[gi]) {
+                const t = allData.teams[gi];
+                nameB = t.name     || 'B隊';  // name = 先攻
+                nameA = t.opponent || 'A隊';  // opponent = 後攻
+            }
+        } else {
+            // 獨立模式：用賽事資訊欄位
+            _initBmData();
+            if (allData.bm.spTeamName) nameB = allData.bm.spTeamName;
+            if (allData.bm.spOpponent)  nameA = allData.bm.spOpponent;
+        }
+
+        ta.textContent = nameA + ' 進攻';
+        tb.textContent = nameB + ' 進攻';
+    }
+
     // ── 獨立模式賽事資訊 ──
     function saveBmSpInfo() {
         _initBmData();
@@ -7763,6 +7794,7 @@
         allData.bm.spDate     = (document.getElementById('bmSpDate')?.value     || '').trim();
         saveToLocalStorage();
         saveToFirebase();
+        _updateBmTeamBtns(); // 即時更新進攻按鈕顯示
     }
 
     function _renderBmSpInfo() {
