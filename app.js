@@ -6725,7 +6725,7 @@
         // 淺內野
         '三短': { x: 125, y: 249 }, 'P': { x: 150, y: 250 }, '一短': { x: 175, y: 249 },
         // 界外區
-        '左界外': { x: 18, y: 222 }, '右界外': { x: 282, y: 222 }, '捕手區': { x: 150, y: 293 },
+        '左界外': { x: 18, y: 222 }, '右界外': { x: 282, y: 222 }, '捕手區': { x: 150, y: 293 }, '捕手': { x: 150, y: 263 },
     };
 
     // 共用：清除 SVG 內所有高亮，並高亮 el
@@ -6850,10 +6850,22 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const i12  = zp('一二壘之間','M 170 224 L 188 180 A 100 100 0 0 1 206 189 L 179 229 A 52 52 0 0 0 170 224 Z', DC);
         const i1B  = zp('1B',      'M 179 229 L 206 189 A 100 100 0 0 1 221 201 L 187 235 A 52 52 0 0 0 179 229 Z', DT);
 
-        // ── 淺內野三區（R 0→52）──
-   const san = zp('三短', 'M 150 272 L 113 235 A 52 52 0 0 1 137 222 Z', DS);
-        const P   = zp('P',   'M 150 272 L 137 222 A 52 52 0 0 1 164 222 Z', DS);
-        const yi  = zp('一短', 'M 150 272 L 164 222 A 52 52 0 0 1 187 235 Z', DS);
+        // ── 淺內野三區（R 25→52）──
+        const san = zp('三短', 'M 132 254 L 113 235 A 52 52 0 0 1 137 222 L 144 248 A 25 25 0 0 0 132 254 Z', DS);
+        const P   = zp('P',   'M 144 248 L 137 222 A 52 52 0 0 1 164 222 L 157 248 A 25 25 0 0 0 144 248 Z', DS);
+        const yi  = zp('一短', 'M 157 248 L 164 222 A 52 52 0 0 1 187 235 L 168 254 A 25 25 0 0 0 157 248 Z', DS);
+        // ── 捕手區（R 0→25，對齊短打寬度）──
+        const catZone = isAny
+            ? `<path d="M 150 272 L 132 254 A 25 25 0 0 1 168 254 Z" fill="${CA}" fill-opacity="0.88"
+                stroke="none"
+                data-zone="捕手" data-fill="${CA}" data-selected="0"
+                onclick="${fn}('捕手',this)"
+                ontouchstart="${fn}('捕手',this);event.preventDefault()"
+                onmouseenter="if(this.dataset.selected!=='1'){this.style.fillOpacity='1';}"
+                onmouseleave="if(this.dataset.selected!=='1'){this.style.fillOpacity='0.88';}"
+                style="cursor:pointer;"/>`
+            : `<path d="M 150 272 L 132 254 A 25 25 0 0 1 168 254 Z" fill="${CA}" fill-opacity="0.88"
+                stroke="none" style="pointer-events:none;"/>`;
 
         // ── 界外區（viewBox 擴展至 -20 左、320 右、315 底）──
         const fL = zp('左界外', 'M 150 272 L 23 145 L -20 103 L -20 315 L 105 315 L 105 272 Z', FC);
@@ -6883,7 +6895,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           ${i3B}${iSS3}${iSS}${iML}${iMR}${i2B}${i12}${i1B}
 
           <!-- 淺內野 -->
-          ${san}${P}${yi}
+          ${san}${P}${yi}${catZone}
 
           <!-- 界外線 -->
           <line x1="150" y1="272" x2="23" y2="145" stroke="white" stroke-width="1.5" opacity="0.6" style="pointer-events:none;"/>
@@ -6931,9 +6943,10 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <text x="198" y="215" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">1B</text>
 
           <!-- 淺內野標籤 -->
-          <text x="132" y="244" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">三短</text>
-          <text x="150" y="242" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">P</text>
-          <text x="168" y="244" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">一短</text>
+          <text x="128" y="240" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">三短</text>
+          <text x="150" y="238" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">P</text>
+          <text x="172" y="240" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">一短</text>
+          <text x="150" y="266" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手</text>
 
           <!-- 界外區標籤 -->
           <text x="18"  y="210" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左</text>
