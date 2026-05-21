@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v126';
+﻿    const APP_VERSION = 'v127';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -27,7 +27,8 @@
     let lastSelectedSlot = 'A'; // 記錄上次記錄投球的 slot，下次自動切換到另一個
     let editingPitchIndex = null;
     let statsFilter = 'all'; // 'all' or a gameKey
-    let expandedGames = new Set(); // track which game groups are expanded
+    let expandedGames = new Set(); // track which game groups are expanded (pitcher mode)
+    let bmExpandedGames = new Set(); // track which game groups are expanded (batter mode)
     let userMode = 'pitcher'; // 'pitcher' | 'batter'
 
     // ====== MULTI-TENANT AUTH ======
@@ -7932,51 +7933,108 @@
         _initBmData();
         const teams = allData.teams || [];
         if (teams.length === 0) {
-            container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:11px;text-align:center;padding:10px 0;">尚無場次資料</div>';
+            container.innerHTML = '<p style="color:rgba(255,255,255,0.7);text-align:center;padding:16px;font-size:13px;">尚無場次資料<br><span style="font-size:11px;opacity:0.6;">請至投手模式新增</span></p>';
             return;
         }
-        // 以 gameName 分組
+
+        // 以 gameName 分組（首次自動展開所有群組）
         const groups = {};
         teams.forEach((t, i) => {
             const key = t.gameName || '未分類';
             if (!groups[key]) groups[key] = [];
             groups[key].push({team:t, idx:i});
+            if (!bmExpandedGames.has('__init_done__')) bmExpandedGames.add(key);
         });
+        bmExpandedGames.add('__init_done__');
+
         container.innerHTML = '';
         const curIdx = allData.bm.gameIdx;
+
         Object.entries(groups).forEach(([gameName, items]) => {
-            const groupEl = document.createElement('div');
-            groupEl.style.cssText = 'margin-bottom:4px;';
-            // 賽事標題
-            const hdr = document.createElement('div');
-            hdr.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,215,0,0.7);padding:3px 4px;letter-spacing:0.5px;';
-            hdr.textContent = '🏟️ ' + gameName;
-            groupEl.appendChild(hdr);
-            // 各場次
-            items.forEach(({team:t, idx:i}) => {
-                const isActive = i === curIdx;
-                const btn = document.createElement('button');
-                btn.style.cssText = `width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid ${isActive?'rgba(255,215,0,0.5)':'rgba(255,255,255,0.12)'};background:${isActive?'rgba(255,215,0,0.12)':'rgba(255,255,255,0.05)'};color:${isActive?'#ffd700':'rgba(255,255,255,0.75)'};font-size:11px;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-bottom:2px;`;
-                btn.innerHTML = `<span style="font-weight:700;">${t.name||'?'} vs ${t.opponent||'?'}</span><br><span style="font-size:10px;opacity:0.65;">${t.date||'--'}</span>`;
-                btn.onclick = () => {
-                    _initBmData();
-                    allData.bm.gameIdx = i;
-                    saveToLocalStorage();
-                    const sel = document.getElementById('bmGameSelect');
-                    if (sel) { sel.value = i; }
-                    switchBmRecordMode('linked');
-                    _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
-                    _updateBmTeamBtns();
-                    _renderBmSessionList();
-                    _renderBmLineup();
-                };
-                groupEl.appendChild(btn);
-            });
-            container.appendChild(groupEl);
+            const isExpanded = bmExpandedGames.has(gameName);
+            const hasActive  = items.some(({idx}) => idx === curIdx);
+
+            const groupDiv = document.createElement('div');
+            groupDiv.style.marginBottom = '6px';
+
+            // ── 賽事標題列（可點擊收合）──
+            const gameHeader = document.createElement('div');
+            gameHeader.style.cssText = `
+                display:flex;align-items:center;gap:6px;cursor:pointer;
+                padding:7px 8px;border-radius:6px;
+                background:${isExpanded ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.08)'};
+                border:1px solid ${isExpanded ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'};
+                -webkit-user-select:none;user-select:none;
+            `;
+            gameHeader.innerHTML = `
+                <span style="font-size:11px;color:var(--ct-gold);transition:transform 0.2s;display:inline-block;transform:${isExpanded?'rotate(90deg)':'rotate(0)'}">▶</span>
+                ${hasActive ? '<span class="live-badge">LIVE</span>' : ''}
+                <span style="font-size:13px;font-weight:700;color:white;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🏟️ ${gameName}</span>
+                <span style="font-size:10px;color:rgba(255,255,255,0.5);">${items.length}場</span>
+            `;
+            gameHeader.onclick = () => {
+                if (bmExpandedGames.has(gameName)) bmExpandedGames.delete(gameName);
+                else bmExpandedGames.add(gameName);
+                _renderBmSessionList();
+            };
+            groupDiv.appendChild(gameHeader);
+
+            // ── 展開時顯示場次列表 ──
+            if (isExpanded) {
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'margin-left:8px;margin-top:4px;';
+
+                items.forEach(({team:t, idx:i}) => {
+                    const isActive = i === curIdx;
+
+                    const itemDiv = document.createElement('div');
+                    itemDiv.style.cssText = `
+                        display:flex;align-items:center;gap:6px;
+                        padding:7px 10px;margin-bottom:3px;border-radius:6px;cursor:pointer;
+                        background:${isActive ? 'rgba(255,215,0,0.12)' : 'rgba(255,255,255,0.05)'};
+                        border:1px solid ${isActive ? 'rgba(255,215,0,0.45)' : 'rgba(255,255,255,0.08)'};
+                        touch-action:manipulation;
+                    `;
+
+                    const arrow = document.createElement('span');
+                    arrow.style.cssText = `font-size:10px;color:${isActive?'var(--ct-gold)':'rgba(255,255,255,0.4)'};flex-shrink:0;transition:color 0.2s;`;
+                    arrow.textContent = isActive ? '✓' : '▶';
+
+                    const info = document.createElement('div');
+                    info.style.cssText = 'flex:1;min-width:0;';
+                    info.innerHTML = `
+                        <div style="font-size:12px;font-weight:700;color:${isActive?'#ffd700':'white'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            ${t.name||'?'} vs ${t.opponent||'?'}
+                        </div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:1px;">${t.date||'--'}</div>
+                    `;
+
+                    itemDiv.appendChild(arrow);
+                    itemDiv.appendChild(info);
+                    itemDiv.onclick = () => {
+                        _initBmData();
+                        allData.bm.gameIdx = i;
+                        saveToLocalStorage();
+                        const sel = document.getElementById('bmGameSelect');
+                        if (sel) sel.value = i;
+                        switchBmRecordMode('linked');
+                        _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
+                        _updateBmTeamBtns();
+                        _renderBmSessionList();
+                        _renderBmLineup();
+                        _renderBmBatterDisplay();
+                    };
+                    wrapper.appendChild(itemDiv);
+                });
+
+                groupDiv.appendChild(wrapper);
+            }
+            container.appendChild(groupDiv);
         });
-        // 取消連動按鈕
+
+        // ── 取消連動按鈕 ──
         const unlinkBtn = document.createElement('button');
-        unlinkBtn.style.cssText = `width:100%;padding:5px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.45);font-size:10px;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-top:4px;`;
+        unlinkBtn.style.cssText = `width:100%;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);font-size:11px;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-top:6px;`;
         unlinkBtn.textContent = '— 切換至獨立模式 —';
         unlinkBtn.onclick = () => {
             _initBmData(); allData.bm.gameIdx = -1; saveToLocalStorage();

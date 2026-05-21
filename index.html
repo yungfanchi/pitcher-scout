@@ -408,13 +408,10 @@
                 </div>
             </div>
             <!-- 場次列表 -->
-            <div style="padding:10px 12px;flex:1;overflow-y:auto;">
+            <div style="padding:10px 12px;flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0;">
                 <div style="font-size:11px;font-weight:700;color:rgba(255,215,0,0.8);letter-spacing:1px;margin-bottom:8px;">📅 比賽場次</div>
-                <div id="bmSessionList" style="display:flex;flex-direction:column;gap:4px;"></div>
-                <div style="margin-top:10px;color:rgba(255,255,255,0.35);font-size:10px;text-align:center;line-height:1.6;">
-                    在投手模式新增比賽場次<br>點擊場次即可連動打者模式
-                </div>
-                <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;">
+                <div id="bmSessionList" style="flex:1;display:flex;flex-direction:column;gap:0;"></div>
+                <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;flex-shrink:0;">
                     <button onclick="resetAllBmData()" style="width:100%;font-size:11px;padding:6px;background:rgba(220,0,0,0.2);color:#fca5a5;border:1px solid rgba(220,0,0,0.3);border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;" title="清除所有打者記錄（打線＋打席）">🗑️ 清除全部打者資料</button>
                 </div>
             </div>
