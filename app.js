@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v160';
+﻿    const APP_VERSION = 'v161';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -391,6 +391,15 @@
             return;
         }
         document.getElementById('updateModal').style.display = 'none';
+        // 重整前儲存 session，重整後自動還原（不需重新登入）
+        try {
+            sessionStorage.setItem('_updateRestore', JSON.stringify({
+                teamCode: currentTeamCode,
+                role: userRole,
+                mode: userMode,
+                ts: Date.now()
+            }));
+        } catch(e) {}
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistration().then(reg => {
                 if (reg && reg.waiting) {
@@ -5539,9 +5548,30 @@
                 return;
             }
             if (user.isAnonymous) {
-                // 匿名認證成功：顯示自訂密碼登入畫面（球隊代碼 + 密碼）
+                // 匿名認證成功：先檢查是否為「立即更新」後的自動還原
                 userSession = null;
                 USER_TEAM_REF = null;
+                const _restoreRaw = sessionStorage.getItem('_updateRestore');
+                if (_restoreRaw) {
+                    sessionStorage.removeItem('_updateRestore');
+                    try {
+                        const restore = JSON.parse(_restoreRaw);
+                        // 60 秒內有效（重整一般 1~5 秒，此值給足夠緩衝）
+                        if (restore && restore.teamCode && (Date.now() - restore.ts < 60000)) {
+                            currentTeamCode = restore.teamCode;
+                            userRole = restore.role || 'scout';
+                            if (ao) ao.style.display = 'none';
+                            if (msp) msp.style.display = 'none';
+                            if (restore.mode === 'batter') {
+                                enterBatterMode();
+                            } else {
+                                enterPitcherMode();
+                            }
+                            return;
+                        }
+                    } catch(e) {}
+                }
+                // 一般情況：顯示自訂密碼登入畫面（球隊代碼 + 密碼）
                 if (ao) ao.style.display = 'flex';
                 if (msp) msp.style.display = 'none';
                 setTimeout(loadRememberedLogin, 80);
