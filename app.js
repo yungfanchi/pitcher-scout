@@ -6888,8 +6888,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const fLo = zp('左外界外', 'M 79 201 L 23 145 L -20 103 L -20 201 Z', FC);
         const fRi = zp('右界外',   'M 150 272 L 221 201 L 320 201 L 320 315 L 195 315 L 195 272 Z', FC);
         const fRo = zp('右外界外', 'M 221 201 L 277 145 L 320 103 L 320 201 Z', FC);
-        // 捕手區：本壘後方中央（同界外區色）
-        const fC = zp('捕手區', 'M 113 235 L 105 272 Q 105 315 150 320 Q 195 315 195 272 L 187 235 Z', FC);
+        // 捕手區：本壘後方中央 — 矩形填滿 x=105~195, y=272~305（viewBox底）
+        const fC = zp('捕手區', 'M 105 272 L 195 272 L 195 305 L 105 305 Z', FC);
 
       return `<svg id="${id}" viewBox="-20 55 340 250"
             style="width:100%;border-radius:12px;display:block;background:#162e12;touch-action:none;">
