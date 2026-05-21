@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v164';
+﻿    const APP_VERSION = 'v165';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -391,12 +391,17 @@
             return;
         }
         document.getElementById('updateModal').style.display = 'none';
-        // 重整前儲存 session，重整後自動還原（不需重新登入）
+        // 重整前儲存 session，重整後自動還原（不需重新登入、不跳資料）
         try {
             sessionStorage.setItem('_updateRestore', JSON.stringify({
                 teamCode: currentTeamCode,
                 role: userRole,
                 mode: userMode,
+                slotA: slotA,
+                slotB: slotB,
+                currentTeam: currentTeam,
+                currentPitcher: currentPitcher,
+                activeSlot: activeSlot,
                 ts: Date.now()
             }));
         } catch(e) {}
@@ -5560,6 +5565,8 @@
                         if (restore && restore.teamCode && (Date.now() - restore.ts < 60000)) {
                             currentTeamCode = restore.teamCode;
                             userRole = restore.role || 'scout';
+                            // 阻止 Firebase 初始快照觸發全畫面重繪（10 秒保護）
+                            lastSaveTime = Date.now();
                             if (ao) ao.style.display = 'none';
                             if (msp) msp.style.display = 'none';
                             if (restore.mode === 'batter') {
@@ -5567,6 +5574,23 @@
                             } else {
                                 enterPitcherMode();
                             }
+                            // enterSystem() → init() 執行完後還原槽位選擇
+                            setTimeout(() => {
+                                if (restore.slotA) slotA = restore.slotA;
+                                if (restore.slotB) slotB = restore.slotB;
+                                if (restore.currentTeam != null) currentTeam = restore.currentTeam;
+                                if (restore.currentPitcher != null) currentPitcher = restore.currentPitcher;
+                                if (restore.activeSlot) activeSlot = restore.activeSlot;
+                                updateSlotDisplay();
+                                updateTeamList();
+                                if (currentTeam != null) {
+                                    updatePitchLog();
+                                    updateStats();
+                                    updateScoreboard();
+                                    renderBases();
+                                    renderCountLights();
+                                }
+                            }, 350);
                             return;
                         }
                     } catch(e) {}
