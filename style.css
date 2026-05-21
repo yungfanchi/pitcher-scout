@@ -548,11 +548,25 @@
 
         /* ===== PRINT ===== */
         @media print {
-            .sidebar,.toggle-sidebar,.sidebar-overlay { display:none; }
-            .main-content { margin-left:0; }
-            .container { box-shadow:none; page-break-inside:avoid; }
-            .scoreboard { color:black; background:white; border:2px solid #000; }
-            .score-value { color:#000; background:#f0f0f0; text-shadow:none; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            /* 隱藏所有非報表 UI */
+            .sidebar, .toggle-sidebar, .sidebar-overlay,
+            .tab-nav, .slot-panel, .record-controls,
+            #recordTab, #compareTab, #pdfFilterModal,
+            button, select, input { display: none !important; }
+            /* 版面滿版 */
+            body, html { margin: 0 !important; padding: 0 !important; background: #f8f9fa !important; }
+            .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
+            /* 顯示報表分頁 */
+            .tab-content { display: none !important; }
+            .tab-content.print-visible { display: block !important; break-before: page; }
+            .tab-content.print-visible:first-of-type { break-before: avoid; }
+            /* 投手資訊列顯示 */
+            #statsHeaderRow { display: none !important; }
+            /* container 滿版 */
+            .container { box-shadow: none !important; width: 100% !important; max-width: 100% !important; margin: 0 0 16px 0 !important; padding: 12px !important; break-inside: avoid; }
+            /* 圖表不要斷頁 */
+            canvas { max-width: 100% !important; }
         }
         .sidebar-quick-save { flex-shrink:0; padding:8px 0 4px; border-top:1px solid rgba(255,215,0,0.2); margin-top:6px; }
         .sidebar-quick-save button { width:100%; padding:8px; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; margin-bottom:4px; touch-action:manipulation; }

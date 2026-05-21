@@ -440,7 +440,7 @@
             tabEl.style.setProperty('overflow', 'visible', 'important');
             tabEl.style.setProperty('max-height', 'none', 'important');
 
-            const captureW = tabEl.scrollWidth;
+            const REPORT_W = 900;
             const captureH = tabEl.scrollHeight;
 
             const canvas = await html2canvas(tabEl, {
@@ -450,22 +450,25 @@
                 backgroundColor: '#f8f9fa',
                 scrollX: 0,
                 scrollY: 0,
-                width: captureW,
+                width: REPORT_W,
                 height: captureH,
-                windowWidth: Math.max(captureW, 1280),
+                windowWidth: REPORT_W,
                 windowHeight: captureH + 200,
                 logging: false,
                 imageTimeout: 15000,
                 onclone: (_doc, clonedEl) => {
+                    clonedEl.style.setProperty('width', REPORT_W + 'px', 'important');
+                    clonedEl.style.setProperty('max-width', 'none', 'important');
                     clonedEl.style.setProperty('height', 'auto', 'important');
                     clonedEl.style.setProperty('overflow', 'visible', 'important');
                     clonedEl.style.setProperty('max-height', 'none', 'important');
                     const clonedMain = _doc.querySelector('.main-content');
                     if (clonedMain) {
+                        clonedMain.style.setProperty('width', REPORT_W + 'px', 'important');
+                        clonedMain.style.setProperty('max-width', 'none', 'important');
                         clonedMain.style.setProperty('overflow', 'visible', 'important');
                         clonedMain.style.setProperty('height', 'auto', 'important');
                     }
-                    // PDF 輸出時隱藏篩選場次列（投手資訊欄已提供識別資料）
                     const filterRow = _doc.getElementById('statsHeaderRow');
                     if (filterRow) filterRow.style.setProperty('display', 'none', 'important');
                 }
@@ -526,6 +529,103 @@
             document.getElementById(origTabId)?.classList.add('active');
             document.querySelector('[id^="_pdfToast"]')?.parentElement?.remove();
         }
+    }
+
+    // ====== 快速列印（瀏覽器原生列印 → 存成 PDF，無需等待截圖）======
+    async function printReport() {
+        const pitcherName = document.getElementById('pdfPitcherSelect').value;
+        const scopeEl = document.querySelector('input[name="pdfScope"]:checked');
+        const scope = scopeEl ? scopeEl.value : 'all';
+        const gameIndex = scope === 'single' ? document.getElementById('pdfGameSelect').value : 'all';
+        const handEl = document.querySelector('input[name="pdfHand"]:checked');
+        const handFilter = handEl ? handEl.value : 'all';
+
+        if (!pitcherName) { alert('請選擇投手'); return; }
+        if (scope === 'single' && !gameIndex) { alert('請選擇場次'); return; }
+
+        // 建立合成投手（與 generatePDF 相同邏輯）
+        let refPitcher = null;
+        const aggregated = [];
+        allData.teams.forEach((team, ti) => {
+            if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
+            (team.pitchers || []).forEach(p => {
+                if (p.name !== pitcherName) return;
+                if (!refPitcher) refPitcher = p;
+                (p.pitches || []).forEach(pitch => aggregated.push(pitch));
+            });
+        });
+        const filtered = handFilter === 'left' ? aggregated.filter(p => p.batterHand === '左打') :
+                         handFilter === 'right' ? aggregated.filter(p => p.batterHand === '右打') :
+                         aggregated;
+        if (!filtered.length) { alert('所選條件無投球數據'); return; }
+
+        closePDFFilter();
+
+        const handSuffix = handFilter === 'left' ? ' (對左打)' : handFilter === 'right' ? ' (對右打)' : '';
+        const syntheticTeam = {
+            gameName: '📄 PDF 報告',
+            name: refPitcher?.name || pitcherName,
+            opponent: handSuffix.trim() || '全部打者',
+            date: new Date().toISOString().split('T')[0],
+            pitchers: [{
+                name: pitcherName + handSuffix,
+                number: refPitcher?.number || '',
+                hand: refPitcher?.hand || '',
+                role: refPitcher?.role || '',
+                style: refPitcher?.style || '',
+                pitches: filtered,
+                score: { home:0, away:0, inning:1, half:'上' }
+            }]
+        };
+
+        const origSlotA = { ...slotA };
+        const origSlotB = { ...slotB };
+        const origActive = activeSlot;
+        const origCurrentTeam = currentTeam;
+        const origCurrentPitcher = currentPitcher;
+        const origTabEl = document.querySelector('.tab-content.active');
+        const origTabId = origTabEl?.id || 'recordTab';
+
+        const tempIndex = allData.teams.length;
+        allData.teams.push(syntheticTeam);
+        slotA = { team: tempIndex, pitcher: 0 };
+        activeSlot = 'A';
+        currentTeam = tempIndex;
+        currentPitcher = 0;
+        if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
+
+        // 切到 statsTab 讓圖表渲染
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('statsTab').classList.add('active');
+        updateStats();
+        await new Promise(r => setTimeout(r, 1200));
+
+        // 標記兩個報表分頁為列印可見
+        document.getElementById('statsTab').classList.add('print-visible');
+        document.getElementById('analysisTab').classList.add('print-visible');
+
+        const cleanup = () => {
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.remove('print-visible');
+                c.classList.remove('active');
+            });
+            allData.teams.splice(tempIndex, 1);
+            slotA = origSlotA;
+            slotB = origSlotB;
+            activeSlot = origActive;
+            currentTeam = origCurrentTeam;
+            currentPitcher = origCurrentPitcher;
+            if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
+            document.getElementById(origTabId)?.classList.add('active');
+            if (origTabId === 'statsTab' || origTabId === 'analysisTab') updateStats();
+            else if (origTabId === 'compareTab') updateCompare();
+            window.onafterprint = null;
+        };
+
+        window.onafterprint = cleanup;
+        window.print();
+        // 若瀏覽器不觸發 onafterprint（部分 Android），延遲清理
+        setTimeout(() => { if (window.onafterprint) cleanup(); }, 3000);
     }
 
     // ====== PDF EXPORT MODAL ======
