@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v158';
+﻿    const APP_VERSION = 'v159';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -1998,6 +1998,49 @@
         alert(`✅ 投手「${name}」已新增！`);
     }
 
+    // ====== 編輯投手資訊 ======
+    let _editPitcherTeamIdx = null;
+    let _editPitcherIdx = null;
+
+    function editPitcher(teamIndex, pitcherIndex) {
+        const pitcher = allData.teams[teamIndex]?.pitchers?.[pitcherIndex];
+        if (!pitcher) return;
+        _editPitcherTeamIdx = teamIndex;
+        _editPitcherIdx = pitcherIndex;
+        document.getElementById('editPitcherName').value = pitcher.name || '';
+        document.getElementById('editPitcherNumber').value = pitcher.number || '';
+        document.getElementById('editPitcherHand').value = pitcher.hand || '';
+        document.getElementById('editPitcherRole').value = pitcher.role || '先發';
+        document.getElementById('editPitcherStyle').value = pitcher.style || '';
+        document.getElementById('editPitcherModal').style.display = 'block';
+    }
+
+    function closeEditPitcherModal() {
+        document.getElementById('editPitcherModal').style.display = 'none';
+        _editPitcherTeamIdx = null;
+        _editPitcherIdx = null;
+    }
+
+    function confirmEditPitcher() {
+        try { document.activeElement && document.activeElement.blur(); } catch(e) {}
+        if (_editPitcherTeamIdx === null || _editPitcherIdx === null) return;
+        const pitcher = allData.teams[_editPitcherTeamIdx]?.pitchers?.[_editPitcherIdx];
+        if (!pitcher) return;
+        const name = document.getElementById('editPitcherName').value.trim();
+        if (!name) { alert('請輸入投手姓名！'); return; }
+        pitcher.name   = name;
+        pitcher.number = document.getElementById('editPitcherNumber').value.trim();
+        pitcher.hand   = document.getElementById('editPitcherHand').value;
+        pitcher.role   = document.getElementById('editPitcherRole').value;
+        pitcher.style  = document.getElementById('editPitcherStyle').value.trim();
+        rebuildPitcherDB();
+        updateTeamList();
+        updateSlotDisplay();
+        saveToLocalStorage();
+        saveToFirebase();
+        closeEditPitcherModal();
+    }
+
     // ====== TEAM LIST ======
     function toggleTeamExpand(teamIndex) {
         if (expandedTeams.has(teamIndex)) expandedTeams.delete(teamIndex);
@@ -2131,6 +2174,16 @@
                                 ' '
                             );
                             tag.appendChild(label);
+
+                            const editBtn = document.createElement('span');
+                            editBtn.className = 'pitcher-tag-edit';
+                            editBtn.textContent = '✎';
+                            editBtn.title = '編輯投手資訊';
+                            editBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                editPitcher(teamIndex, pitcherIndex);
+                            });
+                            tag.appendChild(editBtn);
 
                             const delBtn = document.createElement('span');
                             delBtn.className = 'pitcher-tag-delete';

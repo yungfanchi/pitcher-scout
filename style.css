@@ -93,6 +93,8 @@
         .pitcher-tag.active { background:var(--ct-red); color:white; border-color:var(--ct-gold); box-shadow:0 2px 8px rgba(220,0,0,0.4); }
         .pitcher-tag-delete { background:rgba(255,255,255,0.25); border:none; color:white; width:16px; height:16px; border-radius:50%; font-size:11px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
         .pitcher-tag-delete:active { background:var(--ct-red); }
+        .pitcher-tag-edit { background:rgba(255,215,0,0.22); border:none; color:var(--ct-gold); width:16px; height:16px; border-radius:50%; font-size:9px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0; }
+        .pitcher-tag-edit:active { background:var(--ct-gold); color:#003d79; }
         .delete-team-btn { background:rgba(220,0,0,0.8); border:none; color:white; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:10px; transition:all 0.2s; font-weight:700; flex-shrink:0; }
         .delete-team-btn:active { transform:scale(0.95); }
 
