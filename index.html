@@ -129,13 +129,13 @@
         <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px;width:100%;max-width:560px;">
             <button type="button" onclick="enterPitcherMode()" ontouchend="event.preventDefault();enterPitcherMode()"
                 style="flex:1;min-width:200px;max-width:240px;padding:28px 20px;background:rgba(255,255,255,0.08);border:2px solid rgba(255,215,0,0.6);border-radius:16px;color:white;cursor:pointer;font-family:inherit;touch-action:manipulation;">
-                <div style="font-size:36px;margin-bottom:10px;">📝</div>
+                <div style="margin-bottom:10px;line-height:0;"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="17" fill="white"/><path d="M14 4C16 11 16 20 14 36" stroke="#dc0000" stroke-width="2" stroke-linecap="round"/><path d="M26 4C24 11 24 20 26 36" stroke="#dc0000" stroke-width="2" stroke-linecap="round"/><path d="M3 14C9 16 14 17 20 17C26 17 31 16 37 14" stroke="#dc0000" stroke-width="1.5" stroke-linecap="round"/><path d="M3 26C9 24 14 23 20 23C26 23 31 24 37 26" stroke="#dc0000" stroke-width="1.5" stroke-linecap="round"/></svg></div>
                 <div style="font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Oswald','Noto Sans TC',sans-serif;">投手情蒐模式</div>
                 <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:6px;">記錄與分析投球數據</div>
             </button>
             <button type="button" onclick="enterBatterMode()" ontouchend="event.preventDefault();enterBatterMode()"
                 style="flex:1;min-width:200px;max-width:240px;padding:28px 20px;background:rgba(255,255,255,0.08);border:2px solid rgba(220,0,0,0.6);border-radius:16px;color:white;cursor:pointer;font-family:inherit;touch-action:manipulation;">
-                <div style="font-size:36px;margin-bottom:10px;">🏏</div>
+                <div style="margin-bottom:10px;line-height:0;"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="34" x2="27" y2="15" stroke="white" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="30" cy="11" rx="9" ry="5" fill="white" transform="rotate(-50 30 11)"/><circle cx="7" cy="35" r="4" fill="white"/></svg></div>
                 <div style="font-size:18px;font-weight:900;letter-spacing:1px;font-family:'Oswald','Noto Sans TC',sans-serif;">打者情蒐模式</div>
                 <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:6px;">記錄與分析打者數據</div>
             </button>
@@ -160,12 +160,12 @@
         </div>
         <div style="display:flex;flex-wrap:wrap;justify-content:center;">
             <button type="button" class="mode-card" onclick="enterSystem('scout')" ontouchend="event.preventDefault();enterSystem('scout')">
-                <div class="mode-card-icon">📝</div>
+                <div class="mode-card-icon" style="line-height:0;display:flex;align-items:center;justify-content:center;"><svg width="44" height="44" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="17" fill="white"/><path d="M14 4C16 11 16 20 14 36" stroke="#dc0000" stroke-width="2" stroke-linecap="round"/><path d="M26 4C24 11 24 20 26 36" stroke="#dc0000" stroke-width="2" stroke-linecap="round"/><path d="M3 14C9 16 14 17 20 17C26 17 31 16 37 14" stroke="#dc0000" stroke-width="1.5" stroke-linecap="round"/><path d="M3 26C9 24 14 23 20 23C26 23 31 24 37 26" stroke="#dc0000" stroke-width="1.5" stroke-linecap="round"/></svg></div>
                 <div class="mode-card-title">投手模式</div>
                 <div class="mode-card-sub">記錄與分析投球數據</div>
             </button>
             <button type="button" class="mode-card" onclick="enterBatterMode()" ontouchend="event.preventDefault();enterBatterMode()">
-                <div class="mode-card-icon">🏏</div>
+                <div class="mode-card-icon" style="line-height:0;display:flex;align-items:center;justify-content:center;"><svg width="44" height="44" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="34" x2="27" y2="15" stroke="white" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="30" cy="11" rx="9" ry="5" fill="white" transform="rotate(-50 30 11)"/><circle cx="7" cy="35" r="4" fill="white"/></svg></div>
                 <div class="mode-card-title">打者模式</div>
                 <div class="mode-card-sub">記錄與分析打者數據</div>
             </button>
