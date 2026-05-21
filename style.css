@@ -1077,6 +1077,21 @@
 #bmModeToggleCompact .bm-mode-btn.bm-on { background:#003d79; color:white; }
 /* 打席結果分組容器 */
 .bm-outcome-group { margin-bottom:2px; }
+/* 落點圖＋打席結果 55/45 格線 */
+.bm-field-result-grid {
+    display: grid;
+    grid-template-columns: 55fr 45fr;
+    gap: 12px;
+    margin-top: 10px;
+    align-items: start;
+}
+.bm-field-result-grid .bm-outcomes-card {
+    display: flex;
+    flex-direction: column;
+}
+@media (max-width: 768px) {
+    .bm-field-result-grid { grid-template-columns: 1fr; }
+}
 
 /* ─── 打者情蒐槽位（仿 dual-pitcher-section）─── */
 .bm-current-section {

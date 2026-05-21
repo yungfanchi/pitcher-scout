@@ -1226,27 +1226,25 @@
                     </div>
                 </div>
 
-                <!-- 打擊落點圖 + 打席結果（並排，加大） -->
-                <div style="display:flex;gap:12px;margin-top:10px;align-items:flex-start;flex-wrap:nowrap;">
-                    <!-- 左：打擊落點圖（放大） -->
-                    <div class="bm-card" style="flex:0 0 310px;padding:8px;">
+                <!-- 打擊落點圖 + 打席結果（55/45 格線） -->
+                <div class="bm-field-result-grid">
+                    <!-- 左 55%：打擊落點圖 -->
+                    <div class="bm-card" style="padding:8px;">
                         <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">
                             🗺️ 落點<span id="bmHitZoneLabel" style="color:#003d79;font-size:12px;font-weight:900;margin-left:4px;"></span>
                         </div>
-                        <div id="bmHitMapWrap" style="width:100%;"></div>
+                        <div id="bmHitMapWrap" style="width:100%;aspect-ratio:1/1;"></div>
                     </div>
-                    <!-- 右：打席結果 -->
-                    <div class="bm-card" style="flex:1 1 0;padding:10px;min-width:180px;">
+                    <!-- 右 45%：打席結果 + 確認按鈕 -->
+                    <div class="bm-card bm-outcomes-card" style="padding:10px;">
                         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
-                        <div id="bmOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;"></div>
+                        <div id="bmOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;flex:1;"></div>
+                        <button id="bmConfirmBtn" onclick="confirmBmLinkedAtBat()" disabled
+                            style="width:100%;margin-top:12px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
+                            ✅ 確認記錄
+                        </button>
                     </div>
                 </div>
-
-                <!-- 確認按鈕 -->
-                <button id="bmConfirmBtn" onclick="confirmBmLinkedAtBat()" disabled
-                    style="width:100%;margin-top:12px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
-                    ✅ 確認記錄
-                </button>
 
                 <!-- 最近記錄 -->
                 <div style="margin-top:14px;">
@@ -1279,25 +1277,25 @@
                     </div>
                 </div>
 
-                <!-- 落點圖 + 打席結果 -->
-                <div style="display:flex;gap:12px;margin-top:10px;align-items:flex-start;flex-wrap:nowrap;">
-                    <div class="bm-card" style="flex:0 0 310px;padding:8px;">
+                <!-- 落點圖 + 打席結果（55/45 格線） -->
+                <div class="bm-field-result-grid">
+                    <!-- 左 55%：打擊落點圖 -->
+                    <div class="bm-card" style="padding:8px;">
                         <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">
                             🗺️ 落點<span id="spHitZoneLabel" style="color:#003d79;font-size:12px;font-weight:900;margin-left:4px;"></span>
                         </div>
-                        <div id="spHitMapWrap" style="width:100%;"></div>
+                        <div id="spHitMapWrap" style="width:100%;aspect-ratio:1/1;"></div>
                     </div>
-                    <div class="bm-card" style="flex:1 1 0;padding:10px;min-width:180px;">
+                    <!-- 右 45%：打席結果 + 確認按鈕 -->
+                    <div class="bm-card bm-outcomes-card" style="padding:10px;">
                         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
-                        <div id="spOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;"></div>
+                        <div id="spOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;flex:1;"></div>
+                        <button id="spConfirmBtn" onclick="confirmSpAtBatInline()" disabled
+                            style="width:100%;margin-top:12px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
+                            ✅ 確認記錄
+                        </button>
                     </div>
                 </div>
-
-                <!-- 確認按鈕 -->
-                <button id="spConfirmBtn" onclick="confirmSpAtBatInline()" disabled
-                    style="width:100%;margin-top:12px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
-                    ✅ 確認記錄
-                </button>
 
                 <!-- 最近記錄 -->
                 <div style="margin-top:14px;">
