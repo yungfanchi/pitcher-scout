@@ -1224,25 +1224,7 @@
                 <!-- ─ 比賽狀態卡（單列） ─ -->
                 <div class="bm-card bm-batter-card" style="margin-top:10px;">
                     <div style="display:flex;gap:4px;align-items:center;">
-                        <!-- 最左：◄ + 壘上 -->
-                        <button onclick="prevBmBatter()" class="bm-nav-btn" ontouchend="event.preventDefault();prevBmBatter()" style="width:28px;height:28px;font-size:13px;padding:0;flex-shrink:0;">◀</button>
-                        <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
-                            <span style="font-size:10px;color:#6b7280;">壘</span>
-                            <button class="bm-base-btn" id="bmBase1" onclick="toggleBmBase(0)" style="padding:3px 5px;font-size:11px;">一</button>
-                            <button class="bm-base-btn" id="bmBase2" onclick="toggleBmBase(1)" style="padding:3px 5px;font-size:11px;">二</button>
-                            <button class="bm-base-btn" id="bmBase3" onclick="toggleBmBase(2)" style="padding:3px 5px;font-size:11px;">三</button>
-                        </div>
-                        <!-- 中央：打者資訊 -->
-                        <div style="flex:1;text-align:center;min-width:0;">
-                            <div id="bmCurOrder" style="font-size:10px;font-weight:700;color:#6b7280;line-height:1.2;"></div>
-                            <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                <span id="bmCurBatterNum" style="font-size:15px;font-weight:900;color:#1e3a5f;font-family:'Oswald',sans-serif;"></span>
-                                <span id="bmCurBatterName" style="font-size:13px;font-weight:700;color:#374151;margin-left:2px;"></span>
-                                <span id="bmCurHand" style="font-size:11px;color:#9ca3af;margin-left:2px;"></span>
-                            </div>
-                        </div>
-                        <!-- 最右：►＋局數＋出局 -->
-                        <button onclick="nextBmBatter()" class="bm-nav-btn" ontouchend="event.preventDefault();nextBmBatter()" style="width:28px;height:28px;font-size:13px;padding:0;flex-shrink:0;">▶</button>
+                        <!-- 左：局數 + 上半/下半 -->
                         <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
                             <span style="font-size:11px;font-weight:700;color:#374151;">第</span>
                             <input type="number" id="bmInning" value="1" min="1" max="15" inputmode="numeric"
@@ -1252,8 +1234,25 @@
                             <button id="bmHalfTopBtn" class="bm-toggle-btn bm-on" onclick="selectBmHalf('上')" style="padding:3px 6px;font-size:11px;">上半</button>
                             <button id="bmHalfBotBtn" class="bm-toggle-btn" onclick="selectBmHalf('下')" style="padding:3px 6px;font-size:11px;">下半</button>
                         </div>
-                        <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;">
-                            <span style="font-size:10px;color:#6b7280;">出局</span>
+                        <!-- 中央：◄ 打者資訊 ► -->
+                        <div style="flex:1;display:flex;align-items:center;gap:3px;min-width:0;">
+                            <button onclick="prevBmBatter()" class="bm-nav-btn" ontouchend="event.preventDefault();prevBmBatter()" style="width:28px;height:28px;font-size:13px;padding:0;flex-shrink:0;">◀</button>
+                            <div style="flex:1;text-align:center;min-width:0;">
+                                <div id="bmCurOrder" style="font-size:10px;font-weight:700;color:#6b7280;line-height:1.2;"></div>
+                                <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                    <span id="bmCurBatterNum" style="font-size:15px;font-weight:900;color:#1e3a5f;font-family:'Oswald',sans-serif;"></span>
+                                    <span id="bmCurBatterName" style="font-size:13px;font-weight:700;color:#374151;margin-left:2px;"></span>
+                                    <span id="bmCurHand" style="font-size:11px;color:#9ca3af;margin-left:2px;"></span>
+                                </div>
+                            </div>
+                            <button onclick="nextBmBatter()" class="bm-nav-btn" ontouchend="event.preventDefault();nextBmBatter()" style="width:28px;height:28px;font-size:13px;padding:0;flex-shrink:0;">▶</button>
+                        </div>
+                        <!-- 右：壘包 + 出局 -->
+                        <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
+                            <button class="bm-base-btn" id="bmBase1" onclick="toggleBmBase(0)" style="padding:3px 5px;font-size:11px;">一壘</button>
+                            <button class="bm-base-btn" id="bmBase2" onclick="toggleBmBase(1)" style="padding:3px 5px;font-size:11px;">二壘</button>
+                            <button class="bm-base-btn" id="bmBase3" onclick="toggleBmBase(2)" style="padding:3px 5px;font-size:11px;">三壘</button>
+                            <span style="font-size:10px;color:#6b7280;margin-left:2px;">出局</span>
                             <button class="bm-out-dot" id="bmOD0" onclick="setBmOuts(0)">○</button>
                             <button class="bm-out-dot" id="bmOD1" onclick="setBmOuts(1)">○</button>
                             <button class="bm-out-dot" id="bmOD2" onclick="setBmOuts(2)">○</button>
