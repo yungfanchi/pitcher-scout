@@ -1090,74 +1090,80 @@
     <!-- 聯動模式：雙槽位（A=後攻 / B=先攻，隊名自動帶入） -->
     <div class="bm-current-section" id="bmCurrentSection">
         <h2>🏏 當前情蒐打者</h2>
-        <div class="dual-pitcher-cards">
+        <div class="bm-dual-match">
             <!-- Slot A（後攻） -->
-            <div class="pitcher-slot pitcher-slot-a" id="bmSlotCardA" onclick="selectBmTeam('A')">
-                <div class="active-indicator" id="bmActiveIndA" style="display:none;"></div>
-                <div class="pitcher-slot-team" id="bmSlotTeamA">A隊（後攻）</div>
-                <div class="pitcher-slot-name" id="bmSlotNumA">#--</div>
-                <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameA">（未設打線）</div>
-                <div class="pitcher-slot-meta">
-                    <span class="pitcher-slot-badge" id="bmSlotOrderA">---</span>
-                    <span class="pitcher-slot-badge" id="bmSlotHandA"></span>
+            <div class="bm-match-col">
+                <div class="pitcher-slot pitcher-slot-a" id="bmSlotCardA" onclick="selectBmTeam('A')">
+                    <div class="active-indicator" id="bmActiveIndA" style="display:none;"></div>
+                    <div class="pitcher-slot-team" id="bmSlotTeamA">A隊（後攻）</div>
+                    <div class="pitcher-slot-name" id="bmSlotNumA">#--</div>
+                    <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameA">（未設打線）</div>
+                    <div class="pitcher-slot-meta">
+                        <span class="pitcher-slot-badge" id="bmSlotOrderA">---</span>
+                        <span class="pitcher-slot-badge" id="bmSlotHandA"></span>
+                    </div>
+                </div>
+                <div class="bm-match-controls" id="bmCtrlA">
+                    <input type="text" id="bmNamePatchA" placeholder="補填姓名" autocomplete="off"
+                        class="bm-slot-input"
+                        onblur="patchBmBatterName()" onkeydown="if(event.key==='Enter')this.blur()">
+                    <span style="font-size:11px;color:rgba(255,255,255,0.5);flex-shrink:0;">對戰</span>
+                    <button id="bmPhLBtnA" class="bm-slot-ph-btn" onclick="selectBmPh('左投')">左投</button>
+                    <button id="bmPhRBtnA" class="bm-slot-ph-btn bm-on" onclick="selectBmPh('右投')">右投</button>
+                </div>
+                <div class="bm-lineup-module" id="bmLineupModuleA">
+                    <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('A')">
+                        <span class="bm-lineup-module-title" id="bmLineupTitleA">A隊 打線</span>
+                        <div class="bm-lineup-module-btns" onclick="event.stopPropagation()">
+                            <button class="bm-lm-btn" onclick="copyBmLineup('A')">複製</button>
+                            <button class="bm-lm-btn bm-lm-save" onclick="saveBmLineupManual('A',this)">儲存</button>
+                            <button class="bm-lm-btn bm-lm-clear" onclick="clearBmLineup('A')">清空</button>
+                        </div>
+                        <span class="bm-lineup-arrow" id="bmLineupCollapseA">▼</span>
+                    </div>
+                    <div id="bmLineupBodyA" style="display:none;">
+                        <div id="bmLineupRowsA"></div>
+                    </div>
                 </div>
             </div>
             <!-- Slot B（先攻） -->
-            <div class="pitcher-slot pitcher-slot-b active-slot" id="bmSlotCardB" onclick="selectBmTeam('B')">
-                <div class="active-indicator" id="bmActiveIndB"></div>
-                <div class="pitcher-slot-team" id="bmSlotTeamB">B隊（先攻）</div>
-                <div class="pitcher-slot-name" id="bmSlotNumB">#--</div>
-                <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameB">（未填姓名）</div>
-                <div class="pitcher-slot-meta">
-                    <span class="pitcher-slot-badge" id="bmSlotOrderB">打序①</span>
-                    <span class="pitcher-slot-badge" id="bmSlotHandB">右打</span>
+            <div class="bm-match-col">
+                <div class="pitcher-slot pitcher-slot-b active-slot" id="bmSlotCardB" onclick="selectBmTeam('B')">
+                    <div class="active-indicator" id="bmActiveIndB"></div>
+                    <div class="pitcher-slot-team" id="bmSlotTeamB">B隊（先攻）</div>
+                    <div class="pitcher-slot-name" id="bmSlotNumB">#--</div>
+                    <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameB">（未填姓名）</div>
+                    <div class="pitcher-slot-meta">
+                        <span class="pitcher-slot-badge" id="bmSlotOrderB">打序①</span>
+                        <span class="pitcher-slot-badge" id="bmSlotHandB">右打</span>
+                    </div>
+                </div>
+                <div class="bm-match-controls" id="bmCtrlB">
+                    <input type="text" id="bmNamePatchB" placeholder="補填姓名" autocomplete="off"
+                        class="bm-slot-input"
+                        onblur="patchBmBatterName()" onkeydown="if(event.key==='Enter')this.blur()">
+                    <span style="font-size:11px;color:rgba(255,255,255,0.5);flex-shrink:0;">對戰</span>
+                    <button id="bmPhLBtnB" class="bm-slot-ph-btn" onclick="selectBmPh('左投')">左投</button>
+                    <button id="bmPhRBtnB" class="bm-slot-ph-btn bm-on" onclick="selectBmPh('右投')">右投</button>
+                </div>
+                <div class="bm-lineup-module" id="bmLineupModuleB">
+                    <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('B')">
+                        <span class="bm-lineup-module-title" id="bmLineupTitleB">B隊 打線</span>
+                        <div class="bm-lineup-module-btns" onclick="event.stopPropagation()">
+                            <button class="bm-lm-btn" onclick="copyBmLineup('B')">複製</button>
+                            <button class="bm-lm-btn bm-lm-save" onclick="saveBmLineupManual('B',this)">儲存</button>
+                            <button class="bm-lm-btn bm-lm-clear" onclick="clearBmLineup('B')">清空</button>
+                        </div>
+                        <span class="bm-lineup-arrow" id="bmLineupCollapseB">▼</span>
+                    </div>
+                    <div id="bmLineupBodyB" style="display:none;">
+                        <div id="bmLineupRowsB"></div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <!-- 補填資訊（當前進攻隊打者） -->
-        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center;">
-            <input type="text" id="bmNamePatch" placeholder="補填姓名" autocomplete="off"
-                class="bm-slot-input"
-                onblur="patchBmBatterName()" onkeydown="if(event.key==='Enter')this.blur()">
-            <span style="font-size:11px;color:rgba(255,255,255,0.5);flex-shrink:0;">對戰</span>
-            <button id="bmPhLBtn" class="bm-slot-ph-btn" onclick="selectBmPh('左投')">左投</button>
-            <button id="bmPhRBtn" class="bm-slot-ph-btn bm-on" onclick="selectBmPh('右投')">右投</button>
         </div>
         <div style="text-align:center;margin-top:6px;font-size:11px;color:rgba(255,255,255,0.4);">
             點擊卡片切換進攻隊伍 · ◀ ▶ 切換打者 · 資訊可即時補填
-        </div>
-        <!-- A/B 雙隊打線模組（可收合） -->
-        <div class="bm-lineup-modules">
-            <!-- A 隊打線模組 -->
-            <div class="bm-lineup-module" id="bmLineupModuleA">
-                <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('A')">
-                    <span class="bm-lineup-module-title" id="bmLineupTitleA">A隊 打線</span>
-                    <div class="bm-lineup-module-btns" onclick="event.stopPropagation()">
-                        <button class="bm-lm-btn" onclick="copyBmLineup('A')">複製</button>
-                        <button class="bm-lm-btn bm-lm-save" onclick="saveBmLineupManual('A',this)">儲存</button>
-                        <button class="bm-lm-btn bm-lm-clear" onclick="clearBmLineup('A')">清空</button>
-                    </div>
-                    <span class="bm-lineup-arrow" id="bmLineupCollapseA">▼</span>
-                </div>
-                <div id="bmLineupBodyA" style="display:none;">
-                    <div id="bmLineupRowsA"></div>
-                </div>
-            </div>
-            <!-- B 隊打線模組 -->
-            <div class="bm-lineup-module" id="bmLineupModuleB">
-                <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('B')">
-                    <span class="bm-lineup-module-title" id="bmLineupTitleB">B隊 打線</span>
-                    <div class="bm-lineup-module-btns" onclick="event.stopPropagation()">
-                        <button class="bm-lm-btn" onclick="copyBmLineup('B')">複製</button>
-                        <button class="bm-lm-btn bm-lm-save" onclick="saveBmLineupManual('B',this)">儲存</button>
-                        <button class="bm-lm-btn bm-lm-clear" onclick="clearBmLineup('B')">清空</button>
-                    </div>
-                    <span class="bm-lineup-arrow" id="bmLineupCollapseB">▼</span>
-                </div>
-                <div id="bmLineupBodyB" style="display:none;">
-                    <div id="bmLineupRowsB"></div>
-                </div>
-            </div>
         </div>
     </div>
 

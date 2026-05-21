@@ -8379,11 +8379,18 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         if (indA) indA.style.display = isA ? '' : 'none';
         if (indB) indB.style.display = isA ? 'none' : '';
 
-        // ── 補填輸入框 ──
-        const patchEl = document.getElementById('bmNamePatch');
+        // ── 補填輸入框（各欄獨立，僅進攻側可輸入）──
+        const patchA = document.getElementById('bmNamePatchA');
+        const patchB = document.getElementById('bmNamePatchB');
         const traitEl = document.getElementById('bmTraitPatch');
-        if (patchEl) patchEl.value = batter.name  || '';
+        if (patchA) patchA.value = isA ? (batter.name || '') : '';
+        if (patchB) patchB.value = isA ? '' : (batter.name || '');
         if (traitEl) traitEl.value = batter.trait || '';
+        // ── 控制欄啟用狀態 ──
+        const ctrlA = document.getElementById('bmCtrlA');
+        const ctrlB = document.getElementById('bmCtrlB');
+        if (ctrlA) { ctrlA.style.opacity = isA ? '1' : '0.4'; ctrlA.style.pointerEvents = isA ? '' : 'none'; }
+        if (ctrlB) { ctrlB.style.opacity = isA ? '0.4' : '1'; ctrlB.style.pointerEvents = isA ? 'none' : ''; }
 
         // ── 更新打線模組標題 ──
         _updateBmLineupTitles();
@@ -8415,10 +8422,11 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
 
     function patchBmBatterName() {
         _initBmData();
-        const el = document.getElementById('bmNamePatch');
+        const side = allData.bm.attackingTeam || 'B';
+        const el = document.getElementById('bmNamePatch' + side);
         if (!el) return;
         const val = el.value.trim();
-        const lineup = _getLineup(allData.bm.attackingTeam || 'B');
+        const lineup = _getLineup(side);
         lineup[_bmState.currentOrder].name = val;
         const nameEl = document.getElementById('bmCurBatterName');
         if (nameEl) nameEl.textContent = val || '（未填姓名）';
@@ -8551,10 +8559,12 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
 
     function selectBmPh(hand) {
         _bmState.pitcherHand = hand;
-        const lBtn = document.getElementById('bmPhLBtn');
-        const rBtn = document.getElementById('bmPhRBtn');
-        if (lBtn) lBtn.classList.toggle('bm-on', hand==='左投');
-        if (rBtn) rBtn.classList.toggle('bm-on', hand==='右投');
+        ['A', 'B'].forEach(s => {
+            const lBtn = document.getElementById('bmPhLBtn' + s);
+            const rBtn = document.getElementById('bmPhRBtn' + s);
+            if (lBtn) lBtn.classList.toggle('bm-on', hand === '左投');
+            if (rBtn) rBtn.classList.toggle('bm-on', hand === '右投');
+        });
     }
 
     function confirmBmLinkedAtBat() {

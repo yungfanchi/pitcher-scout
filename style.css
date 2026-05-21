@@ -1075,8 +1075,11 @@
 #bmModeToggleCompact .bm-mode-btn.bm-on { background:#003d79; color:white; }
 /* 打席結果分組容器 */
 .bm-outcome-group { margin-bottom:2px; }
-/* ── A/B 打線模組（可收合，位於 bmCurrentSection 內）── */
-.bm-lineup-modules { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+/* ── 雙欄對稱佈局（對應投手模式對戰組合）── */
+.bm-dual-match { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.bm-match-col { display:flex; flex-direction:column; gap:6px; }
+.bm-match-controls { display:flex; gap:5px; align-items:center; flex-wrap:wrap; padding:2px 0; transition:opacity 0.2s; }
+/* ── A/B 打線模組（可收合，位於各欄底部）── */
 .bm-lineup-module { background:rgba(0,0,0,0.25); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.12); }
 .bm-lineup-module-hdr { display:flex; align-items:center; justify-content:space-between; padding:6px 8px; cursor:pointer; gap:4px; background:rgba(0,0,0,0.18); user-select:none; }
 .bm-lineup-module-title { font-size:11px; font-weight:700; color:rgba(255,215,0,0.85); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -1104,10 +1107,10 @@
 }
 @media (max-width: 768px) {
     .bm-field-result-grid { grid-template-columns: 1fr; }
-    .bm-lineup-modules { grid-template-columns: 1fr; }
+    .bm-dual-match { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
-    .bm-lineup-modules { grid-template-columns: 1fr; }
+    .bm-dual-match { grid-template-columns: 1fr; }
 }
 
 /* ─── 打者情蒐槽位（仿 dual-pitcher-section）─── */
