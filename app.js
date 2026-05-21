@@ -2332,6 +2332,19 @@
         if (awayBtn) awayBtn.textContent = team?.name ? `📋 ${team.name}` : '📋 先攻';
         if (homeBtn) homeBtn.textContent = team?.opponent ? `📋 ${team.opponent}` : '📋 後攻';
         if (title)   title.textContent   = '📋 打擊順序設定';
+
+        // 正在打擊的隊伍加金色外框（上半局＝先攻打；下半局＝後攻打）
+        const isBattingAway = gameState.half === '上';
+        if (awayBtn) {
+            awayBtn.style.outline      = isBattingAway ? '3px solid #ffd700' : 'none';
+            awayBtn.style.outlineOffset = isBattingAway ? '2px' : '0';
+            awayBtn.style.boxShadow    = isBattingAway ? '0 0 8px rgba(255,215,0,0.7)' : 'none';
+        }
+        if (homeBtn) {
+            homeBtn.style.outline      = !isBattingAway ? '3px solid #ffd700' : 'none';
+            homeBtn.style.outlineOffset = !isBattingAway ? '2px' : '0';
+            homeBtn.style.boxShadow    = !isBattingAway ? '0 0 8px rgba(255,215,0,0.7)' : 'none';
+        }
     }
 
     function openLineupModal(side) {
@@ -2746,7 +2759,18 @@
         const next = cur + delta;
         const clamped = next < 1 ? 9 : next > 9 ? 1 : next;
         el.value = clamped;
+        // 手動調整時同步更新 gameState 棒次索引，防止 autoUpdateBatterInfoByInning 蓋回去
+        const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+        gameState.currentBatterIndex[battingTeam] = clamped - 1;
         autoFillBatterFromOrder(clamped);
+    }
+
+    function syncBatterOrderToState(val) {
+        const order = parseInt(val);
+        if (isNaN(order) || order < 1 || order > 9) return;
+        const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+        gameState.currentBatterIndex[battingTeam] = order - 1;
+        autoFillBatterFromOrder(order);
     }
 
     function autoFillBatterFromOrder(order) {

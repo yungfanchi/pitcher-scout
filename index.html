@@ -645,7 +645,7 @@
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">棒次</span>
                             <button class="order-adj-btn" onclick="adjustBatterOrder(-1)">◀</button>
-                            <input type="number" id="batterOrder" placeholder="1-9" min="1" max="9" inputmode="numeric" autocomplete="off" style="flex:1;padding:8px;text-align:center;font-weight:900;font-size:18px;" onkeydown="if(event.key==='Enter')this.blur()" oninput="const v=parseInt(this.value);if(!isNaN(v)){if(v<1)this.value=1;else if(v>9)this.value=9;}">
+                            <input type="number" id="batterOrder" placeholder="1-9" min="1" max="9" inputmode="numeric" autocomplete="off" style="flex:1;padding:8px;text-align:center;font-weight:900;font-size:18px;" onkeydown="if(event.key==='Enter')this.blur()" oninput="const v=parseInt(this.value);if(!isNaN(v)){if(v<1)this.value=1;else if(v>9)this.value=9;}" onchange="syncBatterOrderToState(this.value)">
                             <button class="order-adj-btn" onclick="adjustBatterOrder(1)">▶</button>
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;">
