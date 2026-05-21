@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v123';
+﻿    const APP_VERSION = 'v124';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -6705,11 +6705,13 @@
 
     // 各區域代表座標（SVG 300x280 座標系，本壘板在 150,272）
     const ZONE_SVG_COORDS = {
-        'LF':   { x: 66,  y: 159 }, 'LCF':  { x: 106, y: 136 },
-        'CF':   { x: 150, y: 125 }, 'RCF':  { x: 194, y: 136 },
-        'RF':   { x: 234, y: 159 },
-        '3B':   { x: 97,  y: 208 }, 'SS':   { x: 132, y: 196 },
-        '2B':   { x: 168, y: 196 }, '1B':   { x: 203, y: 208 },
+        'LF':     { x: 66,  y: 159 }, 'LCF':    { x: 106, y: 136 },
+        'CF':     { x: 150, y: 125 }, 'RCF':    { x: 194, y: 136 },
+        'RF':     { x: 234, y: 159 },
+        '3B':     { x: 102, y: 213 }, '三游之間': { x: 114, y: 205 },
+        'SS':     { x: 128, y: 199 }, '中線靠左': { x: 143, y: 196 },
+        '中線靠右': { x: 157, y: 196 }, '2B':     { x: 172, y: 199 },
+        '一二壘之間': { x: 186, y: 205 }, '1B':   { x: 198, y: 213 },
         '三短': { x: 125, y: 249 }, 'P':    { x: 150, y: 250 },
         '一短': { x: 175, y: 249 }
     };
@@ -6805,7 +6807,8 @@
         }
 
         const GR = '#2d6b21';  // 外野草地綠
-        const DT = '#9a6428';  // 內野土色
+        const DT = '#9a6428';  // 內野土色（守備位置）
+        const DC = '#c4944a';  // 衝突區（淺沙色，視覺上區別於純守備位）
         const DS = '#b07a32';  // 淺內野（較亮）
 
         // ── 外野五區（R 100→180）──
@@ -6820,15 +6823,23 @@
         // RF  θ:+27°→+45°
         const RF  = zp('RF',  'M 195 183 L 232 112 A 180 180 0 0 1 277 145 L 221 201 A 100 100 0 0 0 195 183 Z', GR);
 
-        // ── 深內野四區（R 52→100）──
-        // 3B  θ:-45°→-22°
-        const i3B = zp('3B', 'M 113 235 L 79 201 A 100 100 0 0 1 113 179 L 131 224 A 52 52 0 0 0 113 235 Z', DT);
-        // SS  θ:-22°→0°
-        const SS  = zp('SS', 'M 131 224 L 113 179 A 100 100 0 0 1 150 172 L 150 220 A 52 52 0 0 0 131 224 Z', DT);
-        // 2B  θ:0°→+22°
-        const i2B = zp('2B', 'M 150 220 L 150 172 A 100 100 0 0 1 188 179 L 170 224 A 52 52 0 0 0 150 220 Z', DT);
-        // 1B  θ:+22°→+45°
-        const i1B = zp('1B', 'M 170 224 L 188 179 A 100 100 0 0 1 221 201 L 187 235 A 52 52 0 0 0 170 224 Z', DT);
+        // ── 深內野八區（R 52→100，每區 11.25°）──
+        // 3B       θ:-45°→-33.75°
+        const i3B  = zp('3B',     'M 113 235 L 79 201 A 100 100 0 0 1 94 189 L 121 229 A 52 52 0 0 0 113 235 Z', DT);
+        // 三游之間  θ:-33.75°→-22.5°（衝突區）
+        const iSS3 = zp('三游之間','M 121 229 L 94 189 A 100 100 0 0 1 112 180 L 130 224 A 52 52 0 0 0 121 229 Z', DC);
+        // SS        θ:-22.5°→-11.25°
+        const iSS  = zp('SS',     'M 130 224 L 112 180 A 100 100 0 0 1 130 174 L 140 221 A 52 52 0 0 0 130 224 Z', DT);
+        // 中線靠左  θ:-11.25°→0°（衝突區）
+        const iML  = zp('中線靠左','M 140 221 L 130 174 A 100 100 0 0 1 150 172 L 150 220 A 52 52 0 0 0 140 221 Z', DC);
+        // 中線靠右  θ:0°→+11.25°（衝突區）
+        const iMR  = zp('中線靠右','M 150 220 L 150 172 A 100 100 0 0 1 170 174 L 160 221 A 52 52 0 0 0 150 220 Z', DC);
+        // 2B        θ:+11.25°→+22.5°
+        const i2B  = zp('2B',     'M 160 221 L 170 174 A 100 100 0 0 1 188 180 L 170 224 A 52 52 0 0 0 160 221 Z', DT);
+        // 一二壘之間 θ:+22.5°→+33.75°（衝突區）
+        const i12  = zp('一二壘之間','M 170 224 L 188 180 A 100 100 0 0 1 206 189 L 179 229 A 52 52 0 0 0 170 224 Z', DC);
+        // 1B        θ:+33.75°→+45°
+        const i1B  = zp('1B',     'M 179 229 L 206 189 A 100 100 0 0 1 221 201 L 187 235 A 52 52 0 0 0 179 229 Z', DT);
 
         // ── 淺內野三區（R 0→52）──
         // 三短 θ:-45°→-15°
@@ -6839,7 +6850,7 @@
         const yi  = zp('一短', 'M 150 272 L 164 222 A 52 52 0 0 1 187 235 Z', DS);
 
         return `<svg id="${id}" viewBox="0 0 300 280"
-            style="width:100%;max-width:310px;border-radius:12px;display:block;background:#162e12;touch-action:none;">
+            style="width:100%;border-radius:12px;display:block;background:#162e12;touch-action:none;">
 
           <!-- 公平區域底色 -->
           <path d="M 150 272 L 23 145 A 180 180 0 0 1 277 145 Z" fill="#1f4a18"/>
@@ -6847,8 +6858,8 @@
           <!-- 外野區域 -->
           ${LF}${LCF}${CF}${RCF}${RF}
 
-          <!-- 深內野（土色環帶） -->
-          ${i3B}${SS}${i2B}${i1B}
+          <!-- 深內野（8區：4 守備位 + 4 衝突區） -->
+          ${i3B}${iSS3}${iSS}${iML}${iMR}${i2B}${i12}${i1B}
 
           <!-- 淺內野（近本壘） -->
           ${san}${P}${yi}
@@ -6872,18 +6883,24 @@
           <rect x="147" y="163" width="7" height="7" fill="white" transform="rotate(45 150.5 166.5)" style="pointer-events:none;"/><!-- 2B -->
           <rect x="94"  y="216" width="7" height="7" fill="white" style="pointer-events:none;"/><!-- 3B -->
 
-          <!-- 區域標籤 -->
+          <!-- 外野標籤 -->
           <text x="66"  y="157" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">LF</text>
           <text x="106" y="134" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">LCF</text>
           <text x="150" y="124" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">CF</text>
           <text x="194" y="134" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">RCF</text>
           <text x="234" y="157" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">RF</text>
 
-          <text x="93"  y="208" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">3B</text>
-          <text x="129" y="195" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">SS</text>
-          <text x="171" y="195" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">2B</text>
-          <text x="207" y="208" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">1B</text>
+          <!-- 深內野標籤（8區）-->
+          <text x="102" y="215" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">3B</text>
+          <text x="114" y="207" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">三游</text>
+          <text x="128" y="200" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">SS</text>
+          <text x="142" y="197" text-anchor="middle" fill="white" font-size="6.5" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">中左</text>
+          <text x="158" y="197" text-anchor="middle" fill="white" font-size="6.5" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">中右</text>
+          <text x="172" y="200" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">2B</text>
+          <text x="186" y="207" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">一二</text>
+          <text x="198" y="215" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">1B</text>
 
+          <!-- 淺內野標籤 -->
           <text x="123" y="252" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">三短</text>
           <text x="150" y="256" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">P</text>
           <text x="177" y="252" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">一短</text>
