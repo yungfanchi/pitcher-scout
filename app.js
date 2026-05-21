@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v159';
+﻿    const APP_VERSION = 'v160';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -3100,6 +3100,19 @@
         }
         renderBases();
         renderCountLights();
+    }
+
+    function advanceLeadRunner() {
+        if (gameState.bases[2]) {
+            gameState.bases[2] = false; // 三壘跑者得分
+        } else if (gameState.bases[1]) {
+            gameState.bases[1] = false;
+            gameState.bases[2] = true;
+        } else if (gameState.bases[0]) {
+            gameState.bases[0] = false;
+            gameState.bases[1] = true;
+        }
+        renderBases();
     }
 
     // ====== GAME STATE - Count & Bases ======
