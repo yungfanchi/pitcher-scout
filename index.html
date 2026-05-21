@@ -289,14 +289,9 @@
                 </div>
 
                 <!-- 產生按鈕 -->
-                <div id="pdfGenerateBtn" style="display:none;margin-top:4px;">
-                    <button onclick="printReport()" style="width:100%;padding:14px;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:10px;font-size:15px;font-weight:900;cursor:pointer;touch-action:manipulation;letter-spacing:1px;margin-bottom:8px;">
-                        🖨️ 快速列印 / 存成 PDF
-                    </button>
-                    <button onclick="generatePDF()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;letter-spacing:1px;opacity:0.85;">
-                        📄 截圖 PDF（舊方式）
-                    </button>
-                </div>
+                <button id="pdfGenerateBtn" onclick="generatePDF()" style="display:none;width:100%;padding:15px;background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;touch-action:manipulation;letter-spacing:1px;margin-top:4px;">
+                    📄 產生 PDF 報告
+                </button>
             </div>
         </div>
     </div>
