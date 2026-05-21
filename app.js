@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v128';
+﻿    const APP_VERSION = 'v154';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -323,6 +323,27 @@
         const applyUpdate = (reg) => {
             const waiting = reg && reg.waiting;
             if (!waiting) return;
+
+            // 從快取讀取新版本號，顯示更新橫幅
+            const showUpdateBanner = (newVer) => {
+                const banner = document.createElement('div');
+                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(135deg,#003d79,#0051a5);color:white;text-align:center;padding:14px 16px;font-size:15px;font-weight:700;font-family:\'Noto Sans TC\',sans-serif;letter-spacing:1px;box-shadow:0 2px 12px rgba(0,0,0,0.3);';
+                banner.textContent = `🆕 偵測到新版本 ${newVer}，正在自動更新...`;
+                document.body.prepend(banner);
+            };
+
+            if ('caches' in window) {
+                caches.keys().then(keys => {
+                    const swCaches = keys.filter(k => k.startsWith('pitcher-scout-v'));
+                    const currentKey = 'pitcher-scout-' + APP_VERSION;
+                    const newKey = swCaches.find(k => k !== currentKey);
+                    const newVer = newKey ? newKey.replace('pitcher-scout-', '') : '新版本';
+                    showUpdateBanner(newVer);
+                }).catch(() => showUpdateBanner('新版本'));
+            } else {
+                showUpdateBanner('新版本');
+            }
+
             const fallback = setTimeout(() => window.location.reload(), 4000);
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 clearTimeout(fallback);
@@ -1620,6 +1641,25 @@
         if (verLabel) verLabel.textContent = APP_VERSION;
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
         updateFieldMapToggleBtn();
+
+        // 從 SW 快取自動偵測實際版本號（防止 APP_VERSION 與 sw.js desync）
+        if ('caches' in window) {
+            caches.keys().then(keys => {
+                const swKeys = keys.filter(k => k.startsWith('pitcher-scout-v'));
+                if (swKeys.length === 0) return;
+                // 取數字最大的版本（格式 pitcher-scout-vNNN）
+                const latest = swKeys.sort((a, b) => {
+                    const na = parseInt(a.replace('pitcher-scout-v', '')) || 0;
+                    const nb = parseInt(b.replace('pitcher-scout-v', '')) || 0;
+                    return na - nb;
+                }).pop();
+                const detectedVer = latest.replace('pitcher-scout-', '');
+                ['appVersionDisplay', 'appVersionMain', 'appVersionLabel'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = detectedVer;
+                });
+            }).catch(() => {});
+        }
     }
 
     // injectDemoData 已移除，上線版禁止自動覆蓋真實資料
