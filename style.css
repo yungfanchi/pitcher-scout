@@ -1077,7 +1077,8 @@
 .bm-outcome-group { margin-bottom:2px; }
 /* ── 雙欄對稱佈局（對應投手模式對戰組合）── */
 .bm-dual-match { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.bm-match-col { display:flex; flex-direction:column; gap:6px; }
+.bm-match-col { display:flex; flex-direction:column; gap:6px; border-radius:10px; border:2px solid transparent; padding:6px; transition:border-color 0.2s, box-shadow 0.2s; }
+.bm-match-col.bm-col-active { border-color:var(--ct-gold); box-shadow:0 0 0 3px rgba(255,215,0,0.22); }
 .bm-match-controls { display:flex; gap:5px; align-items:center; flex-wrap:wrap; padding:2px 0; transition:opacity 0.2s; }
 /* ── A/B 打線模組（可收合，位於各欄底部）── */
 .bm-lineup-module { background:rgba(0,0,0,0.25); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.12); }

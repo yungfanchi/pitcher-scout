@@ -8367,11 +8367,16 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         if (inactOrder) inactOrder.textContent = '---';
         if (inactHand)  inactHand.textContent  = '';
 
-        // active-slot 樣式
+        // active-slot 樣式（卡片本身）
         const slotA = document.getElementById('bmSlotCardA');
         const slotB = document.getElementById('bmSlotCardB');
         if (slotA) slotA.classList.toggle('active-slot', isA);
         if (slotB) slotB.classList.toggle('active-slot', !isA);
+        // 整欄外框高亮（讓情蒐員一眼看出進攻側）
+        const colA = document.getElementById('bmMatchColA');
+        const colB = document.getElementById('bmMatchColB');
+        if (colA) colA.classList.toggle('bm-col-active', isA);
+        if (colB) colB.classList.toggle('bm-col-active', !isA);
 
         // active-indicator
         const indA = document.getElementById('bmActiveIndA');
