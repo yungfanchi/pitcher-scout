@@ -6840,31 +6840,31 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const dRCF = zp('深RCF', 'M 172 134 L 178 94 A 180 180 0 0 1 232 112 L 214 147 A 140 140 0 0 0 172 134 Z', GR2);
         const dRF  = zp('深RF',  'M 214 147 L 232 112 A 180 180 0 0 1 277 145 L 249 173 A 140 140 0 0 0 214 147 Z', GR2);
 
-        // ── 深內野八區（R 52→100，每區 11.25°）──
-        const i3B  = zp('3B',      'M 113 235 L 79 201 A 100 100 0 0 1 94 189 L 121 229 A 52 52 0 0 0 113 235 Z', DT);
-        const iSS3 = zp('三游之間','M 121 229 L 94 189 A 100 100 0 0 1 112 180 L 130 224 A 52 52 0 0 0 121 229 Z', DC);
-        const iSS  = zp('SS',      'M 130 224 L 112 180 A 100 100 0 0 1 130 174 L 140 221 A 52 52 0 0 0 130 224 Z', DT);
-        const iML  = zp('中線靠左','M 140 221 L 130 174 A 100 100 0 0 1 150 172 L 150 220 A 52 52 0 0 0 140 221 Z', DC);
-        const iMR  = zp('中線靠右','M 150 220 L 150 172 A 100 100 0 0 1 170 174 L 160 221 A 52 52 0 0 0 150 220 Z', DC);
-        const i2B  = zp('2B',      'M 160 221 L 170 174 A 100 100 0 0 1 188 180 L 170 224 A 52 52 0 0 0 160 221 Z', DT);
-        const i12  = zp('一二壘之間','M 170 224 L 188 180 A 100 100 0 0 1 206 189 L 179 229 A 52 52 0 0 0 170 224 Z', DC);
-        const i1B  = zp('1B',      'M 179 229 L 206 189 A 100 100 0 0 1 221 201 L 187 235 A 52 52 0 0 0 179 229 Z', DT);
+        // ── 深內野八區（R 42→100，每區 11.25°）──
+        const i3B  = zp('3B',      'M 120 242 L 79 201 A 100 100 0 0 1 94 189 L 127 237 A 42 42 0 0 0 120 242 Z', DT);
+        const iSS3 = zp('三游之間','M 127 237 L 94 189 A 100 100 0 0 1 112 180 L 134 233 A 42 42 0 0 0 127 237 Z', DC);
+        const iSS  = zp('SS',      'M 134 233 L 112 180 A 100 100 0 0 1 130 174 L 142 231 A 42 42 0 0 0 134 233 Z', DT);
+        const iML  = zp('中線靠左','M 142 231 L 130 174 A 100 100 0 0 1 150 172 L 150 230 A 42 42 0 0 0 142 231 Z', DC);
+        const iMR  = zp('中線靠右','M 150 230 L 150 172 A 100 100 0 0 1 170 174 L 158 231 A 42 42 0 0 0 150 230 Z', DC);
+        const i2B  = zp('2B',      'M 158 231 L 170 174 A 100 100 0 0 1 188 180 L 166 233 A 42 42 0 0 0 158 231 Z', DT);
+        const i12  = zp('一二壘之間','M 166 233 L 188 180 A 100 100 0 0 1 206 189 L 173 237 A 42 42 0 0 0 166 233 Z', DC);
+        const i1B  = zp('1B',      'M 173 237 L 206 189 A 100 100 0 0 1 221 201 L 180 242 A 42 42 0 0 0 173 237 Z', DT);
 
-        // ── 淺內野三區（R 25→52）──
-        const san = zp('三短', 'M 132 254 L 113 235 A 52 52 0 0 1 137 222 L 144 248 A 25 25 0 0 0 132 254 Z', DS);
-        const P   = zp('P',   'M 144 248 L 137 222 A 52 52 0 0 1 164 222 L 157 248 A 25 25 0 0 0 144 248 Z', DS);
-        const yi  = zp('一短', 'M 157 248 L 164 222 A 52 52 0 0 1 187 235 L 168 254 A 25 25 0 0 0 157 248 Z', DS);
-        // ── 捕手區（R 0→25，對齊短打寬度）──
+        // ── 淺內野三區（R 25→42）──
+        const san = zp('三短', 'M 132 254 L 120 242 A 42 42 0 0 1 139 231 L 144 248 A 25 25 0 0 0 132 254 Z', DS);
+        const P   = zp('P',   'M 144 248 L 139 231 A 42 42 0 0 1 161 232 L 157 248 A 25 25 0 0 0 144 248 Z', DS);
+        const yi  = zp('一短', 'M 157 248 L 161 232 A 42 42 0 0 1 180 242 L 168 254 A 25 25 0 0 0 157 248 Z', DS);
+        // ── 捕手區（R 0→25，對齊短打寬度，同色）──
         const catZone = isAny
-            ? `<path d="M 150 272 L 132 254 A 25 25 0 0 1 168 254 Z" fill="${CA}" fill-opacity="0.88"
+            ? `<path d="M 150 272 L 132 254 A 25 25 0 0 1 168 254 Z" fill="${DS}" fill-opacity="0.88"
                 stroke="none"
-                data-zone="捕手" data-fill="${CA}" data-selected="0"
+                data-zone="捕手" data-fill="${DS}" data-selected="0"
                 onclick="${fn}('捕手',this)"
                 ontouchstart="${fn}('捕手',this);event.preventDefault()"
                 onmouseenter="if(this.dataset.selected!=='1'){this.style.fillOpacity='1';}"
                 onmouseleave="if(this.dataset.selected!=='1'){this.style.fillOpacity='0.88';}"
                 style="cursor:pointer;"/>`
-            : `<path d="M 150 272 L 132 254 A 25 25 0 0 1 168 254 Z" fill="${CA}" fill-opacity="0.88"
+            : `<path d="M 150 272 L 132 254 A 25 25 0 0 1 168 254 Z" fill="${DS}" fill-opacity="0.88"
                 stroke="none" style="pointer-events:none;"/>`;
 
         // ── 界外區（viewBox 擴展至 -20 左、320 右、315 底）──
@@ -6943,9 +6943,9 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <text x="198" y="215" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">1B</text>
 
           <!-- 淺內野標籤 -->
-          <text x="128" y="240" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">三短</text>
-          <text x="150" y="238" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">P</text>
-          <text x="172" y="240" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">一短</text>
+          <text x="128" y="243" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">三短</text>
+          <text x="150" y="242" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">P</text>
+          <text x="172" y="243" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">一短</text>
           <text x="150" y="266" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手</text>
 
           <!-- 界外區標籤 -->
