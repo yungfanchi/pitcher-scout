@@ -6725,7 +6725,9 @@
         // 淺內野
         '三短': { x: 125, y: 249 }, 'P': { x: 150, y: 250 }, '一短': { x: 175, y: 249 },
         // 界外區
-        '左界外': { x: 18, y: 222 }, '右界外': { x: 282, y: 222 }, '捕手區': { x: 150, y: 293 }, '捕手': { x: 150, y: 263 },
+        '左界外': { x: 18, y: 255 }, '左外界外': { x: 18, y: 162 },
+        '右界外': { x: 282, y: 255 }, '右外界外': { x: 282, y: 162 },
+        '捕手區': { x: 150, y: 293 }, '捕手': { x: 150, y: 263 },
         // 全壘打區
         'HR左': { x: 39, y: 119 }, 'HR左中': { x: 92, y: 92 }, 'HR中': { x: 150, y: 82 }, 'HR右中': { x: 208, y: 92 }, 'HR右': { x: 261, y: 119 },
     };
@@ -6878,10 +6880,13 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 stroke="none" style="pointer-events:none;"/>`;
 
         // ── 界外區（viewBox 擴展至 -20 左、320 右、315 底）──
-        const fL = zp('左界外', 'M 150 272 L 23 145 L -20 103 L -20 315 L 105 315 L 105 272 Z', FC);
-        const fR = zp('右界外', 'M 150 272 L 277 145 L 320 103 L 320 315 L 195 315 L 195 272 Z', FC);
-        // 捕手區：本壘後方中央
-  const fC = zp('捕手區', 'M 113 235 L 105 272 Q 105 315 150 320 Q 195 315 195 272 L 187 235 L 150 272 Z', CA);
+        // 界外區：以 R=100（y=201）為界分成內野界外 + 外野界外
+        const fLi = zp('左界外',   'M 150 272 L 79 201 L -20 201 L -20 315 L 105 315 L 105 272 Z', FC);
+        const fLo = zp('左外界外', 'M 79 201 L 23 145 L -20 103 L -20 201 Z', FC);
+        const fRi = zp('右界外',   'M 150 272 L 221 201 L 320 201 L 320 315 L 195 315 L 195 272 Z', FC);
+        const fRo = zp('右外界外', 'M 221 201 L 277 145 L 320 103 L 320 201 Z', FC);
+        // 捕手區：本壘後方中央（同界外區色）
+        const fC = zp('捕手區', 'M 113 235 L 105 272 Q 105 315 150 320 Q 195 315 195 272 L 187 235 L 150 272 Z', FC);
 
       return `<svg id="${id}" viewBox="-20 55 340 250"
             style="width:100%;border-radius:12px;display:block;background:#162e12;touch-action:none;">
@@ -6890,7 +6895,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           ${hrLF}${hrLCF}${hrCF}${hrRCF}${hrRF}
 
           <!-- 界外區（底層先畫） -->
-          ${fL}${fR}${fC}
+          ${fLi}${fLo}${fRi}${fRo}${fC}
 
           <!-- 公平區域底色 -->
           <path d="M 150 272 L 23 145 A 180 180 0 0 1 277 145 Z" fill="#1f4a18"/>
@@ -6969,12 +6974,16 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <text x="150" y="266" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手</text>
 
           <!-- 界外區標籤 -->
-          <text x="18"  y="210" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左</text>
-          <text x="18"  y="222" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">界</text>
-          <text x="18"  y="234" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
-          <text x="282" y="210" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右</text>
-          <text x="282" y="222" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">界</text>
-          <text x="282" y="234" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
+          <text x="18"  y="240" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左</text>
+          <text x="18"  y="253" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">界</text>
+          <text x="18"  y="266" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
+          <text x="18"  y="152" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左</text>
+          <text x="18"  y="163" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
+          <text x="282" y="240" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右</text>
+          <text x="282" y="253" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">界</text>
+          <text x="282" y="266" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
+          <text x="282" y="152" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右</text>
+          <text x="282" y="163" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
           <text x="150" y="288" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手區</text>
 
           ${dotsHTML}
