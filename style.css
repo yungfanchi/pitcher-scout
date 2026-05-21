@@ -973,40 +973,31 @@
     touch-action: manipulation;
 }
 .bm-lineup-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 3fr 3fr 4fr;
     align-items: center;
-    gap: 6px;
-    padding: 6px 0;
+    gap: 4px;
+    padding: 5px 0;
     border-bottom: 1px solid #f3f4f6;
 }
 .bm-lineup-order {
-    width: 22px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 900;
     color: #003d79;
     text-align: center;
-    flex-shrink: 0;
-}
-.bm-lineup-num {
-    width: 52px;
-    padding: 5px 4px;
-    text-align: center;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 13px;
-    font-family: inherit;
 }
 .bm-lineup-name {
-    flex: 1;
     padding: 5px 6px;
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12px;
     font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
     min-width: 0;
 }
 .bm-lineup-hand {
-    padding: 5px 7px;
+    padding: 5px 4px;
     border: 1px solid #d1d5db;
     border-radius: 6px;
     font-size: 12px;
@@ -1014,6 +1005,9 @@
     background: white;
     cursor: pointer;
     touch-action: manipulation;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
 }
 .bm-lineup-hand.bm-on {
     background: #003d79;
@@ -1101,10 +1095,10 @@
 .bm-lm-btn.bm-lm-clear { background:rgba(220,0,0,0.15); border-color:rgba(220,0,0,0.3); color:#fca5a5; }
 .bm-lineup-arrow { font-size:9px; color:rgba(255,255,255,0.4); flex-shrink:0; }
 /* 打線 row 精簡版（在模組內） */
-.bm-lineup-module .bm-lineup-row { padding:2px 8px; gap:3px; }
-.bm-lineup-module .bm-lineup-num  { width:34px; font-size:11px; padding:3px 3px; }
-.bm-lineup-module .bm-lineup-name { font-size:11px; padding:3px 5px; }
-.bm-lineup-module .bm-lineup-hand { font-size:9px; padding:3px 4px; }
+.bm-lineup-module .bm-lineup-row { padding:2px 6px; gap:3px; }
+.bm-lineup-module .bm-lineup-order { font-size:12px; }
+.bm-lineup-module .bm-lineup-name { font-size:11px; padding:3px 4px; }
+.bm-lineup-module .bm-lineup-hand { font-size:10px; padding:3px 4px; }
 /* 落點圖＋打席結果 55/45 格線 */
 .bm-field-result-grid {
     display: grid;
@@ -1211,14 +1205,6 @@
     color: #ffd700;
     font-size: 12px;
 }
-#bmSidebarContent .bm-lineup-num {
-    width: 44px;
-    padding: 4px 3px;
-    font-size: 12px;
-    background: rgba(255,255,255,0.1);
-    border-color: rgba(255,255,255,0.2);
-    color: white;
-}
 #bmSidebarContent .bm-lineup-name {
     padding: 4px 5px;
     font-size: 12px;
@@ -1227,7 +1213,6 @@
     color: white;
 }
 #bmSidebarContent .bm-lineup-name::placeholder { color: rgba(255,255,255,0.35); }
-#bmSidebarContent .bm-lineup-num::placeholder  { color: rgba(255,255,255,0.35); }
 #bmSidebarContent .bm-lineup-hand {
     padding: 4px 6px;
     font-size: 11px;
