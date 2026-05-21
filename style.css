@@ -1079,7 +1079,18 @@
 .bm-dual-match { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .bm-match-col { display:flex; flex-direction:column; gap:6px; border-radius:10px; border:2px solid transparent; padding:6px; transition:border-color 0.2s, box-shadow 0.2s; }
 .bm-match-col.bm-col-active { border-color:var(--ct-gold); box-shadow:0 0 0 3px rgba(255,215,0,0.22); }
-.bm-match-controls { display:flex; gap:5px; align-items:center; flex-wrap:wrap; padding:2px 0; transition:opacity 0.2s; }
+/* 卡片內左右分欄 */
+.bm-card-inner { display:flex; gap:10px; width:100%; }
+.bm-card-batter { flex:1; min-width:0; }
+.bm-card-vs { width:82px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.18); }
+.bm-vs-hdr { font-size:9px; font-weight:700; color:rgba(255,215,0,0.85); letter-spacing:0.5px; white-space:nowrap; }
+.bm-vs-num { font-size:15px; font-weight:900; color:white; font-family:'Oswald',sans-serif; line-height:1.2; }
+.bm-vs-name { font-size:11px; font-weight:700; color:rgba(255,255,255,0.85); text-align:center; width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bm-vs-btns { display:flex; gap:3px; margin-top:2px; }
+.bm-vs-ph-btn { padding:4px 6px; border-radius:5px; font-size:10px; font-weight:700; cursor:pointer; font-family:inherit; touch-action:manipulation; border:1px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.55); }
+.bm-vs-ph-btn.bm-on { background:rgba(220,0,0,0.75); border-color:#dc0000; color:white; }
+.bm-vs-link-btn { margin-top:3px; padding:3px 6px; border:1px solid rgba(255,215,0,0.35); background:rgba(255,215,0,0.08); color:rgba(255,215,0,0.8); border-radius:4px; font-size:9px; font-weight:700; cursor:pointer; font-family:inherit; touch-action:manipulation; white-space:nowrap; }
+.bm-vs-link-btn:active { background:rgba(255,215,0,0.2); }
 /* ── A/B 打線模組（可收合，位於各欄底部）── */
 .bm-lineup-module { background:rgba(0,0,0,0.25); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.12); }
 .bm-lineup-module-hdr { display:flex; align-items:center; justify-content:space-between; padding:6px 8px; cursor:pointer; gap:4px; background:rgba(0,0,0,0.18); user-select:none; }

@@ -1095,21 +1095,27 @@
             <div class="bm-match-col" id="bmMatchColA">
                 <div class="pitcher-slot pitcher-slot-a" id="bmSlotCardA" onclick="selectBmTeam('A')">
                     <div class="active-indicator" id="bmActiveIndA" style="display:none;"></div>
-                    <div class="pitcher-slot-team" id="bmSlotTeamA">A隊（後攻）</div>
-                    <div class="pitcher-slot-name" id="bmSlotNumA">#--</div>
-                    <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameA">（未設打線）</div>
-                    <div class="pitcher-slot-meta">
-                        <span class="pitcher-slot-badge" id="bmSlotOrderA">---</span>
-                        <span class="pitcher-slot-badge" id="bmSlotHandA"></span>
+                    <div class="bm-card-inner">
+                        <div class="bm-card-batter">
+                            <div class="pitcher-slot-team" id="bmSlotTeamA">A隊（後攻）</div>
+                            <div class="pitcher-slot-name" id="bmSlotNumA">#--</div>
+                            <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameA">（未設打線）</div>
+                            <div class="pitcher-slot-meta">
+                                <span class="pitcher-slot-badge" id="bmSlotOrderA">---</span>
+                                <span class="pitcher-slot-badge" id="bmSlotHandA"></span>
+                            </div>
+                        </div>
+                        <div class="bm-card-vs" onclick="event.stopPropagation()">
+                            <div class="bm-vs-hdr">對戰投手</div>
+                            <div id="bmVsNumA" class="bm-vs-num">#--</div>
+                            <div id="bmVsNameA" class="bm-vs-name">---</div>
+                            <div class="bm-vs-btns">
+                                <button id="bmPhLBtnA" class="bm-vs-ph-btn" onclick="selectBmPh('左投','A')">左投</button>
+                                <button id="bmPhRBtnA" class="bm-vs-ph-btn bm-on" onclick="selectBmPh('右投','A')">右投</button>
+                            </div>
+                            <button class="bm-vs-link-btn" onclick="_autoLinkBmPitcher('A')">⟳ 連動</button>
+                        </div>
                     </div>
-                </div>
-                <div class="bm-match-controls" id="bmCtrlA">
-                    <input type="text" id="bmNamePatchA" placeholder="補填姓名" autocomplete="off"
-                        class="bm-slot-input"
-                        onblur="patchBmBatterName()" onkeydown="if(event.key==='Enter')this.blur()">
-                    <span style="font-size:11px;color:rgba(255,255,255,0.5);flex-shrink:0;">對戰</span>
-                    <button id="bmPhLBtnA" class="bm-slot-ph-btn" onclick="selectBmPh('左投')">左投</button>
-                    <button id="bmPhRBtnA" class="bm-slot-ph-btn bm-on" onclick="selectBmPh('右投')">右投</button>
                 </div>
                 <div class="bm-lineup-module" id="bmLineupModuleA">
                     <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('A')">
@@ -1130,21 +1136,27 @@
             <div class="bm-match-col" id="bmMatchColB">
                 <div class="pitcher-slot pitcher-slot-b active-slot" id="bmSlotCardB" onclick="selectBmTeam('B')">
                     <div class="active-indicator" id="bmActiveIndB"></div>
-                    <div class="pitcher-slot-team" id="bmSlotTeamB">B隊（先攻）</div>
-                    <div class="pitcher-slot-name" id="bmSlotNumB">#--</div>
-                    <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameB">（未填姓名）</div>
-                    <div class="pitcher-slot-meta">
-                        <span class="pitcher-slot-badge" id="bmSlotOrderB">打序①</span>
-                        <span class="pitcher-slot-badge" id="bmSlotHandB">右打</span>
+                    <div class="bm-card-inner">
+                        <div class="bm-card-batter">
+                            <div class="pitcher-slot-team" id="bmSlotTeamB">B隊（先攻）</div>
+                            <div class="pitcher-slot-name" id="bmSlotNumB">#--</div>
+                            <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,0.8);margin-top:3px;" id="bmSlotNameB">（未填姓名）</div>
+                            <div class="pitcher-slot-meta">
+                                <span class="pitcher-slot-badge" id="bmSlotOrderB">打序①</span>
+                                <span class="pitcher-slot-badge" id="bmSlotHandB">右打</span>
+                            </div>
+                        </div>
+                        <div class="bm-card-vs" onclick="event.stopPropagation()">
+                            <div class="bm-vs-hdr">對戰投手</div>
+                            <div id="bmVsNumB" class="bm-vs-num">#--</div>
+                            <div id="bmVsNameB" class="bm-vs-name">---</div>
+                            <div class="bm-vs-btns">
+                                <button id="bmPhLBtnB" class="bm-vs-ph-btn" onclick="selectBmPh('左投','B')">左投</button>
+                                <button id="bmPhRBtnB" class="bm-vs-ph-btn bm-on" onclick="selectBmPh('右投','B')">右投</button>
+                            </div>
+                            <button class="bm-vs-link-btn" onclick="_autoLinkBmPitcher('B')">⟳ 連動</button>
+                        </div>
                     </div>
-                </div>
-                <div class="bm-match-controls" id="bmCtrlB">
-                    <input type="text" id="bmNamePatchB" placeholder="補填姓名" autocomplete="off"
-                        class="bm-slot-input"
-                        onblur="patchBmBatterName()" onkeydown="if(event.key==='Enter')this.blur()">
-                    <span style="font-size:11px;color:rgba(255,255,255,0.5);flex-shrink:0;">對戰</span>
-                    <button id="bmPhLBtnB" class="bm-slot-ph-btn" onclick="selectBmPh('左投')">左投</button>
-                    <button id="bmPhRBtnB" class="bm-slot-ph-btn bm-on" onclick="selectBmPh('右投')">右投</button>
                 </div>
                 <div class="bm-lineup-module" id="bmLineupModuleB">
                     <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('B')">

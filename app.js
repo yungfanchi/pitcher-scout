@@ -7756,6 +7756,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         if (!('spTeamName' in allData.bm)) allData.bm.spTeamName = '';
         if (!('spOpponent'  in allData.bm)) allData.bm.spOpponent  = '';
         if (!('spDate'      in allData.bm)) allData.bm.spDate      = '';
+        if (!allData.bm.vsPhA) allData.bm.vsPhA = { name:'', number:'', hand:'右投' };
+        if (!allData.bm.vsPhB) allData.bm.vsPhB = { name:'', number:'', hand:'右投' };
     }
 
     // ── 打線管理 ──
@@ -8384,18 +8386,14 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         if (indA) indA.style.display = isA ? '' : 'none';
         if (indB) indB.style.display = isA ? 'none' : '';
 
-        // ── 補填輸入框（各欄獨立，僅進攻側可輸入）──
-        const patchA = document.getElementById('bmNamePatchA');
-        const patchB = document.getElementById('bmNamePatchB');
+        // ── 特性補填 ──
         const traitEl = document.getElementById('bmTraitPatch');
-        if (patchA) patchA.value = isA ? (batter.name || '') : '';
-        if (patchB) patchB.value = isA ? '' : (batter.name || '');
         if (traitEl) traitEl.value = batter.trait || '';
-        // ── 控制欄啟用狀態 ──
-        const ctrlA = document.getElementById('bmCtrlA');
-        const ctrlB = document.getElementById('bmCtrlB');
-        if (ctrlA) { ctrlA.style.opacity = isA ? '1' : '0.4'; ctrlA.style.pointerEvents = isA ? '' : 'none'; }
-        if (ctrlB) { ctrlB.style.opacity = isA ? '0.4' : '1'; ctrlB.style.pointerEvents = isA ? 'none' : ''; }
+        // ── 同步 pitcherHand 從進攻側對戰投手，並更新雙側顯示 ──
+        const vsAtk = isA ? allData.bm.vsPhA : allData.bm.vsPhB;
+        if (vsAtk?.hand) _bmState.pitcherHand = vsAtk.hand;
+        _updateBmVsPitcherDisplay('A');
+        _updateBmVsPitcherDisplay('B');
 
         // ── 更新打線模組標題 ──
         _updateBmLineupTitles();
@@ -8562,14 +8560,51 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         }
     }
 
-    function selectBmPh(hand) {
-        _bmState.pitcherHand = hand;
-        ['A', 'B'].forEach(s => {
-            const lBtn = document.getElementById('bmPhLBtn' + s);
-            const rBtn = document.getElementById('bmPhRBtn' + s);
-            if (lBtn) lBtn.classList.toggle('bm-on', hand === '左投');
-            if (rBtn) rBtn.classList.toggle('bm-on', hand === '右投');
-        });
+    function selectBmPh(hand, side) {
+        _initBmData();
+        const vs = side === 'A' ? allData.bm.vsPhA : allData.bm.vsPhB;
+        vs.hand = hand;
+        if ((allData.bm.attackingTeam || 'B') === side) _bmState.pitcherHand = hand;
+        _updateBmVsPitcherDisplay(side);
+        saveToLocalStorage();
+    }
+
+    function _updateBmVsPitcherDisplay(side) {
+        _initBmData();
+        const vs = side === 'A' ? allData.bm.vsPhA : allData.bm.vsPhB;
+        const numEl  = document.getElementById('bmVsNum'  + side);
+        const nameEl = document.getElementById('bmVsName' + side);
+        const lBtn   = document.getElementById('bmPhLBtn' + side);
+        const rBtn   = document.getElementById('bmPhRBtn' + side);
+        if (numEl)  numEl.textContent  = vs.number ? '#' + vs.number : '#--';
+        if (nameEl) nameEl.textContent = vs.name   || '---';
+        if (lBtn) lBtn.classList.toggle('bm-on', vs.hand === '左投');
+        if (rBtn) rBtn.classList.toggle('bm-on', vs.hand !== '左投');
+    }
+
+    function _autoLinkBmPitcher(side) {
+        _initBmData();
+        // side='A'：A在打擊，面對B隊的投手 → 從 slotB 取資料
+        // side='B'：B在打擊，面對A隊的投手 → 從 slotA 取資料
+        const oppSlot = side === 'A' ? slotB : slotA;
+        let pitcher = null;
+        if (oppSlot && oppSlot.team !== null && oppSlot.pitcher !== null) {
+            pitcher = allData.teams[oppSlot.team]?.pitchers[oppSlot.pitcher] || null;
+        }
+        if (!pitcher) {
+            const gi = allData.bm?.linkedGameIndex ?? allData.bm?.gameIdx ?? -1;
+            if (gi >= 0 && allData.teams[gi]?.pitchers?.length) {
+                pitcher = allData.teams[gi].pitchers[0];
+            }
+        }
+        if (!pitcher) { alert('找不到可連動的投手資料\n請先在投手模式選擇投手'); return; }
+        const vs = side === 'A' ? allData.bm.vsPhA : allData.bm.vsPhB;
+        vs.name   = pitcher.name   || '';
+        vs.number = pitcher.number || '';
+        vs.hand   = pitcher.hand   || '右投';
+        if ((allData.bm.attackingTeam || 'B') === side) _bmState.pitcherHand = vs.hand;
+        _updateBmVsPitcherDisplay(side);
+        saveToLocalStorage();
     }
 
     function confirmBmLinkedAtBat() {
