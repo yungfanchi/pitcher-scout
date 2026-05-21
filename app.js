@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v124';
+﻿    const APP_VERSION = 'v125';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -6703,17 +6703,26 @@
 
     // ── 打擊落點：區域選擇 ──
 
-    // 各區域代表座標（SVG 300x280 座標系，本壘板在 150,272）
+    // 各區域代表座標（SVG 座標系，本壘板在 150,272；viewBox -20 0 340 315）
     const ZONE_SVG_COORDS = {
-        'LF':     { x: 66,  y: 159 }, 'LCF':    { x: 106, y: 136 },
-        'CF':     { x: 150, y: 125 }, 'RCF':    { x: 194, y: 136 },
-        'RF':     { x: 234, y: 159 },
-        '3B':     { x: 102, y: 213 }, '三游之間': { x: 114, y: 205 },
-        'SS':     { x: 128, y: 199 }, '中線靠左': { x: 143, y: 196 },
-        '中線靠右': { x: 157, y: 196 }, '2B':     { x: 172, y: 199 },
-        '一二壘之間': { x: 186, y: 205 }, '1B':   { x: 198, y: 213 },
-        '三短': { x: 125, y: 249 }, 'P':    { x: 150, y: 250 },
-        '一短': { x: 175, y: 249 }
+        // 外野舊名稱（相容舊資料）
+        'LF':  { x: 66,  y: 159 }, 'LCF': { x: 106, y: 136 },
+        'CF':  { x: 150, y: 125 }, 'RCF': { x: 194, y: 136 }, 'RF': { x: 234, y: 159 },
+        // 淺外野（R 100→140）
+        '淺LF': { x: 80, y: 175 }, '淺LCF': { x: 113, y: 158 },
+        '淺CF': { x: 150, y: 152 }, '淺RCF': { x: 187, y: 158 }, '淺RF': { x: 220, y: 175 },
+        // 深外野（R 140→180）
+        '深LF': { x: 56, y: 143 }, '深LCF': { x: 101, y: 120 },
+        '深CF': { x: 150, y: 112 }, '深RCF': { x: 199, y: 120 }, '深RF': { x: 244, y: 143 },
+        // 深內野 8 區
+        '3B': { x: 102, y: 213 }, '三游之間': { x: 114, y: 205 },
+        'SS': { x: 128, y: 199 }, '中線靠左': { x: 143, y: 196 },
+        '中線靠右': { x: 157, y: 196 }, '2B': { x: 172, y: 199 },
+        '一二壘之間': { x: 186, y: 205 }, '1B': { x: 198, y: 213 },
+        // 淺內野
+        '三短': { x: 125, y: 249 }, 'P': { x: 150, y: 250 }, '一短': { x: 175, y: 249 },
+        // 界外區
+        '左界外': { x: 18, y: 222 }, '右界外': { x: 282, y: 222 }, '捕手區': { x: 150, y: 293 },
     };
 
     // 共用：清除 SVG 內所有高亮，並高亮 el
@@ -6806,69 +6815,83 @@
                 stroke="rgba(0,0,0,0.35)" stroke-width="0.8" style="pointer-events:none;"/>`;
         }
 
-        const GR = '#2d6b21';  // 外野草地綠
-        const DT = '#9a6428';  // 內野土色（守備位置）
-        const DC = '#c4944a';  // 衝突區（淺沙色，視覺上區別於純守備位）
-        const DS = '#b07a32';  // 淺內野（較亮）
+        const GR1 = '#3a8428';  // 淺外野（亮綠）
+        const GR2 = '#1f5215';  // 深外野（深綠）
+        const DT  = '#9a6428';  // 內野土色（守備位置）
+        const DC  = '#c4944a';  // 衝突區（淺沙色）
+        const DS  = '#b07a32';  // 淺內野（較亮）
+        const FC  = '#3a5040';  // 界外區（深灰綠）
+        const CA  = '#6b4d30';  // 捕手區（深棕）
 
-        // ── 外野五區（R 100→180）──
-        // LF  θ:-45°→-27°
-        const LF  = zp('LF',  'M 79 201 L 23 145 A 180 180 0 0 1 68 112 L 105 183 A 100 100 0 0 0 79 201 Z',  GR);
-        // LCF θ:-27°→-9°
-        const LCF = zp('LCF', 'M 105 183 L 68 112 A 180 180 0 0 1 122 94 L 134 173 A 100 100 0 0 0 105 183 Z', GR);
-        // CF  θ:-9°→+9°
-        const CF  = zp('CF',  'M 134 173 L 122 94 A 180 180 0 0 1 178 94 L 166 173 A 100 100 0 0 0 134 173 Z',  GR);
-        // RCF θ:+9°→+27°
-        const RCF = zp('RCF', 'M 166 173 L 178 94 A 180 180 0 0 1 232 112 L 195 183 A 100 100 0 0 0 166 173 Z', GR);
-        // RF  θ:+27°→+45°
-        const RF  = zp('RF',  'M 195 183 L 232 112 A 180 180 0 0 1 277 145 L 221 201 A 100 100 0 0 0 195 183 Z', GR);
+        // ── 淺外野五區（R 100→140）──
+        const sLF  = zp('淺LF',  'M 79 201 L 51 173 A 140 140 0 0 1 86 147 L 105 183 A 100 100 0 0 0 79 201 Z',  GR1);
+        const sLCF = zp('淺LCF', 'M 105 183 L 86 147 A 140 140 0 0 1 128 134 L 134 173 A 100 100 0 0 0 105 183 Z', GR1);
+        const sCF  = zp('淺CF',  'M 134 173 L 128 134 A 140 140 0 0 1 172 134 L 166 173 A 100 100 0 0 0 134 173 Z',  GR1);
+        const sRCF = zp('淺RCF', 'M 166 173 L 172 134 A 140 140 0 0 1 214 147 L 195 183 A 100 100 0 0 0 166 173 Z', GR1);
+        const sRF  = zp('淺RF',  'M 195 183 L 214 147 A 140 140 0 0 1 249 173 L 221 201 A 100 100 0 0 0 195 183 Z', GR1);
+
+        // ── 深外野五區（R 140→180）──
+        const dLF  = zp('深LF',  'M 51 173 L 23 145 A 180 180 0 0 1 68 112 L 86 147 A 140 140 0 0 0 51 173 Z',  GR2);
+        const dLCF = zp('深LCF', 'M 86 147 L 68 112 A 180 180 0 0 1 122 94 L 128 134 A 140 140 0 0 0 86 147 Z', GR2);
+        const dCF  = zp('深CF',  'M 128 134 L 122 94 A 180 180 0 0 1 178 94 L 172 134 A 140 140 0 0 0 128 134 Z',  GR2);
+        const dRCF = zp('深RCF', 'M 172 134 L 178 94 A 180 180 0 0 1 232 112 L 214 147 A 140 140 0 0 0 172 134 Z', GR2);
+        const dRF  = zp('深RF',  'M 214 147 L 232 112 A 180 180 0 0 1 277 145 L 249 173 A 140 140 0 0 0 214 147 Z', GR2);
 
         // ── 深內野八區（R 52→100，每區 11.25°）──
-        // 3B       θ:-45°→-33.75°
-        const i3B  = zp('3B',     'M 113 235 L 79 201 A 100 100 0 0 1 94 189 L 121 229 A 52 52 0 0 0 113 235 Z', DT);
-        // 三游之間  θ:-33.75°→-22.5°（衝突區）
+        const i3B  = zp('3B',      'M 113 235 L 79 201 A 100 100 0 0 1 94 189 L 121 229 A 52 52 0 0 0 113 235 Z', DT);
         const iSS3 = zp('三游之間','M 121 229 L 94 189 A 100 100 0 0 1 112 180 L 130 224 A 52 52 0 0 0 121 229 Z', DC);
-        // SS        θ:-22.5°→-11.25°
-        const iSS  = zp('SS',     'M 130 224 L 112 180 A 100 100 0 0 1 130 174 L 140 221 A 52 52 0 0 0 130 224 Z', DT);
-        // 中線靠左  θ:-11.25°→0°（衝突區）
+        const iSS  = zp('SS',      'M 130 224 L 112 180 A 100 100 0 0 1 130 174 L 140 221 A 52 52 0 0 0 130 224 Z', DT);
         const iML  = zp('中線靠左','M 140 221 L 130 174 A 100 100 0 0 1 150 172 L 150 220 A 52 52 0 0 0 140 221 Z', DC);
-        // 中線靠右  θ:0°→+11.25°（衝突區）
         const iMR  = zp('中線靠右','M 150 220 L 150 172 A 100 100 0 0 1 170 174 L 160 221 A 52 52 0 0 0 150 220 Z', DC);
-        // 2B        θ:+11.25°→+22.5°
-        const i2B  = zp('2B',     'M 160 221 L 170 174 A 100 100 0 0 1 188 180 L 170 224 A 52 52 0 0 0 160 221 Z', DT);
-        // 一二壘之間 θ:+22.5°→+33.75°（衝突區）
+        const i2B  = zp('2B',      'M 160 221 L 170 174 A 100 100 0 0 1 188 180 L 170 224 A 52 52 0 0 0 160 221 Z', DT);
         const i12  = zp('一二壘之間','M 170 224 L 188 180 A 100 100 0 0 1 206 189 L 179 229 A 52 52 0 0 0 170 224 Z', DC);
-        // 1B        θ:+33.75°→+45°
-        const i1B  = zp('1B',     'M 179 229 L 206 189 A 100 100 0 0 1 221 201 L 187 235 A 52 52 0 0 0 179 229 Z', DT);
+        const i1B  = zp('1B',      'M 179 229 L 206 189 A 100 100 0 0 1 221 201 L 187 235 A 52 52 0 0 0 179 229 Z', DT);
 
         // ── 淺內野三區（R 0→52）──
-        // 三短 θ:-45°→-15°
         const san = zp('三短', 'M 150 272 L 113 235 A 52 52 0 0 1 137 222 Z', DS);
-        // P    θ:-15°→+15°
         const P   = zp('P',   'M 150 272 L 137 222 A 52 52 0 0 1 164 222 Z', DS);
-        // 一短 θ:+15°→+45°
         const yi  = zp('一短', 'M 150 272 L 164 222 A 52 52 0 0 1 187 235 Z', DS);
 
-        return `<svg id="${id}" viewBox="0 0 300 280"
+        // ── 界外區（viewBox 擴展至 -20 左、320 右、315 底）──
+        // 左界外：沿左界外線延伸至畫布左緣，再往下包含左側底部
+        const fL = zp('左界外', 'M 150 272 L 23 145 L -20 103 L -20 315 L 105 315 L 105 272 Z', FC);
+        // 右界外：對稱
+        const fR = zp('右界外', 'M 150 272 L 277 145 L 320 103 L 320 315 L 195 315 L 195 272 Z', FC);
+        // 捕手區：本壘後方中央
+        const fC = zp('捕手區', 'M 105 272 L 105 315 L 195 315 L 195 272 Z', CA);
+
+        return `<svg id="${id}" viewBox="-20 0 340 315"
             style="width:100%;border-radius:12px;display:block;background:#162e12;touch-action:none;">
+
+          <!-- 界外區（底層先畫） -->
+          ${fL}${fR}${fC}
 
           <!-- 公平區域底色 -->
           <path d="M 150 272 L 23 145 A 180 180 0 0 1 277 145 Z" fill="#1f4a18"/>
 
-          <!-- 外野區域 -->
-          ${LF}${LCF}${CF}${RCF}${RF}
+          <!-- 深外野（R 140→180） -->
+          ${dLF}${dLCF}${dCF}${dRCF}${dRF}
 
-          <!-- 深內野（8區：4 守備位 + 4 衝突區） -->
+          <!-- 淺外野（R 100→140） -->
+          ${sLF}${sLCF}${sCF}${sRCF}${sRF}
+
+          <!-- 淺/深外野分界虛線弧 -->
+          <path d="M 51 173 A 140 140 0 0 1 249 173" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>
+
+          <!-- 深內野（8區） -->
           ${i3B}${iSS3}${iSS}${iML}${iMR}${i2B}${i12}${i1B}
 
-          <!-- 淺內野（近本壘） -->
+          <!-- 淺內野 -->
           ${san}${P}${yi}
 
           <!-- 界外線 -->
-          <line x1="150" y1="272" x2="23" y2="145" stroke="white" stroke-width="1.5" opacity="0.55" style="pointer-events:none;"/>
-          <line x1="150" y1="272" x2="277" y2="145" stroke="white" stroke-width="1.5" opacity="0.55" style="pointer-events:none;"/>
+          <line x1="150" y1="272" x2="23" y2="145" stroke="white" stroke-width="1.5" opacity="0.6" style="pointer-events:none;"/>
+          <line x1="150" y1="272" x2="277" y2="145" stroke="white" stroke-width="1.5" opacity="0.6" style="pointer-events:none;"/>
           <!-- 外野牆弧線 -->
-          <path d="M 23 145 A 180 180 0 0 1 277 145" fill="none" stroke="white" stroke-width="1.5" opacity="0.4" style="pointer-events:none;"/>
+          <path d="M 23 145 A 180 180 0 0 1 277 145" fill="none" stroke="white" stroke-width="1.5" opacity="0.45" style="pointer-events:none;"/>
+          <!-- 捕手區分隔線 -->
+          <line x1="105" y1="272" x2="105" y2="315" stroke="rgba(255,255,255,0.3)" stroke-width="1" style="pointer-events:none;"/>
+          <line x1="195" y1="272" x2="195" y2="315" stroke="rgba(255,255,255,0.3)" stroke-width="1" style="pointer-events:none;"/>
 
           <!-- 壘包路徑（菱形） -->
           <polyline points="150,272 203,219 150,166 97,219 150,272"
@@ -6878,17 +6901,24 @@
           <circle cx="150" cy="208" r="5" fill="#c8a060" stroke="white" stroke-width="1" style="pointer-events:none;"/>
 
           <!-- 壘包 -->
-          <polygon points="150,265 155,272 150,279 145,272" fill="white" style="pointer-events:none;"/><!-- 本壘 -->
-          <rect x="200" y="216" width="7" height="7" fill="white" style="pointer-events:none;"/><!-- 1B -->
-          <rect x="147" y="163" width="7" height="7" fill="white" transform="rotate(45 150.5 166.5)" style="pointer-events:none;"/><!-- 2B -->
-          <rect x="94"  y="216" width="7" height="7" fill="white" style="pointer-events:none;"/><!-- 3B -->
+          <polygon points="150,265 155,272 150,279 145,272" fill="white" style="pointer-events:none;"/>
+          <rect x="200" y="216" width="7" height="7" fill="white" style="pointer-events:none;"/>
+          <rect x="147" y="163" width="7" height="7" fill="white" transform="rotate(45 150.5 166.5)" style="pointer-events:none;"/>
+          <rect x="94"  y="216" width="7" height="7" fill="white" style="pointer-events:none;"/>
 
-          <!-- 外野標籤 -->
-          <text x="66"  y="157" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">LF</text>
-          <text x="106" y="134" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">LCF</text>
-          <text x="150" y="124" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">CF</text>
-          <text x="194" y="134" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">RCF</text>
-          <text x="234" y="157" text-anchor="middle" fill="white" font-size="12" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">RF</text>
+          <!-- 淺外野標籤 -->
+          <text x="80"  y="179" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺LF</text>
+          <text x="113" y="162" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺LCF</text>
+          <text x="150" y="156" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺CF</text>
+          <text x="187" y="162" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RCF</text>
+          <text x="220" y="179" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RF</text>
+
+          <!-- 深外野標籤 -->
+          <text x="56"  y="148" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LF</text>
+          <text x="101" y="125" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LCF</text>
+          <text x="150" y="117" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深CF</text>
+          <text x="199" y="125" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深RCF</text>
+          <text x="244" y="148" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深RF</text>
 
           <!-- 深內野標籤（8區）-->
           <text x="102" y="215" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">3B</text>
@@ -6904,6 +6934,11 @@
           <text x="123" y="252" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">三短</text>
           <text x="150" y="256" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">P</text>
           <text x="177" y="252" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">一短</text>
+
+          <!-- 界外區標籤 -->
+          <text x="18"  y="222" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左界外</text>
+          <text x="282" y="222" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右界外</text>
+          <text x="150" y="297" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手區</text>
 
           ${dotsHTML}
         </svg>`;

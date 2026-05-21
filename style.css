@@ -1083,7 +1083,7 @@
     grid-template-columns: 55fr 45fr;
     gap: 12px;
     margin-top: 10px;
-    align-items: start;
+    align-items: stretch;
 }
 .bm-field-result-grid .bm-outcomes-card {
     display: flex;
