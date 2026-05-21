@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v163';
+﻿    const APP_VERSION = 'v164';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -8090,9 +8090,6 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 if ((b.getAttribute('onclick')||'').includes(`'${tab}'`)) b.classList.add('bm-tab-active');
             });
         }
-        // 切換列只在記錄頁顯示
-        const mtr = document.getElementById('bmModeToggleRow');
-        if (mtr) mtr.style.display = tab === 'record' ? '' : 'none';
         _bmState.tab = tab;
         if (tab==='stats')      _renderBmStats();
         if (tab==='analysis')   _renderBmAnalysis();
