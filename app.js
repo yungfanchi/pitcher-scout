@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v161';
+﻿    const APP_VERSION = 'v162';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -8495,8 +8495,18 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         _bmState.recMode = mode;
         const lb = document.getElementById('bmModeLinkedBtn');
         const sb = document.getElementById('bmModeStandaloneBtn');
-        if (lb) lb.classList.toggle('bm-on', mode==='linked');
-        if (sb) sb.classList.toggle('bm-on', mode==='standalone');
+        if (lb) {
+            lb.classList.toggle('bm-on', mode==='linked');
+            lb.style.background = mode==='linked' ? 'rgba(255,215,0,0.18)' : 'rgba(255,255,255,0.06)';
+            lb.style.color      = mode==='linked' ? 'var(--ct-gold)' : 'rgba(255,255,255,0.35)';
+            lb.style.borderColor= mode==='linked' ? 'var(--ct-gold)' : 'rgba(255,255,255,0.15)';
+        }
+        if (sb) {
+            sb.classList.toggle('bm-on', mode==='standalone');
+            sb.style.background = mode==='standalone' ? 'rgba(255,215,0,0.18)' : 'rgba(255,255,255,0.06)';
+            sb.style.color      = mode==='standalone' ? 'var(--ct-gold)' : 'rgba(255,255,255,0.35)';
+            sb.style.borderColor= mode==='standalone' ? 'var(--ct-gold)' : 'rgba(255,255,255,0.15)';
+        }
         const lr = document.getElementById('bmLinkedRecord');
         const sr = document.getElementById('bmStandaloneRecord');
         if (lr) lr.style.display = mode==='linked' ? '' : 'none';
