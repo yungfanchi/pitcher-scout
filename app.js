@@ -7777,10 +7777,13 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const container = document.getElementById('bmLineupRows' + team);
         if (!container) return;
         const lineup = _getLineup(team);
-        const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
         container.innerHTML = lineup.map((b,i) => `
             <div class="bm-lineup-row">
-                <span class="bm-lineup-order">${nums[i]}</span>
+                <span class="bm-lineup-order">${i+1}</span>
+                <input type="text" inputmode="numeric" class="bm-lineup-num" placeholder="#"
+                    value="${b.number||''}"
+                    onblur="saveBmLineupCell('${team}',${i},'number',this.value)"
+                    onkeydown="if(event.key==='Enter')this.blur()">
                 <button class="bm-lineup-hand${b.hand==='右打'?' bm-on':''}" onclick="toggleBmLineupHand('${team}',${i},this)">
                     ${b.hand==='右打'?'右打':'左打'}
                 </button>
