@@ -152,6 +152,7 @@
     let userRole = null; // 'scout' | 'view' | 'admin'
     let currentTeamCode = null; // 當前球隊代碼
     let selectedLoginRole = 'scout';
+    let fieldMapEnabled = localStorage.getItem('fieldMapEnabled') === '1';
 
     function selectRole(role) {
         selectedLoginRole = role;
@@ -1618,6 +1619,7 @@
         const verLabel = document.getElementById('appVersionLabel');
         if (verLabel) verLabel.textContent = APP_VERSION;
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
+        updateFieldMapToggleBtn();
     }
 
     // injectDemoData 已移除，上線版禁止自動覆蓋真實資料
@@ -2656,6 +2658,12 @@
         saveToLocalStorage();
         saveToFirebase();
 
+        // 紀錄此球資訊，供球場圖模式使用（reset 前先存）
+        const _bipOutcomes = [...currentPitch.outcomes];
+        const _bipTeam = currentTeam;
+        const _bipPitcher = currentPitcher;
+        const _bipIdx = allData.teams[currentTeam].pitchers[currentPitcher].pitches.length - 1;
+
         document.querySelectorAll('.pitch-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.zone-cell').forEach(c => c.classList.remove('selected'));
         document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
@@ -2674,6 +2682,22 @@
             batterOrder: document.getElementById('batterOrder').value,
             outcomes: [], outcome: null, wild: false, foul: false, swing: false, passball: false, pinchHit: false
         };
+
+        // 球場圖模式：球有進場結果 → 自動跳出落點選擇（打者數據連動）
+        if (fieldMapEnabled && _bipOutcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o))) {
+            showHitLocationModal(function(loc) {
+                if (loc && allData.teams[_bipTeam] &&
+                        allData.teams[_bipTeam].pitchers[_bipPitcher] &&
+                        allData.teams[_bipTeam].pitchers[_bipPitcher].pitches[_bipIdx]) {
+                    allData.teams[_bipTeam].pitchers[_bipPitcher].pitches[_bipIdx].hitLocation = loc;
+                    rebuildPitcherDB();
+                    saveToLocalStorage();
+                    saveToFirebase();
+                    updatePitchLog();
+                    updateStats();
+                }
+            });
+        }
     }
 
     function adjustBatterOrder(delta) {
@@ -6677,6 +6701,30 @@
 
     function initBatterData() {
         if (!allData.batterData) allData.batterData = [];
+    }
+
+    // ── 球場圖模式開關（單人操作：確認進場球後自動跳出落點選擇）──
+
+    function toggleFieldMap() {
+        fieldMapEnabled = !fieldMapEnabled;
+        localStorage.setItem('fieldMapEnabled', fieldMapEnabled ? '1' : '0');
+        updateFieldMapToggleBtn();
+    }
+
+    function updateFieldMapToggleBtn() {
+        const btn = document.getElementById('fieldMapToggleBtn');
+        if (!btn) return;
+        if (fieldMapEnabled) {
+            btn.style.background = '#003d79';
+            btn.style.color = 'white';
+            btn.style.borderColor = '#0051a5';
+            btn.innerHTML = '⚾<br>球場圖<br>ON';
+        } else {
+            btn.style.background = '#f9fafb';
+            btn.style.color = '#9ca3af';
+            btn.style.borderColor = '#d1d5db';
+            btn.innerHTML = '⚾<br>球場圖<br>OFF';
+        }
     }
 
     // ── 打擊落點 Modal ──

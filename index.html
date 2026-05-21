@@ -845,8 +845,12 @@
                         </div>
 
                         <!-- 確認紀錄 -->
-                        <div style="margin-top:10px;">
-                            <button class="confirm-record-btn" id="confirmRecordBtn" onclick="recordPitch(this)">
+                        <div style="margin-top:10px;display:flex;align-items:stretch;gap:8px;">
+                            <button id="fieldMapToggleBtn" onclick="toggleFieldMap()" title="球場圖（單人操作模式：確認有打擊結果後自動跳出落點選擇）"
+                                style="padding:8px 10px;border:2px solid #d1d5db;border-radius:10px;background:#f9fafb;font-size:10px;font-weight:700;cursor:pointer;color:#9ca3af;white-space:nowrap;line-height:1.4;text-align:center;min-width:52px;font-family:inherit;transition:all 0.18s;flex-shrink:0;">
+                                ⚾<br>球場圖<br>OFF
+                            </button>
+                            <button class="confirm-record-btn" id="confirmRecordBtn" onclick="recordPitch(this)" style="flex:1;">
                                 ✅ 確認紀錄
                             </button>
                         </div>
