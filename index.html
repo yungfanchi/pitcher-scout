@@ -1213,7 +1213,7 @@
         </div>
     </div>
 
-    <!-- Tab列 + 小型模式切換 -->
+    <!-- Tab列 -->
     <div class="container" style="padding-top:10px;padding-bottom:0;">
         <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">
             <div class="tabs" style="margin-bottom:0;flex:1;">
@@ -1225,22 +1225,25 @@
         </div>
     </div>
 
+    <!-- 連動 / 獨立 切換列（記錄 Tab 專屬，其他 Tab 時隱藏） -->
+    <div id="bmModeToggleRow" style="background:#f8f9fa;border-bottom:2px solid #e5e7eb;padding:8px 16px;">
+        <div style="display:flex;gap:8px;max-width:460px;margin:0 auto;">
+            <button id="bmModeLinkedBtn"
+                onclick="switchBmRecordMode('linked')"
+                style="flex:1;padding:10px 0;border-radius:10px;border:2px solid #0051a5;background:#0051a5;color:white;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;touch-action:manipulation;transition:all 0.18s;letter-spacing:0.5px;">
+                🔗 連動模式
+            </button>
+            <button id="bmModeStandaloneBtn"
+                onclick="switchBmRecordMode('standalone')"
+                style="flex:1;padding:10px 0;border-radius:10px;border:2px solid #d1d5db;background:white;color:#6b7280;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;touch-action:manipulation;transition:all 0.18s;letter-spacing:0.5px;">
+                📝 獨立模式
+            </button>
+        </div>
+    </div>
+
     <!-- ── Tab: 記錄 ── -->
     <div id="bmRecordTab" class="tab-content" style="display:none;">
         <div class="container">
-            <!-- ==== 連動 / 獨立 模式切換列 ==== -->
-            <div style="display:flex;gap:6px;padding:10px 0 4px;justify-content:center;">
-                <button id="bmModeLinkedBtn" class="bm-on"
-                    onclick="switchBmRecordMode('linked')"
-                    style="flex:1;max-width:160px;padding:7px 0;border-radius:8px;border:2px solid var(--ct-gold);background:rgba(255,215,0,0.18);color:var(--ct-gold);font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;touch-action:manipulation;transition:all 0.2s;">
-                    🔗 連動模式
-                </button>
-                <button id="bmModeStandaloneBtn"
-                    onclick="switchBmRecordMode('standalone')"
-                    style="flex:1;max-width:160px;padding:7px 0;border-radius:8px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45);font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;touch-action:manipulation;transition:all 0.2s;">
-                    📝 獨立模式
-                </button>
-            </div>
             <!-- ==== 聯動模式 ==== -->
             <div id="bmLinkedRecord">
                 <!-- ─ 比賽狀態卡（單列） ─ -->
