@@ -6726,6 +6726,8 @@
         '三短': { x: 125, y: 249 }, 'P': { x: 150, y: 250 }, '一短': { x: 175, y: 249 },
         // 界外區
         '左界外': { x: 18, y: 222 }, '右界外': { x: 282, y: 222 }, '捕手區': { x: 150, y: 293 }, '捕手': { x: 150, y: 263 },
+        // 全壘打區
+        'HR左': { x: 39, y: 119 }, 'HR左中': { x: 92, y: 92 }, 'HR中': { x: 150, y: 82 }, 'HR右中': { x: 208, y: 92 }, 'HR右': { x: 261, y: 119 },
     };
 
     // 共用：清除 SVG 內所有高亮，並高亮 el
@@ -6820,11 +6822,19 @@
 
         const GR1 = '#3a8428';  // 淺外野（亮綠）
         const GR2 = '#1f5215';  // 深外野（深綠）
+        const HRC = '#7a1f20';  // 全壘打區（深紅）
   const DT  = '#c45e00';  // 內野土色（深橘）
 const DC  = '#e8870a';  // 衝突區（中橘）
 const DS  = '#f5a832';  // 淺內野（淺橘）
         const FC  = '#3a5040';  // 界外區（深灰綠）
         const CA  = '#6b4d30';  // 捕手區（深棕）
+
+        // ── 全壘打區（R 180→205）──
+        const hrLF  = zp('HR左',  'M 23 145 L 6 128 A 205 205 0 0 1 57 90 L 68 112 A 180 180 0 0 0 23 145 Z',  HRC);
+        const hrLCF = zp('HR左中','M 68 112 L 57 90 A 205 205 0 0 1 118 69 L 122 94 A 180 180 0 0 0 68 112 Z', HRC);
+        const hrCF  = zp('HR中',  'M 122 94 L 118 69 A 205 205 0 0 1 182 69 L 178 94 A 180 180 0 0 0 122 94 Z',  HRC);
+        const hrRCF = zp('HR右中','M 178 94 L 182 69 A 205 205 0 0 1 243 90 L 232 112 A 180 180 0 0 0 178 94 Z', HRC);
+        const hrRF  = zp('HR右',  'M 232 112 L 243 90 A 205 205 0 0 1 295 128 L 277 145 A 180 180 0 0 0 232 112 Z', HRC);
 
         // ── 淺外野五區（R 100→140）──
         const sLF  = zp('淺LF',  'M 79 201 L 51 173 A 140 140 0 0 1 86 147 L 105 183 A 100 100 0 0 0 79 201 Z',  GR1);
@@ -6873,8 +6883,11 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         // 捕手區：本壘後方中央
   const fC = zp('捕手區', 'M 113 235 L 105 272 Q 105 315 150 320 Q 195 315 195 272 L 187 235 L 150 272 Z', CA);
 
-      return `<svg id="${id}" viewBox="-20 60 340 240"
+      return `<svg id="${id}" viewBox="-20 55 340 250"
             style="width:100%;border-radius:12px;display:block;background:#162e12;touch-action:none;">
+
+          <!-- 全壘打區（R 180→205） -->
+          ${hrLF}${hrLCF}${hrCF}${hrRCF}${hrRF}
 
           <!-- 界外區（底層先畫） -->
           ${fL}${fR}${fC}
@@ -6924,6 +6937,13 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <text x="150" y="156" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺CF</text>
           <text x="187" y="162" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RCF</text>
           <text x="220" y="179" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RF</text>
+
+          <!-- 全壘打區標籤 -->
+          <text x="35"  y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
+          <text x="88"  y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
+          <text x="150" y="78"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
+          <text x="212" y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
+          <text x="265" y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
 
           <!-- 深外野標籤 -->
           <text x="56"  y="148" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LF</text>
