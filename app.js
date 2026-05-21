@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v154';
+﻿    const APP_VERSION = 'v158';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -319,17 +319,21 @@
     function checkForUpdate(regParam) {
         if (!('serviceWorker' in navigator)) return;
 
-        // 新 SW 就緒後自動接管並 reload（不需用戶操作）
+        // 新 SW 就緒後：顯示 Modal 讓使用者選擇立刻更新或稍後
         const applyUpdate = (reg) => {
             const waiting = reg && reg.waiting;
             if (!waiting) return;
 
-            // 從快取讀取新版本號，顯示更新橫幅
-            const showUpdateBanner = (newVer) => {
-                const banner = document.createElement('div');
-                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(135deg,#003d79,#0051a5);color:white;text-align:center;padding:14px 16px;font-size:15px;font-weight:700;font-family:\'Noto Sans TC\',sans-serif;letter-spacing:1px;box-shadow:0 2px 12px rgba(0,0,0,0.3);';
-                banner.textContent = `🆕 偵測到新版本 ${newVer}，正在自動更新...`;
-                document.body.prepend(banner);
+            const _showUpdateModal = (newVer) => {
+                const curEl = document.getElementById('umCurrentVer');
+                const newEl = document.getElementById('umNewVer');
+                if (curEl) curEl.textContent = APP_VERSION;
+                if (newEl) newEl.textContent = newVer;
+                document.getElementById('updateModal').style.display = 'flex';
+                // 通知 Firebase 讓其他裝置也收到提醒
+                notifyUpdateToAllDevices(newVer);
+                // 若 App 在背景，送瀏覽器通知
+                sendPushNotification(newVer);
             };
 
             if ('caches' in window) {
@@ -338,18 +342,11 @@
                     const currentKey = 'pitcher-scout-' + APP_VERSION;
                     const newKey = swCaches.find(k => k !== currentKey);
                     const newVer = newKey ? newKey.replace('pitcher-scout-', '') : '新版本';
-                    showUpdateBanner(newVer);
-                }).catch(() => showUpdateBanner('新版本'));
+                    _showUpdateModal(newVer);
+                }).catch(() => _showUpdateModal('新版本'));
             } else {
-                showUpdateBanner('新版本');
+                _showUpdateModal('新版本');
             }
-
-            const fallback = setTimeout(() => window.location.reload(), 4000);
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                clearTimeout(fallback);
-                window.location.reload();
-            }, { once: true });
-            waiting.postMessage({ type: 'SKIP_WAITING' });
         };
 
         const setup = (reg) => {
@@ -411,6 +408,56 @@
             }).catch(() => window.location.reload());
         } else {
             window.location.reload();
+        }
+    }
+
+    // ====== 跨裝置更新通知 ======
+    function notifyUpdateToAllDevices(newVer) {
+        try {
+            db.ref('system/appUpdate').set({
+                version: newVer,
+                fromVersion: APP_VERSION,
+                timestamp: Date.now()
+            });
+        } catch(e) {}
+    }
+
+    function listenForUpdateNotifications() {
+        try {
+            db.ref('system/appUpdate').on('value', snap => {
+                const data = snap.val();
+                if (!data || !data.version) return;
+                const newVerNum = parseInt(data.version.replace('v','')) || 0;
+                const myVerNum  = parseInt(APP_VERSION.replace('v','')) || 0;
+                if (newVerNum <= myVerNum) return;
+                // 若 updateModal 已開啟則不重複顯示
+                const modal = document.getElementById('updateModal');
+                if (modal && modal.style.display === 'flex') return;
+                const curEl = document.getElementById('umCurrentVer');
+                const newEl = document.getElementById('umNewVer');
+                if (curEl) curEl.textContent = APP_VERSION;
+                if (newEl) newEl.textContent = data.version;
+                if (modal) modal.style.display = 'flex';
+                sendPushNotification(data.version);
+            });
+        } catch(e) {}
+    }
+
+    function sendPushNotification(newVer) {
+        if (!('Notification' in window)) return;
+        const doNotify = () => {
+            try {
+                new Notification('情蒐系統有新版本 🆕', {
+                    body: `${APP_VERSION} → ${newVer}，請點擊 App 更新`,
+                    icon: './icon-192.png',
+                    badge: './icon-192.png',
+                    tag: 'app-update'
+                });
+            } catch(e) {}
+        };
+        if (Notification.permission === 'granted') { doNotify(); }
+        else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(p => { if (p === 'granted') doNotify(); });
         }
     }
 
@@ -1642,6 +1689,7 @@
         if (verLabel) verLabel.textContent = APP_VERSION;
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
         updateFieldMapToggleBtn();
+        listenForUpdateNotifications();
 
         // 從 SW 快取自動偵測實際版本號（防止 APP_VERSION 與 sw.js desync）
         if ('caches' in window) {
