@@ -6939,11 +6939,11 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <text x="220" y="179" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RF</text>
 
           <!-- 全壘打區標籤 -->
-          <text x="35"  y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
-          <text x="88"  y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
-          <text x="150" y="78"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
-          <text x="212" y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
-          <text x="265" y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR</text>
+          <text x="35"  y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR LF</text>
+          <text x="88"  y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR LCF</text>
+          <text x="150" y="78"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR CF</text>
+          <text x="212" y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR RCF</text>
+          <text x="265" y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR RF</text>
 
           <!-- 深外野標籤 -->
           <text x="56"  y="148" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LF</text>
