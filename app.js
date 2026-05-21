@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v125';
+﻿    const APP_VERSION = 'v126';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2063,6 +2063,8 @@
 
             teamList.appendChild(groupDiv);
         });
+        // 同步更新打者模式場次列表（如果可見）
+        if (typeof _renderBmSessionList === 'function') _renderBmSessionList();
     }
 
     function formatDateFull(dateStr) {
@@ -7520,6 +7522,7 @@
             _initBmData();
             _renderBmLineup();
             _populateBmGameSelect();
+            _renderBmSessionList();
             switchBatterTab(null, 'record');
         } else {
             userMode = 'pitcher';
@@ -7538,6 +7541,7 @@
             _initBmData();
             _renderBmLineup();
             _populateBmGameSelect();
+            _renderBmSessionList();
             switchBatterTab(null, 'record');
             _updateModeToggleBtn();
         }, 300);
@@ -7687,9 +7691,16 @@
     // ── 初始化 bm 資料 ──
     function _initBmData() {
         if (!allData.bm) allData.bm = {};
-        if (!allData.bm.lineup) allData.bm.lineup = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''}));
-        // 舊資料補 trait 欄位
-        allData.bm.lineup.forEach(b => { if (!('trait' in b)) b.trait = ''; });
+        // 舊版 lineup 遷移到 lineupA（向下相容）
+        if (allData.bm.lineup && !allData.bm.lineupA) {
+            allData.bm.lineupA = allData.bm.lineup.map(b => ({...b, trait: b.trait||''}));
+            delete allData.bm.lineup;
+        }
+        if (!allData.bm.lineupA) allData.bm.lineupA = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''}));
+        if (!allData.bm.lineupB) allData.bm.lineupB = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''}));
+        // 補 trait 欄位（舊資料相容）
+        allData.bm.lineupA.forEach(b => { if (!('trait' in b)) b.trait = ''; });
+        allData.bm.lineupB.forEach(b => { if (!('trait' in b)) b.trait = ''; });
         if (!allData.bm.atBats) allData.bm.atBats = [];
         if (!('gameIdx' in allData.bm)) allData.bm.gameIdx = -1;
         if (!allData.bm.attackingTeam) allData.bm.attackingTeam = 'B';
@@ -7701,101 +7712,152 @@
     }
 
     // ── 打線管理 ──
+    function _getLineup(team) {
+        return team === 'A' ? allData.bm.lineupA : allData.bm.lineupB;
+    }
+
     function _renderBmLineup() {
         _initBmData();
-        const container = document.getElementById('bmLineupRows');
+        _renderBmLineupTeam('A');
+        _renderBmLineupTeam('B');
+        _updateBmLineupTitles();
+    }
+
+    function _renderBmLineupTeam(team) {
+        _initBmData();
+        const container = document.getElementById('bmLineupRows' + team);
         if (!container) return;
+        const lineup = _getLineup(team);
         const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
-        container.innerHTML = allData.bm.lineup.map((b,i) => `
+        container.innerHTML = lineup.map((b,i) => `
             <div class="bm-lineup-row">
                 <span class="bm-lineup-order">${nums[i]}</span>
                 <input type="number" class="bm-lineup-num" placeholder="背號" inputmode="numeric"
                     value="${b.number||''}" min="0" max="99"
-                    onchange="saveBmLineupCell(${i},'number',this.value)"
+                    onchange="saveBmLineupCell('${team}',${i},'number',this.value)"
                     onkeydown="if(event.key==='Enter')this.blur()">
                 <input type="text" class="bm-lineup-name" placeholder="姓名（選填）"
                     value="${b.name||''}" autocomplete="off"
-                    onblur="saveBmLineupCell(${i},'name',this.value)"
+                    onblur="saveBmLineupCell('${team}',${i},'name',this.value)"
                     onkeydown="if(event.key==='Enter')this.blur()">
-                <button class="bm-lineup-hand${b.hand==='右打'?' bm-on':''}" onclick="toggleBmLineupHand(${i},this)">
+                <button class="bm-lineup-hand${b.hand==='右打'?' bm-on':''}" onclick="toggleBmLineupHand('${team}',${i},this)">
                     ${b.hand==='右打'?'右打':'左打'}
                 </button>
             </div>`).join('');
     }
 
-    function saveBmLineupCell(idx, field, val) {
+    function _updateBmLineupTitles() {
+        const { nameA, nameB } = _getBmTeamNames();
+        const ta = document.getElementById('bmLineupTitleA');
+        const tb = document.getElementById('bmLineupTitleB');
+        if (ta) ta.textContent = (nameA || 'A隊') + ' 打線';
+        if (tb) tb.textContent = (nameB || 'B隊') + ' 打線';
+    }
+
+    function toggleBmLineupPanel(team) {
+        const body = document.getElementById('bmLineupBody' + team);
+        const arrow = document.getElementById('bmLineupCollapse' + team);
+        if (!body) return;
+        const isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : '';
+        if (arrow) arrow.textContent = isOpen ? '▼' : '▲';
+        if (!isOpen) _renderBmLineupTeam(team); // render on open
+    }
+
+    function saveBmLineupManual(team, btn) {
         _initBmData();
-        allData.bm.lineup[idx][field] = val;
+        saveToLocalStorage();
+        saveToFirebase();
+        if (btn) {
+            const orig = btn.textContent;
+            btn.textContent = '✓';
+            setTimeout(() => { btn.textContent = orig; }, 800);
+        }
+    }
+
+    function saveBmLineupCell(team, idx, field, val) {
+        _initBmData();
+        _getLineup(team)[idx][field] = val;
         saveToLocalStorage();
         if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
     }
 
-    function toggleBmLineupHand(idx, btn) {
+    function toggleBmLineupHand(team, idx, btn) {
         _initBmData();
-        const current = allData.bm.lineup[idx].hand;
+        const lineup = _getLineup(team);
+        const current = lineup[idx].hand;
         const next = current === '右打' ? '左打' : '右打';
-        allData.bm.lineup[idx].hand = next;
+        lineup[idx].hand = next;
         btn.textContent = next;
         btn.classList.toggle('bm-on', next === '右打');
         saveToLocalStorage();
         if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
     }
 
-    // ★ 聯動打線同步：打者側欄 → gameState
+    // ★ 聯動打線同步：打線模組 → gameState（雙隊）
     function _syncBmLineupToGameState() {
         _initBmData();
-        // B隊進攻 = 先攻 = teamB；A隊進攻 = 後攻 = teamA
-        const gsKey = (allData.bm.attackingTeam === 'B') ? 'teamB' : 'teamA';
-        allData.bm.lineup.forEach((p, i) => {
-            if (!gameState.lineups[gsKey][i + 1]) gameState.lineups[gsKey][i + 1] = {};
-            gameState.lineups[gsKey][i + 1].number = p.number || '';
-            gameState.lineups[gsKey][i + 1].name   = p.name   || '';
-            gameState.lineups[gsKey][i + 1].hand   = p.hand   || '右打';
+        ['A','B'].forEach(team => {
+            const gsKey = team === 'B' ? 'teamB' : 'teamA';
+            _getLineup(team).forEach((p, i) => {
+                if (!gameState.lineups[gsKey][i + 1]) gameState.lineups[gsKey][i + 1] = {};
+                gameState.lineups[gsKey][i + 1].number = p.number || '';
+                gameState.lineups[gsKey][i + 1].name   = p.name   || '';
+                gameState.lineups[gsKey][i + 1].hand   = p.hand   || '右打';
+            });
         });
     }
 
-    // ★ 聯動打線同步：gameState → 打者側欄（有資料才蓋入）
+    // ★ 聯動打線同步：gameState → 打線模組（有資料才蓋入）
     function _syncGameStateToBmLineup(attackingTeam) {
-        const gsKey = (attackingTeam === 'B') ? 'teamB' : 'teamA';
-        const gsLineup = gameState.lineups[gsKey];
-        let hasData = false;
-        for (let i = 1; i <= 9; i++) {
-            if (gsLineup[i] && gsLineup[i].number) { hasData = true; break; }
-        }
-        if (!hasData) return false;
         _initBmData();
-        for (let i = 1; i <= 9; i++) {
-            const p = gsLineup[i] || {};
-            allData.bm.lineup[i - 1] = {
-                number: p.number || '',
-                name:   p.name   || '',
-                hand:   p.hand   || '右打'
-            };
-        }
-        _renderBmLineup();
-        saveToLocalStorage();
-        return true;
+        let synced = false;
+        ['A','B'].forEach(team => {
+            const gsKey = team === 'B' ? 'teamB' : 'teamA';
+            const gsLineup = gameState.lineups[gsKey];
+            let hasData = false;
+            for (let i = 1; i <= 9; i++) {
+                if (gsLineup[i] && gsLineup[i].number) { hasData = true; break; }
+            }
+            if (!hasData) return;
+            for (let i = 1; i <= 9; i++) {
+                const p = gsLineup[i] || {};
+                _getLineup(team)[i - 1] = {
+                    number: p.number || '',
+                    name:   p.name   || '',
+                    hand:   p.hand   || '右打',
+                    trait:  _getLineup(team)[i-1]?.trait || ''
+                };
+            }
+            synced = true;
+        });
+        if (synced) { _renderBmLineup(); saveToLocalStorage(); }
+        return synced;
     }
 
-    function copyLastBmLineup() {
+    function copyBmLineup(team) {
+        _initBmData();
         const ab = (allData.bm && allData.bm.atBats) ? [...allData.bm.atBats] : [];
-        if (ab.length === 0) { alert('尚無上場打線可複製'); return; }
+        // 過濾該隊打席（有 team 欄位用 team，無則用 attackingTeam 預設）
+        const teamAbs = ab.filter(a => (a.team || allData.bm.attackingTeam) === team);
+        if (teamAbs.length === 0) { alert('該隊尚無打席記錄可複製'); return; }
         const lineupMap = {};
-        ab.forEach(a => { if (a.order && !lineupMap[a.order]) lineupMap[a.order] = a; });
+        teamAbs.forEach(a => { if (a.order && !lineupMap[a.order]) lineupMap[a.order] = a; });
         for (let i=1;i<=9;i++) {
             if (lineupMap[i]) {
-                allData.bm.lineup[i-1] = { number: String(lineupMap[i].number||''), name: lineupMap[i].name||'', hand: lineupMap[i].hand||'右打' };
+                _getLineup(team)[i-1] = { number: String(lineupMap[i].number||''), name: lineupMap[i].name||'', hand: lineupMap[i].hand||'右打', trait: lineupMap[i].trait||'' };
             }
         }
-        _renderBmLineup();
+        _renderBmLineupTeam(team);
         saveToLocalStorage();
     }
 
-    function clearBmLineup() {
-        if (!confirm('確定清空本場打線？')) return;
+    function clearBmLineup(team) {
+        if (!confirm(`確定清空${team}隊打線？`)) return;
         _initBmData();
-        allData.bm.lineup = Array.from({length:9}, () => ({number:'',name:'',hand:'右打'}));
-        _renderBmLineup();
+        if (team === 'A') allData.bm.lineupA = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''}));
+        else              allData.bm.lineupB = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''}));
+        _renderBmLineupTeam(team);
         saveToLocalStorage();
         saveToFirebase();
     }
@@ -7804,7 +7866,8 @@
     function resetAllBmData() {
         if (!confirm('確定清除全部打者資料？（打線 + 所有打席記錄 + 分析數據）\n此操作無法還原！')) return;
         allData.bm = {
-            lineup: Array.from({length:9}, () => ({number:'',name:'',hand:'右打'})),
+            lineupA: Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''})),
+            lineupB: Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''})),
             gameIdx: -1,
             attackingTeam: 'B',
             atBats: [],
@@ -7860,6 +7923,68 @@
             tb.classList.toggle('bm-on', allData.bm.attackingTeam === 'B');
         }
         _updateBmTeamBtns(); // 進入打者模式時帶入球隊名稱
+    }
+
+    // ── 場次管理側欄：渲染場次列表 ──
+    function _renderBmSessionList() {
+        const container = document.getElementById('bmSessionList');
+        if (!container) return;
+        _initBmData();
+        const teams = allData.teams || [];
+        if (teams.length === 0) {
+            container.innerHTML = '<div style="color:rgba(255,255,255,0.4);font-size:11px;text-align:center;padding:10px 0;">尚無場次資料</div>';
+            return;
+        }
+        // 以 gameName 分組
+        const groups = {};
+        teams.forEach((t, i) => {
+            const key = t.gameName || '未分類';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push({team:t, idx:i});
+        });
+        container.innerHTML = '';
+        const curIdx = allData.bm.gameIdx;
+        Object.entries(groups).forEach(([gameName, items]) => {
+            const groupEl = document.createElement('div');
+            groupEl.style.cssText = 'margin-bottom:4px;';
+            // 賽事標題
+            const hdr = document.createElement('div');
+            hdr.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,215,0,0.7);padding:3px 4px;letter-spacing:0.5px;';
+            hdr.textContent = '🏟️ ' + gameName;
+            groupEl.appendChild(hdr);
+            // 各場次
+            items.forEach(({team:t, idx:i}) => {
+                const isActive = i === curIdx;
+                const btn = document.createElement('button');
+                btn.style.cssText = `width:100%;text-align:left;padding:6px 8px;border-radius:6px;border:1px solid ${isActive?'rgba(255,215,0,0.5)':'rgba(255,255,255,0.12)'};background:${isActive?'rgba(255,215,0,0.12)':'rgba(255,255,255,0.05)'};color:${isActive?'#ffd700':'rgba(255,255,255,0.75)'};font-size:11px;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-bottom:2px;`;
+                btn.innerHTML = `<span style="font-weight:700;">${t.name||'?'} vs ${t.opponent||'?'}</span><br><span style="font-size:10px;opacity:0.65;">${t.date||'--'}</span>`;
+                btn.onclick = () => {
+                    _initBmData();
+                    allData.bm.gameIdx = i;
+                    saveToLocalStorage();
+                    const sel = document.getElementById('bmGameSelect');
+                    if (sel) { sel.value = i; }
+                    switchBmRecordMode('linked');
+                    _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
+                    _updateBmTeamBtns();
+                    _renderBmSessionList();
+                    _renderBmLineup();
+                };
+                groupEl.appendChild(btn);
+            });
+            container.appendChild(groupEl);
+        });
+        // 取消連動按鈕
+        const unlinkBtn = document.createElement('button');
+        unlinkBtn.style.cssText = `width:100%;padding:5px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.45);font-size:10px;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-top:4px;`;
+        unlinkBtn.textContent = '— 切換至獨立模式 —';
+        unlinkBtn.onclick = () => {
+            _initBmData(); allData.bm.gameIdx = -1; saveToLocalStorage();
+            const sel = document.getElementById('bmGameSelect'); if (sel) sel.value = -1;
+            switchBmRecordMode('standalone');
+            _renderBmSessionList();
+        };
+        container.appendChild(unlinkBtn);
     }
 
     function onBmGameChange() {
@@ -8089,7 +8214,9 @@
     function _renderBmBatterDisplay() {
         _initBmData();
         const order = _bmState.currentOrder;
-        const batter = allData.bm.lineup[order] || {number:'',name:'',hand:'右打',trait:''};
+        const attackingTeam = allData.bm.attackingTeam || 'B';
+        const activeLineup = _getLineup(attackingTeam);
+        const batter = activeLineup[order] || {number:'',name:'',hand:'右打',trait:''};
         const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
         const orderTxt = `打序 ${nums[order]||String(order+1)}`;
         const numTxt   = batter.number ? `#${batter.number}` : '#--';
@@ -8107,7 +8234,6 @@
         if (handEl)  handEl.textContent  = handTxt;
 
         // ── 雙槽位卡（聯動模式）──
-        const attackingTeam = allData.bm.attackingTeam || 'B';
         const isA = attackingTeam === 'A';
         const { nameA, nameB } = _getBmTeamNames();
 
@@ -8154,6 +8280,9 @@
         const traitEl = document.getElementById('bmTraitPatch');
         if (patchEl) patchEl.value = batter.name  || '';
         if (traitEl) traitEl.value = batter.trait || '';
+
+        // ── 更新打線模組標題 ──
+        _updateBmLineupTitles();
     }
 
     function prevBmBatter() {
@@ -8185,7 +8314,8 @@
         const el = document.getElementById('bmNamePatch');
         if (!el) return;
         const val = el.value.trim();
-        allData.bm.lineup[_bmState.currentOrder].name = val;
+        const lineup = _getLineup(allData.bm.attackingTeam || 'B');
+        lineup[_bmState.currentOrder].name = val;
         const nameEl = document.getElementById('bmCurBatterName');
         if (nameEl) nameEl.textContent = val || '（未填姓名）';
         saveToLocalStorage();
@@ -8195,7 +8325,8 @@
         _initBmData();
         const el = document.getElementById('bmTraitPatch');
         if (!el) return;
-        allData.bm.lineup[_bmState.currentOrder].trait = el.value.trim();
+        const lineup = _getLineup(allData.bm.attackingTeam || 'B');
+        lineup[_bmState.currentOrder].trait = el.value.trim();
         saveToLocalStorage();
     }
 
@@ -8326,13 +8457,21 @@
         if (!_bmState.selectedOutcome) return;
         _initBmData();
         const order = _bmState.currentOrder;
-        const batter = allData.bm.lineup[order] || {number:'',name:'',hand:'右打'};
+        const currentTeam = allData.bm.attackingTeam || 'B';
+        const batter = _getLineup(currentTeam)[order] || {number:'',name:'',hand:'右打',trait:''};
         const inningEl = document.getElementById('bmInning');
         const inning = parseInt((inningEl && inningEl.value) || '1') || 1;
 
+        // 讀取打者特性輸入框（可能有即時修改）
+        const traitEl = document.getElementById('bmTraitPatch');
+        if (traitEl && traitEl.value.trim()) {
+            _getLineup(currentTeam)[order].trait = traitEl.value.trim();
+        }
         const rec = {
             number: batter.number || '',
             name:   batter.name   || '',
+            trait:  _getLineup(currentTeam)[order].trait || '',
+            team:   currentTeam,
             order:  order + 1,
             hand:   batter.hand   || '右打',
             inning,

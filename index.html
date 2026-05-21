@@ -350,7 +350,7 @@
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2 id="sidebarHeaderPitcher">🥎 球隊管理</h2>
-            <h2 id="sidebarHeaderBatter" style="display:none;">🏏 打線管理</h2>
+            <h2 id="sidebarHeaderBatter" style="display:none;">🏏 場次管理</h2>
         </div>
 
         <!-- ====== 一鍵切換模式列（登入後顯示）====== -->
@@ -407,18 +407,16 @@
                         style="width:100%;padding:7px 9px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);font-family:inherit;font-size:12px;background:rgba(255,255,255,0.1);color:white;box-sizing:border-box;">
                 </div>
             </div>
-            <!-- 打線 -->
+            <!-- 場次列表 -->
             <div style="padding:10px 12px;flex:1;overflow-y:auto;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                    <div style="font-size:11px;font-weight:700;color:rgba(255,215,0,0.8);letter-spacing:1px;">📋 本場打線</div>
-                    <div style="display:flex;gap:4px;">
-                        <button onclick="copyLastBmLineup()" style="font-size:10px;padding:3px 7px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:4px;cursor:pointer;font-family:inherit;touch-action:manipulation;">複製</button>
-                        <button onclick="clearBmLineup()" style="font-size:10px;padding:3px 7px;background:rgba(220,0,0,0.2);color:#fca5a5;border:1px solid rgba(220,0,0,0.3);border-radius:4px;cursor:pointer;font-family:inherit;touch-action:manipulation;">清空</button>
-                        <button onclick="resetAllBmData()" style="font-size:10px;padding:3px 7px;background:rgba(220,0,0,0.5);color:white;border:1px solid rgba(220,0,0,0.7);border-radius:4px;cursor:pointer;font-family:inherit;touch-action:manipulation;" title="清除所有打者記錄（打線＋打席）">全清</button>
-                    </div>
+                <div style="font-size:11px;font-weight:700;color:rgba(255,215,0,0.8);letter-spacing:1px;margin-bottom:8px;">📅 比賽場次</div>
+                <div id="bmSessionList" style="display:flex;flex-direction:column;gap:4px;"></div>
+                <div style="margin-top:10px;color:rgba(255,255,255,0.35);font-size:10px;text-align:center;line-height:1.6;">
+                    在投手模式新增比賽場次<br>點擊場次即可連動打者模式
                 </div>
-                <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:6px;">背號必填・姓名可事後補填</div>
-                <div id="bmLineupRows"></div>
+                <div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;">
+                    <button onclick="resetAllBmData()" style="width:100%;font-size:11px;padding:6px;background:rgba(220,0,0,0.2);color:#fca5a5;border:1px solid rgba(220,0,0,0.3);border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;" title="清除所有打者記錄（打線＋打席）">🗑️ 清除全部打者資料</button>
+                </div>
             </div>
         </div>
 
@@ -1124,15 +1122,45 @@
             <input type="text" id="bmNamePatch" placeholder="補填姓名" autocomplete="off"
                 class="bm-slot-input"
                 onblur="patchBmBatterName()" onkeydown="if(event.key==='Enter')this.blur()">
-            <input type="text" id="bmTraitPatch" placeholder="打者特性（選填）" autocomplete="off"
-                class="bm-slot-input bm-slot-input-trait"
-                onblur="patchBmBatterTrait()" onkeydown="if(event.key==='Enter')this.blur()">
             <span style="font-size:11px;color:rgba(255,255,255,0.5);flex-shrink:0;">對戰</span>
             <button id="bmPhLBtn" class="bm-slot-ph-btn" onclick="selectBmPh('左投')">左投</button>
             <button id="bmPhRBtn" class="bm-slot-ph-btn bm-on" onclick="selectBmPh('右投')">右投</button>
         </div>
         <div style="text-align:center;margin-top:6px;font-size:11px;color:rgba(255,255,255,0.4);">
             點擊卡片切換進攻隊伍 · ◀ ▶ 切換打者 · 資訊可即時補填
+        </div>
+        <!-- A/B 雙隊打線模組（可收合） -->
+        <div class="bm-lineup-modules">
+            <!-- A 隊打線模組 -->
+            <div class="bm-lineup-module" id="bmLineupModuleA">
+                <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('A')">
+                    <span class="bm-lineup-module-title" id="bmLineupTitleA">A隊 打線</span>
+                    <div class="bm-lineup-module-btns" onclick="event.stopPropagation()">
+                        <button class="bm-lm-btn" onclick="copyBmLineup('A')">複製</button>
+                        <button class="bm-lm-btn bm-lm-save" onclick="saveBmLineupManual('A',this)">儲存</button>
+                        <button class="bm-lm-btn bm-lm-clear" onclick="clearBmLineup('A')">清空</button>
+                    </div>
+                    <span class="bm-lineup-arrow" id="bmLineupCollapseA">▼</span>
+                </div>
+                <div id="bmLineupBodyA" style="display:none;">
+                    <div id="bmLineupRowsA"></div>
+                </div>
+            </div>
+            <!-- B 隊打線模組 -->
+            <div class="bm-lineup-module" id="bmLineupModuleB">
+                <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('B')">
+                    <span class="bm-lineup-module-title" id="bmLineupTitleB">B隊 打線</span>
+                    <div class="bm-lineup-module-btns" onclick="event.stopPropagation()">
+                        <button class="bm-lm-btn" onclick="copyBmLineup('B')">複製</button>
+                        <button class="bm-lm-btn bm-lm-save" onclick="saveBmLineupManual('B',this)">儲存</button>
+                        <button class="bm-lm-btn bm-lm-clear" onclick="clearBmLineup('B')">清空</button>
+                    </div>
+                    <span class="bm-lineup-arrow" id="bmLineupCollapseB">▼</span>
+                </div>
+                <div id="bmLineupBodyB" style="display:none;">
+                    <div id="bmLineupRowsB"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1239,8 +1267,12 @@
                     <div class="bm-card bm-outcomes-card" style="padding:10px;">
                         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
                         <div id="bmOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;flex:1;"></div>
+                        <input type="text" id="bmTraitPatch" placeholder="打者特性（選填）" autocomplete="off"
+                            class="bm-slot-input bm-slot-input-trait"
+                            style="width:100%;margin-top:8px;box-sizing:border-box;"
+                            onblur="patchBmBatterTrait()" onkeydown="if(event.key==='Enter')this.blur()">
                         <button id="bmConfirmBtn" onclick="confirmBmLinkedAtBat()" disabled
-                            style="width:100%;margin-top:12px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
+                            style="width:100%;margin-top:8px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
                             ✅ 確認記錄
                         </button>
                     </div>
@@ -1290,8 +1322,11 @@
                     <div class="bm-card bm-outcomes-card" style="padding:10px;">
                         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
                         <div id="spOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;flex:1;"></div>
+                        <input type="text" id="spTraitPatch" placeholder="打者特性（選填）" autocomplete="off"
+                            class="bm-slot-input bm-slot-input-trait"
+                            style="width:100%;margin-top:8px;box-sizing:border-box;">
                         <button id="spConfirmBtn" onclick="confirmSpAtBatInline()" disabled
-                            style="width:100%;margin-top:12px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
+                            style="width:100%;margin-top:8px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
                             ✅ 確認記錄
                         </button>
                     </div>
