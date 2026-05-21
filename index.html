@@ -1235,9 +1235,9 @@
                             <button id="bmHalfBotBtn" class="bm-toggle-btn" onclick="selectBmHalf('下')" style="padding:3px 6px;font-size:11px;">下半</button>
                         </div>
                         <!-- 中央：◄ 打者資訊 ► -->
-                        <div style="flex:1;display:flex;align-items:center;gap:3px;min-width:0;">
+                        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:2px;min-width:0;overflow:hidden;">
                             <button onclick="prevBmBatter()" class="bm-nav-btn" ontouchend="event.preventDefault();prevBmBatter()" style="width:28px;height:28px;font-size:13px;padding:0;flex-shrink:0;">◀</button>
-                            <div style="flex:1;text-align:center;min-width:0;">
+                            <div style="text-align:center;min-width:0;overflow:hidden;">
                                 <div id="bmCurOrder" style="font-size:10px;font-weight:700;color:#6b7280;line-height:1.2;"></div>
                                 <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                     <span id="bmCurBatterNum" style="font-size:15px;font-weight:900;color:#1e3a5f;font-family:'Oswald',sans-serif;"></span>
