@@ -2313,15 +2313,18 @@
         for (let i = 1; i <= 9; i++) {
             const p = lineup[i];
             const row = document.createElement('div');
-            row.style.cssText = 'display:grid;grid-template-columns:3fr 3fr 4fr;gap:6px;margin-bottom:8px;align-items:center;';
+            row.style.cssText = 'display:grid;grid-template-columns:44px 2fr 3fr 4fr;gap:6px;margin-bottom:8px;align-items:center;';
             row.innerHTML = `
-                <div style="font-size:15px;font-weight:900;color:var(--ct-blue-dark);text-align:center;">${i}</div>
+                <div style="width:36px;height:36px;border-radius:50%;background:var(--ct-blue-dark);color:#ffd700;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;flex-shrink:0;">${i}</div>
+                <input type="text" inputmode="numeric" placeholder="#" value="${p.number||''}" data-order="${i}" data-field="number"
+                    style="padding:7px 4px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;"
+                    onkeydown="if(event.key==='Enter')this.blur()">
                 <select data-order="${i}" data-field="hand"
                     style="padding:7px 4px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;">
                     <option value="右打" ${p.hand==='右打'?'selected':''}>右打</option>
                     <option value="左打" ${p.hand==='左打'?'selected':''}>左打</option>
                 </select>
-                <input type="text" placeholder="姓名" value="${p.name}" data-order="${i}" data-field="name"
+                <input type="text" placeholder="姓名" value="${p.name||''}" data-order="${i}" data-field="name"
                     style="padding:7px 6px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;"
                     onkeydown="if(event.key==='Enter')this.blur()">` ;
             container.appendChild(row);
