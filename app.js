@@ -318,48 +318,46 @@
     function checkForUpdate(regParam) {
         if (!('serviceWorker' in navigator)) return;
 
-        const showUpdateModal = () => {
-            const m = document.getElementById('updateModal');
-            if (m) m.style.display = 'flex';
+        // 新 SW 就緒後自動接管並 reload（不需用戶操作）
+        const applyUpdate = (reg) => {
+            const waiting = reg && reg.waiting;
+            if (!waiting) return;
+            const fallback = setTimeout(() => window.location.reload(), 4000);
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                clearTimeout(fallback);
+                window.location.reload();
+            }, { once: true });
+            waiting.postMessage({ type: 'SKIP_WAITING' });
         };
 
         const setup = (reg) => {
             if (!reg) return;
 
-            // SW 接管後只 reload 一次（flag 防止連續觸發）
-            let _reloaded = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (_reloaded) return;
-                _reloaded = true;
-                window.location.reload();
-            });
+            // 頁面載入時若已有等待的新版本，直接套用
+            if (reg.waiting) { applyUpdate(reg); return; }
 
-            // 頁面載入時若已有等待的新版本，提示用戶
-            if (reg.waiting) { showUpdateModal(); return; }
-
-            // 同一 session 內發現新版本，提示用戶（不強制自動更新）
+            // 偵測到新版本安裝完成，自動套用
             reg.addEventListener('updatefound', () => {
                 const nw = reg.installing;
                 if (!nw) return;
                 nw.addEventListener('statechange', () => {
                     if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                        showUpdateModal();
+                        applyUpdate(reg);
                     }
                 });
             });
 
-            // 切回 App 時重新檢查（手機背景後台常見場景）
+            // 切回 App / 視窗取得焦點時重新檢查
             const checkUpdate = () => {
                 if (navigator.onLine) reg.update().catch(() => {});
             };
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') checkUpdate();
             });
-            // iOS Safari 有時不觸發 visibilitychange，用 focus 事件補位
             window.addEventListener('focus', checkUpdate);
 
-            // 每 30 分鐘定期檢查（長時間使用不關 App 的情況）
-            setInterval(checkUpdate, 30 * 60 * 1000);
+            // 每 10 分鐘定期檢查
+            setInterval(checkUpdate, 10 * 60 * 1000);
         };
 
         if (regParam) { setup(regParam); }
