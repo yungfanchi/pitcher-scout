@@ -1138,8 +1138,8 @@
     font-size: 13px; font-family: inherit;
     background: rgba(255,255,255,0.1); color: white;
 }
-.bm-slot-input::placeholder { color: rgba(255,255,255,0.4); }
-.bm-slot-input-trait { border-color: rgba(196,181,253,0.4); background: rgba(196,181,253,0.12); color: #e9d5ff; }
+.bm-slot-input::placeholder { color: rgba(255,255,255,0.9); }
+.bm-slot-input-trait { border-color: rgba(196,181,253,0.4); background: rgba(196,181,253,0.12); color: #131015; }
 .bm-slot-input-trait::placeholder { color: rgba(196,181,253,0.5); }
 .bm-slot-ph-btn {
     padding: 7px 13px; border-radius: 6px; font-size: 12px; font-weight: 700;
