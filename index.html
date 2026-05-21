@@ -1590,6 +1590,32 @@
         </div>
     </div>
 
+    <!-- ====== 得分確認 Modal ====== -->
+    <div id="runsChipModal" style="display:none;position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+        <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:360px;box-shadow:0 12px 50px rgba(0,0,0,0.45);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <h2 style="margin:0;font-size:17px;">🏃 本打席實際得分？</h2>
+                <button onclick="skipRunsChip()" style="background:#9ca3af;color:white;border:none;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">跳過</button>
+            </div>
+            <div id="runsChipBasesInfo" style="text-align:center;font-size:14px;margin-bottom:8px;letter-spacing:2px;"></div>
+            <div style="text-align:center;font-size:13px;color:#6b7280;margin-bottom:14px;">
+                系統推算：<strong id="runsChipAutoRuns" style="color:#003d79;">0</strong> 分
+            </div>
+            <div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px;">
+                <button class="runs-count-btn" onclick="selectRunsCount(0)" data-runs="0"
+                    style="width:64px;height:64px;border-radius:12px;border:3px solid #e5e7eb;background:#f9fafb;font-size:26px;font-weight:900;cursor:pointer;font-family:'Oswald',sans-serif;transition:all 0.15s;">0</button>
+                <button class="runs-count-btn" onclick="selectRunsCount(1)" data-runs="1"
+                    style="width:64px;height:64px;border-radius:12px;border:3px solid #e5e7eb;background:#f9fafb;font-size:26px;font-weight:900;cursor:pointer;font-family:'Oswald',sans-serif;transition:all 0.15s;">1</button>
+                <button class="runs-count-btn" onclick="selectRunsCount(2)" data-runs="2"
+                    style="width:64px;height:64px;border-radius:12px;border:3px solid #e5e7eb;background:#f9fafb;font-size:26px;font-weight:900;cursor:pointer;font-family:'Oswald',sans-serif;transition:all 0.15s;">2</button>
+                <button class="runs-count-btn" onclick="selectRunsCount(3)" data-runs="3"
+                    style="width:64px;height:64px;border-radius:12px;border:3px solid #e5e7eb;background:#f9fafb;font-size:26px;font-weight:900;cursor:pointer;font-family:'Oswald',sans-serif;transition:all 0.15s;">3</button>
+            </div>
+            <button onclick="confirmRunsChip()"
+                style="width:100%;padding:15px;background:linear-gradient(135deg,#003d79,#0051a5);color:white;border:none;border-radius:12px;font-size:17px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:1px;">✅ 確認</button>
+        </div>
+    </div>
+
     <!-- ====== 新增打者 Modal ====== -->
     <div id="addBatterModal" style="display:none;position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
         <div style="background:white;border-radius:16px;padding:22px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.35);">

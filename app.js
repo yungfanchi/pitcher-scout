@@ -882,6 +882,7 @@
         // ERA / WHIP / IP
         const totalOuts = computeTotalOuts(allPitches);
         const earnedRuns = allPitches.reduce((sum, p) => {
+            if (p.runsScored !== undefined && p.runsScored !== null) return sum + p.runsScored;
             const outs = p.outcomes && p.outcomes.length ? p.outcomes : (p.outcome ? [p.outcome] : []);
             if (!outs.length) return sum;
             return sum + applyBaseRunning(p.basesSnapshot || [false,false,false], outs).runsScored;
@@ -2683,6 +2684,7 @@
         syncPitchToDB({...currentPitch}, currentTeam, pitcher.name, pitcher.number);
 
         // Update game state counts
+        const _prePitchHalf = gameState.half; // 捕捉此球投出時的局半，供得分確認使用
         updateGameStateFromPitch(currentPitch);
 
         // 打席結束 → 推進打者、更新連動
@@ -2711,11 +2713,15 @@
         saveToLocalStorage();
         saveToFirebase();
 
-        // 紀錄此球資訊，供球場圖模式使用（reset 前先存）
+        // 紀錄此球資訊，供球場圖模式 + 得分確認使用（reset 前先存）
         const _bipOutcomes = [...currentPitch.outcomes];
         const _bipTeam = currentTeam;
         const _bipPitcher = currentPitcher;
         const _bipIdx = allData.teams[currentTeam].pitchers[currentPitcher].pitches.length - 1;
+        const _preBasesSnapshot = allData.teams[_bipTeam].pitchers[_bipPitcher].pitches[_bipIdx].basesSnapshot || [false, false, false];
+        const _hasBIP = _bipOutcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o));
+        const _hasRunners = _preBasesSnapshot.some(b => b);
+        const _autoRuns = (_hasBIP && _hasRunners) ? applyBaseRunning(_preBasesSnapshot, _bipOutcomes).runsScored : 0;
 
         document.querySelectorAll('.pitch-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.zone-cell').forEach(c => c.classList.remove('selected'));
@@ -2736,8 +2742,19 @@
             outcomes: [], outcome: null, wild: false, foul: false, swing: false, passball: false, pinchHit: false
         };
 
-        // 球場圖模式：球有進場結果 → 自動跳出落點選擇（打者數據連動）
-        if (fieldMapEnabled && _bipOutcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o))) {
+        // 得分確認 chip helper（球場圖結束後 or 直接觸發）
+        const _maybeShowRunsChip = () => {
+            if (_hasRunners && _hasBIP) {
+                showRunsChip({
+                    bipTeam: _bipTeam, bipPitcher: _bipPitcher, bipIdx: _bipIdx,
+                    autoRuns: _autoRuns, preBasesSnapshot: _preBasesSnapshot,
+                    half: _prePitchHalf
+                });
+            }
+        };
+
+        // 球場圖模式：球有進場結果 → 落點選擇，結束後接得分確認
+        if (fieldMapEnabled && _hasBIP) {
             showHitLocationModal(function(loc) {
                 if (loc && allData.teams[_bipTeam] &&
                         allData.teams[_bipTeam].pitchers[_bipPitcher] &&
@@ -2749,7 +2766,10 @@
                     updatePitchLog();
                     updateStats();
                 }
+                _maybeShowRunsChip(); // 球場圖 → 得分確認
             });
+        } else {
+            _maybeShowRunsChip(); // 直接進得分確認
         }
     }
 
@@ -2900,8 +2920,11 @@
         } else if (isPA) {
             gameState.strikes = 0; gameState.balls = 0;
             // Apply base running + auto score
-            const { newBases, runsScored } = applyBaseRunning(gameState.bases, outcomes);
+            const { newBases, runsScored: autoRuns } = applyBaseRunning(gameState.bases, outcomes);
             gameState.bases = newBases;
+            // 優先使用使用者確認過的得分（pitch.runsScored），舊資料無此欄則退回算法值
+            const runsScored = (pitch.runsScored !== undefined && pitch.runsScored !== null)
+                ? pitch.runsScored : autoRuns;
             if (runsScored > 0 && currentTeam !== null) {
                 const score = getTeamScore();
                 // Determine which side scores (away = top half, home = bottom half)
@@ -3932,6 +3955,7 @@
         const totalOuts  = computeTotalOuts(pitches);
         const ipDisplay  = formatIP(totalOuts);
         const earnedRuns = pitches.reduce((sum, p) => {
+            if (p.runsScored !== undefined && p.runsScored !== null) return sum + p.runsScored;
             const outs = p.outcomes && p.outcomes.length ? p.outcomes : (p.outcome ? [p.outcome] : []);
             if (!outs.length) return sum;
             const bases = p.basesSnapshot || [false, false, false];
@@ -6757,6 +6781,8 @@
 
     let _hitLocCallback = null;
     let _hitLocSelectedLoc = null;
+    let _runsChipContext = null;
+    let _selectedRunsCount = 0;
     let _batterSource = 'pitcher'; // 'pitcher' | 'standalone'
     let _currentBatterView = null; // { name, source, idx }
     let _editingAtBatBatterIdx = null;
@@ -6765,6 +6791,92 @@
 
     function initBatterData() {
         if (!allData.batterData) allData.batterData = [];
+    }
+
+    // ── 得分確認 Chip（球有進場跑者時，確認實際得分 → 修正 ERA / RBI）──
+
+    function showRunsChip(ctx) {
+        _runsChipContext = ctx;
+        _selectedRunsCount = ctx.autoRuns;
+
+        // 壘況顯示
+        const baseLabels = ['一壘', '二壘', '三壘'];
+        const basesHtml = ctx.preBasesSnapshot.map((b, i) =>
+            b ? `<span style="color:#ea580c;font-weight:900;">◆${baseLabels[i]}</span>`
+              : `<span style="color:#d1d5db;">◇${baseLabels[i]}</span>`
+        ).join('　');
+        const el = document.getElementById('runsChipBasesInfo');
+        if (el) el.innerHTML = basesHtml;
+
+        const autoEl = document.getElementById('runsChipAutoRuns');
+        if (autoEl) autoEl.textContent = ctx.autoRuns;
+
+        // 預選系統推算值
+        document.querySelectorAll('.runs-count-btn').forEach(btn => {
+            const n = parseInt(btn.dataset.runs);
+            const active = n === ctx.autoRuns;
+            btn.style.background = active ? '#003d79' : '#f9fafb';
+            btn.style.color      = active ? 'white'   : '#111827';
+            btn.style.borderColor = active ? '#003d79' : '#e5e7eb';
+        });
+
+        const modal = document.getElementById('runsChipModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function selectRunsCount(n) {
+        _selectedRunsCount = n;
+        document.querySelectorAll('.runs-count-btn').forEach(btn => {
+            const active = parseInt(btn.dataset.runs) === n;
+            btn.style.background  = active ? '#003d79' : '#f9fafb';
+            btn.style.color       = active ? 'white'   : '#111827';
+            btn.style.borderColor = active ? '#003d79' : '#e5e7eb';
+        });
+    }
+
+    function confirmRunsChip() {
+        const ctx = _runsChipContext;
+        closeRunsChip();
+        if (!ctx) return;
+
+        const actualRuns = _selectedRunsCount;
+        const autoRuns   = ctx.autoRuns;
+
+        const pitcherPitches = allData.teams[ctx.bipTeam] &&
+            allData.teams[ctx.bipTeam].pitchers[ctx.bipPitcher] &&
+            allData.teams[ctx.bipTeam].pitchers[ctx.bipPitcher].pitches;
+        const pitch = pitcherPitches && pitcherPitches[ctx.bipIdx];
+        if (!pitch) return;
+
+        pitch.runsScored = actualRuns;
+
+        // RBI：安打/犧牲打才計打點；失誤/野選不計
+        const RBI_OUTCOMES = ['一壘安打','二壘安打','三壘安打','全壘打','內野安打','高飛犧牲打','犧牲觸擊'];
+        pitch.rbi = RBI_OUTCOMES.some(o => (pitch.outcomes||[]).includes(o)) ? actualRuns : 0;
+
+        // 修正比分（比 autoRuns 多或少）
+        if (actualRuns !== autoRuns) {
+            const delta = actualRuns - autoRuns;
+            if (currentTeam !== null) {
+                const score = getTeamScore();
+                if (ctx.half === '上') score.away = Math.max(0, (score.away || 0) + delta);
+                else                   score.home = Math.max(0, (score.home || 0) + delta);
+                updateScoreboard();
+            }
+        }
+
+        rebuildPitcherDB();
+        saveToLocalStorage();
+        saveToFirebase();
+        updatePitchLog();
+        updateStats();
+    }
+
+    function skipRunsChip()  { closeRunsChip(); }
+    function closeRunsChip() {
+        _runsChipContext = null;
+        const m = document.getElementById('runsChipModal');
+        if (m) m.style.display = 'none';
     }
 
     // ── 球場圖模式開關（單人操作：確認進場球後自動跳出落點選擇）──
