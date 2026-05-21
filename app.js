@@ -6725,7 +6725,7 @@
         // 淺內野
         '三短': { x: 125, y: 249 }, 'P': { x: 150, y: 250 }, '一短': { x: 175, y: 249 },
         // 界外區
-        '左界外': { x: 18, y: 222 }, '右界外': { x: 282, y: 222 }, '捕手區': { x: 150, y: 296 },
+        '左界外': { x: 18, y: 222 }, '右界外': { x: 282, y: 222 }, '捕手區': { x: 150, y: 293 },
     };
 
     // 共用：清除 SVG 內所有高亮，並高亮 el
@@ -6858,16 +6858,14 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         // ── 界外區（viewBox 擴展至 -20 左、320 右、315 底）──
         const fL = zp('左界外', 'M 150 272 L 23 145 L -20 103 L -20 315 L 105 315 L 105 272 Z', FC);
         const fR = zp('右界外', 'M 150 272 L 277 145 L 320 103 L 320 315 L 195 315 L 195 272 Z', FC);
-        // 捕手區底部背景（非互動，填補扇形以外的角落）
-        const fCbg = `<path d="M 105 272 L 105 315 L 195 315 L 195 272 Z" fill="${CA}" fill-opacity="0.88" stroke="none" style="pointer-events:none;"/>`;
-        // 捕手區：扇形（與短打區對稱，朝下展開，R=52）
-        const fC = zp('捕手區', 'M 150 272 L 113 309 A 52 52 0 0 0 187 309 Z', CA);
+        // 捕手區：本壘後方中央
+  const fC = zp('捕手區', 'M 113 235 L 105 272 Q 105 315 150 320 Q 195 315 195 272 L 187 235 L 150 272 Z', CA);
 
-      return `<svg id="${id}" viewBox="-20 55 340 265"
+      return `<svg id="${id}" viewBox="-20 60 340 240"
             style="width:100%;border-radius:12px;display:block;background:#162e12;touch-action:none;">
 
           <!-- 界外區（底層先畫） -->
-          ${fL}${fR}${fCbg}${fC}
+          ${fL}${fR}${fC}
 
           <!-- 公平區域底色 -->
           <path d="M 150 272 L 23 145 A 180 180 0 0 1 277 145 Z" fill="#1f4a18"/>
@@ -6892,9 +6890,9 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <line x1="150" y1="272" x2="277" y2="145" stroke="white" stroke-width="1.5" opacity="0.6" style="pointer-events:none;"/>
           <!-- 外野牆弧線 -->
           <path d="M 23 145 A 180 180 0 0 1 277 145" fill="none" stroke="white" stroke-width="1.5" opacity="0.45" style="pointer-events:none;"/>
-          <!-- 捕手區扇形邊界線 -->
-          <line x1="150" y1="272" x2="113" y2="309" stroke="rgba(255,255,255,0.3)" stroke-width="1" style="pointer-events:none;"/>
-          <line x1="150" y1="272" x2="187" y2="309" stroke="rgba(255,255,255,0.3)" stroke-width="1" style="pointer-events:none;"/>
+          <!-- 捕手區分隔線 -->
+          <line x1="105" y1="272" x2="105" y2="315" stroke="rgba(255,255,255,0.3)" stroke-width="1" style="pointer-events:none;"/>
+          <line x1="195" y1="272" x2="195" y2="315" stroke="rgba(255,255,255,0.3)" stroke-width="1" style="pointer-events:none;"/>
 
           <!-- 壘包路徑（菱形） -->
           <polyline points="150,272 203,219 150,166 97,219 150,272"
@@ -6944,7 +6942,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <text x="282" y="210" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右</text>
           <text x="282" y="222" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">界</text>
           <text x="282" y="234" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
-          <text x="150" y="299" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手區</text>
+          <text x="150" y="288" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手區</text>
 
           ${dotsHTML}
         </svg>`;
