@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v188';
+﻿    const APP_VERSION = 'v189';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -3236,6 +3236,8 @@
                     inning:   gameState.inning,
                     half:     gameState.half,
                     outs:     gameState.outs,
+                    balls:    gameState.balls,    // 盜壘當下球數
+                    strikes:  gameState.strikes,  // 盜壘當下好球數
                     ts:       Date.now()
                 });
                 saveToLocalStorage();
@@ -8570,6 +8572,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         recMode: 'linked',     // 'linked'|'standalone'
         currentOrder: 0,       // 0-based index (0=打序1)
         selectedOutcome: null,
+        tactics: [],           // 多選戰術標籤：['打帶跑','戰術失敗']
         hitLoc: null,          // 聯動模式落點（內嵌球場圖選取）
         pitcherHand: '右投',
         half: '上',
@@ -8809,7 +8812,15 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                     outcome:     paOutcome,
                     pitcherHand: pitcher.hand       || '右投',
                     hitLocation: pitch.hitLocation  || null,
-                    teamName
+                    teamName,
+                    // 從投手記錄抽取戰術標籤（打帶跑、戰術失敗等）
+                    tactics: (pitch.outcomes || []).filter(o =>
+                        ['打帶跑','戰術失敗','首球','跑打','偷點'].includes(o)),
+                    balls:   pitch.balls   || 0,
+                    strikes: pitch.strikes || 0,
+                    inning:  pitch.inning  || null,
+                    half:    pitch.half    || null,
+                    basesSnapshot: pitch.basesSnapshot || [false,false,false]
                 });
             });
         });
@@ -9452,6 +9463,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         { label:'安打', color:'#16a34a', outcomes: ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'] },
         { label:'上壘', color:'#0051a5', outcomes: ['保送','觸身球','故意四壞'] },
         { label:'其他', color:'#6b7280', outcomes: ['野選','失誤'] },
+        { label:'戰術標籤', color:'#7c3aed', outcomes: ['打帶跑','戰術失敗'], type:'modifier' },
     ];
     // 各 outcome 對應的 cls（供 grouped 渲染使用）
     const BM_OUTCOME_CLS = {};
@@ -9463,18 +9475,39 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         if (!container) return;
         container.style.flexDirection = 'column';
         container.innerHTML = BM_OUTCOME_GROUPS.map(g => {
+            const isModifier = g.type === 'modifier';
             const btns = g.outcomes.map(label => {
-                const cls = BM_OUTCOME_CLS[label] || '';
-                const active = selectedOutcome === label ? ' bm-on' : '';
+                let cls, active, fn;
+                if (isModifier) {
+                    cls    = 'bm-modifier';
+                    active = _bmState.tactics.includes(label) ? ' bm-on' : '';
+                    fn     = 'toggleBmTactic';
+                } else {
+                    cls    = BM_OUTCOME_CLS[label] || '';
+                    active = selectedOutcome === label ? ' bm-on' : '';
+                    fn     = clickFn;
+                }
                 return `<button class="bm-outcome-btn ${cls}${active}"
-                    onclick="${clickFn}('${label}',this)"
-                    ontouchend="event.preventDefault();${clickFn}('${label}',this)">${label}</button>`;
+                    onclick="${fn}('${label}',this)"
+                    ontouchend="event.preventDefault();${fn}('${label}',this)">${label}</button>`;
             }).join('');
             return `<div class="bm-outcome-group">
                 <span class="bm-outcome-group-label" style="color:${g.color};font-size:11px;font-weight:800;display:block;margin-bottom:4px;">${g.label}</span>
                 <div style="display:flex;flex-wrap:wrap;gap:5px;">${btns}</div>
             </div>`;
         }).join('');
+    }
+
+    // ── 多選戰術標籤 ──
+    function toggleBmTactic(tag, btn) {
+        const idx = _bmState.tactics.indexOf(tag);
+        if (idx >= 0) {
+            _bmState.tactics.splice(idx, 1);
+            if (btn) btn.classList.remove('bm-on');
+        } else {
+            _bmState.tactics.push(tag);
+            if (btn) btn.classList.add('bm-on');
+        }
     }
 
     function _renderBmOutcomeButtons() {
@@ -9611,6 +9644,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
     function resetBmLinkedForm() {
         _bmState.selectedOutcome = null;
         _bmState.hitLoc = null;
+        _bmState.tactics = [];
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
         document.querySelectorAll('.bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
@@ -9706,6 +9740,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             bases: [..._bmState.spBases],
             pitcherHand: _bmState.spPh,
             outcome,
+            tactics: [..._bmState.tactics],   // 戰術標籤（多選）
             hitLocation: _bmState.spHitLoc || null,
             mode: 'standalone',
             pitches: [],
@@ -9719,6 +9754,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         // Reset form
         _bmState.spSelectedOutcome = null;
         _bmState.spHitLoc = null;
+        _bmState.tactics = [];
         document.querySelectorAll('#spOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
         const svg = document.getElementById('fieldSVG_sp');
         if (svg) _zoneHighlight(null, svg);
@@ -9832,6 +9868,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             bases:  [..._bmState.bases],
             pitcherHand: _bmState.pitcherHand,
             outcome: _bmState.selectedOutcome,
+            tactics: [..._bmState.tactics],   // 戰術標籤（多選）
             hitLocation: null,
             mode: 'linked',
             pitches: [],
@@ -10153,19 +10190,32 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             teamGroupMap[tname][key].abs.push(ab);
         });
 
-        // 計算每位打者統計 + 威脅指數
+        // 計算每位打者統計 + OPS + 威脅指數
         const buildRows = (map) => Object.values(map).map(b => {
             const abs    = b.abs;
             const pa     = abs.filter(a => PA_END.includes(a.outcome)).length;
             const hits   = abs.filter(a => HIT.includes(a.outcome)).length;
             const k      = abs.filter(a => a.outcome==='三振'||a.outcome==='不死三振').length;
             const bb     = abs.filter(a => BB.includes(a.outcome)).length;
+            const hbp    = abs.filter(a => a.outcome==='觸身球').length;
+            const sf     = abs.filter(a => a.outcome==='高飛犧牲打').length;
+            const sh     = abs.filter(a => a.outcome==='犧牲觸擊').length;
+            const singles= abs.filter(a => a.outcome==='一壘安打'||a.outcome==='內野安打').length;
+            const doubles= abs.filter(a => a.outcome==='二壘安打').length;
+            const triples= abs.filter(a => a.outcome==='三壘安打').length;
+            const hrs    = abs.filter(a => a.outcome==='全壘打').length;
+            const ab_n   = Math.max(0, pa - bb - hbp - sf - sh);
+            const tb     = singles + doubles*2 + triples*3 + hrs*4;
+            const obp_n  = (pa - sh) > 0 ? (hits + bb + hbp) / (pa - sh) : 0;
+            const slg_n  = ab_n > 0 ? tb / ab_n : 0;
+            const ops_n  = obp_n + slg_n;
             const avgNum = pa > 0 ? hits / pa : 0;
             const kRate  = pa > 0 ? k / pa : 0;
+            const ops    = pa >= 3 ? ops_n : null;  // null = 樣本不足
             // 威脅分：打率高→危險(綠)；三振率高→我方有利(紅)
             const threatScore = avgNum * 100 - kRate * 25;
             const threatLevel = threatScore >= 22 ? 'high' : threatScore >= 11 ? 'mid' : 'low';
-            return { ...b, pa, hits, k, bb, avgNum, kRate, threatScore, threatLevel };
+            return { ...b, pa, hits, k, bb, avgNum, kRate, ops, ops_n, threatScore, threatLevel };
         });
 
         // 排序輔助
@@ -10174,11 +10224,12 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 let va, vb;
                 switch (_bmSortKey) {
                     case 'number': va = String(a.number||''); vb = String(b.number||''); break;
-                    case 'pa':     va = a.pa;   vb = b.pa;   break;
-                    case 'hits':   va = a.hits; vb = b.hits; break;
+                    case 'pa':     va = a.pa;    vb = b.pa;    break;
+                    case 'hits':   va = a.hits;  vb = b.hits;  break;
                     case 'avg':    va = a.avgNum; vb = b.avgNum; break;
-                    case 'k':      va = a.k;   vb = b.k;    break;
-                    case 'bb':     va = a.bb;  vb = b.bb;   break;
+                    case 'ops':    va = a.ops_n;  vb = b.ops_n; break;
+                    case 'k':      va = a.k;     vb = b.k;     break;
+                    case 'bb':     va = a.bb;    vb = b.bb;    break;
                     default:       va = a.threatScore; vb = b.threatScore;
                 }
                 if (typeof va === 'string') return _bmSortDir === 'asc' ? va.localeCompare(vb,'zh-TW') : vb.localeCompare(va,'zh-TW');
@@ -10268,21 +10319,32 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                   <th style="${thLS}" onclick="setBmSort('number')">打者${_bmArrow('number')}</th>
                   <th style="${thS}" onclick="setBmSort('pa')">打席${_bmArrow('pa')}</th>
                   <th style="${thS}" onclick="setBmSort('hits')">安打${_bmArrow('hits')}</th>
-                  <th style="${thS}min-width:120px;" onclick="setBmSort('avg')">打率${_bmArrow('avg')}</th>
+                  <th style="${thS}min-width:110px;" onclick="setBmSort('avg')">打率${_bmArrow('avg')}</th>
+                  <th style="${thS}min-width:90px;" onclick="setBmSort('ops')">OPS${_bmArrow('ops')}</th>
                   <th style="${thS}" onclick="setBmSort('k')">三振${_bmArrow('k')}</th>
                   <th style="${thS}" onclick="setBmSort('bb')">保送${_bmArrow('bb')}</th>
                   <th style="${thS}" onclick="setBmSort('threat')">威脅${_bmArrow('threat')}</th>
                 </tr></thead>
                 <tbody>
-                ${sorted.map(r => `<tr onclick="showBmBatterDetail('${r.number}')" style="cursor:pointer;">
-                  <td>#${r.number} ${r.name||''}<br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
-                  <td>${r.pa}</td>
-                  <td>${r.hits}</td>
-                  <td style="white-space:nowrap;">${_bmAvgBar(r.avgNum)}</td>
-                  <td style="${_bmKStyle(r.k,r.pa)}">${r.k}</td>
-                  <td>${r.bb}</td>
-                  <td>${_bmThreatBadge(r.threatLevel)}</td>
-                </tr>`).join('')}
+                ${sorted.map(r => {
+                    const opsFmt = r.ops !== null
+                        ? (() => {
+                            const v = r.ops_n;
+                            const col = v >= 0.800 ? '#15803d' : v >= 0.600 ? '#374151' : '#b91c1c';
+                            return `<span style="font-weight:800;color:${col};">${v.toFixed(3)}</span>`;
+                          })()
+                        : `<span style="color:#d1d5db;font-size:11px;">樣本不足</span>`;
+                    return `<tr onclick="showBmBatterDetail('${r.number}')" style="cursor:pointer;">
+                      <td>#${r.number} ${r.name||''}<br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
+                      <td>${r.pa}</td>
+                      <td>${r.hits}</td>
+                      <td style="white-space:nowrap;">${_bmAvgBar(r.avgNum)}</td>
+                      <td style="text-align:center;">${opsFmt}</td>
+                      <td style="${_bmKStyle(r.k,r.pa)}">${r.k}</td>
+                      <td>${r.bb}</td>
+                      <td>${_bmThreatBadge(r.threatLevel)}</td>
+                    </tr>`;
+                }).join('')}
                 </tbody>
               </table></div>
               <div style="font-size:11px;color:#9ca3af;text-align:right;margin-bottom:4px;">點擊欄位標題排序 · 點擊列查看詳情</div>`;
@@ -10625,36 +10687,119 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             '顯示前 6 個最常見的打席終止球數'
         );
 
-        // ── 5. 戰術時間點 ──
-        const tactC  = {'犧牲觸擊':0, '高飛犧牲打':0, '代打':0, '雙殺':0};
-        const innMap = {};
-        paPitches.forEach(p => {
-            const o = p.outcomes || [];
-            if (o.includes('犧牲觸擊'))   { tactC['犧牲觸擊']++;   }
-            if (o.includes('高飛犧牲打')) { tactC['高飛犧牲打']++; }
-            if (p.pinchHit)               { tactC['代打']++;        }
-            if (o.includes('雙殺'))       { tactC['雙殺']++;        }
-            if (o.includes('犧牲觸擊') || o.includes('高飛犧牲打') || p.pinchHit) {
-                const inn = p.inning ? `${p.inning}局` : '?局';
-                innMap[inn] = (innMap[inn] || 0) + 1;
-            }
+        // ── 5. 戰術常用時機點 ──
+        // 收集盜壘資料（從投手記錄）
+        const allSteals = [];
+        (team.pitchers || []).forEach(pitcher => {
+            (pitcher.steals || []).forEach(s => allSteals.push(s));
         });
-        const tactEntries = Object.entries(tactC).filter(([,v]) => v > 0);
-        const tactTotal   = tactEntries.reduce((s,[,v]) => s + v, 0);
-        const tactColors  = ['#ec4899','#f59e0b','#0051a5','#dc0000'];
-        const tactSegs    = tactEntries.map(([k,v], i) => ({lbl:k, v, c:tactColors[i]}));
-        const innNote     = Object.entries(innMap).sort((a,b) => parseInt(a)-parseInt(b))
-                                  .map(([k,v]) => `${k}×${v}`).join('　');
-        const sec5 = card('⚔️ 5. 戰術時間點',
-            donut(tactSegs.length ? tactSegs : [{lbl:'無',v:1,c:'#e5e7eb'}], tactTotal || 1, tactTotal ? `${tactTotal}次` : '0'),
-            tactEntries.length === 0
-                ? '<span style="color:#9ca3af;font-size:12px;">尚無短打／犧牲打記錄</span>'
-                : tactEntries.map(([k,v], i) => `<div style="display:flex;align-items:center;gap:5px;font-size:12px;margin-bottom:4px;">
-                    <div style="width:9px;height:9px;border-radius:50%;background:${tactColors[i]};flex-shrink:0;"></div>
-                    <span style="font-weight:700;">${k}</span><span style="color:#6b7280;">${v} 次</span>
-                  </div>`).join(''),
-            innNote ? `局數分布：${innNote}` : null
-        );
+        // 篩選盜壘：依選定打者隊伍
+        const filteredSteals = _bmAnalysisTeamFilter
+            ? allSteals  // 球隊盜壘（無法精確分隊，顯示全部）
+            : allSteals;
+
+        function _countMap(arr, keyFn) {
+            const m = {};
+            arr.forEach(x => { const k = keyFn(x); if(k) m[k] = (m[k]||0) + 1; });
+            return Object.entries(m).sort((a,b) => b[1]-a[1]);
+        }
+        function _miniTable(title, entries, color) {
+            if (!entries.length) return `<div style="font-size:12px;color:#9ca3af;">無記錄</div>`;
+            return `<div style="font-size:12px;font-weight:800;color:${color};margin:6px 0 4px;">${title}</div>` +
+                entries.slice(0,5).map(([k,v]) =>
+                    `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;border-bottom:1px solid #f3f4f6;">
+                        <span>${k}</span><span style="font-weight:700;">${v}次</span></div>`
+                ).join('');
+        }
+
+        // 犧牲觸擊分析
+        const buntPA = paPitches.filter(p => (p.outcomes||[]).includes('犧牲觸擊'));
+        const buntCountDist = _countMap(buntPA, p => `${p.balls||0}B ${p.strikes||0}S`);
+        const buntBaseDist  = _countMap(buntPA, p => {
+            const bs = p.basesSnapshot||[false,false,false];
+            if (bs[0]&&bs[1]) return '一二壘';
+            if (bs[1]&&bs[2]) return '二三壘';
+            if (bs[0]&&bs[2]) return '一三壘';
+            if (bs[2]) return '三壘有人';
+            if (bs[1]) return '二壘有人';
+            if (bs[0]) return '一壘有人';
+            return '空壘';
+        });
+        const buntInnDist = _countMap(buntPA, p => p.inning ? `${p.inning}局` : null);
+
+        // 強迫取分（Squeeze）：三壘有人 + 犧牲觸擊
+        const squeezePA = buntPA.filter(p => {
+            const bs = p.basesSnapshot||[false,false,false];
+            return bs[2]; // 三壘有人
+        });
+        const squeezeCountDist = _countMap(squeezePA, p => `${p.balls||0}B ${p.strikes||0}S`);
+        const squeezeInnDist   = _countMap(squeezePA, p => p.inning ? `${p.inning}局` : null);
+
+        // 打帶跑（從 pitch.outcomes 標籤）
+        const hitRunPA      = paPitches.filter(p => (p.outcomes||[]).includes('打帶跑'));
+        const hitRunFail    = hitRunPA.filter(p => (p.outcomes||[]).includes('戰術失敗')).length;
+        const hitRunSuccess = hitRunPA.length - hitRunFail;
+        const hitRunCountDist = _countMap(hitRunPA, p => `${p.balls||0}B ${p.strikes||0}S`);
+
+        // 盜壘
+        const stealTotal   = filteredSteals.length;
+        const stealSuccess = filteredSteals.filter(s => s.success).length;
+        const stealCountDist = _countMap(filteredSteals.filter(s => s.balls != null),
+            s => `${s.balls}B ${s.strikes}S`);
+        const stealInnDist   = _countMap(filteredSteals, s => s.inning ? `${s.inning}局` : null);
+
+        function _tactSection(icon, title, count, color, contentHTML) {
+            return `<div style="background:white;border-radius:10px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-left:4px solid ${color};">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                    <span style="font-size:18px;">${icon}</span>
+                    <span style="font-size:13px;font-weight:900;color:#003d79;">${title}</span>
+                    <span style="margin-left:auto;font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:${color};">${count}</span>
+                </div>
+                ${contentHTML}
+            </div>`;
+        }
+
+        const buntContent = buntPA.length === 0
+            ? '<div style="font-size:12px;color:#9ca3af;">尚無犧牲觸擊記錄</div>'
+            : `<div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:100px;">${_miniTable('球數', buntCountDist, '#ec4899')}</div>
+                <div style="flex:1;min-width:100px;">${_miniTable('壘上狀況', buntBaseDist, '#f59e0b')}</div>
+                <div style="flex:1;min-width:80px;">${_miniTable('局數', buntInnDist, '#0051a5')}</div>
+               </div>`;
+
+        const squeezeContent = squeezePA.length === 0
+            ? '<div style="font-size:12px;color:#9ca3af;">尚無三壘有人觸擊記錄</div>'
+            : `<div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:100px;">${_miniTable('球數', squeezeCountDist, '#dc0000')}</div>
+                <div style="flex:1;min-width:80px;">${_miniTable('局數', squeezeInnDist, '#0051a5')}</div>
+               </div>`;
+
+        const hitRunContent = hitRunPA.length === 0
+            ? '<div style="font-size:12px;color:#9ca3af;">尚無打帶跑標籤記錄</div>'
+            : `<div style="font-size:12px;margin-bottom:6px;">
+                成功 <b style="color:#16a34a;">${hitRunSuccess}</b> 次
+                失敗 <b style="color:#dc2626;">${hitRunFail}</b> 次
+                成功率 <b>${hitRunPA.length>0?Math.round(hitRunSuccess/hitRunPA.length*100):0}%</b>
+               </div>
+               ${_miniTable('常用球數', hitRunCountDist, '#7c3aed')}`;
+
+        const stealContent = stealTotal === 0
+            ? '<div style="font-size:12px;color:#9ca3af;">尚無盜壘記錄</div>'
+            : `<div style="font-size:12px;margin-bottom:6px;">
+                成功 <b style="color:#16a34a;">${stealSuccess}</b>
+                失敗 <b style="color:#dc2626;">${stealTotal-stealSuccess}</b>
+                成功率 <b>${Math.round(stealSuccess/stealTotal*100)}%</b>
+               </div>
+               <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:100px;">${_miniTable('盜壘當下球數', stealCountDist, '#10b981')}</div>
+                <div style="flex:1;min-width:80px;">${_miniTable('局數', stealInnDist, '#0051a5')}</div>
+               </div>`;
+
+        const sec5 = `<div style="font-size:15px;font-weight:900;color:#003d79;margin:16px 0 10px;">⚔️ 5. 戰術常用時機點</div>
+            ${_tactSection('📦','犧牲觸擊', `${buntPA.length}次`, '#ec4899', buntContent)}
+            ${_tactSection('💥','強迫取分（Squeeze）', `${squeezePA.length}次`, '#dc0000', squeezeContent)}
+            ${_tactSection('🏃','打帶跑', `${hitRunPA.length}次`, '#7c3aed', hitRunContent)}
+            ${_tactSection('⚡','盜壘', `${stealTotal}次`, '#10b981', stealContent)}`;
 
         // ── 6. 壘上狀況應對 ──
         const baseS = {'空壘':{pa:0,hits:0,k:0},'一壘':{pa:0,hits:0,k:0},'得點圈':{pa:0,hits:0,k:0},'滿壘':{pa:0,hits:0,k:0}};

@@ -962,8 +962,11 @@
 .bm-outcome-btn.bm-hit.bm-on { background: #16a34a; color: white; border-color: #16a34a; }
 .bm-outcome-btn.bm-out    { border-color: #dc2626; color: #dc2626; }
 .bm-outcome-btn.bm-out.bm-on { background: #dc2626; color: white; border-color: #dc2626; }
-.bm-outcome-btn.bm-bb     { border-color: #9333ea; color: #7e22ce; }
+.bm-outcome-btn.bm-bb       { border-color: #9333ea; color: #7e22ce; }
 .bm-outcome-btn.bm-bb.bm-on  { background: #9333ea; color: white; border-color: #9333ea; }
+/* 戰術標籤（多選） */
+.bm-outcome-btn.bm-modifier { border-color: #7c3aed; color: #7c3aed; border-style: dashed; font-size: 11px; }
+.bm-outcome-btn.bm-modifier.bm-on { background: #7c3aed; color: white; border-style: solid; }
 .bm-action-btn {
     padding: 7px 12px;
     border: 1px solid;
