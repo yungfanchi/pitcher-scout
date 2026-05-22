@@ -11162,11 +11162,11 @@
         // 打擊率 inline bar
         function _bmAvgBar(avgNum) {
             const pct = Math.min(avgNum / 0.400, 1);
-            const w   = Math.round(pct * 68);
+            const w   = Math.round(pct * 44);
             const col = avgNum >= 0.300 ? '#10b981' : avgNum >= 0.200 ? '#9ca3af' : '#ef4444';
             const fmt = avgNum > 0 ? '.' + String(Math.round(avgNum * 1000)).padStart(3,'0') : '.000';
             return `<span style="font-weight:900;color:${col};">${fmt}</span>` +
-                   `<span style="display:inline-block;width:${w}px;height:6px;background:${col};border-radius:3px;margin-left:5px;vertical-align:middle;opacity:0.7;"></span>`;
+                   `<span style="display:inline-block;width:${w}px;height:6px;background:${col};border-radius:3px;margin-left:4px;vertical-align:middle;opacity:0.7;"></span>`;
         }
 
         // 威脅 badge
@@ -11202,8 +11202,8 @@
             const topName   = topThreat ? `#${topThreat.number}${topThreat.name ? ' ' + topThreat.name : ''}` : '---';
             const avgFill   = teamAvg >= 0.300 ? '#4ade80' : teamAvg >= 0.200 ? '#fbbf24' : '#f87171';
             const kFill     = parseFloat(teamKFmt) >= 30 ? '#4ade80' : '#fbbf24';
-            const thS = 'padding:10px 8px;text-align:center;font-size:13px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #0051a5;';
-            const thLS = 'padding:10px 12px;text-align:left;font-size:13px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;border-bottom:2px solid #0051a5;';
+            const thS = 'padding:8px 5px;text-align:center;font-size:12px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #0051a5;';
+            const thLS = 'padding:8px 8px;text-align:left;font-size:12px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #0051a5;';
 
             return `
               <!-- 球隊摘要 -->
@@ -11250,15 +11250,15 @@
                             return `<span style="font-weight:800;color:${col};">${v.toFixed(3)}</span>`;
                           })()
                         : `<span style="color:#d1d5db;font-size:11px;">樣本不足</span>`;
-                    return `<tr onclick="showBmBatterDetail('${r.number}')" style="cursor:pointer;font-size:14px;">
-                      <td style="padding:11px 12px;"><span style="font-weight:900;font-size:15px;">#${r.number} ${r.name||''}</span><br><span style="font-size:12px;color:#6b7280;">${r.hand}</span></td>
-                      <td style="padding:11px 8px;text-align:center;font-weight:700;">${r.pa}</td>
-                      <td style="padding:11px 8px;text-align:center;font-weight:700;">${r.hits}</td>
-                      <td style="padding:11px 10px;white-space:nowrap;">${_bmAvgBar(r.avgNum)}</td>
-                      <td style="padding:11px 8px;text-align:center;">${opsFmt}</td>
-                      <td style="padding:11px 8px;text-align:center;${_bmKStyle(r.k,r.pa)}">${r.k}</td>
-                      <td style="padding:11px 8px;text-align:center;">${r.bb}</td>
-                      <td style="padding:11px 8px;text-align:center;">${_bmThreatBadge(r.threatLevel)}</td>
+                    return `<tr onclick="showBmBatterDetail('${r.number}')" style="cursor:pointer;font-size:13px;">
+                      <td style="padding:8px 8px;white-space:nowrap;"><span style="font-weight:900;font-size:14px;">#${r.number} ${r.name||''}</span><br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
+                      <td style="padding:8px 5px;text-align:center;font-weight:700;">${r.pa}</td>
+                      <td style="padding:8px 5px;text-align:center;font-weight:700;">${r.hits}</td>
+                      <td style="padding:8px 6px;white-space:nowrap;">${_bmAvgBar(r.avgNum)}</td>
+                      <td style="padding:8px 5px;text-align:center;">${opsFmt}</td>
+                      <td style="padding:8px 5px;text-align:center;${_bmKStyle(r.k,r.pa)}">${r.k}</td>
+                      <td style="padding:8px 5px;text-align:center;">${r.bb}</td>
+                      <td style="padding:8px 5px;text-align:center;">${_bmThreatBadge(r.threatLevel)}</td>
                     </tr>`;
                 }).join('')}
                 </tbody>
