@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v178';
+﻿    const APP_VERSION = 'v179';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2296,6 +2296,14 @@
         updateStats();
         updateScoreboard();
         saveToLocalStorage();
+
+        // 若打者模式分頁正在顯示，同步更新
+        if (userMode === 'batter') {
+            const t = _bmState.tab;
+            if (t === 'stats')      _renderBmStats();
+            else if (t === 'analysis')   _renderBmAnalysis();
+            else if (t === 'batterdata') refreshBatterList();
+        }
 
         setTimeout(() => {
             updateTeamList();
@@ -7742,8 +7750,10 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
 
         if (_batterSource === 'pitcher') {
             // 從投手記錄聚合（依打者姓名；無姓名則以「#背號」代替）
+            // 若已選取特定賽事，只顯示該賽事的打者
             const batterMap = new Map();
             allData.teams.forEach((team, ti) => {
+                if (currentTeam !== null && ti !== currentTeam) return;
                 team.pitchers.forEach(pitcher => {
                     pitcher.pitches.forEach(pitch => {
                         const name = (pitch.batterName || '').trim();
@@ -7762,15 +7772,25 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 });
             });
 
+            // 加入目前賽事標題提示
+            const gameLabel = (() => {
+                if (currentTeam === null) return '全部賽事';
+                const t = allData.teams[currentTeam];
+                return t ? `${t.gameName || ''} ${t.name || ''} vs ${t.opponent || ''}`.trim() : '已選賽事';
+            })();
+
             if (batterMap.size === 0) {
-                listEl.innerHTML = `<div style="text-align:center;padding:28px 16px;color:#6b7280;">
+                listEl.innerHTML = `
+                  <div style="font-size:11px;color:#9ca3af;padding:6px 12px 0;">${gameLabel}</div>
+                  <div style="text-align:center;padding:28px 16px;color:#6b7280;">
                   <div style="font-size:36px;margin-bottom:10px;">📋</div>
                   <div style="font-weight:700;margin-bottom:4px;">尚無打者資料</div>
-                  <div style="font-size:12px;">記錄投球時，請在「打序表」填入打者資料，系統才能自動聚合。</div>
+                  <div style="font-size:12px;">記錄投球時，請在「打序表」或打者欄位填入姓名，系統才能自動聚合。</div>
                 </div>`;
                 return;
             }
-            listEl.innerHTML = [...batterMap.values()].map(entry => {
+            listEl.innerHTML = `<div style="font-size:11px;color:#9ca3af;padding:6px 12px 4px;">${gameLabel}</div>` +
+            [...batterMap.values()].map(entry => {
                 const pa = entry.pitches.filter(p => p.outcomes && p.outcomes.some(o => PA_ENDING.includes(o))).length;
                 return `<div class="batter-list-item" onclick="showBatterDetail('${entry.key.replace(/'/g,"\\'")}','pitcher')">
                   <div class="bli-left">
@@ -8506,6 +8526,33 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             if (_bmState.recMode === 'standalone') _renderSpOutcomeButtons();
         }
         if (tab==='batterdata') { refreshBatterList(); }
+    }
+
+    // ── 從投手記錄推導打者打席（連動模式統計用）──
+    function _deriveBmAtBatsFromPitches(teamIdx) {
+        const team = allData.teams[teamIdx];
+        if (!team) return [];
+        const PA_ENDING = [
+            '三振','不死三振','滾地球出局','飛球出局','平飛球出局',
+            '內野安打','一壘安打','二壘安打','三壘安打','全壘打',
+            '保送','觸身球','故意四壞','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤','捕逸'
+        ];
+        const atBats = [];
+        team.pitchers.forEach(pitcher => {
+            (pitcher.pitches || []).forEach(pitch => {
+                const paOutcome = (pitch.outcomes || []).find(o => PA_ENDING.includes(o));
+                if (!paOutcome) return;
+                atBats.push({
+                    number:      pitch.batterNumber || '',
+                    name:        pitch.batterName   || '',
+                    hand:        pitch.batterHand   || '右打',
+                    outcome:     paOutcome,
+                    pitcherHand: pitcher.hand       || '右投',
+                    hitLocation: pitch.hitLocation  || null
+                });
+            });
+        });
+        return atBats;
     }
 
     // ── 初始化 bm 資料 ──
@@ -9790,9 +9837,12 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const container = document.getElementById('bmStatsContent');
         if (!container) return;
         _initBmData();
-        const atBats = allData.bm.atBats || [];
+        // 連動模式且已選賽事：從投手記錄推導打席；否則用獨立打席資料
+        const atBats = (currentTeam !== null)
+            ? _deriveBmAtBatsFromPitches(currentTeam)
+            : allData.bm.atBats || [];
         if (atBats.length === 0) {
-            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無打席記錄</div>';
+            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無打席記錄<br><span style="font-size:12px;">請先在側欄選取一場賽事</span></div>';
             return;
         }
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
@@ -9901,9 +9951,12 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const container = document.getElementById('bmAnalysisContent');
         if (!container) return;
         _initBmData();
-        const atBats = allData.bm.atBats || [];
+        // 連動模式且已選賽事：從投手記錄推導打席；否則用獨立打席資料
+        const atBats = (currentTeam !== null)
+            ? _deriveBmAtBatsFromPitches(currentTeam)
+            : allData.bm.atBats || [];
         if (atBats.length < 3) {
-            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">記錄至少 3 個打席後顯示分析</div>';
+            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">記錄至少 3 個打席後顯示分析<br><span style="font-size:12px;">請先在側欄選取一場賽事</span></div>';
             return;
         }
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
