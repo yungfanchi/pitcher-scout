@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v175';
+﻿    const APP_VERSION = 'v176';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -5518,46 +5518,79 @@
         firebaseListening = true;
 
         const gRef = getGamesRef();
+        const hasPendingSync = localStorage.getItem('_pendingSync') === '1';
 
-        // 若上次有未同步離線資料，先補傳全部 games 再掛監聽
-        if (localStorage.getItem('_pendingSync') === '1') {
-            console.log('[Firebase] 偵測到未同步資料，先補傳...');
-            lastSaveTime = Date.now();
-            const gamesObj = {};
+        // 同時讀取新路徑 (games/) 和舊路徑，合併後再掛監聽
+        // 這樣可確保：
+        // 1. 舊路徑有但新路徑尚未遷移的賽事都能顯示
+        // 2. 寫入完成後才啟動監聽（避免 _firstEvent 抓到空資料的 timing bug）
+        Promise.all([
+            gRef.once('value'),
+            getDataRef().once('value')
+        ]).then(([newSnap, oldSnap]) => {
+            // 讀取新路徑 (games/) 的賽事
+            const mergedById = {};
+            const newRaw = newSnap.val();
+            if (newRaw && typeof newRaw === 'object') {
+                Object.entries(newRaw).forEach(([id, data]) => {
+                    const g = _normalizeGameEntry(data);
+                    if (g) {
+                        if (!g.gameId) g.gameId = id;
+                        mergedById[g.gameId] = g;
+                    }
+                });
+            }
+
+            // 讀取舊路徑 (pitchers/)，把沒有在新路徑中的賽事補進來
+            const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
+            let migrated = 0;
+            oldTeams.forEach(t => {
+                if (!t.gameId) t.gameId = _makeGameId();
+                if (!mergedById[t.gameId]) {
+                    mergedById[t.gameId] = t;
+                    migrated++;
+                }
+            });
+
+            // 合併本機離線新增的賽事（可能還沒上傳過）
             (allData.teams || []).forEach(t => {
                 if (!t.gameId) t.gameId = _makeGameId();
-                gamesObj[t.gameId] = JSON.parse(JSON.stringify(t));
+                if (!mergedById[t.gameId]) {
+                    mergedById[t.gameId] = JSON.parse(JSON.stringify(t));
+                    migrated++;
+                }
             });
-            gRef.set(gamesObj)
-                .then(() => {
-                    pendingSync = false;
-                    try { localStorage.removeItem('_pendingSync'); } catch(e) {}
-                    setSyncStatus(true);
-                    console.log('[Firebase] 補傳完成');
-                })
-                .catch(e => console.warn('[Firebase] 補傳失敗:', e.code));
-        }
 
-        // 先確認 games/ 路徑是否有資料；若無，嘗試從舊路徑遷移
-        gRef.once('value').then(snap => {
-            if (!snap.exists()) {
-                // 舊路徑遷移
-                getDataRef().once('value').then(oldSnap => {
-                    const oldTeams = normalizeTeamsData(oldSnap.val());
-                    if (oldTeams && oldTeams.length > 0) {
-                        oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); });
-                        // 合併本機（可能有離線新增的賽事）
-                        const localIds = new Set(allData.teams.map(t => t.gameId).filter(Boolean));
-                        oldTeams.forEach(t => { if (!localIds.has(t.gameId)) allData.teams.push(t); });
-                        const gamesObj = {};
-                        allData.teams.forEach(t => { gamesObj[t.gameId] = JSON.parse(JSON.stringify(t)); });
-                        lastSaveTime = Date.now();
-                        gRef.set(gamesObj)
-                            .then(() => console.log('[Firebase] 遷移至 per-game 路徑完成'))
-                            .catch(e => console.warn('[Firebase] 遷移失敗:', e.code));
-                    }
-                    _startGamesListener(gRef);
-                }).catch(() => _startGamesListener(gRef));
+            // 立即更新本機畫面（不等 Firebase 寫入）
+            const mergedArr = Object.values(mergedById);
+            if (mergedArr.length > 0) {
+                allData.teams = mergedArr;
+                rebuildPitcherDB();
+                saveToLocalStorage();
+                updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+            }
+
+            // 若有需要寫入（遷移舊資料 或 離線補傳），先完成寫入再啟動監聽
+            // 這樣監聽器的第一個事件才能看到完整資料，不會被 _firstEvent 拿到空快照
+            const needWrite = migrated > 0 || hasPendingSync;
+            if (needWrite) {
+                const writeObj = {};
+                mergedArr.forEach(g => { writeObj[g.gameId] = JSON.parse(JSON.stringify(g)); });
+                lastSaveTime = Date.now();
+                gRef.set(writeObj)
+                    .then(() => {
+                        if (hasPendingSync) {
+                            pendingSync = false;
+                            try { localStorage.removeItem('_pendingSync'); } catch(e) {}
+                            setSyncStatus(true);
+                        }
+                        if (migrated > 0) console.log(`[Firebase] 已合併 ${migrated} 場賽事至 games/ 路徑`);
+                        _startGamesListener(gRef);
+                    })
+                    .catch(e => {
+                        console.warn('[Firebase] 合併寫入失敗:', e.code);
+                        _startGamesListener(gRef);
+                    });
             } else {
                 _startGamesListener(gRef);
             }
