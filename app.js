@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v187';
+﻿    const APP_VERSION = 'v188';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -8563,6 +8563,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
 
     let _bmAnalysisTeamFilter   = null; // null = 全部；string = 隊伍名
     let _bmAnalysisBatterFilter = null; // null = 整隊；string = 打者 key
+    let _bmSortKey = 'threat'; // default sort: threat index
+    let _bmSortDir = 'desc';   // 'asc' | 'desc'
 
     let _bmState = {
         recMode: 'linked',     // 'linked'|'standalone'
@@ -10151,46 +10153,152 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             teamGroupMap[tname][key].abs.push(ab);
         });
 
+        // 計算每位打者統計 + 威脅指數
         const buildRows = (map) => Object.values(map).map(b => {
-            const abs = b.abs;
-            const pa  = abs.filter(a => PA_END.includes(a.outcome)).length;
-            const hits = abs.filter(a => HIT.includes(a.outcome)).length;
-            const k    = abs.filter(a => a.outcome==='三振'||a.outcome==='不死三振').length;
-            const bb   = abs.filter(a => BB.includes(a.outcome)).length;
-            const avg  = pa > 0 ? (hits/pa).toFixed(3).replace(/^0/,'') : '---';
-            return { ...b, pa, hits, k, bb, avg };
-        }).sort((a,b) => b.pa - a.pa);
+            const abs    = b.abs;
+            const pa     = abs.filter(a => PA_END.includes(a.outcome)).length;
+            const hits   = abs.filter(a => HIT.includes(a.outcome)).length;
+            const k      = abs.filter(a => a.outcome==='三振'||a.outcome==='不死三振').length;
+            const bb     = abs.filter(a => BB.includes(a.outcome)).length;
+            const avgNum = pa > 0 ? hits / pa : 0;
+            const kRate  = pa > 0 ? k / pa : 0;
+            // 威脅分：打率高→危險(綠)；三振率高→我方有利(紅)
+            const threatScore = avgNum * 100 - kRate * 25;
+            const threatLevel = threatScore >= 22 ? 'high' : threatScore >= 11 ? 'mid' : 'low';
+            return { ...b, pa, hits, k, bb, avgNum, kRate, threatScore, threatLevel };
+        });
 
-        const tableHTML = (rows) => `
-            <div style="overflow-x:auto;">
-            <table class="bm-stats-table">
+        // 排序輔助
+        function _bmSortRows(rows) {
+            return [...rows].sort((a, b) => {
+                let va, vb;
+                switch (_bmSortKey) {
+                    case 'number': va = String(a.number||''); vb = String(b.number||''); break;
+                    case 'pa':     va = a.pa;   vb = b.pa;   break;
+                    case 'hits':   va = a.hits; vb = b.hits; break;
+                    case 'avg':    va = a.avgNum; vb = b.avgNum; break;
+                    case 'k':      va = a.k;   vb = b.k;    break;
+                    case 'bb':     va = a.bb;  vb = b.bb;   break;
+                    default:       va = a.threatScore; vb = b.threatScore;
+                }
+                if (typeof va === 'string') return _bmSortDir === 'asc' ? va.localeCompare(vb,'zh-TW') : vb.localeCompare(va,'zh-TW');
+                return _bmSortDir === 'asc' ? va - vb : vb - va;
+            });
+        }
+
+        // 排序箭頭
+        function _bmArrow(key) {
+            if (_bmSortKey !== key) return '<span style="color:rgba(255,255,255,0.35);font-size:10px;"> ↕</span>';
+            return `<span style="color:#ffd700;font-size:10px;"> ${_bmSortDir === 'desc' ? '↓' : '↑'}</span>`;
+        }
+
+        // 打擊率 inline bar
+        function _bmAvgBar(avgNum) {
+            const pct = Math.min(avgNum / 0.400, 1);
+            const w   = Math.round(pct * 68);
+            const col = avgNum >= 0.300 ? '#10b981' : avgNum >= 0.200 ? '#9ca3af' : '#ef4444';
+            const fmt = avgNum > 0 ? '.' + String(Math.round(avgNum * 1000)).padStart(3,'0') : '.000';
+            return `<span style="font-weight:900;color:${col};">${fmt}</span>` +
+                   `<span style="display:inline-block;width:${w}px;height:6px;background:${col};border-radius:3px;margin-left:5px;vertical-align:middle;opacity:0.7;"></span>`;
+        }
+
+        // 威脅 badge
+        function _bmThreatBadge(level) {
+            const cfg = {
+                high: { bg:'#dcfce7', color:'#15803d', border:'#16a34a', label:'高威脅' },
+                mid:  { bg:'#f3f4f6', color:'#6b7280', border:'#9ca3af', label:'中威脅' },
+                low:  { bg:'#fee2e2', color:'#b91c1c', border:'#ef4444', label:'低威脅' },
+            };
+            const c = cfg[level];
+            return `<span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:800;background:${c.bg};color:${c.color};border:1.5px solid ${c.border};white-space:nowrap;">${c.label}</span>`;
+        }
+
+        // 三振顏色
+        function _bmKStyle(k, pa) {
+            return (pa > 0 && k / pa >= 0.35) ? 'color:#dc2626;font-weight:900;' : '';
+        }
+
+        // 表格（含球隊摘要 + 可排序欄位）
+        const tableHTML = (rows, tname) => {
+            const sorted = _bmSortRows(rows);
+            const totalPA   = rows.reduce((s, r) => s + r.pa, 0);
+            const totalHits = rows.reduce((s, r) => s + r.hits, 0);
+            const totalK    = rows.reduce((s, r) => s + r.k, 0);
+            const teamAvg   = totalPA > 0 ? totalHits / totalPA : 0;
+            const teamKRate = totalPA > 0 ? totalK / totalPA * 100 : 0;
+            const topThreat = rows.length > 0
+                ? rows.reduce((best, r) => r.threatScore > best.threatScore ? r : best)
+                : null;
+            const teamAvgFmt = totalPA > 0
+                ? '.' + String(Math.round(teamAvg * 1000)).padStart(3,'0') : '---';
+            const teamKFmt  = totalPA > 0 ? teamKRate.toFixed(1) + '%' : '---';
+            const topName   = topThreat ? `#${topThreat.number}${topThreat.name ? ' ' + topThreat.name : ''}` : '---';
+            const avgFill   = teamAvg >= 0.300 ? '#4ade80' : teamAvg >= 0.200 ? '#fbbf24' : '#f87171';
+            const kFill     = parseFloat(teamKFmt) >= 30 ? '#4ade80' : '#fbbf24';
+            const thS = 'padding:8px 6px;text-align:center;font-size:11px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #0051a5;';
+            const thLS = 'padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;border-bottom:2px solid #0051a5;';
+
+            return `
+              <!-- 球隊摘要 -->
+              <div style="background:linear-gradient(135deg,#003d79,#0051a5);border-radius:10px;padding:12px 14px;margin-bottom:10px;color:white;">
+                <div style="font-size:10px;font-weight:700;opacity:0.7;margin-bottom:7px;letter-spacing:0.05em;">⚡ ${tname} · 整體分析</div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+                  <div style="text-align:center;">
+                    <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:${avgFill};">${teamAvgFmt}</div>
+                    <div style="font-size:10px;opacity:0.7;">整體打擊率</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:${kFill};">${teamKFmt}</div>
+                    <div style="font-size:10px;opacity:0.7;">整體三振率</div>
+                  </div>
+                  <div style="text-align:center;flex:1;min-width:80px;">
+                    <div style="font-size:13px;font-weight:900;">${topName}</div>
+                    <div style="font-size:10px;opacity:0.7;">最高威脅打者</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:18px;font-weight:900;">${rows.length}</div>
+                    <div style="font-size:10px;opacity:0.7;">登錄打者</div>
+                  </div>
+                </div>
+              </div>
+              <!-- 可排序表格 -->
+              <div style="overflow-x:auto;margin-bottom:6px;">
+              <table class="bm-stats-table">
                 <thead><tr>
-                    <th>打者</th><th>打席</th><th>安打</th><th>打率</th><th>三振</th><th>保送</th>
+                  <th style="${thLS}" onclick="setBmSort('number')">打者${_bmArrow('number')}</th>
+                  <th style="${thS}" onclick="setBmSort('pa')">打席${_bmArrow('pa')}</th>
+                  <th style="${thS}" onclick="setBmSort('hits')">安打${_bmArrow('hits')}</th>
+                  <th style="${thS}min-width:120px;" onclick="setBmSort('avg')">打率${_bmArrow('avg')}</th>
+                  <th style="${thS}" onclick="setBmSort('k')">三振${_bmArrow('k')}</th>
+                  <th style="${thS}" onclick="setBmSort('bb')">保送${_bmArrow('bb')}</th>
+                  <th style="${thS}" onclick="setBmSort('threat')">威脅${_bmArrow('threat')}</th>
                 </tr></thead>
                 <tbody>
-                ${rows.map(r => `<tr onclick="showBmBatterDetail('${r.number}')" style="cursor:pointer;">
-                    <td>#${r.number} ${r.name||''}<br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
-                    <td>${r.pa}</td>
-                    <td>${r.hits}</td>
-                    <td class="${parseFloat(r.avg)>=0.3?'bm-stats-highlight':''}">${r.avg}</td>
-                    <td>${r.k}</td>
-                    <td>${r.bb}</td>
+                ${sorted.map(r => `<tr onclick="showBmBatterDetail('${r.number}')" style="cursor:pointer;">
+                  <td>#${r.number} ${r.name||''}<br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
+                  <td>${r.pa}</td>
+                  <td>${r.hits}</td>
+                  <td style="white-space:nowrap;">${_bmAvgBar(r.avgNum)}</td>
+                  <td style="${_bmKStyle(r.k,r.pa)}">${r.k}</td>
+                  <td>${r.bb}</td>
+                  <td>${_bmThreatBadge(r.threatLevel)}</td>
                 </tr>`).join('')}
                 </tbody>
-            </table></div>`;
+              </table></div>
+              <div style="font-size:11px;color:#9ca3af;text-align:right;margin-bottom:4px;">點擊欄位標題排序 · 點擊列查看詳情</div>`;
+        };
 
         const groupsHTML = Object.entries(teamGroupMap).map(([tname, map]) => {
             const rows = buildRows(map);
-            return `<div style="margin-bottom:18px;">
-                <div style="font-size:13px;font-weight:900;color:#003d79;padding:6px 0 4px;border-bottom:2px solid #003d79;margin-bottom:6px;">${tname}</div>
-                ${tableHTML(rows)}
+            return `<div style="margin-bottom:20px;">
+                <div style="font-size:13px;font-weight:900;color:#003d79;padding:6px 0 4px;border-bottom:2px solid #003d79;margin-bottom:8px;">${tname}</div>
+                ${tableHTML(rows, tname)}
             </div>`;
         }).join('');
 
         container.innerHTML = `
             <h2>📊 打者成績一覽</h2>
             ${groupsHTML}
-            <div style="font-size:12px;color:#6b7280;margin-top:8px;">點擊打者列可查看落點圖與詳細分析</div>
             <div id="bmBatterDetailSection"></div>`;
     }
 
@@ -10248,6 +10356,16 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                     <span class="bm-log-outcome ${cls}">${a.outcome}${zone}</span></div>`;
             }).join('')}</div>`;
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function setBmSort(key) {
+        if (_bmSortKey === key) {
+            _bmSortDir = _bmSortDir === 'desc' ? 'asc' : 'desc';
+        } else {
+            _bmSortKey = key;
+            _bmSortDir = key === 'name' || key === 'number' ? 'asc' : 'desc';
+        }
+        _renderBmStats();
     }
 
     function selectBmAnalysisTeam(teamName) {
