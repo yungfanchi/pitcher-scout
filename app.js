@@ -2273,7 +2273,8 @@
         currentTeam = teamIndex;
         currentPitcher = pitcherIndex;
         statsFilter = 'all';
-        _bmAnalysisBatterFilter = null; // 切換賽事時重置打者篩選
+        _bmAnalysisTeamFilter   = null; // 切換賽事時重置篩選
+        _bmAnalysisBatterFilter = null;
         expandedTeams.add(teamIndex);
 
         // 還原該賽事的打序（若曾儲存過）
@@ -8415,6 +8416,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
 
     // ── 打者情蒐模式進入/切換 ──
 
+    let _bmAnalysisTeamFilter   = null; // null = 全部；string = 隊伍名
     let _bmAnalysisBatterFilter = null; // null = 整隊；string = 打者 key
 
     let _bmState = {
@@ -10103,6 +10105,12 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    function selectBmAnalysisTeam(teamName) {
+        _bmAnalysisTeamFilter   = teamName || null;
+        _bmAnalysisBatterFilter = null; // 換隊伍時重置個人篩選
+        _renderBmAnalysis();
+    }
+
     function selectBmAnalysisBatter(key) {
         _bmAnalysisBatterFilter = key || null;
         _renderBmAnalysis();
@@ -10130,40 +10138,67 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             });
         });
 
-        // ── 打者選擇器 ──
+        // ── 打者選擇器（兩層：隊伍 → 個人） ──
         const selectorEl = document.getElementById('bmAnalysisBatterSelector');
         if (selectorEl) {
-            // 提取唯一打者清單
-            const batterMap = new Map();
-            allPitches.forEach(p => {
-                const name = (p.batterName || '').trim();
-                const num  = String(p.batterNumber || '').trim();
-                const key  = name || (num ? `#${num}` : '');
-                if (!key || batterMap.has(key)) return;
-                batterMap.set(key, name || `背號 ${num}`);
-            });
-            if (batterMap.size > 0) {
-                const pills = [['null','整隊（全部）'], ...batterMap.entries()].map(([k, lbl]) => {
-                    const active = (k === 'null' && !_bmAnalysisBatterFilter) || k === _bmAnalysisBatterFilter;
-                    return `<button onclick="selectBmAnalysisBatter(${k === 'null' ? 'null' : `'${k.replace(/'/g,"\\'")}'`})"
-                        style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;
-                               border:2px solid ${active ? '#003d79' : '#d1d5db'};
-                               background:${active ? '#003d79' : 'white'};
-                               color:${active ? 'white' : '#374151'};
-                               cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap;">${lbl}</button>`;
-                }).join('');
-                selectorEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 0 4px;">${pills}</div>`;
-            } else {
-                selectorEl.innerHTML = '';
+            const teamNameA = team.name     || '先攻';
+            const teamNameB = team.opponent || '後攻';
+
+            function _pill(label, onclick, active) {
+                return `<button onclick="${onclick}"
+                    style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;
+                           border:2px solid ${active ? '#003d79' : '#d1d5db'};
+                           background:${active ? '#003d79' : 'white'};
+                           color:${active ? 'white' : '#374151'};
+                           cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap;">${label}</button>`;
             }
+
+            // 第一層：隊伍按鈕
+            const teamRow = `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 0 6px;">
+                ${_pill('全部',   "selectBmAnalysisTeam(null)",           !_bmAnalysisTeamFilter)}
+                ${_pill(teamNameA, `selectBmAnalysisTeam('${teamNameA.replace(/'/g,"\\'")}')`, _bmAnalysisTeamFilter === teamNameA)}
+                ${_pill(teamNameB, `selectBmAnalysisTeam('${teamNameB.replace(/'/g,"\\'")}')`, _bmAnalysisTeamFilter === teamNameB)}
+            </div>`;
+
+            // 第二層：選了隊伍才展開個人 pills
+            let batterRow = '';
+            if (_bmAnalysisTeamFilter) {
+                const teamBatterMap = new Map();
+                allPitches.forEach(p => {
+                    const pitchTeam = p.batterTeam || _inferBatterTeam(p, team) || '';
+                    if (pitchTeam !== _bmAnalysisTeamFilter) return;
+                    const name = (p.batterName || '').trim();
+                    const num  = String(p.batterNumber || '').trim();
+                    const key  = name || (num ? `#${num}` : '');
+                    if (!key || teamBatterMap.has(key)) return;
+                    teamBatterMap.set(key, name || `背號 ${num}`);
+                });
+                if (teamBatterMap.size > 0) {
+                    const pills = [
+                        _pill('整隊', "selectBmAnalysisBatter(null)", !_bmAnalysisBatterFilter),
+                        ...[...teamBatterMap.entries()].map(([k, lbl]) =>
+                            _pill(lbl, `selectBmAnalysisBatter('${k.replace(/'/g,"\\'")}')`, k === _bmAnalysisBatterFilter)
+                        )
+                    ].join('');
+                    batterRow = `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 0 8px;border-top:1px solid #f0f0f0;padding-top:8px;">${pills}</div>`;
+                }
+            }
+
+            selectorEl.innerHTML = batterRow ? teamRow + batterRow : teamRow;
         }
 
-        // ── 依選定打者篩選 ──
+        // ── 依選定隊伍 + 打者篩選 ──
         let filteredPitches = allPitches;
+        if (_bmAnalysisTeamFilter) {
+            filteredPitches = filteredPitches.filter(p => {
+                const pitchTeam = p.batterTeam || _inferBatterTeam(p, team) || '';
+                return pitchTeam === _bmAnalysisTeamFilter;
+            });
+        }
         if (_bmAnalysisBatterFilter) {
             const isNumKey = _bmAnalysisBatterFilter.startsWith('#');
             const numKey   = isNumKey ? _bmAnalysisBatterFilter.slice(1) : null;
-            filteredPitches = allPitches.filter(p => isNumKey
+            filteredPitches = filteredPitches.filter(p => isNumKey
                 ? String(p.batterNumber || '') === numKey && !(p.batterName || '').trim()
                 : (p.batterName || '').trim() === _bmAnalysisBatterFilter
             );
@@ -10384,10 +10419,11 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             baseLegend
         );
 
-        const _filterLabel = _bmAnalysisBatterFilter
+        const _teamLabel   = _bmAnalysisTeamFilter ? `${_bmAnalysisTeamFilter}・` : '';
+        const _batterLabel = _bmAnalysisBatterFilter
             ? ((_bmAnalysisBatterFilter.startsWith('#') ? `背號 ${_bmAnalysisBatterFilter.slice(1)}` : _bmAnalysisBatterFilter) + '・')
             : '';
-        container.innerHTML = `<h2 style="margin-bottom:12px;">🔍 ${_filterLabel}打者傾向分析（${paPitches.length} 打席）</h2>${sec1}${sec2}${sec3}${sec4}${sec5}${sec6}`;
+        container.innerHTML = `<h2 style="margin-bottom:12px;">🔍 ${_teamLabel}${_batterLabel}打者傾向分析（${paPitches.length} 打席）</h2>${sec1}${sec2}${sec3}${sec4}${sec5}${sec6}`;
     }
 
     // ── Firebase 打者模式同步 ──
