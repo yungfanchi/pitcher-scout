@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v191';
+﻿    const APP_VERSION = 'v192';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7899,28 +7899,23 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <rect x="147" y="163" width="7" height="7" fill="white" transform="rotate(45 150.5 166.5)" style="pointer-events:none;"/>
           <rect x="94"  y="216" width="7" height="7" fill="white" style="pointer-events:none;"/>
 
-          <!-- 淺外野標籤 -->
+          ${isAny ? `
+          <!-- 淺外野標籤（互動模式才顯示） -->
           <text x="80"  y="179" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺LF</text>
           <text x="113" y="162" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺LCF</text>
           <text x="150" y="156" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺CF</text>
           <text x="187" y="162" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RCF</text>
           <text x="220" y="179" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RF</text>
-
-          <!-- 全壘打區標籤 -->
           <text x="35"  y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR LF</text>
           <text x="88"  y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR LCF</text>
           <text x="150" y="78"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR CF</text>
           <text x="212" y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR RCF</text>
           <text x="265" y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR RF</text>
-
-          <!-- 深外野標籤 -->
           <text x="56"  y="148" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LF</text>
           <text x="101" y="125" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LCF</text>
           <text x="150" y="117" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深CF</text>
           <text x="199" y="125" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深RCF</text>
           <text x="244" y="148" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深RF</text>
-
-          <!-- 深內野標籤（8區）-->
           <text x="102" y="215" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">3B</text>
           <text x="114" y="207" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">三游</text>
           <text x="128" y="200" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">SS</text>
@@ -7929,14 +7924,10 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <text x="172" y="200" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">2B</text>
           <text x="186" y="207" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">一二</text>
           <text x="198" y="215" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">1B</text>
-
-          <!-- 淺內野標籤 -->
           <text x="128" y="243" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">三短</text>
           <text x="150" y="242" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">P</text>
           <text x="172" y="243" text-anchor="middle" fill="white" font-size="8" font-family="sans-serif" opacity="0.85" style="pointer-events:none;">一短</text>
           <text x="150" y="266" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手</text>
-
-          <!-- 界外區標籤 -->
           <text x="18"  y="240" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左</text>
           <text x="18"  y="253" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">界</text>
           <text x="18"  y="266" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="9" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
@@ -7948,6 +7939,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <text x="282" y="152" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右</text>
           <text x="282" y="163" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">外</text>
           <text x="150" y="288" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手區</text>
+          ` : ''}
 
           ${dotsHTML}
         </svg>`;
@@ -8426,11 +8418,11 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             if (l.isHit) zoneCounts[l.zone].hits++;
         });
 
+        // 線條：從本壘板 (150,272) 畫到落點，紅=安打，藍=非安打，重疊自然加深
         const dotsHTML = locs.map(l => {
             const sx = (l.x * 300).toFixed(1), sy = (l.y * 280).toFixed(1);
-            const fill = l.isHit ? '#22c55e' : '#ef4444';
-            const stroke = l.isHit ? '#15803d' : '#b91c1c';
-            return `<circle cx="${sx}" cy="${sy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5" opacity="0.85"/>`;
+            const color = l.isHit ? '#ef4444' : '#3b82f6';
+            return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${color}" stroke-width="2" opacity="0.7" stroke-linecap="round" style="pointer-events:none;"/>`;
         }).join('');
 
         const zoneRows = Object.entries(zoneCounts).sort((a,b) => b[1].total - a[1].total)
@@ -8441,8 +8433,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         container.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
           <div style="flex:0 0 auto;">${buildFieldSVG(dotsHTML)}
             <div style="display:flex;gap:14px;margin-top:8px;justify-content:center;font-size:12px;">
-              <span><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#22c55e;vertical-align:middle;margin-right:3px;"></span>安打</span>
-              <span><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#ef4444;vertical-align:middle;margin-right:3px;"></span>出局/野選</span>
+              <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>安打</span>
+              <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>非安打</span>
             </div>
           </div>
           ${locs.length === 0 ? `<div style="color:#9ca3af;font-size:13px;padding:16px 0;">
@@ -10593,11 +10585,12 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const BB  = ['保送','觸身球','故意四壞','捕逸'];
 
         const locs = atBats.filter(a=>a.hitLocation);
+        // 線條：從本壘板 (150,272) 畫到落點，紅=安打，藍=非安打
         const dotsHTML = locs.map(a => {
             const sx = (a.hitLocation.x * 300).toFixed(1), sy = (a.hitLocation.y * 280).toFixed(1);
             const isHit = HIT.includes(a.outcome);
-            return `<circle cx="${sx}" cy="${sy}" r="7" fill="${isHit?'#22c55e':'#ef4444'}"
-                stroke="${isHit?'#15803d':'#b91c1c'}" stroke-width="1.5" opacity="0.85"/>`;
+            const color = isHit ? '#ef4444' : '#3b82f6';
+            return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${color}" stroke-width="2" opacity="0.7" stroke-linecap="round" style="pointer-events:none;"/>`;
         }).join('');
 
         const standalonePitches = atBats.filter(a=>a.mode==='standalone').flatMap(a=>a.pitches||[]);
@@ -10625,7 +10618,10 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
                 <div>${buildFieldSVG(dotsHTML)}</div>
                 <div style="flex:1;min-width:120px;font-size:12px;">
-                    <span style="color:#22c55e;">● 安打</span>　<span style="color:#ef4444;">● 出局/其他</span>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      <span><svg width="20" height="12" style="vertical-align:middle;margin-right:4px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>安打</span>
+                      <span><svg width="20" height="12" style="vertical-align:middle;margin-right:4px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>非安打</span>
+                    </div>
                     <div style="margin-top:8px;color:#6b7280;">共 ${locs.length} 筆落點記錄</div>
                 </div>
             </div>
