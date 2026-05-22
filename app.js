@@ -8752,24 +8752,98 @@
           </table>
         </div>`;
 
-        // ── 3. 打擊落點圖 ──
+        // ── 3. 打擊落點圖 + 方向/型態分析 ──
         const locs = pitches.filter(p => p.hitLocation && (p.outcomes||[]).some(o => BIP.includes(o)));
         const linesHTML = locs.map(p => {
             const sx = (p.hitLocation.x * 300).toFixed(1), sy = (p.hitLocation.y * 280).toFixed(1);
             const col = (p.outcomes||[]).some(o => HIT.includes(o)) ? '#ef4444' : '#3b82f6';
-            return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="2" opacity="0.7" stroke-linecap="round" style="pointer-events:none;"/>`;
+            return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="2.5" opacity="0.85" stroke-linecap="round" style="pointer-events:none;"/>`;
         }).join('');
+        // 方向分析（x：0=左場線, 1=右場線）
+        const leftLocs   = locs.filter(p => p.hitLocation.x < 0.43);
+        const centerLocs = locs.filter(p => p.hitLocation.x >= 0.43 && p.hitLocation.x <= 0.57);
+        const rightLocs  = locs.filter(p => p.hitLocation.x > 0.57);
+        const leftPct    = locs.length > 0 ? Math.round(leftLocs.length   / locs.length * 100) : 0;
+        const centerPct  = locs.length > 0 ? Math.round(centerLocs.length / locs.length * 100) : 0;
+        const rightPct   = locs.length > 0 ? 100 - leftPct - centerPct : 0;
+        // 型態分析（y < 0.62 = 外野/飛球；y >= 0.62 = 內野/滾地）
+        const flyLocs    = locs.filter(p => p.hitLocation.y < 0.62);
+        const groundLocs = locs.filter(p => p.hitLocation.y >= 0.62);
+        const flyPct     = locs.length > 0 ? Math.round(flyLocs.length / locs.length * 100) : 0;
+        const groundPct  = 100 - flyPct;
+        function _dH(arr) { return arr.filter(p => (p.outcomes||[]).some(o => HIT.includes(o))).length; }
+        function _dA(arr) { return arr.length >= 2 ? _dH(arr) / arr.length : null; }
+        const leftAvg = _dA(leftLocs), centerAvg = _dA(centerLocs), rightAvg = _dA(rightLocs);
+        const flyAvg  = _dA(flyLocs),  groundAvg  = _dA(groundLocs);
+        function _aC(n) { return n >= 0.300 ? '#dc2626' : n >= 0.200 ? '#374151' : '#9ca3af'; }
+        // 情蒐建議
+        const _ps = entry.hand === '右打' ? '左' : '右';
+        const _pp = entry.hand === '右打' ? leftPct : rightPct;
+        let _adv = '';
+        if (locs.length >= 4) {
+            if (_pp > 45 && flyPct > 55)    _adv = `偏${_ps}打者，飛球比例高。建議${_ps}外野守深，避免失分。`;
+            else if (_pp > 45 && groundPct > 55) _adv = `偏${_ps}打者，滾地球為主。加強${_ps}側內野守備。`;
+            else if (_pp > 45)              _adv = `拉打傾向（${_ps}場 ${_pp}%），建議${_ps}側防守強化。`;
+            else if (flyPct > 60)           _adv = `飛球比例高（${flyPct}%），外野宜守深，防長打。`;
+            else if (groundPct > 60)        _adv = `滾地球比例高（${groundPct}%），內野手宜前衝，留意穿越。`;
+            else                            _adv = `打擊方向均衡，全場防守皆需注意。`;
+        }
+        const _hitCnt = _dH(locs);
         const sec2 = `
-        <div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-          <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:10px;">🗺️ 打擊落點圖</div>
-          <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
-            <div style="flex:0 0 auto;max-width:280px;width:100%;">${buildFieldSVG(linesHTML)}</div>
-            <div style="font-size:12px;display:flex;flex-direction:column;gap:6px;padding-top:4px;">
-              <span><svg width="20" height="12" style="vertical-align:middle;margin-right:4px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>安打</span>
-              <span><svg width="20" height="12" style="vertical-align:middle;margin-right:4px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>非安打</span>
-              <div style="margin-top:4px;color:#9ca3af;font-size:11px;">共 ${locs.length} 筆落點</div>
+        <div style="background:#fffdf5;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ 打擊落點圖</div>
+          ${locs.length === 0
+            ? `<div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af;">尚無落點資料</div>`
+            : `<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+            <!-- 落點圖 -->
+            <div style="flex:1 1 260px;min-width:220px;max-width:460px;">
+              ${buildFieldSVG(linesHTML)}
+              <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;color:#374151;flex-wrap:wrap;align-items:center;">
+                <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/></svg>安打（${_hitCnt}）</span>
+                <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/></svg>非安打（${locs.length - _hitCnt}）</span>
+                <span style="margin-left:auto;color:#9ca3af;">共 ${locs.length} 筆</span>
+              </div>
             </div>
-          </div>
+            <!-- 統計面板 -->
+            <div style="flex:1 1 160px;min-width:150px;display:flex;flex-direction:column;gap:14px;">
+              <div>
+                <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:6px;">方向分佈</div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:5px;">
+                  <span style="color:#ef4444;">左 ${leftPct}%</span>
+                  <span style="color:#10b981;">中 ${centerPct}%</span>
+                  <span style="color:#3b82f6;">右 ${rightPct}%</span>
+                </div>
+                <div style="height:8px;border-radius:4px;overflow:hidden;display:flex;">
+                  <div style="flex:${leftPct||0.1};background:#ef4444;"></div>
+                  <div style="flex:${centerPct||0.1};background:#10b981;"></div>
+                  <div style="flex:${rightPct||0.1};background:#3b82f6;"></div>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:6px;">打球型態</div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:5px;">
+                  <span style="color:#8b5cf6;">飛球 ${flyPct}%</span>
+                  <span style="color:#f59e0b;">滾地 ${groundPct}%</span>
+                </div>
+                <div style="height:8px;border-radius:4px;overflow:hidden;display:flex;">
+                  <div style="flex:${flyPct||0.1};background:#8b5cf6;"></div>
+                  <div style="flex:${groundPct||0.1};background:#f59e0b;"></div>
+                </div>
+              </div>
+              ${(leftAvg!==null||centerAvg!==null||rightAvg!==null) ? `<div>
+                <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:4px;">各方向安打率</div>
+                ${leftAvg  !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:14px;"><span style="color:#374151;">左</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(leftAvg)};">${fmtAvg(leftAvg)}</span></div>`:''}
+                ${centerAvg!==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:14px;"><span style="color:#374151;">中</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(centerAvg)};">${fmtAvg(centerAvg)}</span></div>`:''}
+                ${rightAvg !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px;"><span style="color:#374151;">右</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(rightAvg)};">${fmtAvg(rightAvg)}</span></div>`:''}
+              </div>` : ''}
+              ${(flyAvg!==null||groundAvg!==null) ? `<div>
+                <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:4px;">型態安打率</div>
+                ${flyAvg   !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:14px;"><span style="color:#374151;">飛球</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(flyAvg)};">${fmtAvg(flyAvg)}</span></div>`:''}
+                ${groundAvg!==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px;"><span style="color:#374151;">滾地</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(groundAvg)};">${fmtAvg(groundAvg)}</span></div>`:''}
+              </div>` : ''}
+              ${_adv ? `<div style="background:#fffbeb;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;border:1px solid #fde68a;line-height:1.6;">${_adv}</div>` : ''}
+            </div>
+          </div>`}
         </div>`;
 
         // ── 4. 球數傾向矩陣 ──
