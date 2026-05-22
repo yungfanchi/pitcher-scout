@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v173';
+﻿    const APP_VERSION = 'v174';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -1563,7 +1563,7 @@
         userRole = null;
         userSession = null;
         USER_TEAM_REF = null;
-        if (activeFirebaseRef) { try { activeFirebaseRef.off('value'); } catch(e) {} activeFirebaseRef = null; }
+        if (activeFirebaseRef) { try { activeFirebaseRef.off(); } catch(e) {} activeFirebaseRef = null; }
         firebaseListening = false;
         // Reset state
         currentTeam = null; currentPitcher = null;
@@ -1896,6 +1896,7 @@
         const gameName = document.getElementById('newTeamGameName').value.trim();
         if (!teamName) { alert('請輸入先攻隊名！'); return; }
         allData.teams.push({
+            gameId: _makeGameId(),
             name: teamName, date: teamDate,
             opponent: teamOpponent, gameName: gameName,
             pitchers: []
@@ -1909,7 +1910,7 @@
         document.getElementById('twFlagText').style.display = 'none';
         updateTeamList();
         saveToLocalStorage();
-        saveToFirebase();
+        saveToFirebase(allData.teams.length - 1);
     }
 
     // ====== ADD PITCHER MODAL ======
@@ -1966,7 +1967,7 @@
         expandedGames.add(gameName);
         updateTeamList();
         saveToLocalStorage();
-        saveToFirebase();
+        saveToFirebase(teamIndex);
         closeAddPitcherModal();
         alert(`✅ 投手已新增！${nameB ? '（' + nameA + ' & ' + nameB + '）' : '（' + nameA + '）'}`);
     }
@@ -2005,7 +2006,7 @@
         expandedGames.add(gameName);
         updateTeamList();
         saveToLocalStorage();
-        saveToFirebase();
+        saveToFirebase(teamIndex);
         closeSinglePitcherModal();
         // 清空欄位
         document.getElementById('singlePitcherName').value = '';
@@ -2053,7 +2054,7 @@
         updateTeamList();
         updateSlotDisplay();
         saveToLocalStorage();
-        saveToFirebase();
+        saveToFirebase(_editPitcherTeamIdx);
         closeEditPitcherModal();
     }
 
@@ -2829,7 +2830,7 @@
         updatePitchLog();
         updateStats();
         saveToLocalStorage();
-        saveToFirebase();
+        saveToFirebase(currentTeam);
 
         // 紀錄此球資訊，供球場圖模式 + 得分確認使用（reset 前先存）
         const _bipOutcomes = [...currentPitch.outcomes];
@@ -2889,7 +2890,7 @@
                     allData.teams[_bipTeam].pitchers[_bipPitcher].pitches[_bipIdx].hitLocation = loc;
                     rebuildPitcherDB();
                     saveToLocalStorage();
-                    saveToFirebase();
+                    saveToFirebase(_bipTeam);
                     updatePitchLog();
                     updateStats();
                 }
@@ -3170,7 +3171,7 @@
                     ts:       Date.now()
                 });
                 saveToLocalStorage();
-                saveToFirebase();
+                saveToFirebase(currentTeam);
             }
         }
 
@@ -5289,28 +5290,45 @@
     }
 
     // ====== MULTI-TENANT DATA HELPERS ======
-    // Returns the correct Firebase ref depending on auth mode:
-    //   New SaaS:  USER_TEAM_REF.child('pitchers')  → teams/{teamCode}/pitchers
-    //   Legacy:    db.ref(DB_KEY)                   → teams/{teamCode}/data
+
+    // Legacy read ref (used only for migration from old single-blob path)
     function getDataRef() {
         return USER_TEAM_REF ? USER_TEAM_REF.child('pitchers') : db.ref(DB_KEY);
     }
 
-    // Returns the payload to write: new mode stores raw teams array; legacy wraps in {teams:[]}
-    function getFirebasePayload() {
-        if (USER_TEAM_REF) return JSON.parse(JSON.stringify(allData.teams || []));
-        return sanitizeForFirebase(allData);
+    // Per-game Firebase paths: teams/{teamCode}/games/{gameId}
+    function getGamesRef() {
+        if (USER_TEAM_REF) return USER_TEAM_REF.child('games');
+        if (currentTeamCode === 'ADMIN') return db.ref('pitcherScoutGames');
+        return db.ref(`teams/${currentTeamCode}/games`);
+    }
+    function getGameRef(gameId) { return getGamesRef().child(String(gameId)); }
+
+    // Generate a unique game ID
+    function _makeGameId() {
+        return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     }
 
-    // Normalises snapshot value from either storage format into a clean teams array
+    // Normalise a single raw game entry (Firebase may return arrays as {0:…,1:…})
+    function _normalizeGameEntry(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        let pitchers = raw.pitchers || [];
+        if (!Array.isArray(pitchers)) pitchers = Object.values(pitchers);
+        pitchers = pitchers.filter(Boolean).map(p => {
+            let pitches = p.pitches || [];
+            if (!Array.isArray(pitches)) pitches = Object.values(pitches);
+            return { ...p, pitches };
+        });
+        return { ...raw, pitchers };
+    }
+
+    // Normalises legacy snapshot value (old single-blob path) into a clean teams array
     function normalizeTeamsData(raw) {
         if (!raw) return null;
         let teams;
         if (USER_TEAM_REF) {
-            // New path: snapshot IS the teams array/object
             teams = Array.isArray(raw) ? raw : Object.values(raw);
         } else {
-            // Legacy path: snapshot = { teams: [...] }
             if (!raw.teams) return null;
             teams = Array.isArray(raw.teams) ? raw.teams : Object.values(raw.teams);
         }
@@ -5322,6 +5340,7 @@
                 if (!Array.isArray(pitches)) pitches = Object.values(pitches);
                 return { ...pitcher, pitches };
             });
+            if (!team.gameId) team.gameId = _makeGameId();
             return { ...team, pitchers };
         });
     }
@@ -5476,11 +5495,18 @@
         if (firebaseListening) return;
         firebaseListening = true;
 
-        // 若上次 app 關閉前有未同步資料，先補傳再監聽（防止 app 重開後雲端舊資料覆蓋本地新資料）
+        const gRef = getGamesRef();
+
+        // 若上次有未同步離線資料，先補傳全部 games 再掛監聽
         if (localStorage.getItem('_pendingSync') === '1') {
-            console.log('[Firebase] 偵測到未同步資料，先補傳至雲端...');
-            lastSaveTime = Date.now(); // 讓下方 on('value') 忽略這次補傳的回呼
-            getDataRef().set(getFirebasePayload())
+            console.log('[Firebase] 偵測到未同步資料，先補傳...');
+            lastSaveTime = Date.now();
+            const gamesObj = {};
+            (allData.teams || []).forEach(t => {
+                if (!t.gameId) t.gameId = _makeGameId();
+                gamesObj[t.gameId] = JSON.parse(JSON.stringify(t));
+            });
+            gRef.set(gamesObj)
                 .then(() => {
                     pendingSync = false;
                     try { localStorage.removeItem('_pendingSync'); } catch(e) {}
@@ -5490,41 +5516,97 @@
                 .catch(e => console.warn('[Firebase] 補傳失敗:', e.code));
         }
 
-        activeFirebaseRef = getDataRef();
+        // 先確認 games/ 路徑是否有資料；若無，嘗試從舊路徑遷移
+        gRef.once('value').then(snap => {
+            if (!snap.exists()) {
+                // 舊路徑遷移
+                getDataRef().once('value').then(oldSnap => {
+                    const oldTeams = normalizeTeamsData(oldSnap.val());
+                    if (oldTeams && oldTeams.length > 0) {
+                        oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); });
+                        // 合併本機（可能有離線新增的賽事）
+                        const localIds = new Set(allData.teams.map(t => t.gameId).filter(Boolean));
+                        oldTeams.forEach(t => { if (!localIds.has(t.gameId)) allData.teams.push(t); });
+                        const gamesObj = {};
+                        allData.teams.forEach(t => { gamesObj[t.gameId] = JSON.parse(JSON.stringify(t)); });
+                        lastSaveTime = Date.now();
+                        gRef.set(gamesObj)
+                            .then(() => console.log('[Firebase] 遷移至 per-game 路徑完成'))
+                            .catch(e => console.warn('[Firebase] 遷移失敗:', e.code));
+                    }
+                    _startGamesListener(gRef);
+                }).catch(() => _startGamesListener(gRef));
+            } else {
+                _startGamesListener(gRef);
+            }
+        }).catch(() => _startGamesListener(gRef));
+    }
+
+    function _startGamesListener(gRef) {
+        activeFirebaseRef = gRef;
+        let _firstEvent = true;
+
         activeFirebaseRef.on('value', snap => {
-            if (Date.now() - lastSaveTime < 10000) return; // 忽略自己剛寫入觸發的更新（10秒保護，防慢網路）
+            // 10 秒保護：忽略自己寫入後觸發的回呼（第一次事件除外，需要載入初始資料）
+            if (!_firstEvent && Date.now() - lastSaveTime < 10000) return;
+            _firstEvent = false;
+
             const raw = snap.val();
-            const teams = normalizeTeamsData(raw);
-            if (!teams) return;
-            allData.teams = teams;
-            allData.pitcherDB = {};
-            // 同步打者獨立情蒐資料（若 Firebase 中有）
-            if (raw && Array.isArray(raw.batterData)) {
-                allData.batterData = raw.batterData;
-            } else if (!allData.batterData) {
-                allData.batterData = [];
-            }
-            // 同步打者情蒐模式資料（bm路徑）
-            if (raw && raw.bm) {
-                allData.bm = raw.bm;
-            } else if (!allData.bm) {
-                allData.bm = { lineup: Array.from({length:9},()=>({number:'',name:'',hand:'右打'})), gameIdx:-1, attackingTeam:'B', atBats:[] };
-            }
+            if (!raw || typeof raw !== 'object') return;
+
+            // 把 {gameId: gameData} 轉成陣列
+            const remoteGames = Object.entries(raw)
+                .filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v))
+                .map(([id, data]) => {
+                    const g = _normalizeGameEntry(data);
+                    if (!g) return null;
+                    if (!g.gameId) g.gameId = id;
+                    return g;
+                })
+                .filter(Boolean);
+
+            if (remoteGames.length === 0) return;
+
+            // 目前正在情蒐的賽事 gameId（不允許被遠端資料覆蓋）
+            const editingId = (currentTeam !== null && allData.teams[currentTeam])
+                ? allData.teams[currentTeam].gameId
+                : null;
+
+            // 以本機陣列為基礎做 in-place 合併，保持索引穩定
+            const remoteById = Object.fromEntries(remoteGames.map(g => [g.gameId, g]));
+
+            // 更新已有的賽事（跳過正在編輯的那場）
+            allData.teams.forEach((local, idx) => {
+                if (!local.gameId) return;
+                if (local.gameId === editingId) return; // 保護
+                if (remoteById[local.gameId]) {
+                    allData.teams[idx] = remoteById[local.gameId];
+                }
+            });
+
+            // 把遠端有、本機沒有的新賽事附加到尾端
+            const localIds = new Set(allData.teams.map(t => t.gameId).filter(Boolean));
+            remoteGames.forEach(rg => {
+                if (!localIds.has(rg.gameId)) allData.teams.push(rg);
+            });
+
             rebuildPitcherDB();
             saveToLocalStorage();
             updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
-            if (typeof refreshBatterList === 'function' && document.getElementById('batterTab')?.classList.contains('active')) {
+            if (typeof refreshBatterList === 'function' &&
+                document.getElementById('batterTab')?.classList.contains('active')) {
                 refreshBatterList();
             }
             setSyncStatus(true);
         });
     }
 
-    function saveToFirebase() {
+    // gameIdx: 指定只儲存哪場比賽（per-game write）；不傳則全量寫入所有賽事
+    function saveToFirebase(gameIdx) {
         lastSaveTime = Date.now();
-        saveToLocalStorage(); // 本機備份立即寫，不 debounce
+        saveToLocalStorage();
 
-        // SaaS 模式：將 batterData 寫入獨立節點（legacy 模式已透過 sanitizeForFirebase 一併寫入）
+        // batterData 寫入獨立節點（不受 gameIdx 影響）
         if (USER_TEAM_REF && allData.batterData) {
             try {
                 USER_TEAM_REF.child('batterData').set(JSON.parse(JSON.stringify(allData.batterData)))
@@ -5532,28 +5614,41 @@
             } catch(e) {}
         }
 
-        // 300ms debounce：短時間連續記球合併成一次 Firebase 寫入，避免網路抖動時競態
+        const onSuccess = () => {
+            lastSaveTime = Date.now();
+            setSyncStatus(true);
+            pendingSync = false;
+            try { localStorage.removeItem('_pendingSync'); } catch(e) {}
+        };
+        const onFail = e => {
+            console.warn('[Firebase] 寫入失敗:', e?.code || e);
+            pendingSync = true;
+            try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
+            setSyncStatus(false);
+        };
+
+        // 300ms debounce：連續記球合併成一次寫入
         clearTimeout(_fbSaveTimer);
         _fbSaveTimer = setTimeout(() => {
             try {
-                getDataRef().set(getFirebasePayload())
-                    .then(() => {
-                        lastSaveTime = Date.now(); // 寫入完成後再刷新，避免慢網路 > 10 秒被 listener 覆蓋
-                        setSyncStatus(true);
-                        pendingSync = false;
-                        try { localStorage.removeItem('_pendingSync'); } catch(e) {}
-                    })
-                    .catch(e => {
-                        console.warn('[Firebase] 寫入失敗，標記待同步:', e.code);
-                        pendingSync = true;
-                        try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
-                        setSyncStatus(false);
+                if (gameIdx !== undefined && allData.teams[gameIdx]) {
+                    // ── Per-game write：只更新這一場，不動其他賽事 ──
+                    const game = allData.teams[gameIdx];
+                    if (!game.gameId) game.gameId = _makeGameId();
+                    getGameRef(game.gameId).set(JSON.parse(JSON.stringify(game)))
+                        .then(onSuccess).catch(onFail);
+                } else {
+                    // ── Full write：一次寫入所有賽事（quickSave / 初次遷移等）──
+                    const gamesObj = {};
+                    (allData.teams || []).forEach(t => {
+                        if (!t.gameId) t.gameId = _makeGameId();
+                        gamesObj[t.gameId] = JSON.parse(JSON.stringify(t));
                     });
+                    getGamesRef().set(gamesObj).then(onSuccess).catch(onFail);
+                }
             } catch(e) {
                 console.warn('[Firebase] 離線，資料已存本地，待連線後自動同步');
-                pendingSync = true;
-                try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
-                setSyncStatus(false);
+                onFail(e);
             }
         }, 300);
     }
@@ -7163,7 +7258,7 @@
 
         rebuildPitcherDB();
         saveToLocalStorage();
-        saveToFirebase();
+        saveToFirebase(ctx.bipTeam);
         updatePitchLog();
         updateStats();
     }
@@ -7218,7 +7313,7 @@
         gameState.runners = _buntBasesSelected.map((on, i) => (on && autoBases[i]) ? oldRunners[i] : null);
         renderBases();
         saveToLocalStorage();
-        saveToFirebase();
+        saveToFirebase(currentTeam);
     }
 
     function skipBuntBases() { closeBuntBasesModal(); }
