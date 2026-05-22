@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v190';
+﻿    const APP_VERSION = 'v191';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -6654,16 +6654,8 @@
 
         // 注入到 allData.bm
         _initBmData();
-        allData.bm.atBats = [...jpAtBats, ...krAtBats];
-
-        // 把盜壘掛到第一個投手
-        if (allData.teams.length > 0 && allData.teams[0].pitchers.length > 0) {
-            if (!allData.teams[0].pitchers[0].steals) allData.teams[0].pitchers[0].steals = [];
-            allData.teams[0].pitchers[0].steals.push(...demoSteals);
-        } else {
-            // 若無投手資料，存在 bm.demoSteals 供分析頁讀取
-            allData.bm.demoSteals = demoSteals;
-        }
+        allData.bm.atBats  = [...jpAtBats, ...krAtBats];
+        allData.bm.steals  = demoSteals; // 統一存在 bm.steals，分析頁直接讀
 
         allData.bm.lineupA = [
             {number:'1', name:'田中健', hand:'右打', trait:'速球強打'},
@@ -8032,6 +8024,39 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 });
             });
 
+            // 合併打者模式 (bm.atBats) 的打席記錄
+            (allData.bm?.atBats || []).forEach(ab => {
+                if (!ab.outcome) return;
+                const name = (ab.name || '').trim();
+                const num  = String(ab.number || '').trim();
+                const nameKey = name || (num ? `#${num}` : '');
+                if (!nameKey) return;
+                const bTeam = ab.teamName || '未分類';
+                const mapKey = `${bTeam}||${nameKey}`;
+                if (!batterMap.has(mapKey)) {
+                    batterMap.set(mapKey, {
+                        name: name || `背號 ${num}`, nameKey,
+                        teamName: bTeam, pitches: [], games: new Set(),
+                        hand: ab.hand || '', _bmNum: num,
+                    });
+                }
+                const entry = batterMap.get(mapKey);
+                if (!entry._bmNum && num) entry._bmNum = num;
+                entry.pitches.push({
+                    outcomes: [ab.outcome, ...(ab.tactics || [])],
+                    batterHand: ab.hand || '',
+                    batterName: ab.name || '',
+                    batterNumber: ab.number || '',
+                    batterTeam: ab.teamName || '',
+                    hitLocation: ab.hitLocation || null,
+                    balls: ab.balls || 0, strikes: ab.strikes || 0,
+                    inning: ab.inning || null, half: ab.half || null,
+                    _fromBm: true,
+                });
+                const gk = ab.gameName || ab.teamName || '';
+                if (gk) entry.games.add(gk);
+            });
+
             // 取出所有隊名（排除未分類）
             const teamNameSet = new Set();
             batterMap.forEach(e => { if (e.teamName !== '未分類') teamNameSet.add(e.teamName); });
@@ -8193,10 +8218,15 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                         ? `<span style="font-size:9px;background:#e0e7ff;color:#3730a3;padding:1px 5px;border-radius:8px;margin-right:4px;vertical-align:middle;">${entry.teamName}</span>`
                         : '';
                     const rowBg = i % 2 === 0 ? 'white' : '#fafafa';
+                    // bm-only 打者用 showBmBatterDetail，混合/投手打者用 showBatterDetail
+                    const isBmOnly = entry._bmNum && entry.pitches.every(p => p._fromBm);
+                    const clickFn  = isBmOnly
+                        ? `showBmBatterDetail('${String(entry._bmNum).replace(/'/g,"\\'")}')`
+                        : `showBatterDetail('${entry.nameKey.replace(/'/g,"\\'")}','pitcher','${entry.teamName.replace(/'/g,"\\'")}')`;
                     return `<tr style="background:${rowBg};cursor:pointer;transition:background 0.1s;"
                               onmouseover="this.style.background='#eff6ff'"
                               onmouseout="this.style.background='${rowBg}'"
-                              onclick="showBatterDetail('${entry.nameKey.replace(/'/g,"\\'")}','pitcher','${entry.teamName.replace(/'/g,"\\'")}')">
+                              onclick="${clickFn}">
                       <td style="padding:10px 10px;border-bottom:1px solid #f3f4f6;">
                         <div style="font-weight:900;color:#111827;">${teamBadge}${entry.name}</div>
                         <div style="font-size:11px;color:#9ca3af;margin-top:1px;">${entry.hand}　${entry.games.size}場</div>
@@ -9030,6 +9060,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         allData.bm.lineupA.forEach(b => { if (!('trait' in b)) b.trait = ''; });
         allData.bm.lineupB.forEach(b => { if (!('trait' in b)) b.trait = ''; });
         if (!allData.bm.atBats) allData.bm.atBats = [];
+        if (!allData.bm.steals) allData.bm.steals = []; // 獨立盜壘記錄（不依附投手記錄）
         if (!('gameIdx' in allData.bm)) allData.bm.gameIdx = -1;
         if (!allData.bm.attackingTeam) allData.bm.attackingTeam = 'B';
         // 獨立模式賽事資訊欄位
@@ -10636,27 +10667,55 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         if (!container) return;
         _initBmData();
 
-        if (currentTeam === null) {
-            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">請先在側欄選取一場賽事</div>';
-            return;
+        // ── 收集全部投球（投手記錄優先；無賽事時改用 bm.atBats 轉換） ──
+        const allPitches = [];
+        let _analysisTeamNames = [];
+
+        if (currentTeam !== null) {
+            const team = allData.teams[currentTeam];
+            if (!team) return;
+            _analysisTeamNames = [team.name || '先攻', team.opponent || '後攻'];
+            (team.pitchers || []).forEach(pitcher => {
+                (pitcher.pitches || []).forEach(p => {
+                    allPitches.push({ ...p, _pitcherHand: pitcher.hand || '右投' });
+                });
+            });
+        } else {
+            // 從 bm.atBats 建立虛擬投球記錄（讓分析函式統一讀 allPitches）
+            (allData.bm.atBats || []).forEach(ab => {
+                if (!ab.outcome) return;
+                allPitches.push({
+                    outcomes:      [ab.outcome, ...(ab.tactics || [])],
+                    basesSnapshot: ab.bases || [false, false, false],
+                    hitLocation:   ab.hitLocation || null,
+                    type:          null,
+                    balls:         ab.balls   || 0,
+                    strikes:       ab.strikes || 0,
+                    inning:        ab.inning  || null,
+                    half:          ab.half    || null,
+                    _pitcherHand:  ab.pitcherHand || '右投',
+                    batterHand:    ab.hand    || '右打',
+                    batterTeam:    ab.teamName || '未知隊伍',
+                    batterName:    ab.name    || '',
+                    batterNumber:  ab.number  || '',
+                    pinchHit:      false,
+                });
+            });
+            _analysisTeamNames = [...new Set(
+                (allData.bm.atBats || []).map(a => a.teamName).filter(Boolean)
+            )];
         }
 
-        const team = allData.teams[currentTeam];
-        if (!team) return;
-
-        // ── 收集全部投球（需要完整球數資訊） ──
-        const allPitches = [];
-        (team.pitchers || []).forEach(pitcher => {
-            (pitcher.pitches || []).forEach(p => {
-                allPitches.push({ ...p, _pitcherHand: pitcher.hand || '右投' });
-            });
-        });
+        if (allPitches.length === 0) {
+            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無投球或打席記錄<br><small>請先選取賽事，或在打者記錄頁新增打席</small></div>';
+            return;
+        }
 
         // ── 打者選擇器（兩層：隊伍 → 個人） ──
         const selectorEl = document.getElementById('bmAnalysisBatterSelector');
         if (selectorEl) {
-            const teamNameA = team.name     || '先攻';
-            const teamNameB = team.opponent || '後攻';
+            const teamNameA = _analysisTeamNames[0] || '先攻';
+            const teamNameB = _analysisTeamNames[1] || '後攻';
 
             function _pill(label, onclick, active) {
                 return `<button onclick="${onclick}"
@@ -10679,7 +10738,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             if (_bmAnalysisTeamFilter) {
                 const teamBatterMap = new Map();
                 allPitches.forEach(p => {
-                    const pitchTeam = p.batterTeam || _inferBatterTeam(p, team) || '';
+                    const pitchTeam = p.batterTeam || (currentTeam !== null ? _inferBatterTeam(p, allData.teams[currentTeam]) : '') || '';
                     if (pitchTeam !== _bmAnalysisTeamFilter) return;
                     const name = (p.batterName || '').trim();
                     const num  = String(p.batterNumber || '').trim();
@@ -10877,11 +10936,10 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         );
 
         // ── 5. 戰術常用時機點 ──
-        // 收集盜壘資料（從投手記錄）
-        const allSteals = [];
-        (team.pitchers || []).forEach(pitcher => {
-            (pitcher.steals || []).forEach(s => allSteals.push(s));
-        });
+        // 收集盜壘資料（依 currentTeam 決定來源）
+        const allSteals = currentTeam !== null
+            ? (allData.teams[currentTeam]?.pitchers || []).flatMap(p => p.steals || [])
+            : (allData.bm?.steals || []);
         // 篩選盜壘：依選定打者隊伍
         const filteredSteals = _bmAnalysisTeamFilter
             ? allSteals  // 球隊盜壘（無法精確分隊，顯示全部）
