@@ -8821,7 +8821,7 @@
             ? `<div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af;">尚無落點資料</div>`
             : `<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:nowrap;">
             <!-- 落點圖 左側 -->
-            <div style="flex:1 1 0;min-width:0;max-width:400px;">
+            <div style="flex:1 1 0;min-width:0;max-width:55%;">
               ${buildFieldSVG(linesHTML, false, true, hrLinesHTML)}
               <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;color:#374151;flex-wrap:wrap;align-items:center;">
                 <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/></svg>安打（${_hitCnt}）</span>
