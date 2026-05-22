@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v183';
+﻿    const APP_VERSION = 'v187';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7285,6 +7285,8 @@
     let _batterSource = 'pitcher'; // 'pitcher' | 'standalone'
     let _batterTeamFilter = null;  // null = 全部；string = 選定隊名
     let _currentBatterView = null; // { name, source, idx, teamName }
+    let _batterSortKey = 'threat'; // default sort by threat
+    let _batterSortDir = 'desc';   // 'asc' | 'desc'
     let _editingAtBatBatterIdx = null;
     let _atBatHitLocation = null;
     let _newBatterHand = '右打';
@@ -7788,6 +7790,16 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         refreshBatterList();
     }
 
+    function setBatterSort(key) {
+        if (_batterSortKey === key) {
+            _batterSortDir = _batterSortDir === 'desc' ? 'asc' : 'desc';
+        } else {
+            _batterSortKey = key;
+            _batterSortDir = key === 'name' ? 'asc' : 'desc';
+        }
+        refreshBatterList();
+    }
+
     function switchBatterSource(src) {
         _batterSource = src;
         _batterTeamFilter = null; // 切換來源時重置隊伍篩選
@@ -7805,6 +7817,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
 
         if (_batterSource === 'pitcher') {
             // 從投手記錄聚合（key = teamName||nameOrNumKey，避免不同隊同背號混淆）
+            const HIT_OUTCOMES_BL = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
             const batterMap = new Map();
             allData.teams.forEach((team, ti) => {
                 if (currentTeam !== null && ti !== currentTeam) return;
@@ -7863,19 +7876,151 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 </div>`;
                 return;
             }
-            listEl.innerHTML = filteredEntries.map(entry => {
-                const pa = entry.pitches.filter(p => p.outcomes && p.outcomes.some(o => PA_ENDING.includes(o))).length;
-                const teamBadge = !_batterTeamFilter
-                    ? `<span style="font-size:10px;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:10px;margin-right:5px;">${entry.teamName}</span>`
-                    : '';
-                return `<div class="batter-list-item" onclick="showBatterDetail('${entry.nameKey.replace(/'/g,"\\'")}','pitcher','${entry.teamName.replace(/'/g,"\\'")}')">
-                  <div class="bli-left">
-                    <div class="bli-name">${teamBadge}${entry.name}</div>
-                    <div class="bli-meta">${entry.hand}　${pa} 打席　${entry.games.size} 場次</div>
+
+            // 計算各打者統計 & 威脅指數
+            function _calcBatterStats(entry) {
+                const pa    = entry.pitches.filter(p => p.outcomes && p.outcomes.some(o => PA_ENDING.includes(o))).length;
+                const hits  = entry.pitches.filter(p => p.outcomes && p.outcomes.some(o => HIT_OUTCOMES_BL.includes(o))).length;
+                const k     = entry.pitches.filter(p => p.outcomes && (p.outcomes.includes('三振') || p.outcomes.includes('不死三振'))).length;
+                const bb    = entry.pitches.filter(p => p.outcomes && p.outcomes.includes('保送')).length;
+                const avgNum = pa > 0 ? hits / pa : 0;
+                const kRate  = pa > 0 ? k / pa : 0;
+                // 威脅分數：高打率 = 危險（綠），高三振率 = 我方有利（紅）
+                const threatScore = avgNum * 100 - kRate * 25;
+                const threatLevel = threatScore >= 22 ? 'high' : threatScore >= 11 ? 'mid' : 'low';
+                return { pa, hits, k, bb, avgNum, kRate, threatScore, threatLevel };
+            }
+
+            const enriched = filteredEntries.map(entry => ({ entry, stats: _calcBatterStats(entry) }));
+
+            // 排序
+            enriched.sort((a, b) => {
+                let va, vb;
+                switch (_batterSortKey) {
+                    case 'name':   va = a.entry.name; vb = b.entry.name; break;
+                    case 'pa':     va = a.stats.pa;   vb = b.stats.pa;   break;
+                    case 'avg':    va = a.stats.avgNum; vb = b.stats.avgNum; break;
+                    case 'k':      va = a.stats.k;    vb = b.stats.k;    break;
+                    case 'bb':     va = a.stats.bb;   vb = b.stats.bb;   break;
+                    default:       va = a.stats.threatScore; vb = b.stats.threatScore;
+                }
+                if (typeof va === 'string') return _batterSortDir === 'asc' ? va.localeCompare(vb,'zh-TW') : vb.localeCompare(va,'zh-TW');
+                return _batterSortDir === 'asc' ? va - vb : vb - va;
+            });
+
+            // 球隊摘要
+            const totalPA   = enriched.reduce((s, r) => s + r.stats.pa, 0);
+            const totalHits = enriched.reduce((s, r) => s + r.stats.hits, 0);
+            const totalK    = enriched.reduce((s, r) => s + r.stats.k, 0);
+            const teamAvg   = totalPA > 0 ? (totalHits / totalPA) : 0;
+            const teamKRate = totalPA > 0 ? (totalK / totalPA * 100) : 0;
+            const topThreat = enriched.length > 0
+                ? enriched.reduce((best, r) => r.stats.threatScore > best.stats.threatScore ? r : best)
+                : null;
+            const teamAvgFmt  = totalPA > 0 ? '.' + String(Math.round(teamAvg * 1000)).padStart(3,'0') : '---';
+            const teamKFmt    = totalPA > 0 ? teamKRate.toFixed(1) + '%' : '---';
+            const topName     = topThreat ? topThreat.entry.name : '---';
+            const teamAvgColor = teamAvg >= 0.300 ? '#15803d' : teamAvg >= 0.200 ? '#374151' : '#dc2626';
+
+            // 排序指示箭頭
+            function _sortArrow(key) {
+                if (_batterSortKey !== key) return '<span style="color:#d1d5db;font-size:10px;"> ↕</span>';
+                return `<span style="color:#003d79;font-size:10px;"> ${_batterSortDir === 'desc' ? '↓' : '↑'}</span>`;
+            }
+
+            // 打擊率 inline bar
+            function _avgBar(avgNum) {
+                const pct = Math.min(avgNum / 0.400, 1);
+                const w = Math.round(pct * 72);
+                const barColor = avgNum >= 0.300 ? '#10b981' : avgNum >= 0.200 ? '#9ca3af' : '#ef4444';
+                const fmt = avgNum > 0 ? '.' + String(Math.round(avgNum * 1000)).padStart(3,'0') : '.000';
+                return `<span style="font-weight:800;font-size:13px;color:${barColor};">${fmt}</span>
+                        <span style="display:inline-block;width:${w}px;height:6px;background:${barColor};border-radius:3px;margin-left:5px;vertical-align:middle;opacity:0.75;"></span>`;
+            }
+
+            // 威脅 badge
+            function _threatBadge(level) {
+                const cfg = {
+                    high: { bg:'#dcfce7', color:'#15803d', border:'#16a34a', label:'高威脅' },
+                    mid:  { bg:'#f3f4f6', color:'#6b7280', border:'#9ca3af', label:'中威脅' },
+                    low:  { bg:'#fee2e2', color:'#b91c1c', border:'#ef4444', label:'低威脅' },
+                };
+                const c = cfg[level];
+                return `<span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:800;background:${c.bg};color:${c.color};border:1.5px solid ${c.border};white-space:nowrap;">${c.label}</span>`;
+            }
+
+            // 三振顏色
+            function _kStyle(k, pa) {
+                const rate = pa > 0 ? k / pa : 0;
+                return rate >= 0.35 ? 'color:#dc2626;font-weight:800;' : 'color:#111827;';
+            }
+
+            // 欄位標題樣式
+            const thStyle = 'padding:8px 6px;text-align:center;font-size:11px;font-weight:700;color:#6b7280;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #e5e7eb;position:sticky;top:0;background:#f9fafb;';
+            const thNameStyle = 'padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#6b7280;cursor:pointer;user-select:none;border-bottom:2px solid #e5e7eb;position:sticky;top:0;background:#f9fafb;';
+
+            listEl.innerHTML = `
+              <!-- 球隊摘要列 -->
+              <div style="background:linear-gradient(135deg,#003d79,#0051a5);border-radius:10px;padding:14px 16px;margin-bottom:14px;color:white;">
+                <div style="font-size:11px;font-weight:700;opacity:0.75;margin-bottom:8px;letter-spacing:0.05em;">⚡ 對手整體分析 ${_batterTeamFilter ? '— ' + _batterTeamFilter : ''}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+                  <div style="text-align:center;">
+                    <div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${teamAvg>=0.300?'#4ade80':teamAvg>=0.200?'#fbbf24':'#f87171'};">${teamAvgFmt}</div>
+                    <div style="font-size:10px;opacity:0.75;">整體打擊率</div>
                   </div>
-                  <div class="bli-arrow">›</div>
-                </div>`;
-            }).join('');
+                  <div style="text-align:center;">
+                    <div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${parseFloat(teamKFmt)>=30?'#4ade80':'#fbbf24'};">${teamKFmt}</div>
+                    <div style="font-size:10px;opacity:0.75;">整體三振率</div>
+                  </div>
+                  <div style="text-align:center;flex:1;min-width:80px;">
+                    <div style="font-size:14px;font-weight:900;">${topName}</div>
+                    <div style="font-size:10px;opacity:0.75;">最高威脅打者</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:18px;font-weight:900;">${enriched.length}</div>
+                    <div style="font-size:10px;opacity:0.75;">登錄打者</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 可排序表格 -->
+              <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="background:#f9fafb;">
+                    <th style="${thNameStyle}" onclick="setBatterSort('name')">姓名${_sortArrow('name')}</th>
+                    <th style="${thStyle}" onclick="setBatterSort('pa')">打席${_sortArrow('pa')}</th>
+                    <th style="${thStyle}min-width:130px;" onclick="setBatterSort('avg')">打擊率${_sortArrow('avg')}</th>
+                    <th style="${thStyle}" onclick="setBatterSort('k')">三振${_sortArrow('k')}</th>
+                    <th style="${thStyle}" onclick="setBatterSort('bb')">保送${_sortArrow('bb')}</th>
+                    <th style="${thStyle}" onclick="setBatterSort('threat')">威脅${_sortArrow('threat')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${enriched.map(({ entry, stats }, i) => {
+                    const teamBadge = !_batterTeamFilter
+                        ? `<span style="font-size:9px;background:#e0e7ff;color:#3730a3;padding:1px 5px;border-radius:8px;margin-right:4px;vertical-align:middle;">${entry.teamName}</span>`
+                        : '';
+                    const rowBg = i % 2 === 0 ? 'white' : '#fafafa';
+                    return `<tr style="background:${rowBg};cursor:pointer;transition:background 0.1s;"
+                              onmouseover="this.style.background='#eff6ff'"
+                              onmouseout="this.style.background='${rowBg}'"
+                              onclick="showBatterDetail('${entry.nameKey.replace(/'/g,"\\'")}','pitcher','${entry.teamName.replace(/'/g,"\\'")}')">
+                      <td style="padding:10px 10px;border-bottom:1px solid #f3f4f6;">
+                        <div style="font-weight:900;color:#111827;">${teamBadge}${entry.name}</div>
+                        <div style="font-size:11px;color:#9ca3af;margin-top:1px;">${entry.hand}　${entry.games.size}場</div>
+                      </td>
+                      <td style="padding:10px 6px;text-align:center;border-bottom:1px solid #f3f4f6;font-weight:700;color:#374151;">${stats.pa}</td>
+                      <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;white-space:nowrap;">${_avgBar(stats.avgNum)}</td>
+                      <td style="padding:10px 6px;text-align:center;border-bottom:1px solid #f3f4f6;${_kStyle(stats.k,stats.pa)}">${stats.k}</td>
+                      <td style="padding:10px 6px;text-align:center;border-bottom:1px solid #f3f4f6;color:#374151;">${stats.bb}</td>
+                      <td style="padding:10px 8px;text-align:center;border-bottom:1px solid #f3f4f6;">${_threatBadge(stats.threatLevel)}</td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+              </div>
+              <div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:8px;padding-bottom:4px;">點擊列查看詳情 · 點擊欄位標題排序</div>`;
 
         } else {
             // 獨立情蒐
