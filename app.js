@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v179';
+﻿    const APP_VERSION = 'v180';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2275,6 +2275,20 @@
         statsFilter = 'all';
         expandedTeams.add(teamIndex);
 
+        // 還原該賽事的打序（若曾儲存過）
+        const _savedLineups = allData.teams[teamIndex]?.lineups;
+        if (_savedLineups) {
+            ['teamA','teamB'].forEach(side => {
+                const arr = _savedLineups[side];
+                if (!arr) return;
+                const list = Array.isArray(arr) ? arr : Object.values(arr);
+                list.forEach((p, i) => {
+                    if (p) gameState.lineups[side][i + 1] = { number: p.number||'', name: p.name||'', hand: p.hand||'右打' };
+                });
+            });
+            lineup = gameState.half === '上' ? gameState.lineups.teamB : gameState.lineups.teamA;
+        }
+
         // 閃爍提示目前放入的 slot
         const slotEl = document.getElementById('slot' + activeSlot);
         if (slotEl) {
@@ -2528,12 +2542,20 @@
         if (order >= 1 && order <= 9) applyLineupToUI(order);
         // ★ 聯動模式：打擊順序 Modal 儲存後同步到打者側欄
         if (_bmState.recMode === 'linked') {
-            // 判斷剛存的是哪一隊（lineup 指向 gameState.lineups.teamA or .teamB）
             const savedSide = (lineup === gameState.lineups.teamA) ? 'A' : 'B';
             const bmTeam = (allData.bm && allData.bm.attackingTeam) || 'B';
             if (savedSide === bmTeam) {
                 _syncGameStateToBmLineup(bmTeam);
             }
+        }
+        // ★ 將打序儲存到賽事資料（重開 app 後可還原）
+        if (currentTeam !== null && allData.teams[currentTeam]) {
+            if (!allData.teams[currentTeam].lineups) allData.teams[currentTeam].lineups = {};
+            const side = (lineup === gameState.lineups.teamA) ? 'teamA' : 'teamB';
+            // lineup 是 1-indexed；存成 0-indexed array 方便讀取
+            allData.teams[currentTeam].lineups[side] = lineup.slice(1).map(p => p ? {...p} : {number:'',name:'',hand:'右打'});
+            saveToLocalStorage();
+            saveToFirebase(currentTeam);
         }
     }
 
@@ -2807,6 +2829,7 @@
         currentPitch.timestamp = new Date().toISOString();
         currentPitch.basesSnapshot = [...gameState.bases]; // [1b, 2b, 3b]
         currentPitch.runnersOn = gameState.bases.some(b => b);
+        currentPitch.half = gameState.half; // 上/下，用於打者分頁判斷哪隊在打擊
 
         // Compute count before this pitch
         const prev = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
@@ -8537,18 +8560,39 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             '內野安打','一壘安打','二壘安打','三壘安打','全壘打',
             '保送','觸身球','故意四壞','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤','捕逸'
         ];
+        // 上半局打者 = team.name（先攻），下半局打者 = team.opponent（後攻）
+        // 若 pitch 沒有 half，嘗試透過打線資料推斷
+        const lineupA = team.lineups?.teamA || [];
+        const lineupB = team.lineups?.teamB || [];
+        const inLineup = (arr, num) => {
+            const n = String(num || '');
+            return n && (Array.isArray(arr) ? arr : Object.values(arr)).some(p => String(p?.number || '') === n);
+        };
         const atBats = [];
         team.pitchers.forEach(pitcher => {
             (pitcher.pitches || []).forEach(pitch => {
                 const paOutcome = (pitch.outcomes || []).find(o => PA_ENDING.includes(o));
                 if (!paOutcome) return;
+                // 判斷打者所屬球隊
+                let teamName = '';
+                if (pitch.half === '上') {
+                    teamName = team.name || '先攻';
+                } else if (pitch.half === '下') {
+                    teamName = team.opponent || '後攻';
+                } else {
+                    // 舊資料無 half：透過打線推斷
+                    const num = String(pitch.batterNumber || '');
+                    if (inLineup(lineupB, num)) teamName = team.name || '先攻';
+                    else if (inLineup(lineupA, num)) teamName = team.opponent || '後攻';
+                }
                 atBats.push({
                     number:      pitch.batterNumber || '',
                     name:        pitch.batterName   || '',
                     hand:        pitch.batterHand   || '右打',
                     outcome:     paOutcome,
                     pitcherHand: pitcher.hand       || '右投',
-                    hitLocation: pitch.hitLocation  || null
+                    hitLocation: pitch.hitLocation  || null,
+                    teamName
                 });
             });
         });
@@ -8632,10 +8676,35 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         if (!isOpen) _renderBmLineupTeam(team); // render on open
     }
 
+    // ★ 將 bm 打線同步儲存到對應賽事資料中
+    function _saveBmLineupToGame() {
+        const gi = allData.bm.gameIdx;
+        if (gi < 0 || !allData.teams[gi]) return;
+        if (!allData.teams[gi].lineups) allData.teams[gi].lineups = {};
+        allData.teams[gi].lineups.teamA = allData.bm.lineupA.map(p => ({...p}));
+        allData.teams[gi].lineups.teamB = allData.bm.lineupB.map(p => ({...p}));
+        saveToFirebase(gi);
+    }
+
+    // ★ 切換賽事時從賽事資料還原打線
+    function _loadBmLineupFromGame(gi) {
+        const saved = allData.teams[gi]?.lineups;
+        if (!saved) return;
+        const _restore = (key) => {
+            const arr = saved[key];
+            if (!arr) return;
+            const list = Array.isArray(arr) ? arr : Object.values(arr);
+            return list.map(p => ({number: p?.number||'', name: p?.name||'', hand: p?.hand||'右打', trait: p?.trait||''}));
+        };
+        const lA = _restore('teamA'); if (lA) allData.bm.lineupA = lA;
+        const lB = _restore('teamB'); if (lB) allData.bm.lineupB = lB;
+        _renderBmLineup();
+    }
+
     function saveBmLineupManual(team, btn) {
         _initBmData();
+        _saveBmLineupToGame();
         saveToLocalStorage();
-        saveToFirebase();
         if (btn) {
             const orig = btn.textContent;
             btn.textContent = '✓';
@@ -8646,6 +8715,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
     function saveBmLineupCell(team, idx, field, val) {
         _initBmData();
         _getLineup(team)[idx][field] = val;
+        _saveBmLineupToGame();
         saveToLocalStorage();
         if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
     }
@@ -8658,6 +8728,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         lineup[idx].hand = next;
         btn.textContent = next;
         btn.classList.toggle('bm-on', next === '右打');
+        _saveBmLineupToGame();
         saveToLocalStorage();
         if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
     }
@@ -8962,6 +9033,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                         const sel = document.getElementById('bmGameSelect');
                         if (sel) sel.value = i;
                         switchBmRecordMode('linked');
+                        // 優先從賽事資料還原打線，沒有再從 gameState 同步
+                        _loadBmLineupFromGame(i);
                         _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
                         _updateBmTeamBtns();
                         _renderBmSessionList();
@@ -9849,15 +9922,18 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const BB  = ['保送','觸身球','故意四壞','捕逸'];
         const PA_END = [...HIT,...BB,'三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
 
-        const batterMap = {};
+        // 依球隊分組聚合
+        const teamGroupMap = {}; // teamName → { number → batter }
         atBats.forEach(ab => {
-            const key = ab.number || '?';
-            if (!batterMap[key]) batterMap[key] = { number:ab.number, name:ab.name, hand:ab.hand, abs:[] };
-            else if (ab.name && !batterMap[key].name) batterMap[key].name = ab.name;
-            batterMap[key].abs.push(ab);
+            const tname = ab.teamName || '未標記球隊';
+            if (!teamGroupMap[tname]) teamGroupMap[tname] = {};
+            const key = String(ab.number || '?');
+            if (!teamGroupMap[tname][key]) teamGroupMap[tname][key] = { number:ab.number, name:ab.name, hand:ab.hand, abs:[] };
+            else if (ab.name && !teamGroupMap[tname][key].name) teamGroupMap[tname][key].name = ab.name;
+            teamGroupMap[tname][key].abs.push(ab);
         });
 
-        const rows = Object.values(batterMap).map(b => {
+        const buildRows = (map) => Object.values(map).map(b => {
             const abs = b.abs;
             const pa  = abs.filter(a => PA_END.includes(a.outcome)).length;
             const hits = abs.filter(a => HIT.includes(a.outcome)).length;
@@ -9867,8 +9943,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             return { ...b, pa, hits, k, bb, avg };
         }).sort((a,b) => b.pa - a.pa);
 
-        container.innerHTML = `
-            <h2>📊 打者成績一覽</h2>
+        const tableHTML = (rows) => `
             <div style="overflow-x:auto;">
             <table class="bm-stats-table">
                 <thead><tr>
@@ -9884,8 +9959,19 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                     <td>${r.bb}</td>
                 </tr>`).join('')}
                 </tbody>
-            </table>
-            </div>
+            </table></div>`;
+
+        const groupsHTML = Object.entries(teamGroupMap).map(([tname, map]) => {
+            const rows = buildRows(map);
+            return `<div style="margin-bottom:18px;">
+                <div style="font-size:13px;font-weight:900;color:#003d79;padding:6px 0 4px;border-bottom:2px solid #003d79;margin-bottom:6px;">${tname}</div>
+                ${tableHTML(rows)}
+            </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <h2>📊 打者成績一覽</h2>
+            ${groupsHTML}
             <div style="font-size:12px;color:#6b7280;margin-top:8px;">點擊打者列可查看落點圖與詳細分析</div>
             <div id="bmBatterDetailSection"></div>`;
     }
