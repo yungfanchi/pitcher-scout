@@ -8810,9 +8810,9 @@
           <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ 打擊落點圖</div>
           ${locs.length === 0
             ? `<div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af;">尚無落點資料</div>`
-            : `<div style="display:flex;flex-direction:column;gap:14px;">
-            <!-- 落點圖 全寬 -->
-            <div>
+            : `<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+            <!-- 落點圖 左側 -->
+            <div style="flex:1 1 260px;min-width:220px;">
               ${buildFieldSVG(linesHTML, false, true)}
               <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;color:#374151;flex-wrap:wrap;align-items:center;">
                 <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/></svg>安打（${_hitCnt}）</span>
@@ -8820,44 +8820,44 @@
                 <span style="margin-left:auto;color:#9ca3af;">共 ${locs.length} 筆</span>
               </div>
             </div>
-            <!-- 統計面板 下方橫排 -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
-              <div style="background:white;border-radius:8px;padding:10px 12px;">
-                <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:6px;">方向分佈</div>
-                <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:5px;">
+            <!-- 統計面板 右側 放大字體 -->
+            <div style="flex:0 0 200px;display:flex;flex-direction:column;gap:16px;">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:8px;">方向分佈</div>
+                <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;margin-bottom:7px;">
                   <span style="color:#ef4444;">左 ${leftPct}%</span>
                   <span style="color:#10b981;">中 ${centerPct}%</span>
                   <span style="color:#3b82f6;">右 ${rightPct}%</span>
                 </div>
-                <div style="height:8px;border-radius:4px;overflow:hidden;display:flex;">
+                <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;">
                   <div style="flex:${leftPct||0.1};background:#ef4444;"></div>
                   <div style="flex:${centerPct||0.1};background:#10b981;"></div>
                   <div style="flex:${rightPct||0.1};background:#3b82f6;"></div>
                 </div>
               </div>
-              <div style="background:white;border-radius:8px;padding:10px 12px;">
-                <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:6px;">打球型態</div>
-                <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:5px;">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:8px;">打球型態</div>
+                <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;margin-bottom:7px;">
                   <span style="color:#8b5cf6;">飛球 ${flyPct}%</span>
                   <span style="color:#f59e0b;">滾地 ${groundPct}%</span>
                 </div>
-                <div style="height:8px;border-radius:4px;overflow:hidden;display:flex;">
+                <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;">
                   <div style="flex:${flyPct||0.1};background:#8b5cf6;"></div>
                   <div style="flex:${groundPct||0.1};background:#f59e0b;"></div>
                 </div>
               </div>
-              ${(leftAvg!==null||centerAvg!==null||rightAvg!==null) ? `<div style="background:white;border-radius:8px;padding:10px 12px;">
-                <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:4px;">各方向安打率</div>
-                ${leftAvg  !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:14px;"><span style="color:#374151;">左</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(leftAvg)};">${fmtAvg(leftAvg)}</span></div>`:''}
-                ${centerAvg!==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:14px;"><span style="color:#374151;">中</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(centerAvg)};">${fmtAvg(centerAvg)}</span></div>`:''}
-                ${rightAvg !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:14px;"><span style="color:#374151;">右</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(rightAvg)};">${fmtAvg(rightAvg)}</span></div>`:''}
+              ${(leftAvg!==null||centerAvg!==null||rightAvg!==null) ? `<div>
+                <div style="font-size:12px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:4px;">各方向安打率</div>
+                ${leftAvg  !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6;"><span style="font-size:16px;color:#374151;">左</span><span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(leftAvg)};">${fmtAvg(leftAvg)}</span></div>`:''}
+                ${centerAvg!==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6;"><span style="font-size:16px;color:#374151;">中</span><span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(centerAvg)};">${fmtAvg(centerAvg)}</span></div>`:''}
+                ${rightAvg !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;"><span style="font-size:16px;color:#374151;">右</span><span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(rightAvg)};">${fmtAvg(rightAvg)}</span></div>`:''}
               </div>` : ''}
-              ${(flyAvg!==null||groundAvg!==null) ? `<div style="background:white;border-radius:8px;padding:10px 12px;">
-                <div style="font-size:11px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:4px;">型態安打率</div>
-                ${flyAvg   !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:14px;"><span style="color:#374151;">飛球</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(flyAvg)};">${fmtAvg(flyAvg)}</span></div>`:''}
-                ${groundAvg!==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:14px;"><span style="color:#374151;">滾地</span><span style="font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(groundAvg)};">${fmtAvg(groundAvg)}</span></div>`:''}
+              ${(flyAvg!==null||groundAvg!==null) ? `<div>
+                <div style="font-size:12px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:4px;">型態安打率</div>
+                ${flyAvg   !==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6;"><span style="font-size:16px;color:#374151;">飛球</span><span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(flyAvg)};">${fmtAvg(flyAvg)}</span></div>`:''}
+                ${groundAvg!==null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;"><span style="font-size:16px;color:#374151;">滾地</span><span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(groundAvg)};">${fmtAvg(groundAvg)}</span></div>`:''}
               </div>` : ''}
-              ${_adv ? `<div style="background:#fffbeb;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;border:1px solid #fde68a;line-height:1.6;grid-column:1/-1;">${_adv}</div>` : ''}
+              ${_adv ? `<div style="background:#fffbeb;border-radius:8px;padding:10px 12px;font-size:13px;color:#92400e;border:1px solid #fde68a;line-height:1.6;">${_adv}</div>` : ''}
             </div>
           </div>`}
         </div>`;
@@ -8951,9 +8951,12 @@
         </div>`;
 
         container.innerHTML = sec0 + `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start;">
-          <div>${sec2}${sec4}</div>
-          <div>${sec1}${sec3}${sec5}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start;margin-bottom:12px;">
+          <div>${sec2}</div>
+          <div>${sec1}${sec4}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start;">
+          ${sec3}${sec5}
         </div>`;
         container.scrollTop = 0;
     }
