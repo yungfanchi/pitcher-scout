@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v167';
+﻿    const APP_VERSION = 'v168';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -5253,6 +5253,23 @@
         allData.pitcherDB = {};
         rebuildPitcherDB();
         saveToLocalStorage();
+    }
+
+    function quickSave(btn) {
+        saveToLocalStorage();
+        if (btn) { btn.textContent = '⏳ 儲存中...'; btn.disabled = true; }
+        try {
+            getDataRef().set(getFirebasePayload())
+                .then(() => {
+                    setSyncStatus(true);
+                    if (btn) { btn.textContent = '✅ 已儲存'; setTimeout(() => { btn.textContent = '💾 儲存'; btn.disabled = false; }, 2000); }
+                })
+                .catch(() => {
+                    if (btn) { btn.textContent = '📱 已存本機'; setTimeout(() => { btn.textContent = '💾 儲存'; btn.disabled = false; }, 2000); }
+                });
+        } catch(e) {
+            if (btn) { btn.textContent = '📱 已存本機'; setTimeout(() => { btn.textContent = '💾 儲存'; btn.disabled = false; }, 2000); }
+        }
     }
 
     function forceSyncToFirebase() {
