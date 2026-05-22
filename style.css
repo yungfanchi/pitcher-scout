@@ -1114,7 +1114,7 @@
 .bm-lineup-module-hdr { display:flex; align-items:center; justify-content:space-between; padding:6px 8px; cursor:pointer; gap:4px; background:rgba(0,0,0,0.18); user-select:none; }
 .bm-lineup-module-title { font-size:11px; font-weight:700; color:rgba(255,215,0,0.85); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bm-lineup-module-btns { display:flex; gap:3px; flex-shrink:0; align-items:center; }
-.bm-lm-btn { font-size:9px; padding:2px 5px; border-radius:3px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); cursor:pointer; font-family:inherit; touch-action:manipulation; }
+.bm-lm-btn { font-size:13px; padding:6px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); cursor:pointer; font-family:inherit; touch-action:manipulation; }
 .bm-lm-btn.bm-lm-save { background:rgba(22,163,74,0.2); border-color:rgba(22,163,74,0.4); color:#86efac; }
 .bm-lm-btn.bm-lm-clear { background:rgba(220,0,0,0.15); border-color:rgba(220,0,0,0.3); color:#fca5a5; }
 .bm-lineup-arrow { font-size:9px; color:rgba(255,255,255,0.4); flex-shrink:0; }
