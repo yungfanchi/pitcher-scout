@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v165';
+﻿    const APP_VERSION = 'v166';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2821,6 +2821,7 @@
             // 從 lineups 填入下一棒（若有）；否則從投球歷史填入
             autoUpdateBatterInfoByInning();
         }
+        _syncPitcherToBmLinked();
 
         updateSlotDisplay();
         updatePitchLog();
@@ -8273,6 +8274,83 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         return synced;
     }
 
+    // ── 跨模式狀態同步（投手模式 ↔ 打者連動模式） ──
+    let _crossModeSyncing = false;
+
+    // 投手模式 → 打者連動模式（出局、局半、局數、壘上、當前打者棒次）
+    function _syncPitcherToBmLinked() {
+        if (_crossModeSyncing || _bmState.recMode !== 'linked') return;
+        _crossModeSyncing = true;
+        try {
+            setBmOuts(gameState.outs);
+            _bmState.half = gameState.half;
+            const topBtn = document.getElementById('bmHalfTopBtn');
+            const botBtn = document.getElementById('bmHalfBotBtn');
+            if (topBtn) topBtn.classList.toggle('bm-on', gameState.half === '上');
+            if (botBtn) botBtn.classList.toggle('bm-on', gameState.half === '下');
+            const inningEl = document.getElementById('bmInning');
+            if (inningEl && gameState.inning) inningEl.value = gameState.inning;
+            _bmState.bases = [...gameState.bases];
+            const baseLabels = ['一壘','二壘','三壘'];
+            ['bmBase1','bmBase2','bmBase3'].forEach((id, i) => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.classList.toggle('bm-on', _bmState.bases[i]);
+                    btn.textContent = (_bmState.bases[i] ? '●' : '') + baseLabels[i];
+                }
+            });
+            // 上半局 B 隊攻、下半局 A 隊攻
+            const newAttacker = gameState.half === '上' ? 'B' : 'A';
+            if (allData.bm && allData.bm.attackingTeam !== newAttacker) {
+                allData.bm.attackingTeam = newAttacker;
+                const ta = document.getElementById('bmTeamABtn');
+                const tb = document.getElementById('bmTeamBBtn');
+                if (ta) ta.classList.toggle('bm-on', newAttacker === 'A');
+                if (tb) tb.classList.toggle('bm-on', newAttacker === 'B');
+            }
+            const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+            const newOrder = gameState.currentBatterIndex[battingTeam];
+            if (_bmState.currentOrder !== newOrder) {
+                _bmState.currentOrder = newOrder;
+                _renderBmBatterDisplay();
+            }
+        } finally {
+            _crossModeSyncing = false;
+        }
+    }
+
+    // 打者連動模式 → 投手模式（出局、局半、局數、壘上、當前打者棒次）
+    function _syncBmLinkedToPitcher() {
+        if (_crossModeSyncing || _bmState.recMode !== 'linked') return;
+        _crossModeSyncing = true;
+        try {
+            gameState.outs = _bmState.outs;
+            gameState.half = _bmState.half;
+            gameState.bases = [..._bmState.bases];
+            const inningEl = document.getElementById('bmInning');
+            if (inningEl) {
+                const bmInning = parseInt(inningEl.value) || 1;
+                gameState.inning = bmInning;
+                if (currentTeam !== null) {
+                    const score = getTeamScore();
+                    score.half = _bmState.half;
+                    score.inning = bmInning;
+                }
+            }
+            renderCountLights();
+            renderBases();
+            if (currentTeam !== null) updateScoreboard();
+            const bmAttackingTeam = (allData.bm && allData.bm.attackingTeam) || 'B';
+            const gsKey = bmAttackingTeam === 'A' ? 'teamA' : 'teamB';
+            gameState.currentBatterIndex[gsKey] = _bmState.currentOrder;
+            const orderEl = document.getElementById('batterOrder');
+            if (orderEl) orderEl.value = _bmState.currentOrder + 1;
+            autoFillBatterFromOrder(_bmState.currentOrder + 1);
+        } finally {
+            _crossModeSyncing = false;
+        }
+    }
+
     function copyBmLineup(team) {
         _initBmData();
         const ab = (allData.bm && allData.bm.atBats) ? [...allData.bm.atBats] : [];
@@ -9049,8 +9127,31 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         resetBmLinkedForm();
         _renderBmBatterDisplay();
         _renderBmRecentLog();
-        const newOuts = (_bmState.outs + (outLabels.includes(rec.outcome) ? 1 : 0)) % 3;
-        setBmOuts(newOuts);
+
+        // 出局數計算（雙殺 +2）+ 三出局換局邏輯
+        const outsAdded = rec.outcome === '雙殺' ? 2 : outLabels.includes(rec.outcome) ? 1 : 0;
+        const totalOuts = _bmState.outs + outsAdded;
+        if (totalOuts >= 3) {
+            const inningEl = document.getElementById('bmInning');
+            let inning = parseInt((inningEl && inningEl.value) || '1') || 1;
+            const newHalf = _bmState.half === '上' ? '下' : '上';
+            if (newHalf === '上') inning = Math.min(20, inning + 1);
+            _bmState.half = newHalf;
+            if (inningEl) inningEl.value = inning;
+            const topBtn = document.getElementById('bmHalfTopBtn');
+            const botBtn = document.getElementById('bmHalfBotBtn');
+            if (topBtn) topBtn.classList.toggle('bm-on', newHalf === '上');
+            if (botBtn) botBtn.classList.toggle('bm-on', newHalf === '下');
+            _bmState.bases = [false, false, false];
+            ['bmBase1','bmBase2','bmBase3'].forEach((id, i) => {
+                const btn = document.getElementById(id);
+                if (btn) { btn.classList.remove('bm-on'); btn.textContent = ['一壘','二壘','三壘'][i]; }
+            });
+            setBmOuts(0);
+        } else {
+            setBmOuts(totalOuts);
+        }
+        _syncBmLinkedToPitcher();
     }
 
     function _renderBmRecentLog() {
