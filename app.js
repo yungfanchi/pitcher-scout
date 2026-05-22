@@ -2670,6 +2670,11 @@
         document.querySelectorAll('.hand-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentPitch.batterHand = btn.dataset.hand;
+        // 手動調整慣用手時，同步回寫 lineup，下一輪不用再調
+        const order = parseInt(document.getElementById('batterOrder').value);
+        if (order >= 1 && order <= 9 && lineup[order]) {
+            lineup[order].hand = btn.dataset.hand;
+        }
     }
 
     function selectPitch(btn) {
