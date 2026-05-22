@@ -11239,7 +11239,6 @@
                   <th style="${thS}min-width:90px;" onclick="setBmSort('ops')">OPS${_bmArrow('ops')}</th>
                   <th style="${thS}" onclick="setBmSort('k')">三振${_bmArrow('k')}</th>
                   <th style="${thS}" onclick="setBmSort('bb')">保送${_bmArrow('bb')}</th>
-                  <th style="${thS}" onclick="setBmSort('threat')">威脅${_bmArrow('threat')}</th>
                 </tr></thead>
                 <tbody>
                 ${sorted.map(r => {
@@ -11258,7 +11257,6 @@
                       <td style="padding:8px 5px;text-align:center;">${opsFmt}</td>
                       <td style="padding:8px 5px;text-align:center;${_bmKStyle(r.k,r.pa)}">${r.k}</td>
                       <td style="padding:8px 5px;text-align:center;">${r.bb}</td>
-                      <td style="padding:8px 5px;text-align:center;">${_bmThreatBadge(r.threatLevel)}</td>
                     </tr>`;
                 }).join('')}
                 </tbody>
