@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v182';
+﻿    const APP_VERSION = 'v183';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2286,7 +2286,7 @@
                     if (p) gameState.lineups[side][i + 1] = { number: p.number||'', name: p.name||'', hand: p.hand||'右打' };
                 });
             });
-            lineup = gameState.half === '上' ? gameState.lineups.teamB : gameState.lineups.teamA;
+            lineup = gameState.half === '上' ? gameState.lineups.teamA : gameState.lineups.teamB;
         }
 
         // 閃爍提示目前放入的 slot
@@ -2489,13 +2489,13 @@
     }
 
     function openLineupModal(side) {
-        // side: 'teamA' (後攻) or 'teamB' (先攻); default to current batting team
-        const targetSide = side || (gameState.half === '上' ? 'teamB' : 'teamA');
+        // side: 'teamA' (先攻/team.name) or 'teamB' (後攻/team.opponent); default to current batting team
+        const targetSide = side || (gameState.half === '上' ? 'teamA' : 'teamB');
         lineup = gameState.lineups[targetSide];
 
         const ti = currentTeam !== null ? currentTeam : (slotA.team !== null ? slotA.team : (slotB.team !== null ? slotB.team : null));
         const team = ti !== null ? allData.teams[ti] : null;
-        const teamName = targetSide === 'teamB'
+        const teamName = targetSide === 'teamA'
             ? (team?.name || '先攻')
             : (team?.opponent || '後攻');
 
@@ -2577,8 +2577,8 @@
 
     /**
      * 依當前 gameState.half 自動切換 activeSlot，並從 gameState.lineups 填入打者資訊。
-     * 上半局：A 隊投（slot A）、B 隊打 → 讀 lineups.teamB[currentBatterIndex.teamB]
-     * 下半局：B 隊投（slot B）、A 隊打 → 讀 lineups.teamA[currentBatterIndex.teamA]
+     * 上半局：A 隊投（slot A）、A 隊打 → 讀 lineups.teamA[currentBatterIndex.teamA]（teamA = team.name 先攻）
+     * 下半局：B 隊投（slot B）、B 隊打 → 讀 lineups.teamB[currentBatterIndex.teamB]（teamB = team.opponent 後攻）
      */
     function autoUpdateBatterInfoByInning() {
         if (_syncingSlotAndBatter) return;
@@ -2586,7 +2586,7 @@
 
         const half = gameState.half;
         const targetSlot  = half === '上' ? 'A' : 'B';
-        const battingTeam = half === '上' ? 'teamB' : 'teamA';
+        const battingTeam = half === '上' ? 'teamA' : 'teamB';
 
         // 切換 slot（避免呼叫 activateSlot 造成遞迴，直接操作 DOM 與狀態）
         if (activeSlot !== targetSlot) {
@@ -2814,7 +2814,7 @@
         currentPitch.pinchHit = isPinch;
 
         // 從打序表查詢打者姓名；若打序表無姓名，退而讀取 UI 輸入欄位
-        const _battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+        const _battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
         const _bOrderIdx = (parseInt(batterOrder) || 1) - 1;
         const _lineupEntry = gameState.lineups[_battingTeam][Math.max(0, _bOrderIdx)];
         const _domBatterName = (document.getElementById('batterName')?.value || '').trim();
@@ -2865,7 +2865,7 @@
         const hasEndingOutcome = currentPitch.outcomes.some(o => PA_ENDING.includes(o));
         if (hasEndingOutcome) {
             // 推進「投球前」那半局的打擊隊棒次（換局時 gameState.half 已翻面，要用 _prePitchHalf）
-            const battingTeam = _prePitchHalf === '上' ? 'teamB' : 'teamA';
+            const battingTeam = _prePitchHalf === '上' ? 'teamA' : 'teamB';
             gameState.currentBatterIndex[battingTeam] =
                 (gameState.currentBatterIndex[battingTeam] + 1) % 9;
 
@@ -2964,7 +2964,7 @@
         const clamped = next < 1 ? 9 : next > 9 ? 1 : next;
         el.value = clamped;
         // 手動調整時同步更新 gameState 棒次索引，防止 autoUpdateBatterInfoByInning 蓋回去
-        const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+        const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
         gameState.currentBatterIndex[battingTeam] = clamped - 1;
         autoFillBatterFromOrder(clamped);
     }
@@ -2972,7 +2972,7 @@
     function syncBatterOrderToState(val) {
         const order = parseInt(val);
         if (isNaN(order) || order < 1 || order > 9) return;
-        const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+        const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
         gameState.currentBatterIndex[battingTeam] = order - 1;
         autoFillBatterFromOrder(order);
     }
@@ -3209,7 +3209,7 @@
                 // 嘗試從 lineup 補名字
                 let runnerName = runner?.name || null;
                 if (!runnerName && runner?.order) {
-                    const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+                    const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
                     const le = gameState.lineups[battingTeam]?.[runner.order];
                     if (le?.name) runnerName = le.name;
                 }
@@ -8582,8 +8582,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 } else {
                     // 舊資料無 half：透過打線推斷
                     const num = String(pitch.batterNumber || '');
-                    if (inLineup(lineupB, num)) teamName = team.name || '先攻';
-                    else if (inLineup(lineupA, num)) teamName = team.opponent || '後攻';
+                    if (inLineup(lineupA, num)) teamName = team.name || '先攻';
+                    else if (inLineup(lineupB, num)) teamName = team.opponent || '後攻';
                 }
                 atBats.push({
                     number:      pitch.batterNumber || '',
@@ -8677,15 +8677,15 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
     }
 
     // ★ 將 bm 打線同步儲存到對應賽事資料中
-    // 對應關係：投手模式 teamB = team.name（先攻）、teamA = team.opponent（後攻）
-    //           打者模式 lineupA 標示為 team.name、lineupB 標示為 team.opponent
-    //           → lineupA 存入 lineups.teamB；lineupB 存入 lineups.teamA
+    // 對應關係：teamA = team.name（先攻）、teamB = team.opponent（後攻）
+    //           打者模式 lineupA 標示為 team.name → 存入 lineups.teamA
+    //           打者模式 lineupB 標示為 team.opponent → 存入 lineups.teamB
     function _saveBmLineupToGame() {
         const gi = allData.bm.gameIdx;
         if (gi < 0 || !allData.teams[gi]) return;
         if (!allData.teams[gi].lineups) allData.teams[gi].lineups = {};
-        allData.teams[gi].lineups.teamB = allData.bm.lineupA.map(p => ({...p})); // team.name 先攻
-        allData.teams[gi].lineups.teamA = allData.bm.lineupB.map(p => ({...p})); // team.opponent 後攻
+        allData.teams[gi].lineups.teamA = allData.bm.lineupA.map(p => ({...p})); // team.name 先攻
+        allData.teams[gi].lineups.teamB = allData.bm.lineupB.map(p => ({...p})); // team.opponent 後攻
         saveToFirebase(gi);
     }
 
@@ -8699,8 +8699,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             const list = Array.isArray(arr) ? arr : Object.values(arr);
             return list.map(p => ({number: p?.number||'', name: p?.name||'', hand: p?.hand||'右打', trait: p?.trait||''}));
         };
-        const lA = _restore('teamB'); if (lA) allData.bm.lineupA = lA; // teamB = team.name → lineupA
-        const lB = _restore('teamA'); if (lB) allData.bm.lineupB = lB; // teamA = team.opponent → lineupB
+        const lA = _restore('teamA'); if (lA) allData.bm.lineupA = lA; // teamA = team.name → lineupA
+        const lB = _restore('teamB'); if (lB) allData.bm.lineupB = lB; // teamB = team.opponent → lineupB
         _renderBmLineup();
     }
 
@@ -8811,7 +8811,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 if (ta) ta.classList.toggle('bm-on', newAttacker === 'A');
                 if (tb) tb.classList.toggle('bm-on', newAttacker === 'B');
             }
-            const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+            const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
             const newOrder = gameState.currentBatterIndex[battingTeam];
             if (_bmState.currentOrder !== newOrder) {
                 _bmState.currentOrder = newOrder;
