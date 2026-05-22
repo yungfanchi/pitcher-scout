@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v181';
+﻿    const APP_VERSION = 'v182';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -8677,12 +8677,15 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
     }
 
     // ★ 將 bm 打線同步儲存到對應賽事資料中
+    // 對應關係：投手模式 teamB = team.name（先攻）、teamA = team.opponent（後攻）
+    //           打者模式 lineupA 標示為 team.name、lineupB 標示為 team.opponent
+    //           → lineupA 存入 lineups.teamB；lineupB 存入 lineups.teamA
     function _saveBmLineupToGame() {
         const gi = allData.bm.gameIdx;
         if (gi < 0 || !allData.teams[gi]) return;
         if (!allData.teams[gi].lineups) allData.teams[gi].lineups = {};
-        allData.teams[gi].lineups.teamA = allData.bm.lineupA.map(p => ({...p}));
-        allData.teams[gi].lineups.teamB = allData.bm.lineupB.map(p => ({...p}));
+        allData.teams[gi].lineups.teamB = allData.bm.lineupA.map(p => ({...p})); // team.name 先攻
+        allData.teams[gi].lineups.teamA = allData.bm.lineupB.map(p => ({...p})); // team.opponent 後攻
         saveToFirebase(gi);
     }
 
@@ -8696,8 +8699,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             const list = Array.isArray(arr) ? arr : Object.values(arr);
             return list.map(p => ({number: p?.number||'', name: p?.name||'', hand: p?.hand||'右打', trait: p?.trait||''}));
         };
-        const lA = _restore('teamA'); if (lA) allData.bm.lineupA = lA;
-        const lB = _restore('teamB'); if (lB) allData.bm.lineupB = lB;
+        const lA = _restore('teamB'); if (lA) allData.bm.lineupA = lA; // teamB = team.name → lineupA
+        const lB = _restore('teamA'); if (lB) allData.bm.lineupB = lB; // teamA = team.opponent → lineupB
         _renderBmLineup();
     }
 
