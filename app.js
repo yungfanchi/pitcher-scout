@@ -8379,49 +8379,34 @@
             return `<span style="display:inline-block;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:800;background:${c.bg};color:${c.color};border:1.5px solid ${c.border};">${c.label}</span>`;
         }
 
-        // ── 渲染打者卡片 ──
-        listEl.innerHTML = enriched.map(({ mapKey, entry, stats }) => {
-            const fmtAvg = _fmtAvg(stats.avgNum);
-            const fmtOps = stats.pa >= 3 ? stats.ops_n.toFixed(3) : '---';
-            const avgColor = stats.avgNum >= 0.300 ? '#15803d' : stats.avgNum >= 0.200 ? '#374151' : '#dc2626';
-            const opsColor = stats.ops_n  >= 0.800 ? '#15803d' : stats.ops_n  >= 0.600 ? '#374151' : '#dc2626';
-            const kColor   = stats.kRate  >= 0.35  ? '#dc2626' : '#374151';
-            const safeKey  = mapKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-            const numLabel = entry._bmNum ? `#${entry._bmNum}` : (entry.nameKey.startsWith('#') ? entry.nameKey : '');
-            return `<div onclick="showBmBatterCard('${safeKey}')"
-                style="background:white;border-radius:12px;padding:16px;margin-bottom:10px;
-                       box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;
-                       border:1px solid #e5e7eb;transition:transform 0.15s,box-shadow 0.15s;"
-                onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'"
-                onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'">
-              <!-- 名字 + badge -->
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-                <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;min-width:0;">
-                  <span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${entry.name}</span>
-                  ${numLabel ? `<span style="font-size:14px;font-weight:700;color:#6b7280;">${numLabel}</span>` : ''}
-                  ${entry.hand ? `<span style="font-size:12px;color:#9ca3af;">${entry.hand}</span>` : ''}
-                </div>
-                ${_threatBadge(stats.threatLevel)}
-              </div>
-              <!-- 統計數字列 -->
-              <div style="display:flex;gap:0;border-radius:10px;overflow:hidden;background:#f8fafc;margin-bottom:10px;">
-                ${[
-                    { lbl:'打率', val:fmtAvg, col:avgColor },
-                    { lbl:'OPS',  val:fmtOps, col:opsColor },
-                    { lbl:'打席', val:stats.pa,  col:'#374151' },
-                    { lbl:'三振', val:stats.k,   col:kColor },
-                ].map((d,i) => `<div style="flex:1;text-align:center;padding:10px 4px;${i>0?'border-left:1px solid #e5e7eb;':''}">
-                    <div style="font-size:9px;color:#9ca3af;letter-spacing:0.05em;margin-bottom:3px;">${d.lbl}</div>
-                    <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:${d.col};">${d.val}</div>
-                  </div>`).join('')}
-              </div>
-              <!-- 弱點摘要 -->
-              <div style="background:#f0f7ff;border-radius:8px;padding:8px 10px;font-size:12px;color:#374151;border-left:3px solid #0051a5;">
-                💡 ${_weaknessBlurb(stats, entry)}
-              </div>
-              <div style="text-align:right;margin-top:8px;font-size:11px;color:#9ca3af;">${entry.games.size} 場記錄 →</div>
-            </div>`;
-        }).join('');
+        // ── 渲染打者卡片（緊湊小卡片，點擊開 modal）──
+        const _threatBorderColor = { high:'#16a34a', mid:'#9ca3af', low:'#ef4444' };
+        listEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">` +
+            enriched.map(({ mapKey, entry, stats }) => {
+                const safeKey  = mapKey.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                const numLabel = entry._bmNum ? `#${entry._bmNum}` : (entry.nameKey.startsWith('#') ? entry.nameKey : '');
+                const bColor   = _threatBorderColor[stats.threatLevel] || '#9ca3af';
+                return `<div onclick="showBmBatterCard('${safeKey}')"
+                    style="background:white;border-radius:10px;padding:10px 12px;
+                           border-left:4px solid ${bColor};
+                           box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;
+                           display:flex;flex-direction:column;gap:3px;
+                           flex:1 1 130px;max-width:210px;min-width:120px;
+                           transition:transform 0.12s,box-shadow 0.12s;"
+                    onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'"
+                    onmouseout="this.style.transform='';this.style.boxShadow='0 1px 4px rgba(0,0,0,0.08)'">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+                    <span style="font-size:10px;color:#9ca3af;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px;">${entry.teamName || ''}</span>
+                    ${_threatBadge(stats.threatLevel)}
+                  </div>
+                  <div style="display:flex;align-items:baseline;gap:5px;flex-wrap:wrap;">
+                    <span style="font-size:18px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;line-height:1.2;">${entry.name}</span>
+                    ${numLabel ? `<span style="font-size:12px;font-weight:700;color:#6b7280;">${numLabel}</span>` : ''}
+                  </div>
+                  <span style="font-size:11px;color:#9ca3af;">${entry.hand || ''}</span>
+                </div>`;
+            }).join('') +
+        `</div>`;
 
         /* ── 舊程式碼已移除 ── */
         if (false) {
