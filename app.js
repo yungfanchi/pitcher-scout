@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v180';
+﻿    const APP_VERSION = 'v181';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -10037,78 +10037,239 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         const container = document.getElementById('bmAnalysisContent');
         if (!container) return;
         _initBmData();
-        // 連動模式且已選賽事：從投手記錄推導打席；否則用獨立打席資料
-        const atBats = (currentTeam !== null)
-            ? _deriveBmAtBatsFromPitches(currentTeam)
-            : allData.bm.atBats || [];
-        if (atBats.length < 3) {
-            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">記錄至少 3 個打席後顯示分析<br><span style="font-size:12px;">請先在側欄選取一場賽事</span></div>';
+
+        if (currentTeam === null) {
+            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">請先在側欄選取一場賽事</div>';
             return;
         }
+
+        const team = allData.teams[currentTeam];
+        if (!team) return;
+
+        // ── 收集全部投球（需要完整球數資訊） ──
+        const allPitches = [];
+        (team.pitchers || []).forEach(pitcher => {
+            (pitcher.pitches || []).forEach(p => {
+                allPitches.push({ ...p, _pitcherHand: pitcher.hand || '右投' });
+            });
+        });
+
+        const PA_ENDING = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局',
+            '內野安打','一壘安打','二壘安打','三壘安打','全壘打',
+            '保送','觸身球','故意四壞','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤','捕逸'];
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
-        const BB  = ['保送','觸身球','故意四壞','捕逸'];
-        const BIP = BM_BALL_IN_PLAY;
+        const paPitches = allPitches.filter(p => (p.outcomes || []).some(o => PA_ENDING.includes(o)));
 
-        function pct(n,t) { return t>0 ? Math.round(n/t*100) : 0; }
-
-        const pa   = atBats.length;
-        const hits  = atBats.filter(a=>HIT.includes(a.outcome)).length;
-        const k     = atBats.filter(a=>a.outcome==='三振'||a.outcome==='不死三振').length;
-        const bb    = atBats.filter(a=>BB.includes(a.outcome)).length;
-        const avg   = pa>0 ? (hits/pa).toFixed(3) : '.000';
-
-        const vsL = atBats.filter(a=>a.pitcherHand==='左投');
-        const vsR = atBats.filter(a=>a.pitcherHand==='右投');
-        function getStats(abs) {
-            const h = abs.filter(a=>HIT.includes(a.outcome)).length;
-            const p = abs.length;
-            return { pa:p, avg: p>0?(h/p).toFixed(3):'.---', k:abs.filter(a=>a.outcome==='三振').length, bb:abs.filter(a=>BB.includes(a.outcome)).length };
+        if (paPitches.length < 3) {
+            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">記錄至少 3 個打席後顯示分析</div>';
+            return;
         }
-        const vsLStat = getStats(vsL), vsRStat = getStats(vsR);
 
-        const dirC = {'左':0,'中':0,'右':0};
-        const DIR_MAP = { 'LF':'左','LCF':'左中','CF':'中','RCF':'右中','RF':'右',
-            '3B':'左','SS':'左中','2B':'右中','1B':'右','三短':'左','一短':'右','P':'中','本壘前':'中' };
-        atBats.forEach(a => { if (a.hitLocation) { const d=DIR_MAP[a.hitLocation.zone]; if(d) dirC[d in dirC ? d : d.includes('左')?'左':d.includes('右')?'右':'中']++; } });
-        const dirTotal = Object.values(dirC).reduce((s,v)=>s+v,0);
+        function pct(n, t) { return t > 0 ? Math.round(n / t * 100) : 0; }
 
-        container.innerHTML = `
-            <h2>🔍 整體分析</h2>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-                <div class="bm-card" style="flex:1;min-width:80px;text-align:center;">
-                    <div style="font-size:22px;font-weight:900;color:#003d79;font-family:'Oswald',sans-serif;">${avg}</div>
-                    <div style="font-size:11px;color:#6b7280;">整體打率</div>
+        // ── SVG 甜甜圈 ──
+        function donut(segs, total, centerTxt) {
+            if (!total) return '<svg width="90" height="90"><circle cx="45" cy="45" r="35" fill="none" stroke="#e5e7eb" stroke-width="15"/><text x="45" y="49" text-anchor="middle" font-size="10" fill="#9ca3af">無資料</text></svg>';
+            const cx = 45, cy = 45, r = 35, ir = 20;
+            let angle = -Math.PI / 2, paths = '';
+            segs.forEach(s => {
+                if (!s.v) return;
+                const a = (s.v / total) * 2 * Math.PI;
+                const ea = angle + a, lg = a > Math.PI ? 1 : 0;
+                const [x1,y1] = [cx+r*Math.cos(angle), cy+r*Math.sin(angle)];
+                const [x2,y2] = [cx+r*Math.cos(ea),    cy+r*Math.sin(ea)];
+                const [xi1,yi1] = [cx+ir*Math.cos(angle), cy+ir*Math.sin(angle)];
+                const [xi2,yi2] = [cx+ir*Math.cos(ea),    cy+ir*Math.sin(ea)];
+                paths += `<path d="M${xi1},${yi1}L${x1},${y1}A${r},${r},0,${lg},1,${x2},${y2}L${xi2},${yi2}A${ir},${ir},0,${lg},0,${xi1},${yi1}Z" fill="${s.c}"/>`;
+                angle = ea;
+            });
+            return `<svg width="90" height="90" viewBox="0 0 90 90">${paths}
+                <text x="45" y="48" text-anchor="middle" font-size="9" font-weight="bold" fill="#374151">${centerTxt||''}</text></svg>`;
+        }
+
+        function dotLegend(segs, total) {
+            return segs.filter(s => s.v > 0).map(s =>
+                `<div style="display:flex;align-items:center;gap:5px;font-size:12px;margin-bottom:4px;">
+                    <div style="width:9px;height:9px;border-radius:50%;background:${s.c};flex-shrink:0;"></div>
+                    <span style="font-weight:700;">${s.lbl}</span>
+                    <span style="color:#6b7280;">${pct(s.v,total)}%（${s.v}）</span>
+                </div>`).join('');
+        }
+
+        function card(title, svgHtml, legendHtml, noteHtml) {
+            return `<div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:10px;">${title}</div>
+                <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+                    <div style="flex-shrink:0;">${svgHtml}</div>
+                    <div style="flex:1;min-width:130px;">${legendHtml}</div>
                 </div>
-                <div class="bm-card" style="flex:1;min-width:80px;text-align:center;">
-                    <div style="font-size:22px;font-weight:900;color:#dc0000;font-family:'Oswald',sans-serif;">${pct(k,pa)}%</div>
-                    <div style="font-size:11px;color:#6b7280;">三振率</div>
-                </div>
-                <div class="bm-card" style="flex:1;min-width:80px;text-align:center;">
-                    <div style="font-size:22px;font-weight:900;color:#9333ea;font-family:'Oswald',sans-serif;">${pct(bb,pa)}%</div>
-                    <div style="font-size:11px;color:#6b7280;">保送率</div>
-                </div>
-            </div>
+                ${noteHtml ? `<div style="margin-top:8px;font-size:11px;color:#6b7280;">${noteHtml}</div>` : ''}
+            </div>`;
+        }
 
-            <h2>⚔️ 對陣左右投分析</h2>
-            <div style="overflow-x:auto;">
-            <table class="bm-stats-table">
-                <thead><tr><th>對陣</th><th>打席</th><th>打率</th><th>三振</th><th>保送</th></tr></thead>
-                <tbody>
-                    <tr><td>vs 左投</td><td>${vsLStat.pa}</td><td>${vsLStat.avg}</td><td>${vsLStat.k}</td><td>${vsLStat.bb}</td></tr>
-                    <tr><td>vs 右投</td><td>${vsRStat.pa}</td><td>${vsRStat.avg}</td><td>${vsRStat.k}</td><td>${vsRStat.bb}</td></tr>
-                </tbody>
-            </table></div>
+        const DIR_MAP = { 'LF':'左','LCF':'左','CF':'中','RCF':'右','RF':'右',
+            '3B':'左','SS':'左','2B':'右','1B':'右','三短':'左','一短':'右','P':'中','本壘前':'中' };
 
-            ${dirTotal > 0 ? `
-            <h2 style="margin-top:16px;">🧭 打擊方向</h2>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                ${['左','中','右'].map(d=>`<div class="bm-card" style="flex:1;text-align:center;min-width:70px;">
-                    <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${pct(dirC[d],dirTotal)}%</div>
-                    <div style="font-size:11px;color:#6b7280;">${d === '左' ? '⬅ 拉打' : d === '右' ? '推打 ➡' : '中間'}</div>
-                    <div style="font-size:12px;font-weight:700;color:#374151;">${dirC[d]} 筆</div>
-                </div>`).join('')}
-            </div>` : ''}
-        `;
+        // ── 1. 打擊方向傾向 ──
+        const dirC = {左:0, 中:0, 右:0};
+        paPitches.forEach(p => {
+            if (p.hitLocation) {
+                const d = DIR_MAP[p.hitLocation.zone];
+                if (d in dirC) dirC[d]++;
+            }
+        });
+        const dirTotal = dirC.左 + dirC.中 + dirC.右;
+        const dirSegs = [
+            {lbl:'拉打（左）', v:dirC.左, c:'#dc0000'},
+            {lbl:'中間',       v:dirC.中, c:'#0051a5'},
+            {lbl:'推打（右）', v:dirC.右, c:'#10b981'},
+        ];
+        const sec1 = card('📍 1. 打擊方向傾向',
+            donut(dirSegs, dirTotal, `${dirTotal}筆`),
+            dirTotal > 0 ? dotLegend(dirSegs, dirTotal) : '<span style="color:#9ca3af;font-size:12px;">尚無落點記錄</span>',
+            dirTotal === 0 ? '紀錄投球時若有選擇落點，此處將自動顯示' : null
+        );
+
+        // ── 2. 打擊類型 ──
+        const typeC = {安打:0, 飛球:0, 滾地:0, 平飛:0, 短打:0, 三振:0, 保送:0};
+        paPitches.forEach(p => {
+            const o = p.outcomes || [];
+            if (o.some(x => HIT.includes(x)))                            typeC.安打++;
+            else if (o.some(x => ['飛球出局','高飛犧牲打'].includes(x))) typeC.飛球++;
+            else if (o.includes('滾地球出局'))                            typeC.滾地++;
+            else if (o.includes('平飛球出局'))                            typeC.平飛++;
+            else if (o.includes('犧牲觸擊'))                              typeC.短打++;
+            else if (o.some(x => ['三振','不死三振'].includes(x)))        typeC.三振++;
+            else if (o.some(x => ['保送','觸身球','故意四壞'].includes(x))) typeC.保送++;
+        });
+        const typeSegs = [
+            {lbl:'安打',     v:typeC.安打, c:'#10b981'},
+            {lbl:'飛球出局', v:typeC.飛球, c:'#f59e0b'},
+            {lbl:'滾地出局', v:typeC.滾地, c:'#8b5cf6'},
+            {lbl:'平飛出局', v:typeC.平飛, c:'#06b6d4'},
+            {lbl:'短打',     v:typeC.短打, c:'#ec4899'},
+            {lbl:'三振',     v:typeC.三振, c:'#dc0000'},
+            {lbl:'保送/觸身',v:typeC.保送, c:'#6b7280'},
+        ];
+        const sec2 = card('⚡ 2. 打擊類型',
+            donut(typeSegs, paPitches.length, `${paPitches.length}打席`),
+            dotLegend(typeSegs, paPitches.length)
+        );
+
+        // ── 3. 球種弱點 ──
+        const pitchW = {};
+        paPitches.forEach(p => {
+            if (!p.type) return;
+            if (!pitchW[p.type]) pitchW[p.type] = {pa:0, k:0, hits:0};
+            const o = p.outcomes || [];
+            pitchW[p.type].pa++;
+            if (o.some(x => ['三振','不死三振'].includes(x))) pitchW[p.type].k++;
+            if (o.some(x => HIT.includes(x))) pitchW[p.type].hits++;
+        });
+        const ptchEntries = Object.entries(pitchW).sort((a,b) => b[1].pa - a[1].pa);
+        const ptchColors = ['#003d79','#0051a5','#dc0000','#ffd700','#10b981','#9333ea','#f59e0b'];
+        const ptchSegs = ptchEntries.map(([t,r], i) => ({lbl:t, v:r.pa, c:ptchColors[i % ptchColors.length]}));
+        const ptchTotal = ptchEntries.reduce((s,[,r]) => s + r.pa, 0);
+        const ptchLegend = ptchEntries.length === 0
+            ? '<span style="color:#9ca3af;font-size:12px;">無球種記錄</span>'
+            : ptchEntries.map(([t,r], i) =>
+                `<div style="display:flex;align-items:center;gap:5px;font-size:12px;margin-bottom:4px;">
+                    <div style="width:9px;height:9px;border-radius:50%;background:${ptchColors[i%ptchColors.length]};flex-shrink:0;"></div>
+                    <span style="font-weight:700;">${t}</span>
+                    <span style="color:#10b981;">安打${pct(r.hits,r.pa)}%</span>
+                    <span style="color:#dc0000;">K${pct(r.k,r.pa)}%</span>
+                    <span style="color:#9ca3af;">(${r.pa})</span>
+                </div>`).join('');
+        const sec3 = card('🎯 3. 球種弱點',
+            donut(ptchSegs, ptchTotal, `${ptchEntries.length}球種`),
+            ptchLegend
+        );
+
+        // ── 4. 球數傾向 ──
+        const countMap = {};
+        paPitches.forEach(p => {
+            const key = `${p.balls||0}-${p.strikes||0}`;
+            if (!countMap[key]) countMap[key] = {pa:0, hits:0};
+            countMap[key].pa++;
+            if ((p.outcomes||[]).some(o => HIT.includes(o))) countMap[key].hits++;
+        });
+        const cntEntries = Object.entries(countMap).sort((a,b) => b[1].pa - a[1].pa).slice(0, 6);
+        const cntTotal   = Object.values(countMap).reduce((s,v) => s + v.pa, 0);
+        const cntColors  = ['#dc0000','#0051a5','#10b981','#f59e0b','#9333ea','#6b7280'];
+        const cntSegs    = cntEntries.map(([k,v], i) => ({lbl:k, v:v.pa, c:cntColors[i]}));
+        const cntLegend  = cntEntries.map(([key,v], i) => {
+            const [b,s] = key.split('-');
+            return `<div style="display:flex;align-items:center;gap:5px;font-size:12px;margin-bottom:4px;">
+                <div style="width:9px;height:9px;border-radius:50%;background:${cntColors[i]};flex-shrink:0;"></div>
+                <span style="font-weight:700;">${b}B ${s}S</span>
+                <span style="color:#6b7280;">${pct(v.pa,cntTotal)}%（${v.pa}次）</span>
+                <span style="color:#10b981;font-size:11px;">打率${v.pa>0?(v.hits/v.pa).toFixed(3):'---'}</span>
+            </div>`;
+        }).join('');
+        const sec4 = card('🔢 4. 球數傾向',
+            donut(cntSegs, cntTotal, ''),
+            cntLegend,
+            '顯示前 6 個最常見的打席終止球數'
+        );
+
+        // ── 5. 戰術時間點 ──
+        const tactC  = {'犧牲觸擊':0, '高飛犧牲打':0, '代打':0, '雙殺':0};
+        const innMap = {};
+        paPitches.forEach(p => {
+            const o = p.outcomes || [];
+            if (o.includes('犧牲觸擊'))   { tactC['犧牲觸擊']++;   }
+            if (o.includes('高飛犧牲打')) { tactC['高飛犧牲打']++; }
+            if (p.pinchHit)               { tactC['代打']++;        }
+            if (o.includes('雙殺'))       { tactC['雙殺']++;        }
+            if (o.includes('犧牲觸擊') || o.includes('高飛犧牲打') || p.pinchHit) {
+                const inn = p.inning ? `${p.inning}局` : '?局';
+                innMap[inn] = (innMap[inn] || 0) + 1;
+            }
+        });
+        const tactEntries = Object.entries(tactC).filter(([,v]) => v > 0);
+        const tactTotal   = tactEntries.reduce((s,[,v]) => s + v, 0);
+        const tactColors  = ['#ec4899','#f59e0b','#0051a5','#dc0000'];
+        const tactSegs    = tactEntries.map(([k,v], i) => ({lbl:k, v, c:tactColors[i]}));
+        const innNote     = Object.entries(innMap).sort((a,b) => parseInt(a)-parseInt(b))
+                                  .map(([k,v]) => `${k}×${v}`).join('　');
+        const sec5 = card('⚔️ 5. 戰術時間點',
+            donut(tactSegs.length ? tactSegs : [{lbl:'無',v:1,c:'#e5e7eb'}], tactTotal || 1, tactTotal ? `${tactTotal}次` : '0'),
+            tactEntries.length === 0
+                ? '<span style="color:#9ca3af;font-size:12px;">尚無短打／犧牲打記錄</span>'
+                : tactEntries.map(([k,v], i) => `<div style="display:flex;align-items:center;gap:5px;font-size:12px;margin-bottom:4px;">
+                    <div style="width:9px;height:9px;border-radius:50%;background:${tactColors[i]};flex-shrink:0;"></div>
+                    <span style="font-weight:700;">${k}</span><span style="color:#6b7280;">${v} 次</span>
+                  </div>`).join(''),
+            innNote ? `局數分布：${innNote}` : null
+        );
+
+        // ── 6. 壘上狀況應對 ──
+        const baseS = {'空壘':{pa:0,hits:0,k:0},'一壘':{pa:0,hits:0,k:0},'得點圈':{pa:0,hits:0,k:0},'滿壘':{pa:0,hits:0,k:0}};
+        paPitches.forEach(p => {
+            const bs = p.basesSnapshot || [false,false,false];
+            const key = (bs[0]&&bs[1]&&bs[2]) ? '滿壘' : (bs[1]||bs[2]) ? '得點圈' : bs[0] ? '一壘' : '空壘';
+            const o = p.outcomes || [];
+            baseS[key].pa++;
+            if (o.some(x => HIT.includes(x)))                           baseS[key].hits++;
+            if (o.some(x => ['三振','不死三振'].includes(x)))            baseS[key].k++;
+        });
+        const baseColors = {'空壘':'#6b7280','一壘':'#0051a5','得點圈':'#f59e0b','滿壘':'#dc0000'};
+        const baseSegs   = Object.entries(baseS).map(([k,v]) => ({lbl:k, v:v.pa, c:baseColors[k]}));
+        const baseTotal  = baseSegs.reduce((s,x) => s + x.v, 0);
+        const baseLegend = Object.entries(baseS).filter(([,v]) => v.pa > 0).map(([k,v]) =>
+            `<div style="display:flex;align-items:center;gap:5px;font-size:12px;margin-bottom:4px;">
+                <div style="width:9px;height:9px;border-radius:50%;background:${baseColors[k]};flex-shrink:0;"></div>
+                <span style="font-weight:700;">${k}</span>
+                <span style="color:#6b7280;">${v.pa}打席</span>
+                <span style="color:#10b981;">打率${v.pa>0?(v.hits/v.pa).toFixed(3):'---'}</span>
+                <span style="color:#dc0000;font-size:11px;">K${pct(v.k,v.pa)}%</span>
+            </div>`).join('');
+        const sec6 = card('🏃 6. 壘上狀況應對',
+            donut(baseSegs, baseTotal, `${baseTotal}打席`),
+            baseLegend
+        );
+
+        container.innerHTML = `<h2 style="margin-bottom:12px;">🔍 打者傾向分析（${paPitches.length} 打席）</h2>${sec1}${sec2}${sec3}${sec4}${sec5}${sec6}`;
     }
 
     // ── Firebase 打者模式同步 ──
