@@ -2273,6 +2273,7 @@
         currentTeam = teamIndex;
         currentPitcher = pitcherIndex;
         statsFilter = 'all';
+        _bmAnalysisBatterFilter = null; // 切換賽事時重置打者篩選
         expandedTeams.add(teamIndex);
 
         // 還原該賽事的打序（若曾儲存過）
@@ -8414,6 +8415,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
 
     // ── 打者情蒐模式進入/切換 ──
 
+    let _bmAnalysisBatterFilter = null; // null = 整隊；string = 打者 key
+
     let _bmState = {
         recMode: 'linked',     // 'linked'|'standalone'
         currentOrder: 0,       // 0-based index (0=打序1)
@@ -10100,6 +10103,11 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    function selectBmAnalysisBatter(key) {
+        _bmAnalysisBatterFilter = key || null;
+        _renderBmAnalysis();
+    }
+
     // ── 分析 Tab ──
     function _renderBmAnalysis() {
         const container = document.getElementById('bmAnalysisContent');
@@ -10122,11 +10130,50 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             });
         });
 
+        // ── 打者選擇器 ──
+        const selectorEl = document.getElementById('bmAnalysisBatterSelector');
+        if (selectorEl) {
+            // 提取唯一打者清單
+            const batterMap = new Map();
+            allPitches.forEach(p => {
+                const name = (p.batterName || '').trim();
+                const num  = String(p.batterNumber || '').trim();
+                const key  = name || (num ? `#${num}` : '');
+                if (!key || batterMap.has(key)) return;
+                batterMap.set(key, name || `背號 ${num}`);
+            });
+            if (batterMap.size > 0) {
+                const pills = [['null','整隊（全部）'], ...batterMap.entries()].map(([k, lbl]) => {
+                    const active = (k === 'null' && !_bmAnalysisBatterFilter) || k === _bmAnalysisBatterFilter;
+                    return `<button onclick="selectBmAnalysisBatter(${k === 'null' ? 'null' : `'${k.replace(/'/g,"\\'")}'`})"
+                        style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;
+                               border:2px solid ${active ? '#003d79' : '#d1d5db'};
+                               background:${active ? '#003d79' : 'white'};
+                               color:${active ? 'white' : '#374151'};
+                               cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap;">${lbl}</button>`;
+                }).join('');
+                selectorEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 0 4px;">${pills}</div>`;
+            } else {
+                selectorEl.innerHTML = '';
+            }
+        }
+
+        // ── 依選定打者篩選 ──
+        let filteredPitches = allPitches;
+        if (_bmAnalysisBatterFilter) {
+            const isNumKey = _bmAnalysisBatterFilter.startsWith('#');
+            const numKey   = isNumKey ? _bmAnalysisBatterFilter.slice(1) : null;
+            filteredPitches = allPitches.filter(p => isNumKey
+                ? String(p.batterNumber || '') === numKey && !(p.batterName || '').trim()
+                : (p.batterName || '').trim() === _bmAnalysisBatterFilter
+            );
+        }
+
         const PA_ENDING = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局',
             '內野安打','一壘安打','二壘安打','三壘安打','全壘打',
             '保送','觸身球','故意四壞','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤','捕逸'];
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
-        const paPitches = allPitches.filter(p => (p.outcomes || []).some(o => PA_ENDING.includes(o)));
+        const paPitches = filteredPitches.filter(p => (p.outcomes || []).some(o => PA_ENDING.includes(o)));
 
         if (paPitches.length < 3) {
             container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">記錄至少 3 個打席後顯示分析</div>';
@@ -10337,7 +10384,10 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
             baseLegend
         );
 
-        container.innerHTML = `<h2 style="margin-bottom:12px;">🔍 打者傾向分析（${paPitches.length} 打席）</h2>${sec1}${sec2}${sec3}${sec4}${sec5}${sec6}`;
+        const _filterLabel = _bmAnalysisBatterFilter
+            ? ((_bmAnalysisBatterFilter.startsWith('#') ? `背號 ${_bmAnalysisBatterFilter.slice(1)}` : _bmAnalysisBatterFilter) + '・')
+            : '';
+        container.innerHTML = `<h2 style="margin-bottom:12px;">🔍 ${_filterLabel}打者傾向分析（${paPitches.length} 打席）</h2>${sec1}${sec2}${sec3}${sec4}${sec5}${sec6}`;
     }
 
     // ── Firebase 打者模式同步 ──
