@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v189';
+﻿    const APP_VERSION = 'v190';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -6495,6 +6495,195 @@
     }
 
     // ── 管理員示範資料注入（僅寫入管理員自己的 pitcherScoutData，不觸碰任何客戶球隊）──
+    function adminInjectBmDemoData(evt) {
+        if (!confirm(
+            '注入打者模式測試資料至管理員帳號？\n\n' +
+            '⚠️ 這只會覆蓋管理員帳號的 bm 打者資料，\n' +
+            '不影響任何已購買球隊的資料。\n\n確定繼續？'
+        )) return;
+
+        const btn = evt && evt.target;
+        if (btn) { btn.textContent = '⏳ 注入中...'; btn.disabled = true; }
+
+        const now = Date.now();
+        const ago = ms => now - ms;
+
+        // ── 輔助：建立打席記錄 ──
+        function ab(num, name, hand, inning, half, outs, bases, phHand, outcome, hitLoc, tactics, teamName) {
+            return {
+                number: String(num), name, hand, inning, half, outs,
+                bases: bases || [false,false,false],
+                pitcherHand: phHand || '右投',
+                outcome, tactics: tactics || [],
+                hitLocation: hitLoc || null,
+                teamName: teamName || '日本',
+                mode: 'linked', pitches: [], gameIdx: 0,
+                ts: ago(Math.floor(Math.random()*7200000))
+            };
+        }
+        function hl(zone, x, y) { return { zone, x, y }; }
+
+        // ── 日本隊打者（9人 × 各多打席） ──
+        const jpAtBats = [
+            // 1棒 #1 田中（右打，高打率威脅型）
+            ab(1,'田中健','右打',1,'上',0,[false,false,false],'右投','一壘安打',hl('RF',0.68,0.38),[]),
+            ab(1,'田中健','右打',2,'上',1,[false,false,false],'右投','二壘安打',hl('RCF',0.65,0.22),[]),
+            ab(1,'田中健','右打',3,'上',0,[true,false,false],'左投','一壘安打',hl('1B',0.72,0.48),['打帶跑']),
+            ab(1,'田中健','右打',4,'上',0,[false,false,false],'右投','三振',null,[]),
+            ab(1,'田中健','右打',5,'上',1,[false,false,false],'右投','滾地球出局',hl('2B',0.58,0.52),[]),
+            ab(1,'田中健','右打',6,'上',0,[false,false,false],'左投','全壘打',hl('CF',0.50,0.08),[]),
+            ab(1,'田中健','右打',7,'上',2,[true,false,false],'右投','二壘安打',hl('LCF',0.32,0.20),[]),
+
+            // 2棒 #7 松本（左打，犧牲觸擊型）
+            ab(7,'松本遼','左打',1,'上',1,[true,false,false],'右投','犧牲觸擊',hl('三短',0.25,0.78),[]),
+            ab(7,'松本遼','左打',2,'上',0,[true,false,false],'右投','犧牲觸擊',hl('一短',0.75,0.80),[]),
+            ab(7,'松本遼','左打',3,'上',1,[false,false,false],'左投','保送',null,[]),
+            ab(7,'松本遼','左打',4,'上',0,[true,true,false],'右投','犧牲觸擊',hl('三短',0.22,0.82),[]),
+            ab(7,'松本遼','左打',5,'上',2,[false,false,false],'右投','三振',null,[]),
+            ab(7,'松本遼','左打',6,'上',0,[false,true,false],'右投','高飛犧牲打',hl('CF',0.50,0.12),[]),
+            ab(7,'松本遼','左打',7,'上',1,[true,false,false],'右投','一壘安打',hl('SS',0.40,0.45),[]),
+
+            // 3棒 #15 大谷（右打，強打者高OPS）
+            ab(15,'大谷翔','右打',1,'上',2,[false,true,false],'右投','二壘安打',hl('LCF',0.30,0.20),[]),
+            ab(15,'大谷翔','右打',2,'上',0,[false,false,false],'右投','全壘打',hl('LF',0.15,0.12),[]),
+            ab(15,'大谷翔','右打',3,'上',1,[true,false,false],'右投','一壘安打',hl('RF',0.70,0.40),[]),
+            ab(15,'大谷翔','右打',4,'上',0,[false,false,false],'左投','三振',null,[]),
+            ab(15,'大谷翔','右打',5,'上',2,[true,true,false],'右投','二壘安打',hl('LF',0.18,0.28),[]),
+            ab(15,'大谷翔','右打',6,'上',1,[false,false,false],'右投','全壘打',hl('CF',0.50,0.05),[]),
+            ab(15,'大谷翔','右打',7,'上',0,[false,false,false],'右投','滾地球出局',hl('SS',0.42,0.48),[]),
+
+            // 4棒 #28 佐藤（右打，強打但高三振）
+            ab(28,'佐藤輝','右打',1,'上',0,[true,true,false],'右投','三振',null,[]),
+            ab(28,'佐藤輝','右打',2,'上',1,[false,false,false],'右投','全壘打',hl('CF',0.50,0.06),[]),
+            ab(28,'佐藤輝','右打',3,'上',2,[false,false,false],'左投','三振',null,[]),
+            ab(28,'佐藤輝','右打',4,'上',0,[false,true,false],'右投','一壘安打',hl('1B',0.74,0.46),[]),
+            ab(28,'佐藤輝','右打',5,'上',1,[false,false,false],'右投','三振',null,[]),
+            ab(28,'佐藤輝','右打',6,'上',0,[false,false,false],'右投','飛球出局',hl('CF',0.48,0.14),[]),
+            ab(28,'佐藤輝','右打',7,'上',2,[true,false,false],'右投','三振',null,[]),
+
+            // 5棒 #21 吉田（左打，中間型）
+            ab(21,'吉田正','左打',1,'上',1,[false,false,false],'右投','一壘安打',hl('RF',0.70,0.38),[]),
+            ab(21,'吉田正','左打',2,'上',2,[true,false,false],'右投','飛球出局',hl('LF',0.20,0.18),[]),
+            ab(21,'吉田正','左打',3,'上',0,[false,false,false],'右投','保送',null,[]),
+            ab(21,'吉田正','左打',4,'上',1,[true,true,false],'右投','一壘安打',hl('SS',0.38,0.45),['打帶跑']),
+            ab(21,'吉田正','左打',5,'上',0,[false,false,false],'左投','滾地球出局',hl('3B',0.28,0.52),[]),
+            ab(21,'吉田正','左打',6,'上',2,[false,false,true],'右投','高飛犧牲打',hl('CF',0.50,0.15),[]),
+            ab(21,'吉田正','左打',7,'上',1,[false,false,false],'右投','二壘安打',hl('LCF',0.28,0.22),[]),
+
+            // 6棒 #33 鈴木（右打，盜壘型 低打率）
+            ab(33,'鈴木誠','右打',1,'上',2,[false,false,false],'右投','滾地球出局',hl('2B',0.60,0.55),[]),
+            ab(33,'鈴木誠','右打',2,'上',0,[false,false,false],'右投','一壘安打',hl('1B',0.72,0.44),[]),
+            ab(33,'鈴木誠','右打',3,'上',1,[false,false,false],'右投','三振',null,[]),
+            ab(33,'鈴木誠','右打',4,'上',0,[false,false,false],'左投','滾地球出局',hl('3B',0.30,0.54),[]),
+            ab(33,'鈴木誠','右打',5,'上',2,[true,false,false],'右投','飛球出局',hl('RF',0.72,0.20),[]),
+            ab(33,'鈴木誠','右打',6,'上',1,[false,false,false],'右投','一壘安打',hl('SS',0.40,0.44),[]),
+            ab(33,'鈴木誠','右打',7,'上',0,[false,false,false],'右投','三振',null,[]),
+
+            // 7棒 #44 中村（右打，低威脅高三振）
+            ab(44,'中村剛','右打',2,'上',1,[false,false,false],'右投','三振',null,[]),
+            ab(44,'中村剛','右打',3,'上',2,[false,false,false],'右投','三振',null,[]),
+            ab(44,'中村剛','右打',4,'上',0,[false,false,false],'右投','滾地球出局',hl('2B',0.62,0.54),[]),
+            ab(44,'中村剛','右打',5,'上',1,[false,false,false],'左投','一壘安打',hl('CF',0.50,0.32),[]),
+            ab(44,'中村剛','右打',6,'上',2,[false,false,false],'右投','三振',null,[]),
+            ab(44,'中村剛','右打',7,'上',0,[false,true,false],'右投','飛球出局',hl('RF',0.68,0.22),[]),
+
+            // 8棒 #55 西川（左打，Squeeze專用打者）
+            ab(55,'西川遙','左打',2,'上',0,[false,false,true],'右投','犧牲觸擊',hl('三短',0.22,0.80),[]),  // Squeeze！
+            ab(55,'西川遙','左打',3,'上',1,[false,false,false],'右投','三振',null,[]),
+            ab(55,'西川遙','左打',4,'上',0,[false,false,true],'左投','犧牲觸擊',hl('一短',0.78,0.82),[]),  // Squeeze！
+            ab(55,'西川遙','左打',5,'上',2,[false,false,false],'右投','保送',null,[]),
+            ab(55,'西川遙','左打',6,'上',0,[true,false,true],'右投','犧牲觸擊',hl('三短',0.20,0.78),[]),  // Squeeze！
+            ab(55,'西川遙','左打',7,'上',1,[false,false,false],'右投','滾地球出局',hl('3B',0.28,0.55),[]),
+
+            // 9棒 #2 山田（右打，偷點型）
+            ab(2,'山田哲','右打',1,'上',0,[false,false,false],'右投','三振',null,[]),
+            ab(2,'山田哲','右打',2,'上',2,[false,false,false],'右投','保送',null,[]),
+            ab(2,'山田哲','右打',3,'上',0,[true,false,false],'右投','犧牲觸擊',hl('三短',0.24,0.80),[]),
+            ab(2,'山田哲','右打',4,'上',1,[false,false,false],'右投','三振',null,[]),
+            ab(2,'山田哲','右打',5,'上',0,[true,true,false],'右投','打帶跑',null,['打帶跑','戰術失敗']),
+            ab(2,'山田哲','右打',6,'上',2,[false,false,false],'右投','滾地球出局',hl('SS',0.42,0.50),[]),
+            ab(2,'山田哲','右打',7,'上',0,[true,false,false],'右投','一壘安打',hl('CF',0.50,0.35),['打帶跑']),
+        ];
+
+        // ── 韓國隊打者（對比組，較低威脅但打率穩） ──
+        const krAtBats = [
+            ab(3,'朴賢俊','右打',1,'下',0,[false,false,false],'右投','一壘安打',hl('1B',0.72,0.42),[],'韓國'),
+            ab(3,'朴賢俊','右打',2,'下',1,[false,false,false],'右投','滾地球出局',hl('3B',0.30,0.52),[],'韓國'),
+            ab(3,'朴賢俊','右打',3,'下',0,[false,false,false],'左投','一壘安打',hl('RF',0.70,0.40),[],'韓國'),
+            ab(3,'朴賢俊','右打',4,'下',2,[true,false,false],'右投','三振',null,[],'韓國'),
+            ab(3,'朴賢俊','右打',5,'下',0,[false,false,false],'右投','飛球出局',hl('CF',0.50,0.18),[],'韓國'),
+            ab(3,'朴賢俊','右打',6,'下',1,[false,false,false],'右投','一壘安打',hl('2B',0.60,0.40),[],'韓國'),
+
+            ab(9,'金光炫','右打',1,'下',1,[false,false,false],'右投','三振',null,[],'韓國'),
+            ab(9,'金光炫','右打',2,'下',0,[false,false,false],'右投','保送',null,[],'韓國'),
+            ab(9,'金光炫','右打',3,'下',2,[false,false,false],'右投','三振',null,[],'韓國'),
+            ab(9,'金光炫','右打',4,'下',0,[false,true,false],'右投','二壘安打',hl('LF',0.18,0.28),[],'韓國'),
+            ab(9,'金光炫','右打',5,'下',1,[false,false,false],'左投','三振',null,[],'韓國'),
+            ab(9,'金光炫','右打',6,'下',0,[false,false,false],'右投','滾地球出局',hl('SS',0.42,0.50),[],'韓國'),
+
+            ab(22,'李泳厚','左打',1,'下',2,[false,false,false],'右投','保送',null,[],'韓國'),
+            ab(22,'李泳厚','左打',2,'下',0,[false,false,false],'右投','一壘安打',hl('RF',0.68,0.38),[],'韓國'),
+            ab(22,'李泳厚','左打',3,'下',1,[true,false,false],'右投','犧牲觸擊',hl('三短',0.22,0.80),[],'韓國'),
+            ab(22,'李泳厚','左打',4,'下',0,[false,false,false],'右投','飛球出局',hl('LF',0.20,0.20),[],'韓國'),
+            ab(22,'李泳厚','左打',5,'下',2,[false,false,false],'右投','三振',null,[],'韓國'),
+            ab(22,'李泳厚','左打',6,'下',0,[false,false,false],'右投','滾地球出局',hl('2B',0.62,0.54),[],'韓國'),
+
+            ab(35,'崔志元','右打',2,'下',1,[false,false,false],'右投','全壘打',hl('RF',0.70,0.10),[],'韓國'),
+            ab(35,'崔志元','右打',3,'下',0,[false,false,false],'右投','三振',null,[],'韓國'),
+            ab(35,'崔志元','右打',4,'下',2,[true,false,false],'右投','一壘安打',hl('CF',0.50,0.35),[],'韓國'),
+            ab(35,'崔志元','右打',5,'下',0,[false,false,false],'左投','三振',null,[],'韓國'),
+            ab(35,'崔志元','右打',6,'下',1,[false,false,false],'右投','飛球出局',hl('LCF',0.30,0.15),[],'韓國'),
+
+            ab(17,'朴勝昱','左打',2,'下',0,[false,false,false],'右投','一壘安打',hl('3B',0.28,0.45),[],'韓國'),
+            ab(17,'朴勝昱','左打',3,'下',1,[false,false,false],'右投','三振',null,[],'韓國'),
+            ab(17,'朴勝昱','左打',4,'下',2,[false,false,false],'右投','滾地球出局',hl('3B',0.25,0.55),[],'韓國'),
+            ab(17,'朴勝昱','左打',5,'下',0,[true,false,false],'右投','二壘安打',hl('LF',0.15,0.25),[],'韓國'),
+            ab(17,'朴勝昱','左打',6,'下',1,[false,false,false],'右投','保送',null,[],'韓國'),
+        ];
+
+        // ── 盜壘紀錄（日本隊） ──
+        const demoSteals = [
+            { number:'1', name:'田中健', fromBase:1, toBase:2, success:true,  inning:2, half:'上', outs:0, balls:1, strikes:0, ts: ago(3200000) },
+            { number:'33',name:'鈴木誠', fromBase:1, toBase:2, success:true,  inning:3, half:'上', outs:1, balls:2, strikes:1, ts: ago(2800000) },
+            { number:'1', name:'田中健', fromBase:2, toBase:3, success:false, inning:4, half:'上', outs:0, balls:0, strikes:0, ts: ago(2400000) },
+            { number:'33',name:'鈴木誠', fromBase:1, toBase:2, success:true,  inning:5, half:'上', outs:1, balls:1, strikes:1, ts: ago(2000000) },
+            { number:'2', name:'山田哲', fromBase:1, toBase:2, success:true,  inning:1, half:'上', outs:2, balls:2, strikes:0, ts: ago(3600000) },
+            { number:'7', name:'松本遼', fromBase:1, toBase:2, success:false, inning:6, half:'上', outs:0, balls:0, strikes:1, ts: ago(1600000) },
+            { number:'1', name:'田中健', fromBase:1, toBase:2, success:true,  inning:7, half:'上', outs:1, balls:3, strikes:1, ts: ago(1200000) },
+        ];
+
+        // 注入到 allData.bm
+        _initBmData();
+        allData.bm.atBats = [...jpAtBats, ...krAtBats];
+
+        // 把盜壘掛到第一個投手
+        if (allData.teams.length > 0 && allData.teams[0].pitchers.length > 0) {
+            if (!allData.teams[0].pitchers[0].steals) allData.teams[0].pitchers[0].steals = [];
+            allData.teams[0].pitchers[0].steals.push(...demoSteals);
+        } else {
+            // 若無投手資料，存在 bm.demoSteals 供分析頁讀取
+            allData.bm.demoSteals = demoSteals;
+        }
+
+        allData.bm.lineupA = [
+            {number:'1', name:'田中健', hand:'右打', trait:'速球強打'},
+            {number:'7', name:'松本遼', hand:'左打', trait:'觸擊犧牲型'},
+            {number:'15',name:'大谷翔', hand:'右打', trait:'全能強打'},
+            {number:'28',name:'佐藤輝', hand:'右打', trait:'長打三振型'},
+            {number:'21',name:'吉田正', hand:'左打', trait:'穩打型'},
+            {number:'33',name:'鈴木誠', hand:'右打', trait:'盜壘型'},
+            {number:'44',name:'中村剛', hand:'右打', trait:''},
+            {number:'55',name:'西川遙', hand:'左打', trait:'Squeeze型'},
+            {number:'2', name:'山田哲', hand:'右打', trait:''},
+        ];
+
+        saveToLocalStorage();
+        saveBmToFirebase();
+
+        if (btn) { btn.textContent = '✅ 注入完成'; btn.disabled = false; }
+        alert(`✅ 打者測試資料注入完成！\n\n日本隊：${jpAtBats.length} 打席\n韓國隊：${krAtBats.length} 打席\n盜壘記錄：${demoSteals.length} 筆\n\n請切換到「打者模式」查看統計、分析頁面。`);
+    }
+
     async function adminInjectDemoData(evt) {
         if (!confirm(
             '注入女子快速壘球示範資料至管理員帳號？\n\n' +
