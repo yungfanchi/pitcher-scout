@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v168';
+﻿    const APP_VERSION = 'v169';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -5255,7 +5255,20 @@
         saveToLocalStorage();
     }
 
+    // 上傳前防呆：偵測到幾乎沒有資料時擋住，避免空資料蓋掉雲端
+    function _hasUploadableData() {
+        const teamPitches = (allData.teams || []).reduce((sum, t) =>
+            sum + (t.pitchers || []).reduce((s, p) => s + (p.pitches || []).length, 0), 0);
+        const bmAtBats = (allData.bm && allData.bm.atBats) ? allData.bm.atBats.length : 0;
+        if (teamPitches === 0 && bmAtBats === 0) {
+            alert('⚠️ 目前沒有任何記錄資料，已取消上傳。\n若要清空雲端請先到側欄手動操作。');
+            return false;
+        }
+        return true;
+    }
+
     function quickSave(btn) {
+        if (!_hasUploadableData()) return;
         saveToLocalStorage();
         if (btn) { btn.textContent = '⏳ 儲存中...'; btn.disabled = true; }
         try {
@@ -5273,6 +5286,7 @@
     }
 
     function forceSyncToFirebase() {
+        if (!_hasUploadableData()) return;
         const btn = event && event.target;
         if (btn) { btn.textContent = '⏳ 同步中...'; btn.disabled = true; }
         try {
