@@ -8830,7 +8830,7 @@
               </div>
             </div>
             <!-- 統計面板 右側 放大字體 -->
-            <div style="flex:0 0 200px;min-width:0;display:flex;flex-direction:column;gap:16px;">
+            <div style="flex:0 0 280px;min-width:0;display:flex;flex-direction:column;gap:16px;">
               <div>
                 <div style="font-size:13px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:8px;">方向分佈</div>
                 <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;margin-bottom:7px;">
@@ -8959,13 +8959,9 @@
           </div>`:''}
         </div>`;
 
-        container.innerHTML = sec0 + `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start;margin-bottom:12px;">
-          <div>${sec2}</div>
-          <div>${sec1}${sec4}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start;">
-          ${sec3}${sec5}
+        container.innerHTML = sec0 + sec2 + `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start;">
+          ${sec1}${sec4}${sec3}${sec5}
         </div>`;
         container.scrollTop = 0;
     }
