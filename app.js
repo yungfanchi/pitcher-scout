@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v176';
+﻿    const APP_VERSION = 'v177';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2783,11 +2783,14 @@
         currentPitch.batterOrder = batterOrder || null;
         currentPitch.pinchHit = isPinch;
 
-        // 從打序表查詢打者姓名（用於打者情蒐聚合）
+        // 從打序表查詢打者姓名；若打序表無姓名，退而讀取 UI 輸入欄位
         const _battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
         const _bOrderIdx = (parseInt(batterOrder) || 1) - 1;
         const _lineupEntry = gameState.lineups[_battingTeam][Math.max(0, _bOrderIdx)];
-        currentPitch.batterName = (_lineupEntry && _lineupEntry.name) ? _lineupEntry.name.trim() : '';
+        const _domBatterName = (document.getElementById('batterName')?.value || '').trim();
+        currentPitch.batterName = (_lineupEntry && _lineupEntry.name)
+            ? _lineupEntry.name.trim()
+            : _domBatterName;
 
         const speedVal = document.getElementById('pitchSpeed').value;
         const speedParsed = parseInt(speedVal);
@@ -7731,17 +7734,20 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         if (!listEl) return;
 
         if (_batterSource === 'pitcher') {
-            // 從投手記錄聚合（依打者姓名）
+            // 從投手記錄聚合（依打者姓名；無姓名則以「#背號」代替）
             const batterMap = new Map();
             allData.teams.forEach((team, ti) => {
                 team.pitchers.forEach(pitcher => {
                     pitcher.pitches.forEach(pitch => {
                         const name = (pitch.batterName || '').trim();
-                        if (!name) return;
-                        if (!batterMap.has(name)) {
-                            batterMap.set(name, { name, pitches: [], games: new Set(), hand: pitch.batterHand || '' });
+                        const num  = String(pitch.batterNumber || '').trim();
+                        const key  = name || (num ? `#${num}` : '');
+                        if (!key) return;
+                        const displayName = name || `背號 ${num}`;
+                        if (!batterMap.has(key)) {
+                            batterMap.set(key, { name: displayName, key, pitches: [], games: new Set(), hand: pitch.batterHand || '' });
                         }
-                        const entry = batterMap.get(name);
+                        const entry = batterMap.get(key);
                         entry.pitches.push({ ...pitch, _ti: ti });
                         const gk = [team.gameName, team.date].filter(Boolean).join(' ');
                         if (gk) entry.games.add(gk);
@@ -7753,13 +7759,13 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                 listEl.innerHTML = `<div style="text-align:center;padding:28px 16px;color:#6b7280;">
                   <div style="font-size:36px;margin-bottom:10px;">📋</div>
                   <div style="font-weight:700;margin-bottom:4px;">尚無打者資料</div>
-                  <div style="font-size:12px;">記錄投球時，請先在「打序表」填入打者姓名，系統才能自動聚合打者資料。</div>
+                  <div style="font-size:12px;">記錄投球時，請在「打序表」填入打者資料，系統才能自動聚合。</div>
                 </div>`;
                 return;
             }
             listEl.innerHTML = [...batterMap.values()].map(entry => {
                 const pa = entry.pitches.filter(p => p.outcomes && p.outcomes.some(o => PA_ENDING.includes(o))).length;
-                return `<div class="batter-list-item" onclick="showBatterDetail('${entry.name.replace(/'/g,"\\'")}','pitcher')">
+                return `<div class="batter-list-item" onclick="showBatterDetail('${entry.key.replace(/'/g,"\\'")}','pitcher')">
                   <div class="bli-left">
                     <div class="bli-name">${entry.name}</div>
                     <div class="bli-meta">${entry.hand}　${pa} 打席　${entry.games.size} 場次</div>
@@ -7798,7 +7804,9 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         _currentBatterView = { name, source, idx };
         document.getElementById('batterListView').style.display = 'none';
         document.getElementById('batterDetailView').style.display = 'block';
-        document.getElementById('batterDetailName').textContent = name;
+        // key 可能是 "#13"（背號 key）或姓名；顯示時還原可讀文字
+        const displayName = name.startsWith('#') ? `背號 ${name.slice(1)}` : name;
+        document.getElementById('batterDetailName').textContent = displayName;
         const atBatLogEl = document.getElementById('batterAtBatLogSection');
         if (atBatLogEl) atBatLogEl.style.display = source === 'standalone' ? 'block' : 'none';
         renderBatterDetail(name, source, idx);
@@ -7815,15 +7823,22 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         let atBats = [];
         let steals = [];
         if (source === 'pitcher') {
+            // name 可能是姓名或 "#背號" key
+            const isNumKey = name.startsWith('#');
+            const numKey = isNumKey ? name.slice(1) : null;
             allData.teams.forEach((team, ti) => {
                 team.pitchers.forEach(p => {
                     p.pitches.forEach(pitch => {
-                        if ((pitch.batterName || '').trim() === name.trim()) {
-                            pitches.push({ ...pitch, _ti: ti });
+                        let match = false;
+                        if (isNumKey) {
+                            match = String(pitch.batterNumber || '') === numKey && !(pitch.batterName || '').trim();
+                        } else {
+                            match = (pitch.batterName || '').trim() === name.trim();
                         }
+                        if (match) pitches.push({ ...pitch, _ti: ti });
                     });
                     (p.steals || []).forEach(s => {
-                        if ((s.name || '').trim() === name.trim()) steals.push(s);
+                        if (!isNumKey && (s.name || '').trim() === name.trim()) steals.push(s);
                     });
                 });
             });
