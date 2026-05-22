@@ -11268,7 +11268,7 @@
 
         const groupsHTML = Object.entries(teamGroupMap).map(([tname, map]) => {
             const rows = buildRows(map);
-            return `<div style="margin-bottom:20px;">
+            return `<div style="min-width:0;">
                 <div style="font-size:13px;font-weight:900;color:#003d79;padding:6px 0 4px;border-bottom:2px solid #003d79;margin-bottom:8px;">${tname}</div>
                 ${tableHTML(rows, tname)}
             </div>`;
@@ -11276,7 +11276,9 @@
 
         container.innerHTML = `
             <h2>📊 打者成績一覽</h2>
-            ${groupsHTML}
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start;margin-bottom:16px;">
+              ${groupsHTML}
+            </div>
             <div id="bmBatterDetailSection"></div>`;
     }
 
