@@ -8387,23 +8387,23 @@
                 const numLabel = entry._bmNum ? `#${entry._bmNum}` : (entry.nameKey.startsWith('#') ? entry.nameKey : '');
                 const bColor   = _threatBorderColor[stats.threatLevel] || '#9ca3af';
                 return `<div onclick="showBmBatterCard('${safeKey}')"
-                    style="background:white;border-radius:10px;padding:10px 12px;
+                    style="background:white;border-radius:10px;padding:16px 14px;
                            border-left:4px solid ${bColor};
                            box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;
-                           display:flex;flex-direction:column;gap:3px;
+                           display:flex;flex-direction:column;gap:6px;
                            flex:1 1 130px;max-width:210px;min-width:120px;
                            transition:transform 0.12s,box-shadow 0.12s;"
                     onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'"
                     onmouseout="this.style.transform='';this.style.boxShadow='0 1px 4px rgba(0,0,0,0.08)'">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
                     <span style="font-size:10px;color:#9ca3af;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px;">${entry.teamName || ''}</span>
                     ${_threatBadge(stats.threatLevel)}
                   </div>
                   <div style="display:flex;align-items:baseline;gap:5px;flex-wrap:wrap;">
-                    <span style="font-size:18px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;line-height:1.2;">${entry.name}</span>
-                    ${numLabel ? `<span style="font-size:12px;font-weight:700;color:#6b7280;">${numLabel}</span>` : ''}
+                    <span style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;line-height:1.2;">${entry.name}</span>
+                    ${numLabel ? `<span style="font-size:13px;font-weight:700;color:#6b7280;">${numLabel}</span>` : ''}
                   </div>
-                  <span style="font-size:11px;color:#9ca3af;">${entry.hand || ''}</span>
+                  <span style="font-size:12px;color:#9ca3af;">${entry.hand || ''}</span>
                 </div>`;
             }).join('') +
         `</div>`;
