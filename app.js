@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v174';
+﻿    const APP_VERSION = 'v175';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2581,8 +2581,8 @@
         const batterOrder = gameState.currentBatterIndex[battingTeam] + 1;
         document.getElementById('batterOrder').value = batterOrder;
 
-        // 優先從 lineups 填入打者資料；無資料則 fallback 至投球歷史紀錄
-        const batterData = gameState.lineups[battingTeam][batterOrder]; // array 以 1 為起始索引
+        // 優先從 lineups 填入打者資料
+        const batterData = gameState.lineups[battingTeam][batterOrder];
         if (batterData && (batterData.number || batterData.name)) {
             document.getElementById('batterNumber').value = batterData.number || '';
             document.getElementById('batterName').value   = batterData.name   || '';
@@ -2590,7 +2590,29 @@
                 b.classList.toggle('active', b.dataset.hand === batterData.hand));
             currentPitch.batterHand = batterData.hand || '右打';
         } else {
-            autoFillBatterFromOrder(batterOrder);
+            // fallback：從「正確 slot 的投手」pitch history 找打者
+            // 不能用 currentTeam（可能指向對方投手，導致換局後撈到舊隊打者）
+            const ts = targetSlot === 'A' ? slotA : slotB;
+            let found = false;
+            if (ts.team !== null && ts.pitcher !== null) {
+                const pitches = allData.teams[ts.team]?.pitchers[ts.pitcher]?.pitches || [];
+                for (let i = pitches.length - 1; i >= 0; i--) {
+                    if (String(pitches[i].batterOrder) === String(batterOrder) && pitches[i].batterNumber) {
+                        document.getElementById('batterNumber').value = pitches[i].batterNumber || '';
+                        document.getElementById('batterName').value   = pitches[i].batterName  || '';
+                        const hand = pitches[i].batterHand || '右打';
+                        document.querySelectorAll('.hand-btn').forEach(b =>
+                            b.classList.toggle('active', b.dataset.hand === hand));
+                        currentPitch.batterHand = hand;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (!found) {
+                document.getElementById('batterNumber').value = '';
+                document.getElementById('batterName').value   = '';
+            }
         }
 
         _syncingSlotAndBatter = false;
