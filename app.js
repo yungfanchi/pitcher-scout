@@ -8860,7 +8860,11 @@
           </div>`:''}
         </div>`;
 
-        container.innerHTML = sec0 + sec1 + sec2 + sec3 + sec4 + sec5;
+        container.innerHTML = sec0 + `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start;">
+          <div>${sec2}${sec4}</div>
+          <div>${sec1}${sec3}${sec5}</div>
+        </div>`;
         container.scrollTop = 0;
     }
 
