@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v195';
+﻿    const APP_VERSION = 'v196';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -8194,6 +8194,7 @@
                 batterTeam:    ab.teamName || '',
                 hitLocation:   ab.hitLocation || null,
                 basesSnapshot: ab.bases || [false, false, false],
+                pitcherHand:   ab.pitcherHand || '右投',
                 balls:         ab.balls   || 0,
                 strikes:       ab.strikes || 0,
                 inning:        ab.inning  || null,
@@ -8278,18 +8279,95 @@
 
         // ── 輔助：弱點摘要 ──
         function _fmtAvg(n) { return n > 0 ? '.' + String(Math.round(n * 1000)).padStart(3,'0') : '.000'; }
-        function _weaknessBlurb(s) {
+        function _weaknessBlurb(s, entry) {
             if (s.pa < 3) return '資料尚少，累積更多打席後顯示分析';
-            // 優先顯示可利用的弱點
-            if (s.kRate  >= 0.40)  return `⚡ 三振率高達 ${Math.round(s.kRate*100)}%，積極配球可製造出局`;
-            if (s.kRate  >= 0.30)  return `三振率偏高 ${Math.round(s.kRate*100)}%，配速差球有效`;
-            if (s.avgNum <= 0.180) return `打擊率極低 ${_fmtAvg(s.avgNum)}，可強勢配球壓制`;
-            if (s.avgNum <= 0.220) return `打擊率偏低 ${_fmtAvg(s.avgNum)}，可強勢配球`;
-            // 無明顯弱點→警示危險
-            if (s.avgNum >= 0.350) return `⚠️ 危險打者，打率 ${_fmtAvg(s.avgNum)}，謹慎配球`;
+            const pp   = entry.pitches;
+            const hand = entry.hand || '';
+
+            // ── A. 球種 / 區域揮空弱點（投手記錄有 zone/swing 資料時）──
+            const zonePP = pp.filter(p => !p._fromBm && p.zone);
+            if (zonePP.length >= 6) {
+                // 各區域揮空率（揮棒次數>=3才納入）
+                const isRHH = hand !== '左打';
+                const ZONE_GROUPS = [
+                    { label:'低球',   zones:['7','8','9'] },
+                    { label:'高球',   zones:['1','2','3'] },
+                    { label:'外角',   zones: isRHH ? ['3','6','9'] : ['1','4','7'] },
+                    { label:'內角',   zones: isRHH ? ['1','4','7'] : ['3','6','9'] },
+                    { label:'外角低', zones: isRHH ? ['9']         : ['7']         },
+                    { label:'內角高', zones: isRHH ? ['1']         : ['3']         },
+                ];
+                let bestZone = null, bestZoneRate = 0;
+                ZONE_GROUPS.forEach(({ label, zones }) => {
+                    const inZ   = zonePP.filter(p => zones.includes(p.zone));
+                    const swings = inZ.filter(p => p.swing);
+                    const misses = swings.filter(p => !p.foul);
+                    if (swings.length >= 3) {
+                        const r = misses.length / swings.length;
+                        if (r > bestZoneRate) { bestZoneRate = r; bestZone = label; }
+                    }
+                });
+                if (bestZone && bestZoneRate >= 0.45)
+                    return `${bestZone}球揮空率 ${Math.round(bestZoneRate*100)}%，主攻${bestZone}可製造三振`;
+
+                // 各球種揮空率
+                const typeMap = {};
+                zonePP.filter(p => p.type && p.swing).forEach(p => {
+                    if (!typeMap[p.type]) typeMap[p.type] = { sw:0, miss:0 };
+                    typeMap[p.type].sw++;
+                    if (!p.foul) typeMap[p.type].miss++;
+                });
+                let bestType = null, bestTypeRate = 0;
+                Object.entries(typeMap).forEach(([t, d]) => {
+                    if (d.sw >= 3 && d.miss/d.sw > bestTypeRate) { bestTypeRate = d.miss/d.sw; bestType = t; }
+                });
+                if (bestType && bestTypeRate >= 0.50)
+                    return `${bestType}揮空率 ${Math.round(bestTypeRate*100)}%，為主要剋星球種`;
+            }
+
+            // ── B. 投手慣用手對戰分析（左/右投手分開看打率差異）──
+            const paEnds = pp.filter(p => (p.outcomes||[]).some(o => PA_ENDING.includes(o)));
+            const vsR = paEnds.filter(p => p.pitcherHand === '右投');
+            const vsL = paEnds.filter(p => p.pitcherHand === '左投');
+            const vsRH = vsR.filter(p => (p.outcomes||[]).some(o => HIT_OUTCOMES_BL.includes(o))).length;
+            const vsLH = vsL.filter(p => (p.outcomes||[]).some(o => HIT_OUTCOMES_BL.includes(o))).length;
+            const vsRAvg = vsR.length >= 4 ? vsRH / vsR.length : -1;
+            const vsLAvg = vsL.length >= 4 ? vsLH / vsL.length : -1;
+            if (vsRAvg >= 0 && vsLAvg >= 0 && Math.abs(vsRAvg - vsLAvg) >= 0.15) {
+                if (vsLAvg < vsRAvg)
+                    return `對左投弱（打率 ${_fmtAvg(vsLAvg)} vs 右投 ${_fmtAvg(vsRAvg)}），左投手可壓制`;
+                else
+                    return `對右投弱（打率 ${_fmtAvg(vsRAvg)} vs 左投 ${_fmtAvg(vsLAvg)}），右投手可壓制`;
+            }
+
+            // ── C. 兩好球後三振率 ──
+            const twoS = paEnds.filter(p => (p.strikes||0) >= 2);
+            if (twoS.length >= 4) {
+                const k2 = twoS.filter(p => (p.outcomes||[]).some(o => ['三振','不死三振'].includes(o))).length;
+                const r2 = k2 / twoS.length;
+                if (r2 >= 0.60) return `兩好球後三振率 ${Math.round(r2*100)}%，搶先取得好球數優勢`;
+                if (r2 >= 0.50) return `兩好球後三振率 ${Math.round(r2*100)}%，快速製造好球數佔優`;
+            }
+
+            // ── D. 打擊方向傾向 ──
+            const hitLocs = pp
+                .filter(p => p.hitLocation && (p.outcomes||[]).some(o => HIT_OUTCOMES_BL.includes(o)))
+                .map(p => p.hitLocation.x);
+            if (hitLocs.length >= 4) {
+                const avgX = hitLocs.reduce((a,b) => a+b, 0) / hitLocs.length;
+                const isPull = (hand === '右打' && avgX < 0.37) || (hand === '左打' && avgX > 0.63);
+                const isOpp  = (hand === '右打' && avgX > 0.62) || (hand === '左打' && avgX < 0.38);
+                if (isPull) return `強力拉打型，外角或低球可破壞打擊節奏`;
+                if (isOpp)  return `逆向打型，內角快速球可有效壓制`;
+            }
+
+            // ── E. 統計兜底 ──
+            if (s.kRate  >= 0.40) return `三振率 ${Math.round(s.kRate*100)}%，積極配球可製造出局`;
+            if (s.kRate  >= 0.30) return `三振率偏高 ${Math.round(s.kRate*100)}%，配速差球有效`;
+            if (s.avgNum <= 0.200) return `打擊率偏低 ${_fmtAvg(s.avgNum)}，可強勢配球`;
+            if (s.avgNum >= 0.380) return `⚠️ 危險打者，打率 ${_fmtAvg(s.avgNum)}，謹慎配球`;
             if (s.bbRate >= 0.20)  return `⚠️ 選球佳，保送率 ${Math.round(s.bbRate*100)}%，勿輕易給壞球`;
-            if (s.bbRate >= 0.15)  return `選球尚可，保送率 ${Math.round(s.bbRate*100)}%，配球宜謹慎`;
-            return `均衡型打者，打率 ${_fmtAvg(s.avgNum)}，無明顯弱點`;
+            return `均衡型，無明顯破綻`;
         }
         function _threatBadge(level) {
             const cfg = {
@@ -8339,7 +8417,7 @@
               </div>
               <!-- 弱點摘要 -->
               <div style="background:#f0f7ff;border-radius:8px;padding:8px 10px;font-size:12px;color:#374151;border-left:3px solid #0051a5;">
-                💡 ${_weaknessBlurb(stats)}
+                💡 ${_weaknessBlurb(stats, entry)}
               </div>
               <div style="text-align:right;margin-top:8px;font-size:11px;color:#9ca3af;">${entry.games.size} 場記錄 →</div>
             </div>`;
