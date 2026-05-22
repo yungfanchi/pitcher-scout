@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v169';
+﻿    const APP_VERSION = 'v170';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -39,6 +39,7 @@
     let gameState = {
         strikes: 0, balls: 0, outs: 0,
         bases: [false, false, false], // 1B, 2B, 3B
+        runners: [null, null, null],  // 跑者身份 { number, order, name } | null
         half: '上', inning: 1,
         lineups: {
             teamA: Array.from({length: 10}, () => ({ number: '', name: '', hand: '右打' })),
@@ -1950,11 +1951,11 @@
 
         if (!nameA) { alert('請輸入投手 A 姓名！'); return; }
 
-        const pitcherA = { name: nameA, number: numberA, hand: handA, role: roleA, style: styleA, pitches: [], score: getDefaultScore() };
+        const pitcherA = { name: nameA, number: numberA, hand: handA, role: roleA, style: styleA, pitches: [], steals: [], score: getDefaultScore() };
         allData.teams[teamIndex].pitchers.push(pitcherA);
 
         if (nameB) {
-            const pitcherB = { name: nameB, number: numberB, hand: handB, role: roleB, style: styleB, pitches: [], score: getDefaultScore() };
+            const pitcherB = { name: nameB, number: numberB, hand: handB, role: roleB, style: styleB, pitches: [], steals: [], score: getDefaultScore() };
             allData.teams[teamIndex].pitchers.push(pitcherB);
         }
 
@@ -2936,6 +2937,41 @@
     // ====== 壘包位移引擎 ======
     // bases = [1b, 2b, 3b] boolean array
     // returns { newBases, runsScored }
+    // 跑者身份追蹤：比照 applyBaseRunning 邏輯，同步移動 gameState.runners
+    function _advanceRunners(outcomes, oldBases, batter) {
+        const r = [...gameState.runners];
+        const has1b = oldBases[0], has2b = oldBases[1], has3b = oldBases[2];
+        if (outcomes.includes('全壘打')) {
+            gameState.runners = [null, null, null]; return;
+        }
+        if (outcomes.some(o => o === '三壘安打')) {
+            gameState.runners = [null, null, batter]; return;
+        }
+        if (outcomes.some(o => o === '二壘安打')) {
+            gameState.runners = [null, batter, has1b ? r[0] : null]; return;
+        }
+        if (outcomes.some(o => o === '一壘安打' || o === '內野安打')) {
+            gameState.runners = [batter, has1b ? r[0] : null, has2b ? r[1] : null]; return;
+        }
+        if (outcomes.some(o => ['保送','觸身球','故意四壞'].includes(o))) {
+            if (has1b && has2b && has3b) gameState.runners = [batter, r[0], r[1]];
+            else if (has1b && has2b)     gameState.runners = [batter, r[0], r[1]];
+            else if (has1b)              gameState.runners = [batter, r[0], r[2]];
+            else                         gameState.runners = [batter, r[1], r[2]];
+            return;
+        }
+        if (outcomes.includes('高飛犧牲打')) {
+            gameState.runners = [r[0], r[1], null]; return;
+        }
+        if (outcomes.includes('犧牲觸擊')) {
+            gameState.runners = [null, has1b ? r[0] : null, has2b ? r[1] : null]; return;
+        }
+        if (outcomes.some(o => ['不死三振','野選','失誤'].includes(o))) {
+            gameState.runners = [batter, r[1], r[2]]; return;
+        }
+        // 出局類：runners 不動，三出局時由外層清空
+    }
+
     function applyBaseRunning(bases, outcomes) {
         let b = [...bases]; // copy
         let runs = 0;
@@ -3027,6 +3063,7 @@
                 }
                 gameState.outs = 0;
                 gameState.bases = [false, false, false];
+                gameState.runners = [null, null, null];
                 gameState.strikes = 0; gameState.balls = 0;
                 renderCountLights(); renderBases();
                 updateScoreboard();
@@ -3036,8 +3073,14 @@
         } else if (isPA) {
             gameState.strikes = 0; gameState.balls = 0;
             // Apply base running + auto score
+            const _oldBases = [...gameState.bases];
             const { newBases, runsScored: autoRuns } = applyBaseRunning(gameState.bases, outcomes);
             gameState.bases = newBases;
+            _advanceRunners(outcomes, _oldBases, {
+                number: pitch.batterNumber || null,
+                order:  parseInt(pitch.batterOrder) || 0,
+                name:   pitch.batterName   || null
+            });
             // 優先使用使用者確認過的得分（pitch.runsScored），舊資料無此欄則退回算法值
             const runsScored = (pitch.runsScored !== undefined && pitch.runsScored !== null)
                 ? pitch.runsScored : autoRuns;
@@ -3061,7 +3104,8 @@
         gameState.strikes = 0;
         gameState.balls = 0;
         gameState.outs = 0;
-        gameState.bases = [false, false, false];
+        gameState.bases   = [false, false, false];
+        gameState.runners = [null, null, null];
         gameState.half = score.half || '上';
         gameState.inning = score.inning || 1;
         // Also reset score runs to 0 then recount
@@ -3083,26 +3127,65 @@
     }
 
     function stealBase(success) {
+        // 找出最前面的跑者（盜壘者）
+        let leadIdx = -1;
+        if      (gameState.bases[2]) leadIdx = 2;
+        else if (gameState.bases[1]) leadIdx = 1;
+        else if (gameState.bases[0]) leadIdx = 0;
+
+        // ── 記錄盜壘事件 ──
+        if (leadIdx >= 0 && currentTeam !== null && currentPitcher !== null) {
+            const pitcher = allData.teams[currentTeam]?.pitchers[currentPitcher];
+            if (pitcher) {
+                if (!pitcher.steals) pitcher.steals = [];
+                const runner = gameState.runners[leadIdx];
+                // 嘗試從 lineup 補名字
+                let runnerName = runner?.name || null;
+                if (!runnerName && runner?.order) {
+                    const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+                    const le = gameState.lineups[battingTeam]?.[runner.order];
+                    if (le?.name) runnerName = le.name;
+                }
+                const toBase = leadIdx === 2 ? 'H' : leadIdx + 2;
+                pitcher.steals.push({
+                    number:   runner?.number || null,
+                    order:    runner?.order  || null,
+                    name:     runnerName,
+                    fromBase: leadIdx + 1,
+                    toBase,
+                    success,
+                    inning:   gameState.inning,
+                    half:     gameState.half,
+                    outs:     gameState.outs,
+                    ts:       Date.now()
+                });
+                saveToLocalStorage();
+                saveToFirebase();
+            }
+        }
+
+        // ── 移動壘包與 runners ──
         if (success) {
-            // Advance the leading runner forward one base
-            if (gameState.bases[2]) { // runner on 3rd - scores, remove
+            if (leadIdx === 2) {
                 gameState.bases[2] = false;
-            } else if (gameState.bases[1]) { // runner on 2nd -> 3rd
-                gameState.bases[1] = false;
-                gameState.bases[2] = true;
-            } else if (gameState.bases[0]) { // runner on 1st -> 2nd
-                gameState.bases[0] = false;
-                gameState.bases[1] = true;
+                gameState.runners[2] = null;
+            } else if (leadIdx === 1) {
+                gameState.bases[1] = false; gameState.bases[2] = true;
+                gameState.runners[2] = gameState.runners[1]; gameState.runners[1] = null;
+            } else if (leadIdx === 0) {
+                gameState.bases[0] = false; gameState.bases[1] = true;
+                gameState.runners[1] = gameState.runners[0]; gameState.runners[0] = null;
             }
         } else {
-            // Steal failed - leading runner out, add out
-            if (gameState.bases[0]) gameState.bases[0] = false;
-            else if (gameState.bases[1]) gameState.bases[1] = false;
-            else if (gameState.bases[2]) gameState.bases[2] = false;
+            if (leadIdx >= 0) {
+                gameState.bases[leadIdx] = false;
+                gameState.runners[leadIdx] = null;
+            }
             gameState.outs++;
             if (gameState.outs >= 3) {
                 gameState.outs = 0;
-                gameState.bases = [false, false, false];
+                gameState.bases   = [false, false, false];
+                gameState.runners = [null, null, null];
                 if (gameState.half === '上') { gameState.half = '下'; }
                 else { gameState.half = '上'; gameState.inning = Math.min(20, gameState.inning + 1); }
                 if (currentTeam !== null) {
@@ -3202,7 +3285,7 @@
         if (currentTeam === null || currentPitcher === null) return;
         if (confirm('確定要清除當前投手的所有記錄嗎？')) {
             allData.teams[currentTeam].pitchers[currentPitcher].pitches = [];
-            Object.assign(gameState, { strikes:0, balls:0, outs:0, bases:[false,false,false], half:'上', inning:1, currentBatterIndex:{ teamA:0, teamB:0 } });
+            Object.assign(gameState, { strikes:0, balls:0, outs:0, bases:[false,false,false], runners:[null,null,null], half:'上', inning:1, currentBatterIndex:{ teamA:0, teamB:0 } });
             renderCountLights(); renderBases();
             updateSlotDisplay(); updatePitchLog(); updateStats(); saveToLocalStorage();
         }
@@ -3448,7 +3531,8 @@
         if (!isManual) {
             // 自動換局（3出局觸發）：重置計數
             gameState.outs = 0; gameState.strikes = 0; gameState.balls = 0;
-            gameState.bases = [false, false, false];
+            gameState.bases   = [false, false, false];
+            gameState.runners = [null, null, null];
             renderCountLights(); renderBases();
         }
         updateScoreboard(); saveToLocalStorage();
@@ -7514,6 +7598,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
     function renderBatterDetail(name, source, idx) {
         let pitches = [];
         let atBats = [];
+        let steals = [];
         if (source === 'pitcher') {
             allData.teams.forEach((team, ti) => {
                 team.pitchers.forEach(p => {
@@ -7521,6 +7606,9 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
                         if ((pitch.batterName || '').trim() === name.trim()) {
                             pitches.push({ ...pitch, _ti: ti });
                         }
+                    });
+                    (p.steals || []).forEach(s => {
+                        if ((s.name || '').trim() === name.trim()) steals.push(s);
                     });
                 });
             });
@@ -7531,7 +7619,33 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
         renderBatterStats(pitches, atBats, source);
         renderBatterHitMap(pitches, atBats, source);
         renderBatterAnalysis(pitches, atBats, source);
+        _renderBatterSteals(steals);
         if (source === 'standalone') renderAtBatLog(atBats, idx);
+    }
+
+    function _renderBatterSteals(steals) {
+        const el = document.getElementById('batterStealsSection');
+        if (!el) return;
+        if (steals.length === 0) { el.style.display = 'none'; return; }
+        el.style.display = '';
+        const total   = steals.length;
+        const success = steals.filter(s => s.success).length;
+        const rate    = Math.round(success / total * 100);
+        const baseName = b => b === 'H' ? '本壘' : b + '壘';
+        const rows = steals.map(s => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:13px;">
+                <span style="color:#6b7280;">${s.inning}局${s.half} ${s.outs}出局</span>
+                <span>${baseName(s.fromBase)} → ${baseName(s.toBase)}</span>
+                <span style="font-weight:800;color:${s.success ? '#16a34a' : '#dc2626'};">${s.success ? '✅ 成功' : '❌ 失敗'}</span>
+            </div>`).join('');
+        el.innerHTML = `
+            <h2>🏃 盜壘記錄</h2>
+            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+                <div class="bsc"><div class="bsc-v">${total}</div><div class="bsc-l">總次數</div></div>
+                <div class="bsc"><div class="bsc-v">${success}</div><div class="bsc-l">成功</div></div>
+                <div class="bsc"><div class="bsc-v">${rate}%</div><div class="bsc-l">成功率</div></div>
+            </div>
+            <div>${rows}</div>`;
     }
 
     function renderBatterStats(pitches, atBats, source) {
