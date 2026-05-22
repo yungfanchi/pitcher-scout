@@ -1429,15 +1429,34 @@
         </div>
     </div><!-- /bmBatterDataTab -->
 
-    </div><!-- /batterModeWrapper -->
-
-    <!-- 數據管理（投手模式最底部，打者模式隱藏）-->
-    <div class="container" id="pitcherDataMgmt">
+    <!-- 數據管理（打者模式最底部）-->
+    <div class="container" id="bmDataMgmt">
         <h2>💾 數據管理</h2>
         <div class="record-controls">
-            <button class="btn btn-warning" onclick="exportCurrentPitcher()" style="color:var(--ct-blue-dark);">📊 匯出當前投手</button>
-            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
             <button class="btn btn-primary" onclick="openPDFFilter()" style="background:#dc2626;border-color:#dc2626;">📄 匯出 PDF</button>
+        </div>
+        <div class="record-controls">
+            <button class="btn" onclick="pullFromFirebase()" style="background:#065f46;color:#6ee7b7;border-color:#065f46;">⬇️ 雲端下載</button>
+            <button class="btn" onclick="forceSyncToFirebase()" style="background:#1e3a8a;color:#7dd3fc;border-color:#1e3a8a;">☁️ 雲端備份</button>
+            <button class="btn btn-success" onclick="backupData()">📦 備份資料</button>
+            <button class="btn" onclick="document.getElementById('restoreFile').click()" style="background:#374151;color:white;border-color:#374151;">📂 還原資料</button>
+        </div>
+    </div>
+
+    </div><!-- /batterModeWrapper -->
+
+    <!-- 數據管理（投手模式最底部）-->
+    <div class="container" id="pitcherDataMgmt">
+        <h2>💾 數據管理</h2>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+        <div class="record-controls">
+            <button class="btn btn-primary" onclick="openPDFFilter()" style="background:#dc2626;border-color:#dc2626;">📄 匯出 PDF</button>
+        </div>
+        <div class="record-controls">
+            <button class="btn" onclick="pullFromFirebase()" style="background:#065f46;color:#6ee7b7;border-color:#065f46;">⬇️ 雲端下載</button>
+            <button class="btn" onclick="forceSyncToFirebase()" style="background:#1e3a8a;color:#7dd3fc;border-color:#1e3a8a;">☁️ 雲端備份</button>
+            <button class="btn btn-success" onclick="backupData()">📦 備份資料</button>
+            <button class="btn" onclick="document.getElementById('restoreFile').click()" style="background:#374151;color:white;border-color:#374151;">📂 還原資料</button>
         </div>
     </div>
 
