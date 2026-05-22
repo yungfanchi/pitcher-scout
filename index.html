@@ -1222,8 +1222,7 @@
             <div class="tabs" style="margin-bottom:0;flex-shrink:0;">
                 <button class="tab-btn bm-tab bm-tab-active" onclick="switchBatterTab(event,'record')">📝 記錄</button>
                 <button class="tab-btn bm-tab" onclick="switchBatterTab(event,'stats')">📊 統計</button>
-                <button class="tab-btn bm-tab" onclick="switchBatterTab(event,'analysis')">🔍 分析</button>
-                <button class="tab-btn bm-tab" onclick="switchBatterTab(event,'batterdata');refreshBatterList()">🏏 打者資料</button>
+                <button class="tab-btn bm-tab" onclick="switchBatterTab(event,'batterdata');refreshBatterList()">🏏 打者資訊</button>
             </div>
             <!-- 連動 / 獨立 切換（記錄 Tab 時顯示） -->
             <div id="bmModeToggleRow" style="display:flex;gap:5px;flex:1;align-items:flex-end;padding-bottom:3px;">
@@ -1379,62 +1378,30 @@
         </div>
     </div>
 
-    <!-- ── Tab: 分析 ── -->
-    <div id="bmAnalysisTab" class="tab-content" style="display:none;">
-        <!-- 打者選擇器（由 _renderBmAnalysis 動態填入） -->
-        <div class="container" id="bmAnalysisBatterSelector" style="padding-bottom:0;"></div>
-        <div class="container" id="bmAnalysisContent">
-            <div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無資料</div>
-        </div>
-    </div>
-
-    <!-- ── Tab: 打者資料（從投手模式移入）── -->
+    <!-- ── Tab: 打者資訊（兩層：卡片列表 → 個人詳細分析）── -->
     <div id="bmBatterDataTab" class="tab-content" style="display:none;">
-        <!-- 打者列表 -->
+        <!-- 第一層：打者卡片列表 -->
         <div id="batterListView">
             <div class="container">
-                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-                    <h2 style="margin:0;border:none;padding:0;">🏏 打者情蒐</h2>
-                    <button id="batterAddNewBtn" class="btn btn-danger" onclick="openAddBatterModal()" style="display:none;">＋ 新增打者</button>
-                </div>
-                <!-- 來源切換 -->
-                <div style="display:flex;gap:6px;margin-bottom:14px;">
-                    <button id="batterSrcPitcher" class="batter-src-btn active" onclick="switchBatterSource('pitcher')">📊 從投手記錄</button>
-                    <button id="batterSrcStandalone" class="batter-src-btn" onclick="switchBatterSource('standalone')">📝 獨立情蒐</button>
-                </div>
-                <!-- 隊伍選擇器（由 refreshBatterList 動態填入） -->
+                <h2 style="margin:0 0 12px;border:none;padding:0;">🏏 打者資訊</h2>
+                <!-- 球隊篩選按鈕（由 refreshBatterList 動態填入） -->
                 <div id="batterTeamSelector"></div>
+                <!-- 打者卡片列表（由 refreshBatterList 動態填入） -->
                 <div id="batterList"></div>
             </div>
         </div>
-        <!-- 打者詳情 -->
+        <!-- 第二層：打者詳細分析頁 -->
         <div id="batterDetailView" style="display:none;">
             <!-- 頂部導覽 -->
-            <div class="container" style="padding-top:10px;padding-bottom:10px;">
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <button onclick="closeBatterDetail()" style="background:none;border:1px solid #d1d5db;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">← 返回</button>
-                    <h2 id="batterDetailName" style="margin:0;border:none;padding:0;flex:1;"></h2>
-                    <button onclick="screenshotBatterAnalysis()" style="background:#003d79;color:white;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📸 截圖</button>
+            <div class="container" style="padding-top:10px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <button onclick="closeBatterDetail()" style="background:none;border:1.5px solid #d1d5db;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#374151;">← 返回列表</button>
+                    <h2 id="batterDetailName" style="margin:0;border:none;padding:0;flex:1;font-size:16px;"></h2>
+                    <button onclick="screenshotBatterAnalysis()" style="background:#003d79;color:white;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📸</button>
                 </div>
             </div>
-            <!-- 基礎數據 -->
-            <div class="container">
-                <h2>📊 基礎數據</h2>
-                <div id="batterDetailStats"></div>
-            </div>
-            <!-- 打擊落點圖 -->
-            <div class="container">
-                <h2>🗺️ 打擊落點圖</h2>
-                <div id="batterHitMapContainer"></div>
-            </div>
-            <!-- 傾向分析 -->
-            <div class="container">
-                <div id="batterAnalysisCards"></div>
-            </div>
-            <!-- 盜壘記錄 -->
-            <div class="container" id="batterStealsSection" style="display:none;"></div>
-            <!-- 打席記錄（獨立情蒐才顯示） -->
-            <div id="batterAtBatLogSection" style="display:none;"></div>
+            <!-- 分析內容（由 renderBmBatterProfile 動態填入） -->
+            <div class="container" id="bmBatterProfileContent"></div>
         </div>
     </div><!-- /bmBatterDataTab -->
 
