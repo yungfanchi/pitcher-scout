@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v170';
+﻿    const APP_VERSION = 'v171';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2806,8 +2806,8 @@
         // 打席結束 → 推進打者、更新連動
         const hasEndingOutcome = currentPitch.outcomes.some(o => PA_ENDING.includes(o));
         if (hasEndingOutcome) {
-            // 推進當前打擊隊的棒次索引（0-8 循環）
-            const battingTeam = gameState.half === '上' ? 'teamB' : 'teamA';
+            // 推進「投球前」那半局的打擊隊棒次（換局時 gameState.half 已翻面，要用 _prePitchHalf）
+            const battingTeam = _prePitchHalf === '上' ? 'teamB' : 'teamA';
             gameState.currentBatterIndex[battingTeam] =
                 (gameState.currentBatterIndex[battingTeam] + 1) % 9;
 
