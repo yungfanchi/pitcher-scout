@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v171';
+﻿    const APP_VERSION = 'v172';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2839,6 +2839,10 @@
         const _hasBIP = _bipOutcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o));
         const _hasRunners = _preBasesSnapshot.some(b => b);
         const _autoRuns = (_hasBIP && _hasRunners) ? applyBaseRunning(_preBasesSnapshot, _bipOutcomes).runsScored : 0;
+        const _autoBases = [...gameState.bases]; // post-advance bases from updateGameStateFromPitch
+        const _isBunt = _bipOutcomes.includes('犧牲觸擊');
+        if (_isBunt) window._pendingBuntCtx = { autoBases: _autoBases };
+        else window._pendingBuntCtx = null;
 
         document.querySelectorAll('.pitch-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.zone-cell').forEach(c => c.classList.remove('selected'));
@@ -2867,6 +2871,11 @@
                     autoRuns: _autoRuns, preBasesSnapshot: _preBasesSnapshot,
                     half: _prePitchHalf
                 });
+                // bunt modal will fire from closeRunsChip if _pendingBuntCtx is set
+            } else if (window._pendingBuntCtx) {
+                const ctx = window._pendingBuntCtx;
+                window._pendingBuntCtx = null;
+                showBuntBasesModal(ctx);
             }
         };
 
@@ -7067,6 +7076,8 @@
     let _hitLocSelectedLoc = null;
     let _runsChipContext = null;
     let _selectedRunsCount = 0;
+    let _buntBasesContext = null;
+    let _buntBasesSelected = [false, false, false];
     let _batterSource = 'pitcher'; // 'pitcher' | 'standalone'
     let _currentBatterView = null; // { name, source, idx }
     let _editingAtBatBatterIdx = null;
@@ -7160,6 +7171,59 @@
     function closeRunsChip() {
         _runsChipContext = null;
         const m = document.getElementById('runsChipModal');
+        if (m) m.style.display = 'none';
+        if (window._pendingBuntCtx) {
+            const ctx = window._pendingBuntCtx;
+            window._pendingBuntCtx = null;
+            showBuntBasesModal(ctx);
+        }
+    }
+
+    // ── 犧牲觸擊壘況確認 Modal ──
+
+    function showBuntBasesModal(ctx) {
+        _buntBasesContext = ctx;
+        _buntBasesSelected = [...ctx.autoBases];
+        _renderBuntBasesBtns();
+        const modal = document.getElementById('buntBasesModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function _renderBuntBasesBtns() {
+        const labels = ['一壘', '二壘', '三壘'];
+        ['1b', '2b', '3b'].forEach((id, i) => {
+            const btn = document.getElementById('buntBaseBtn_' + id);
+            if (!btn) return;
+            const on = _buntBasesSelected[i];
+            btn.style.background  = on ? '#003d79' : '#f9fafb';
+            btn.style.color       = on ? 'white'   : '#9ca3af';
+            btn.style.borderColor = on ? '#003d79' : '#e5e7eb';
+            btn.innerHTML = `<div style="font-size:22px;">${on ? '◆' : '◇'}</div><div style="font-size:12px;font-weight:700;">${labels[i]}</div>`;
+        });
+    }
+
+    function toggleBuntBase(idx) {
+        _buntBasesSelected[idx] = !_buntBasesSelected[idx];
+        _renderBuntBasesBtns();
+    }
+
+    function confirmBuntBases() {
+        const ctx = _buntBasesContext;
+        closeBuntBasesModal();
+        if (!ctx) return;
+        const oldRunners = [...gameState.runners];
+        const autoBases  = ctx.autoBases;
+        gameState.bases   = [..._buntBasesSelected];
+        gameState.runners = _buntBasesSelected.map((on, i) => (on && autoBases[i]) ? oldRunners[i] : null);
+        renderBases();
+        saveToLocalStorage();
+        saveToFirebase();
+    }
+
+    function skipBuntBases() { closeBuntBasesModal(); }
+    function closeBuntBasesModal() {
+        _buntBasesContext = null;
+        const m = document.getElementById('buntBasesModal');
         if (m) m.style.display = 'none';
     }
 
