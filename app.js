@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v192';
+﻿    const APP_VERSION = 'v193';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -7769,6 +7769,20 @@
                        (interactive === true) ? 'fieldSVGInteractive' : `fieldSVGStatic_${Date.now()}`;
         const fn     = isBm ? 'selectBmHitZone' : isSp ? 'selectSpHitZone' : 'selectHitZone';
 
+        // 靜態模式（落點圖）：單色扇形，無區域色彩區分
+        // 互動模式（選區）：保留完整色彩方便識別
+        const FAIR_S = '#2d6b20';  // 靜態-公平區（單一草地綠）
+        const FOUL_S = '#1a3d12';  // 靜態-界外區（深綠，與背景區分）
+
+        const GR1 = isAny ? '#3a8428' : FAIR_S;
+        const GR2 = isAny ? '#1f5215' : FAIR_S;
+        const HRC = isAny ? '#7a1f20' : FAIR_S;
+        const DT  = isAny ? '#c45e00' : FAIR_S;
+        const DC  = isAny ? '#e8870a' : FAIR_S;
+        const DS  = isAny ? '#f5a832' : FAIR_S;
+        const FC  = isAny ? '#3a5040' : FOUL_S;
+        const CA  = isAny ? '#6b4d30' : FOUL_S;
+
         // 產生可點擊或靜態的區域 path
         function zp(name, d, fill) {
             if (isAny) {
@@ -7781,18 +7795,10 @@
                     onmouseleave="if(this.dataset.selected!=='1'){this.style.fillOpacity='0.88';}"
                     style="cursor:pointer;"/>`;
             }
-            return `<path d="${d}" fill="${fill}" fill-opacity="0.88"
-                stroke="rgba(0,0,0,0.35)" stroke-width="0.8" style="pointer-events:none;"/>`;
+            // 靜態：無區域邊框，乾淨扇形輪廓
+            return `<path d="${d}" fill="${fill}" fill-opacity="1"
+                stroke="none" style="pointer-events:none;"/>`;
         }
-
-        const GR1 = '#3a8428';  // 淺外野（亮綠）
-        const GR2 = '#1f5215';  // 深外野（深綠）
-        const HRC = '#7a1f20';  // 全壘打區（深紅）
-  const DT  = '#c45e00';  // 內野土色（深橘）
-const DC  = '#e8870a';  // 衝突區（中橘）
-const DS  = '#f5a832';  // 淺內野（淺橘）
-        const FC  = '#3a5040';  // 界外區（深灰綠）
-        const CA  = '#6b4d30';  // 捕手區（深棕）
 
         // ── 全壘打區（R 180→205）──
         const hrLF  = zp('HR左',  'M 23 145 L 6 128 A 205 205 0 0 1 57 90 L 68 112 A 180 180 0 0 0 23 145 Z',  HRC);
@@ -7861,7 +7867,7 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           ${fLi}${fLo}${fRi}${fRo}${fC}
 
           <!-- 公平區域底色 -->
-          <path d="M 150 272 L 23 145 A 180 180 0 0 1 277 145 Z" fill="#1f4a18"/>
+          <path d="M 150 272 L 23 145 A 180 180 0 0 1 277 145 Z" fill="${isAny ? '#1f4a18' : FAIR_S}"/>
 
           <!-- 深外野（R 140→180） -->
           ${dLF}${dLCF}${dCF}${dRCF}${dRF}
@@ -7869,8 +7875,8 @@ const DS  = '#f5a832';  // 淺內野（淺橘）
           <!-- 淺外野（R 100→140） -->
           ${sLF}${sLCF}${sCF}${sRCF}${sRF}
 
-          <!-- 淺/深外野分界虛線弧 -->
-          <path d="M 51 173 A 140 140 0 0 1 249 173" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>
+          <!-- 淺/深外野分界虛線弧（互動模式才顯示） -->
+          ${isAny ? `<path d="M 51 173 A 140 140 0 0 1 249 173" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>` : ''}
 
           <!-- 深內野（8區） -->
           ${i3B}${iSS3}${iSS}${iML}${iMR}${i2B}${i12}${i1B}
