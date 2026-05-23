@@ -497,10 +497,10 @@
 
         /* ===== 球種/配球模式 行版型 ===== */
         .pattern-row { display:flex; gap:16px; align-items:center; justify-content:center; }
-        .pattern-chart-canvas { flex:0 0 auto; width:340px; height:340px; position:relative; }
+        .pattern-chart-canvas { flex:0 0 auto; width:210px; height:255px; position:relative; }
         @media (max-width:760px) {
             .pattern-row { flex-wrap:wrap; }
-            .pattern-chart-canvas { width:min(340px, 90vw); height:min(340px, 90vw); margin:0 auto; }
+            .pattern-chart-canvas { width:min(210px, 85vw); height:min(255px, 85vw); margin:0 auto; }
         }
 
         /* ===== TABS ===== */

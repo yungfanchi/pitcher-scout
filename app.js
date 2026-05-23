@@ -4836,26 +4836,25 @@
             plugins: [ChartDataLabels],
             data: {
                 labels: allTypes,
-                datasets: [{ data: counts, backgroundColor: colors, borderColor: colors, borderWidth: 0, borderRadius: 5, borderSkipped: false }]
+                datasets: [{ data: counts, backgroundColor: colors, borderColor: colors, borderWidth: 0, borderRadius: 4, borderSkipped: false }]
             },
             options: {
-                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => `${ctx.parsed.x} 球 (${((ctx.parsed.x/total)*100).toFixed(1)}%)` } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} 球 (${((ctx.parsed.y/total)*100).toFixed(1)}%)` } },
                     datalabels: {
-                        display: true, anchor: 'end', align: 'end', clip: false,
-                        formatter: v => `${v}球 ${((v/total)*100).toFixed(1)}%`,
-                        color: '#374151', font: { weight: '700', size: 11, family: "'Oswald','Noto Sans TC',sans-serif" }
+                        display: true, anchor: 'end', align: 'top', clip: false,
+                        formatter: v => `${((v/total)*100).toFixed(0)}%`,
+                        color: '#374151', font: { weight: '700', size: 10, family: "'Oswald','Noto Sans TC',sans-serif" }
                     }
                 },
                 scales: {
-                    x: { display: false, beginAtZero: true },
-                    y: { grid: { display: false }, ticks: { font: { weight: '900', size: 13, family: "'Oswald','Noto Sans TC',sans-serif" }, color: ctx => colors[ctx.index] || '#374151' } }
+                    y: { display: false, beginAtZero: true },
+                    x: { grid: { display: false }, ticks: { maxRotation: 0, font: { weight: '900', size: 11, family: "'Oswald','Noto Sans TC',sans-serif" }, color: ctx => colors[ctx.index] || '#374151' } }
                 },
-                layout: { padding: { right: 110 } }
+                layout: { padding: { top: 26 } }
             }
         });
     }
@@ -4872,7 +4871,9 @@
         }
         const top = Object.entries(sequences).sort((a,b) => b[1]-a[1]).slice(0, 5);
         if (!top.length) return;
-        const labels = top.map(([seq]) => seq);
+        const shortType = t => t.length > 2 ? t.slice(0, 2) : t;
+        const fullLabels = top.map(([seq]) => seq);
+        const labels = top.map(([seq]) => { const [a, b] = seq.split(' → '); return `${shortType(a)}→${shortType(b)}`; });
         const counts = top.map(([,c]) => c);
         const colors = top.map(([seq]) => PITCH_COLORS[seq.split(' → ')[0]] || '#999');
         patternPieInstance = new Chart(canvas, {
@@ -4880,26 +4881,25 @@
             plugins: [ChartDataLabels],
             data: {
                 labels,
-                datasets: [{ data: counts, backgroundColor: colors, borderColor: colors, borderWidth: 0, borderRadius: 5, borderSkipped: false }]
+                datasets: [{ data: counts, backgroundColor: colors, borderColor: colors, borderWidth: 0, borderRadius: 4, borderSkipped: false }]
             },
             options: {
-                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => `${ctx.parsed.x} 次` } },
+                    tooltip: { callbacks: { label: ctx => `${fullLabels[ctx.dataIndex]}：${ctx.parsed.y} 次` } },
                     datalabels: {
-                        display: true, anchor: 'end', align: 'end', clip: false,
+                        display: true, anchor: 'end', align: 'top', clip: false,
                         formatter: v => `${v}次`,
-                        color: '#374151', font: { weight: '700', size: 12, family: "'Oswald','Noto Sans TC',sans-serif" }
+                        color: '#374151', font: { weight: '700', size: 11, family: "'Oswald','Noto Sans TC',sans-serif" }
                     }
                 },
                 scales: {
-                    x: { display: false, beginAtZero: true },
-                    y: { grid: { display: false }, ticks: { font: { weight: '700', size: 11, family: "'Noto Sans TC',sans-serif" }, color: '#003d79' } }
+                    y: { display: false, beginAtZero: true },
+                    x: { grid: { display: false }, ticks: { maxRotation: 0, font: { weight: '700', size: 10, family: "'Noto Sans TC',sans-serif" }, color: '#003d79' } }
                 },
-                layout: { padding: { right: 50 } }
+                layout: { padding: { top: 26 } }
             }
         });
     }
