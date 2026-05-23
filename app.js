@@ -9093,15 +9093,12 @@
             <div style="background:#fffbeb;border-radius:10px;padding:16px 18px;border:1px solid #fde68a;min-height:120px;font-size:17px;font-weight:700;color:#374151;line-height:2;white-space:pre-wrap;">${_traitSafe || '<span style="font-size:13px;color:#9ca3af;font-weight:400;font-style:italic;">尚未填寫情蒐備註</span>'}</div>
         </div>`;
 
-        container.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
-            <div style="min-width:0;">
-                ${sec0}${sec2}
-                <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;">
-                    ${[sec_lr,sec_first,sec_patience,sec_2strike,sec_out,sec_zone,sec5].filter(Boolean).join('')}
-                </div>
+        container.innerHTML = sec0 + sec2 + `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-top:12px;">
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                ${[sec_lr,sec_first,sec_patience,sec_2strike,sec_out,sec_zone,sec5].filter(Boolean).join('')}
             </div>
-            <div style="min-width:0;">${secNotes}</div>
+            <div>${secNotes}</div>
         </div>`;
         container.scrollTop = 0;
     }
