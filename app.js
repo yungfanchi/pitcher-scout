@@ -9095,13 +9095,14 @@
             if (_tsOutMid >= _tsOutIn && _tsOutMid >= _tsOutOut) return { text:'中間解決', icon:'⬆️' };
             return null;
         })();
-        // 結論標籤：優先依終結球種，再依比率
+        // 結論標籤：球種＋角度合併一句
+        const _tsZoneSuffix = _tsZoneLabel ? `${_tsZoneLabel.text.replace('解決','')}` : '';
         const _tsConclusion = (() => {
             if (!_tsTotal) return null;
             if (_tsHitRate >= 0.30) return { text:'兩好球仍具威脅', bg:'#fee2e2', color:'#b91c1c' };
             if (_tsTopType && _tsOutTotal > 0 && (_tsOutTypes[_tsTopType]/_tsOutTotal) >= 0.50)
-                return { text:`兩好球易被${_tsTopType}解決`, bg:'#dcfce7', color:'#15803d' };
-            if (_tsKRate >= 0.40) return { text:'兩好球容易被三振', bg:'#dcfce7', color:'#15803d' };
+                return { text:`兩好球易被${_tsZoneSuffix}${_tsTopType}解決`, bg:'#dcfce7', color:'#15803d' };
+            if (_tsKRate >= 0.40) return { text:`兩好球${_tsZoneSuffix ? _tsZoneSuffix + '容易被三振' : '容易被三振'}`, bg:'#dcfce7', color:'#15803d' };
             if (_tsKRate >= 0.25) return { text:'兩好球有所劣勢', bg:'#fef9c3', color:'#92400e' };
             return { text:'兩好球尚可應對', bg:'#f3f4f6', color:'#374151' };
         })();
@@ -9114,10 +9115,7 @@
                     <div style="font-size:30px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${_tsTotal}</div>
                     <div style="font-size:11px;color:#9ca3af;">兩好球打席</div>
                 </div>
-                <div style="display:flex;flex-direction:column;gap:6px;">
-                    ${_tsConclusion ? `<div style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:800;background:${_tsConclusion.bg};color:${_tsConclusion.color};">${_tsConclusion.text}</div>` : ''}
-                    ${_tsZoneLabel ? `<div style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;background:#eff6ff;color:#1d4ed8;">${_tsZoneLabel.icon} ${_tsZoneLabel.text}</div>` : ''}
-                </div>
+                ${_tsConclusion ? `<div style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:800;background:${_tsConclusion.bg};color:${_tsConclusion.color};">${_tsConclusion.text}</div>` : ''}
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
                 <div style="text-align:center;padding:10px 6px;background:#f0fdf4;border-radius:8px;">
