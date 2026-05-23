@@ -9107,7 +9107,7 @@
                 <!-- 左側：好球帶SVG示意圖 -->
                 <div style="flex:0 0 auto;">
                     <div style="display:flex;align-items:center;gap:3px;">
-                        <div style="font-size:11px;font-weight:700;color:#9ca3af;writing-mode:vertical-rl;letter-spacing:2px;padding:2px 0;">L</div>
+                        <div style="font-size:11px;font-weight:700;color:#9ca3af;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:2px;padding:2px 0;">L</div>
                         <div style="border:2.5px solid #ffd700;border-radius:8px;overflow:hidden;background:#003d79;">
                             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5px;background:#003d79;padding:1.5px;">
                                 ${[1,2,3,4,5,6,7,8,9].map(_pz=>{
@@ -9123,7 +9123,7 @@
                                 }).join('')}
                             </div>
                         </div>
-                        <div style="font-size:11px;font-weight:700;color:#9ca3af;writing-mode:vertical-rl;letter-spacing:2px;padding:2px 0;">R</div>
+                        <div style="font-size:11px;font-weight:700;color:#9ca3af;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:2px;padding:2px 0;">R</div>
                     </div>
                     <div style="display:flex;gap:6px;font-size:10px;margin-top:6px;flex-wrap:wrap;">
                         <span><span style="display:inline-block;width:8px;height:8px;background:#dc2626;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.400危</span>
