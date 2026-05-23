@@ -1395,13 +1395,13 @@
             <!-- 頂部導覽 -->
             <div class="container" style="padding-top:10px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;">
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <button onclick="closeBatterDetail()" style="background:none;border:1.5px solid #d1d5db;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#374151;">← 返回列表</button>
-                    <h2 id="batterDetailName" style="margin:0;border:none;padding:0;flex:1;font-size:16px;"></h2>
-                    <div style="position:relative;">
-                        <button id="bmTeamSwitchBtn" onclick="bmToggleTeamSwitch()" style="display:none;background:white;border:1.5px solid #003d79;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#003d79;">隊員 ▾</button>
-                        <div id="bmTeamSwitchDropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:white;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:200;min-width:150px;overflow:hidden;"></div>
+                    <button onclick="closeBatterDetail()" style="flex-shrink:0;background:none;border:1.5px solid #d1d5db;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#374151;">← 返回列表</button>
+                    <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;">
+                        <button id="bmPrevBtn" onclick="bmNavBatter(-1)" style="display:none;background:none;border:1.5px solid #d1d5db;width:34px;height:34px;border-radius:50%;font-size:15px;cursor:pointer;color:#374151;flex-shrink:0;line-height:1;">◀</button>
+                        <h2 id="batterDetailName" style="margin:0;border:none;padding:0;font-size:20px;font-weight:900;color:#003d79;text-align:center;min-width:0;"></h2>
+                        <button id="bmNextBtn" onclick="bmNavBatter(1)" style="display:none;background:none;border:1.5px solid #d1d5db;width:34px;height:34px;border-radius:50%;font-size:15px;cursor:pointer;color:#374151;flex-shrink:0;line-height:1;">▶</button>
                     </div>
-                    <button onclick="screenshotBatterAnalysis()" style="background:#003d79;color:white;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📸</button>
+                    <button onclick="screenshotBatterAnalysis()" style="flex-shrink:0;background:#003d79;color:white;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📸</button>
                 </div>
             </div>
             <!-- 分析內容（由 renderBmBatterProfile 動態填入） -->

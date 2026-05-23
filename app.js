@@ -8757,48 +8757,36 @@
         const numPart = entry._bmNum ? ` #${entry._bmNum}` : '';
         document.getElementById('batterDetailName').textContent = `${entry.name}${numPart}（${entry.teamName}）`;
 
-        // 同隊隊員切換按鈕
-        const teammates = Object.entries(_bmBatterCardMap || {})
-            .filter(([k, d]) => d.entry.teamName === entry.teamName && k !== mapKey)
-            .sort((a, b) => (parseInt(a[1].entry._bmNum)||99) - (parseInt(b[1].entry._bmNum)||99));
-        const switchBtn  = document.getElementById('bmTeamSwitchBtn');
-        const switchDrop = document.getElementById('bmTeamSwitchDropdown');
-        if (switchBtn && switchDrop) {
-            if (teammates.length > 0) {
-                switchBtn.style.display = 'inline-block';
-                switchDrop.innerHTML = teammates.map(([k, d]) => {
-                    const np = d.entry._bmNum ? `#${d.entry._bmNum} ` : '';
-                    const safeK = k.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-                    return `<div onclick="showBmBatterCard('${safeK}');document.getElementById('bmTeamSwitchDropdown').style.display='none'"
-                        style="padding:9px 16px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;white-space:nowrap;"
-                        onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='white'">
-                        ${np}${d.entry.name}
-                    </div>`;
-                }).join('');
-            } else {
-                switchBtn.style.display = 'none';
-            }
-            switchDrop.style.display = 'none';
-        }
+        // 同隊排序名單，供前後切換
+        _bmTeamRoster = Object.entries(_bmBatterCardMap || {})
+            .filter(([, d]) => d.entry.teamName === entry.teamName)
+            .sort((a, b) => (parseInt(a[1].entry._bmNum)||99) - (parseInt(b[1].entry._bmNum)||99))
+            .map(([k]) => k);
+        _bmRosterIdx = _bmTeamRoster.indexOf(mapKey);
+        _bmUpdateNavBtns();
 
         renderBmBatterProfile(entry.pitches, entry, stats);
     }
 
-    function bmToggleTeamSwitch() {
-        const drop = document.getElementById('bmTeamSwitchDropdown');
-        if (!drop) return;
-        drop.style.display = drop.style.display === 'none' ? 'block' : 'none';
-    }
-    window.bmToggleTeamSwitch = bmToggleTeamSwitch;
+    let _bmTeamRoster = [];
+    let _bmRosterIdx  = -1;
 
-    // 點擊其他區域關閉下拉選單
-    document.addEventListener('click', e => {
-        const btn  = document.getElementById('bmTeamSwitchBtn');
-        const drop = document.getElementById('bmTeamSwitchDropdown');
-        if (btn && drop && !btn.contains(e.target) && !drop.contains(e.target)) {
-            drop.style.display = 'none';
-        }
-    });
+    function _bmUpdateNavBtns() {
+        const prev = document.getElementById('bmPrevBtn');
+        const next = document.getElementById('bmNextBtn');
+        const show = _bmTeamRoster.length > 1;
+        if (prev) prev.style.display = show ? 'inline-flex' : 'none';
+        if (next) next.style.display = show ? 'inline-flex' : 'none';
+        if (prev) prev.style.opacity = _bmRosterIdx > 0 ? '1' : '0.3';
+        if (next) next.style.opacity = _bmRosterIdx < _bmTeamRoster.length - 1 ? '1' : '0.3';
+    }
+
+    function bmNavBatter(dir) {
+        const newIdx = _bmRosterIdx + dir;
+        if (newIdx < 0 || newIdx >= _bmTeamRoster.length) return;
+        showBmBatterCard(_bmTeamRoster[newIdx]);
+    }
+    window.bmNavBatter = bmNavBatter;
 
     // ── 個人打者分析頁（渲染至 #bmBatterProfileContent）──
     function renderBmBatterProfile(pitches, entry, stats) {
