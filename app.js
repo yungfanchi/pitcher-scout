@@ -8932,8 +8932,7 @@
         })();
         const sec_lr = `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
             <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">⚔️ ① 對左右投差異</div>
-            <div style="display:flex;gap:8px;margin-bottom:10px;">${_lrBox(vsR,'對右投')}${_lrBox(vsL,'對左投')}</div>
-            ${_lrAdvice?`<div style="font-size:12px;background:#fffbeb;border-radius:6px;padding:7px 10px;color:#92400e;border:1px solid #fde68a;">💡 ${_lrAdvice}</div>`:''}
+            <div style="display:flex;gap:8px;">${_lrBox(vsR,'對右投')}${_lrBox(vsL,'對左投')}</div>
         </div>`;
 
         // ── ② 首球攻擊傾向 ──
@@ -8954,7 +8953,6 @@
                 <div style="text-align:center;padding:6px;background:#fef2f2;border-radius:6px;"><div style="font-weight:700;color:#dc2626;">安打 ${firstHits}次</div><div style="color:#6b7280;">安打率 ${firstPAs.length>0?fmtAvg(firstHits/firstPAs.length):'.000'}</div></div>
                 <div style="text-align:center;padding:6px;background:#f9fafb;border-radius:6px;"><div style="font-weight:700;color:#374151;">出局 ${firstOuts}次</div><div style="color:#6b7280;">出局率 ${firstPAs.length>0?Math.round(firstOuts/firstPAs.length*100):0}%</div></div>
             </div>`:''}
-            <div style="font-size:11px;color:#6b7280;text-align:center;">${firstPct>=40?'💡 首球配誘導球，不要輕易進好球帶':firstPct<25?'💡 首球可直接挑戰，他傾向等球':'💡 首球可測試，觀察其反應'}</div>
         </div>`;
 
         // ── ③ 選球傾向（打席深度） ──
@@ -8984,7 +8982,6 @@
                     <span style="font-size:12px;font-weight:700;color:${r.c};width:32px;text-align:right;">${r.p}%</span>
                 </div>`).join('')}
             </div>
-            <div style="font-size:11px;color:#6b7280;margin-top:10px;text-align:center;">${bbPctN>=15?'💡 選球好，必須投到好球帶':earlyPct>=40?'💡 容易早出手，可配誘導球':'💡 打席較長，需耐心佈局'}</div>
         </div>`;
 
         // ── ④ 兩好球應對 ──
@@ -9014,8 +9011,7 @@
                     <span style="color:#9ca3af;">其他出局 ${tsOp}%</span>
                 </div>
             </div>
-            ${bestType2S?`<div style="background:#f0fdf4;border-radius:8px;padding:8px 12px;font-size:12px;color:#15803d;border:1px solid #bbf7d0;margin-bottom:8px;">💡 兩好球最有效：<strong>${bestType2S[0]}</strong>（K率 ${Math.round(bestType2S[1].k/bestType2S[1].n*100)}%）</div>`:''}
-            <div style="font-size:11px;color:#6b7280;text-align:center;">${tsKp>=40?'三振率高，進兩好球積極配球':tsHp>=30?'⚠️ 兩好球仍具威脅，謹慎收尾':'保守出局居多，持續施壓'}</div>`}
+            `}
         </div>`;
 
         // ── ⑤ 出局方式分佈 ──
@@ -9038,7 +9034,7 @@
                     <span style="font-size:12px;font-weight:700;color:${r.c};width:28px;text-align:right;">${r.n}</span>
                 </div>`).join('')}
             </div>
-            <div style="font-size:12px;background:#fffbeb;border-radius:6px;padding:7px 10px;color:#92400e;border:1px solid #fde68a;">🛡️ ${defTip}</div>`}
+            `}
         </div>`;
 
         // ── ⑥ 弱點球種 × 落點熱區 ──
@@ -9056,11 +9052,9 @@
         const ZLABELS=[['左深','中深','右深'],['左中','中間','右中'],['左淺','中淺','右淺']];
         function _zbg(a){return a===null?'#f9fafb':a>=0.400?'#fee2e2':a>=0.250?'#fef9c3':'#dcfce7';}
         function _zcol(a){return a===null?'#d1d5db':a>=0.400?'#dc2626':a>=0.250?'#92400e':'#15803d';}
-        const sec_zone = `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ ⑥ 弱點球種 × 落點熱區</div>
-            ${ptchEntries.length>0?`
-            <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">球種弱點</div>
-            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;">
+        const sec_zone_pitch = ptchEntries.length>0 ? `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ ⑥ 球種弱點</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
                 <thead><tr style="background:#f9fafb;">
                     <th style="padding:5px 6px;text-align:left;color:#6b7280;font-size:11px;">球種</th>
                     <th style="padding:5px 4px;text-align:center;color:#6b7280;font-size:11px;">打席</th>
@@ -9069,8 +9063,11 @@
                 </tr></thead><tbody>
                 ${ptchEntries.map(([t,v])=>{const a2=v.pa>0?v.hits/v.pa:0,kp2=v.pa>0?Math.round(v.k/v.pa*100):0;return `<tr style="border-bottom:1px solid #f3f4f6;"><td style="padding:6px;">${t}</td><td style="padding:6px;text-align:center;color:#374151;">${v.pa}</td><td style="padding:6px;text-align:center;font-weight:700;color:${a2>=0.300?'#dc2626':a2>=0.200?'#374151':'#10b981'};">${fmtAvg(a2)}</td><td style="padding:6px;text-align:center;font-weight:700;color:${kp2>=35?'#dc2626':'#374151'};">${kp2}%</td></tr>`;}).join('')}
                 </tbody>
-            </table>`:''}
-            ${locs3.length>=3?`
+            </table>
+        </div>` : '';
+
+        const sec_zone_map = locs3.length>=3 ? `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">📍 ⑦ 落點熱區</div>
             <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">落點安打率（紅＝危 綠＝安全）</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
                 ${GRID.flatMap((row,ri)=>row.map((z,ci)=>`<div style="background:${_zbg(z.avg)};border-radius:6px;padding:8px 4px;text-align:center;">
@@ -9079,8 +9076,8 @@
                     <div style="font-size:10px;color:#9ca3af;">${z.n}筆</div>
                 </div>`)).join('')}
             </div>
-            <div style="font-size:10px;color:#9ca3af;margin-top:6px;">≥.400 危險 ≥.250 注意</div>`:`<div style="font-size:12px;color:#9ca3af;text-align:center;margin-top:4px;">需更多落點資料（至少3筆）</div>`}
-        </div>`;
+            <div style="font-size:10px;color:#9ca3af;margin-top:6px;">≥.400 危險 ≥.250 注意</div>
+        </div>` : '';
 
         // ── ⑦ 戰術時機點（全為 0 則不顯示）──
         const buntPA   = paPitches.filter(p=>(p.outcomes||[]).includes('犧牲觸擊'));
@@ -9111,8 +9108,8 @@
         </div>`;
 
         container.innerHTML = sec0 + sec2 + `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start;margin-top:12px;">
-          ${[sec_lr,sec_first,sec_patience,sec_2strike,sec_out,sec_zone,sec5].filter(Boolean).join('')}
+        <div class="bm-analysis-grid">
+          ${[sec_lr,sec_first,sec_patience,sec_2strike,sec_out,sec_zone_pitch,sec_zone_map,sec5].filter(Boolean).join('')}
         </div>`;
         container.scrollTop = 0;
     }

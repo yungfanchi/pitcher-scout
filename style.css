@@ -1273,3 +1273,13 @@
     border-color: rgba(255,215,0,0.5) !important;
     color: white !important;
 }
+.bm-analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    align-items: start;
+    margin-top: 12px;
+}
+@media (max-width: 640px) {
+    .bm-analysis-grid { grid-template-columns: 1fr; }
+}
