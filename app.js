@@ -4828,9 +4828,36 @@
         const allTypes = PITCH_ORDER.filter(t => pitches.some(p => p.type === t));
         const counts = allTypes.map(t => pitches.filter(p => p.type === t).length);
         const colors = allTypes.map(t => PITCH_COLORS[t] || '#999');
+        const total = pitches.length;
         if (pieChartInstance) { pieChartInstance.destroy(); pieChartInstance = null; }
         if (!allTypes.length) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); return; }
-        pieChartInstance = _makeDoughnut(canvas, allTypes, counts, colors, pitches.length);
+        pieChartInstance = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: allTypes,
+                datasets: [{ data: counts, backgroundColor: colors, borderColor: colors, borderWidth: 0, borderRadius: 5, borderSkipped: false }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `${ctx.parsed.x} 球 (${((ctx.parsed.x/total)*100).toFixed(1)}%)` } },
+                    datalabels: {
+                        display: true, anchor: 'end', align: 'end', clip: false,
+                        formatter: v => `${v}球 ${((v/total)*100).toFixed(1)}%`,
+                        color: '#374151', font: { weight: '700', size: 11, family: "'Oswald','Noto Sans TC',sans-serif" }
+                    }
+                },
+                scales: {
+                    x: { display: false, beginAtZero: true },
+                    y: { grid: { display: false }, ticks: { font: { weight: '900', size: 13, family: "'Oswald','Noto Sans TC',sans-serif" }, color: ctx => colors[ctx.index] || '#374151' } }
+                },
+                layout: { padding: { right: 110 } }
+            }
+        });
     }
 
     function updatePatternPieChart(pitches) {
@@ -4840,18 +4867,41 @@
         if (pitches.length < 2) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); return; }
         const sequences = {};
         for (let i = 1; i < pitches.length; i++) {
-            const seq = `${pitches[i-1].type}→${pitches[i].type}`;
+            const seq = `${pitches[i-1].type} → ${pitches[i].type}`;
             sequences[seq] = (sequences[seq] || 0) + 1;
         }
         const top = Object.entries(sequences).sort((a,b) => b[1]-a[1]).slice(0, 5);
         if (!top.length) return;
-        const total = top.reduce((s, [,c]) => s + c, 0);
-        // 縮短標籤：移除「球」字讓顯示更緊湊（快速球→快速）
-        const shorten = s => s.replace(/球/g, '');
-        const labels = top.map(([seq]) => shorten(seq));
+        const labels = top.map(([seq]) => seq);
         const counts = top.map(([,c]) => c);
-        const colors = top.map(([seq]) => PITCH_COLORS[seq.split('→')[0]] || '#999');
-        patternPieInstance = _makeDoughnut(canvas, labels, counts, colors, total);
+        const colors = top.map(([seq]) => PITCH_COLORS[seq.split(' → ')[0]] || '#999');
+        patternPieInstance = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{ data: counts, backgroundColor: colors, borderColor: colors, borderWidth: 0, borderRadius: 5, borderSkipped: false }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `${ctx.parsed.x} 次` } },
+                    datalabels: {
+                        display: true, anchor: 'end', align: 'end', clip: false,
+                        formatter: v => `${v}次`,
+                        color: '#374151', font: { weight: '700', size: 12, family: "'Oswald','Noto Sans TC',sans-serif" }
+                    }
+                },
+                scales: {
+                    x: { display: false, beginAtZero: true },
+                    y: { grid: { display: false }, ticks: { font: { weight: '700', size: 11, family: "'Noto Sans TC',sans-serif" }, color: '#003d79' } }
+                },
+                layout: { padding: { right: 50 } }
+            }
+        });
     }
 
     function updateSpeedLineChart(pitches) {
