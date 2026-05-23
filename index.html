@@ -928,11 +928,21 @@
                 </div>
             </div>
             <div class="container">
-                <h2>⚾ 球種分布</h2>
-                <div style="display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;">
-                    <div id="pitchTypeStats" style="flex:0 1 auto;min-width:200px;max-width:380px;"></div>
-                    <div style="flex:0 0 auto;width:min(340px,90vw);height:min(340px,90vw);position:relative;">
-                        <canvas id="statsTypePieChart"></canvas>
+                <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+                    <!-- 左：球種分布 60% -->
+                    <div style="flex:3;min-width:260px;">
+                        <h2 style="margin-top:0;">⚾ 球種分布</h2>
+                        <div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;">
+                            <div id="pitchTypeStats" style="flex:0 1 auto;min-width:160px;"></div>
+                            <div style="flex:0 0 auto;width:min(200px,42vw);height:min(200px,42vw);position:relative;">
+                                <canvas id="statsTypePieChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 右：打擊結果統計 40% -->
+                    <div style="flex:2;min-width:180px;border-left:1px solid #e5e7eb;padding-left:20px;">
+                        <h2 style="margin-top:0;">📊 打擊結果統計</h2>
+                        <div id="outcomeStats"></div>
                     </div>
                 </div>
             </div>
@@ -1060,10 +1070,6 @@
                         <canvas id="pitchTypeChart"></canvas>
                     </div>
                 </div>
-            </div>
-            <div class="container">
-                <h2>📊 打擊結果統計</h2>
-                <div id="outcomeStats"></div>
             </div>
         </div>
 
