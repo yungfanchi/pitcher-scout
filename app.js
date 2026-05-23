@@ -2708,28 +2708,39 @@
                 b.classList.toggle('active', b.dataset.hand === batterData.hand));
             currentPitch.batterHand = batterData.hand || '右打';
         } else {
-            // fallback：從「正確 slot 的投手」pitch history 找打者
-            // 不能用 currentTeam（可能指向對方投手，導致換局後撈到舊隊打者）
-            const ts = targetSlot === 'A' ? slotA : slotB;
-            let found = false;
-            if (ts.team !== null && ts.pitcher !== null) {
-                const pitches = allData.teams[ts.team]?.pitchers[ts.pitcher]?.pitches || [];
-                for (let i = pitches.length - 1; i >= 0; i--) {
-                    if (String(pitches[i].batterOrder) === String(batterOrder) && pitches[i].batterNumber) {
-                        document.getElementById('batterNumber').value = pitches[i].batterNumber || '';
-                        document.getElementById('batterName').value   = pitches[i].batterName  || '';
-                        const hand = pitches[i].batterHand || '右打';
-                        document.querySelectorAll('.hand-btn').forEach(b =>
-                            b.classList.toggle('active', b.dataset.hand === hand));
-                        currentPitch.batterHand = hand;
-                        found = true;
-                        break;
+            // fallback 1.5：batter mode lineup（上半=lineupB 先攻, 下半=lineupA 後攻）
+            const bmLineup2 = battingTeam === 'teamA' ? allData.bm?.lineupB : allData.bm?.lineupA;
+            const bmBatter2 = bmLineup2 ? bmLineup2[batterOrder - 1] : null;
+            if (bmBatter2 && (bmBatter2.number || bmBatter2.name)) {
+                document.getElementById('batterNumber').value = bmBatter2.number || '';
+                document.getElementById('batterName').value   = bmBatter2.name   || '';
+                const hand = bmBatter2.hand || '右打';
+                document.querySelectorAll('.hand-btn').forEach(b =>
+                    b.classList.toggle('active', b.dataset.hand === hand));
+                currentPitch.batterHand = hand;
+            } else {
+                // fallback 2：從「正確 slot 的投手」pitch history 找打者
+                const ts = targetSlot === 'A' ? slotA : slotB;
+                let found = false;
+                if (ts.team !== null && ts.pitcher !== null) {
+                    const pitches = allData.teams[ts.team]?.pitchers[ts.pitcher]?.pitches || [];
+                    for (let i = pitches.length - 1; i >= 0; i--) {
+                        if (String(pitches[i].batterOrder) === String(batterOrder) && pitches[i].batterNumber) {
+                            document.getElementById('batterNumber').value = pitches[i].batterNumber || '';
+                            document.getElementById('batterName').value   = pitches[i].batterName  || '';
+                            const hand = pitches[i].batterHand || '右打';
+                            document.querySelectorAll('.hand-btn').forEach(b =>
+                                b.classList.toggle('active', b.dataset.hand === hand));
+                            currentPitch.batterHand = hand;
+                            found = true;
+                            break;
+                        }
                     }
                 }
-            }
-            if (!found) {
-                document.getElementById('batterNumber').value = '';
-                document.getElementById('batterName').value   = '';
+                if (!found) {
+                    document.getElementById('batterNumber').value = '';
+                    document.getElementById('batterName').value   = '';
+                }
             }
         }
 
@@ -3102,10 +3113,21 @@
     }
 
     function autoFillBatterFromOrder(order) {
-        // Priority 1: lineup pre-set data
+        // Priority 1: pitcher mode lineup
         const lp = lineup[order];
         if (lp && (lp.number || lp.name)) {
             applyLineupToUI(order);
+            return;
+        }
+        // Priority 1.5: batter mode lineup（上半局=BM lineupB 先攻, 下半局=BM lineupA 後攻）
+        const bmLineup = gameState.half === '上' ? allData.bm?.lineupB : allData.bm?.lineupA;
+        const bmBatter = bmLineup ? bmLineup[order - 1] : null;
+        if (bmBatter && (bmBatter.number || bmBatter.name)) {
+            document.getElementById('batterNumber').value = bmBatter.number || '';
+            document.getElementById('batterName').value   = bmBatter.name   || '';
+            const hand = bmBatter.hand || '右打';
+            document.querySelectorAll('.hand-btn').forEach(b => b.classList.toggle('active', b.dataset.hand === hand));
+            currentPitch.batterHand = hand;
             return;
         }
         // Priority 2: most recent pitch history for this order
