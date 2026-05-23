@@ -11412,43 +11412,40 @@
             const _hitRunRate  = _fmtRate(_hitRunCount, _roPACount);
             const _stealRate   = _fmtRate(_stealCount,  _rnfPACount);
 
+            const _flagOf = n => ({'日本':'🇯🇵','韓國':'🇰🇷','美國':'🇺🇸','中華台北':'🇹🇼','古巴':'🇨🇺','澳洲':'🇦🇺','荷蘭':'🇳🇱','義大利':'🇮🇹','多明尼加':'🇩🇴','委內瑞拉':'🇻🇪','巴拿馬':'🇵🇦','加拿大':'🇨🇦','墨西哥':'🇲🇽','波多黎各':'🇵🇷','以色列':'🇮🇱','尼加拉瓜':'🇳🇮','哥倫比亞':'🇨🇴','德國':'🇩🇪','捷克':'🇨🇿'}[n] || '⚾');
             const thS = 'padding:8px 5px;text-align:center;font-size:12px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #0051a5;';
             const thLS = 'padding:8px 8px;text-align:left;font-size:12px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #0051a5;';
 
             return `
               <!-- 球隊摘要 -->
-              <div style="background:linear-gradient(135deg,#003d79,#0051a5);border-radius:10px;padding:12px 14px;margin-bottom:10px;color:white;">
-                <div style="font-size:22px;font-weight:900;letter-spacing:0.03em;margin-bottom:4px;">${tname}</div>
-                <div style="font-size:11px;font-weight:600;opacity:0.6;margin-bottom:10px;letter-spacing:0.05em;">整體分析</div>
-                <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:10px;">
+              <div style="background:linear-gradient(135deg,#003d79,#0051a5);border-radius:10px;padding:14px 16px;margin-bottom:10px;color:white;text-align:center;">
+                <div style="font-size:28px;font-weight:900;letter-spacing:0.03em;margin-bottom:2px;">${_flagOf(tname)} ${tname}</div>
+                <div style="font-size:11px;font-weight:600;opacity:0.6;margin-bottom:12px;letter-spacing:0.05em;">整體分析</div>
+                <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:center;">
                   <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;color:${avgFill};">${teamAvgFmt}</div>
                     <div style="font-size:11px;opacity:0.7;">整體打擊率</div>
                   </div>
                   <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;color:${kFill};">${teamKFmt}</div>
-                    <div style="font-size:11px;opacity:0.7;">整體三振率</div>
+                    <div style="font-size:11px;opacity:0.7;">被三振率</div>
                   </div>
                   <div style="text-align:center;">
-                    <div style="font-size:22px;font-weight:900;">${rows.length}</div>
+                    <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;">${rows.length}</div>
                     <div style="font-size:11px;opacity:0.7;">登錄打者</div>
                   </div>
-                </div>
-                <div style="padding-top:10px;border-top:1px solid rgba(255,255,255,0.2);">
-                  <div style="font-size:11px;font-weight:600;opacity:0.6;margin-bottom:7px;letter-spacing:0.05em;">🎯 整體作戰率</div>
-                  <div style="display:flex;gap:20px;flex-wrap:wrap;">
-                    <div style="text-align:center;">
-                      <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;">${_buntRate}</div>
-                      <div style="font-size:11px;opacity:0.7;">觸擊率</div>
-                    </div>
-                    <div style="text-align:center;">
-                      <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;">${_hitRunRate}</div>
-                      <div style="font-size:11px;opacity:0.7;">打帶跑率</div>
-                    </div>
-                    <div style="text-align:center;">
-                      <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;">${_stealRate}</div>
-                      <div style="font-size:11px;opacity:0.7;">盜壘率</div>
-                    </div>
+                  <div style="width:1px;height:40px;background:rgba(255,255,255,0.25);margin:0 4px;flex-shrink:0;"></div>
+                  <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:900;font-family:'Oswald',sans-serif;">${_buntRate}</div>
+                    <div style="font-size:11px;opacity:0.7;">觸擊率</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:900;font-family:'Oswald',sans-serif;">${_hitRunRate}</div>
+                    <div style="font-size:11px;opacity:0.7;">打帶跑率</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:900;font-family:'Oswald',sans-serif;">${_stealRate}</div>
+                    <div style="font-size:11px;opacity:0.7;">盜壘率</div>
                   </div>
                 </div>
               </div>
