@@ -3704,6 +3704,13 @@
         if (currentTeam === null) { alert('請先選擇投手！'); return; }
         const score = getTeamScore();
         score[side] = Math.max(0, score[side] + delta);
+        if (delta > 0) {
+            // 加分時自動清除最前方壘包跑者（得分消失）
+            if (gameState.bases[2])      gameState.bases[2] = false;
+            else if (gameState.bases[1]) gameState.bases[1] = false;
+            else if (gameState.bases[0]) gameState.bases[0] = false;
+            renderBases();
+        }
         updateScoreboard(); saveToLocalStorage();
     }
 
