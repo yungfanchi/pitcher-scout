@@ -9184,19 +9184,27 @@
         const _tsZoneVotes = {};
         Object.values(_pzSt).forEach(z => { if (z.best) _tsZoneVotes[z.best] = (_tsZoneVotes[z.best]||0)+1; });
         const _tsZoneBest = Object.entries(_tsZoneVotes).sort((a,b) => b[1]-a[1])[0]?.[0] || null;
-        // 兩好球出局落點：內/外角分佈
+        // 兩好球出局落點：內外角 × 高低球 九象限分析
         const _bHand2 = (() => { const m={}; _tsPA.forEach(p=>{const h=p.batterHand||'右打';m[h]=(m[h]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1])[0]?.[0]||'右打'; })();
-        const _inZ2  = _bHand2==='右打' ? new Set(['1','4','7']) : new Set(['3','6','9']);
-        const _outZ2 = _bHand2==='右打' ? new Set(['3','6','9']) : new Set(['1','4','7']);
-        const _tsOutIn  = _tsOutPA.filter(p => _inZ2.has(String(p.zone))).length;
-        const _tsOutOut = _tsOutPA.filter(p => _outZ2.has(String(p.zone))).length;
-        const _tsOutMid = _tsOutPA.filter(p => /^[1-9]$/.test(String(p.zone)) && !_inZ2.has(String(p.zone)) && !_outZ2.has(String(p.zone))).length;
+        // 水平判斷（依打者慣用手）：RHB 內=1,4,7 外=3,6,9  LHB 相反
+        const _hSide = z => { const s=String(z); const inner=_bHand2==='右打'?['1','4','7']:['3','6','9']; const outer=_bHand2==='右打'?['3','6','9']:['1','4','7']; return inner.includes(s)?'內角':outer.includes(s)?'外角':'中間'; };
+        // 垂直判斷：高=1,2,3  低=7,8,9  中間行無標籤
+        const _vSide = z => { const s=String(z); return ['1','2','3'].includes(s)?'高':['7','8','9'].includes(s)?'低':''; };
+        // 統計出局打席各象限
+        const _zCnt = {};
+        _tsOutPA.forEach(p => {
+            if (!/^[1-9]$/.test(String(p.zone))) return;
+            const key = _hSide(p.zone) + (_vSide(p.zone) ? _vSide(p.zone)+'球' : '');
+            _zCnt[key] = (_zCnt[key]||0)+1;
+        });
+        const _zTotal = Object.values(_zCnt).reduce((s,n)=>s+n,0);
+        const _zTop = Object.entries(_zCnt).sort((a,b)=>b[1]-a[1]);
         const _tsZoneLabel = (() => {
-            const tot = _tsOutIn + _tsOutOut + _tsOutMid;
-            if (!tot) return null;
-            if (_tsOutIn >= _tsOutOut * 1.5 && _tsOutIn >= _tsOutMid) return { text:'內角解決', icon:'⬅️' };
-            if (_tsOutOut >= _tsOutIn * 1.5 && _tsOutOut >= _tsOutMid) return { text:'外角解決', icon:'➡️' };
-            if (_tsOutMid >= _tsOutIn && _tsOutMid >= _tsOutOut) return { text:'中間解決', icon:'⬆️' };
+            if (!_zTotal || !_zTop.length) return null;
+            const [topKey, topN] = _zTop[0];
+            const secondN = _zTop[1]?.[1] || 0;
+            if (topN/_zTotal >= 0.35 || secondN === 0 || topN >= secondN * 1.5)
+                return { text: topKey + '解決' };
             return null;
         })();
         // 結論標籤：球種＋角度合併一句
