@@ -11428,7 +11428,7 @@
                   </div>
                   <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;color:${kFill};">${teamKFmt}</div>
-                    <div style="font-size:11px;opacity:0.7;">被三振率</div>
+                    <div style="font-size:11px;opacity:0.7;">整體被三振率</div>
                   </div>
                   <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;">${rows.length}</div>
