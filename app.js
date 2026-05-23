@@ -496,9 +496,16 @@
         const pageW = 210;
 
         const allTabs = [
-            { id: 'statsTab',    label: '統計', upd: () => updateStats() },
-            { id: 'analysisTab', label: '分析', upd: () => updateStats() },
-            { id: 'compareTab',  label: '對比', upd: () => updateCompare() },
+            { id: 'statsTab',       label: '投手統計', upd: () => updateStats(),
+              show: (el) => { document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
+            { id: 'analysisTab',    label: '投手分析', upd: () => updateStats(),
+              show: (el) => { document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
+            { id: 'compareTab',     label: '投手對比', upd: () => updateCompare(),
+              show: (el) => { document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
+            { id: 'bmStatsTab',     label: '打者統計', upd: () => { if (typeof _renderBmStats === 'function') _renderBmStats(); },
+              show: (el) => { el.style.display = ''; el.classList.add('active'); } },
+            { id: 'bmBatterDataTab',label: '打者分析', upd: () => { if (typeof refreshBatterList === 'function') refreshBatterList(); },
+              show: (el) => { el.style.display = ''; el.classList.add('active'); } },
         ];
         const tabs = allTabs.filter(t => tabIds.includes(t.id));
 
@@ -508,10 +515,9 @@
             const tab = tabs[ti];
             setProg(`截圖 ${tab.label} (${ti+1}/${tabs.length})`);
 
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             const tabEl = document.getElementById(tab.id);
             if (!tabEl) continue;
-            tabEl.classList.add('active');
+            tab.show(tabEl);
             tab.upd();
 
             // 等 Chart.js 渲染完成
@@ -615,6 +621,23 @@
 
     // ====== PDF EXPORT MODAL ======
 
+    function onPDFContentChange() {
+        const inclPitcher = document.getElementById('pdfIncludePitcher')?.checked;
+        const inclBatter  = document.getElementById('pdfIncludeBatter')?.checked;
+        const pitcherSteps = document.getElementById('pdfPitcherSteps');
+        if (pitcherSteps) pitcherSteps.style.display = inclPitcher ? '' : 'none';
+        // 若取消投手數據，隱藏其子步驟
+        if (!inclPitcher) {
+            document.getElementById('pdfScopeSection').style.display = 'none';
+            document.getElementById('pdfHandSection').style.display = 'none';
+            document.getElementById('pdfGameSelectWrap').style.display = 'none';
+        }
+        // 產生按鈕：只要有勾至少一項，且若勾了投手數據則必須已選投手
+        const pitcherOk = !inclPitcher || !!document.getElementById('pdfPitcherSelect')?.value;
+        const anyChecked = inclPitcher || inclBatter;
+        document.getElementById('pdfGenerateBtn').style.display = (anyChecked && pitcherOk) ? 'block' : 'none';
+    }
+
     function openPDFFilter() {
         // 建立投手名單：name -> { number, games:[{ti, label}] }
         const pitcherMap = {};
@@ -642,6 +665,13 @@
         if (autoSelected) sel.value = activePitcher.name;
 
         // 重置 UI 狀態
+        const inclPitcherCb = document.getElementById('pdfIncludePitcher');
+        const inclBatterCb  = document.getElementById('pdfIncludeBatter');
+        if (inclPitcherCb) inclPitcherCb.checked = true;
+        if (inclBatterCb)  inclBatterCb.checked  = false;
+        const pitcherSteps = document.getElementById('pdfPitcherSteps');
+        if (pitcherSteps) pitcherSteps.style.display = '';
+
         document.getElementById('pdfScopeSection').style.display = 'none';
         document.getElementById('pdfGameSelectWrap').style.display = 'none';
         document.getElementById('pdfGenerateBtn').style.display = 'none';
@@ -655,7 +685,7 @@
 
         document.getElementById('pdfFilterModal').style.display = 'flex';
 
-        // 若自動帶入投手，觸發選單連動讓 Step 2 顯示
+        // 若自動帶入投手，觸發選單連動讓 Step 3 顯示
         if (autoSelected) onPDFPitcherChange();
     }
 
@@ -686,7 +716,9 @@
         _populatePDFGameSelect(name);
 
         scopeSection.style.display = 'block';
-        generateBtn.style.display = 'block';
+        const inclPitcher = document.getElementById('pdfIncludePitcher')?.checked !== false;
+        const inclBatter  = document.getElementById('pdfIncludeBatter')?.checked;
+        generateBtn.style.display = (inclPitcher || inclBatter) ? 'block' : 'none';
         const handSection2 = document.getElementById('pdfHandSection');
         if (handSection2) handSection2.style.display = 'block';
     }
@@ -716,6 +748,11 @@
 
     // 點擊「產生 PDF」按鈕 — 走截圖流程
     async function generatePDF() {
+        const inclPitcher = document.getElementById('pdfIncludePitcher')?.checked !== false;
+        const inclBatter  = document.getElementById('pdfIncludeBatter')?.checked || false;
+
+        if (!inclPitcher && !inclBatter) { alert('請至少勾選一項輸出內容'); return; }
+
         const pitcherName = document.getElementById('pdfPitcherSelect').value;
         const scopeEl = document.querySelector('input[name="pdfScope"]:checked');
         const scope = scopeEl ? scopeEl.value : 'all';
@@ -723,24 +760,27 @@
         const handEl = document.querySelector('input[name="pdfHand"]:checked');
         const handFilter = handEl ? handEl.value : 'all';
 
-        if (!pitcherName) { alert('請選擇投手'); return; }
-        if (scope === 'single' && !gameIndex) { alert('請選擇場次'); return; }
+        if (inclPitcher && !pitcherName) { alert('請選擇投手'); return; }
+        if (inclPitcher && scope === 'single' && !gameIndex) { alert('請選擇場次'); return; }
 
-        // 1. 收集該投手符合條件的所有球
+        // 1. 收集該投手符合條件的所有球（只有 inclPitcher 才需要）
         let refPitcher = null;
-        const aggregated = [];
-        allData.teams.forEach((team, ti) => {
-            if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
-            (team.pitchers || []).forEach(p => {
-                if (p.name !== pitcherName) return;
-                if (!refPitcher) refPitcher = p;
-                (p.pitches || []).forEach(pitch => aggregated.push(pitch));
+        let filtered = [];
+        if (inclPitcher) {
+            const aggregated = [];
+            allData.teams.forEach((team, ti) => {
+                if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
+                (team.pitchers || []).forEach(p => {
+                    if (p.name !== pitcherName) return;
+                    if (!refPitcher) refPitcher = p;
+                    (p.pitches || []).forEach(pitch => aggregated.push(pitch));
+                });
             });
-        });
-        const filtered = handFilter === 'left' ? aggregated.filter(p => p.batterHand === '左打') :
-                         handFilter === 'right' ? aggregated.filter(p => p.batterHand === '右打') :
-                         aggregated;
-        if (!filtered.length) { alert('所選條件無投球數據'); return; }
+            filtered = handFilter === 'left' ? aggregated.filter(p => p.batterHand === '左打') :
+                       handFilter === 'right' ? aggregated.filter(p => p.batterHand === '右打') :
+                       aggregated;
+            if (!filtered.length) { alert('所選條件無投球數據'); return; }
+        }
 
         closePDFFilter();
 
@@ -762,7 +802,26 @@
             }]
         };
 
-        // 3. 保存狀態
+        // 組合要截圖的 tab 列表
+        const tabIds = [];
+        if (inclPitcher) tabIds.push('statsTab', 'analysisTab');
+        if (inclBatter)  tabIds.push('bmStatsTab', 'bmBatterDataTab');
+
+        const today = new Date().toISOString().split('T')[0];
+        const handSuffix = handFilter === 'left' ? ' (對左打)' : handFilter === 'right' ? ' (對右打)' : '';
+        const labelParts = [];
+        if (inclPitcher) labelParts.push(`投手_${pitcherName}${handSuffix}`);
+        if (inclBatter)  labelParts.push('打者數據');
+        const fileBase = `情蒐報告_${labelParts.join('_')}_${today}.pdf`;
+
+        // 若只輸出打者數據，直接截圖
+        if (!inclPitcher) {
+            try { await _captureAndBuildPDF(fileBase, tabIds); }
+            catch (e) { console.error('[PDF]', e); alert('PDF 產生失敗：' + e.message); }
+            return;
+        }
+
+        // 3. 保存狀態（投手模式需要合成投手）
         const origSlotA = { ...slotA };
         const origSlotB = { ...slotB };
         const origActive = activeSlot;
@@ -771,33 +830,40 @@
         const origTabEl = document.querySelector('.tab-content.active');
         const origTabId = origTabEl?.id || 'recordTab';
 
+        // 4. 建立合成投手並設為當前
+        const syntheticTeam = {
+            gameName: '📄 PDF 報告', name: refPitcher?.name || pitcherName,
+            opponent: handSuffix.trim() || '全部打者', date: today,
+            pitchers: [{ name: pitcherName + handSuffix, number: refPitcher?.number || '',
+                hand: refPitcher?.hand || '', role: refPitcher?.role || '',
+                style: refPitcher?.style || '', pitches: filtered,
+                score: { home:0, away:0, inning:1, half:'上' } }]
+        };
         const tempIndex = allData.teams.length;
         allData.teams.push(syntheticTeam);
-
-        // 4. 設定 slotA + currentTeam/currentPitcher 指向合成投手
         slotA = { team: tempIndex, pitcher: 0 };
         activeSlot = 'A';
         currentTeam = tempIndex;
         currentPitcher = 0;
         if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
 
-        const fileBase = `投手報告_${pitcherName}${handSuffix}_${new Date().toISOString().split('T')[0]}.pdf`;
-
         try {
-            await _captureAndBuildPDF(fileBase, ['statsTab', 'analysisTab']);
+            await _captureAndBuildPDF(fileBase, tabIds);
         } catch (e) {
             console.error('[PDF]', e);
             alert('PDF 產生失敗：' + e.message);
         } finally {
             // 5. 清理：移除合成投手，還原狀態
             allData.teams.splice(tempIndex, 1);
-            slotA = origSlotA;
-            slotB = origSlotB;
-            activeSlot = origActive;
-            currentTeam = origCurrentTeam;
-            currentPitcher = origCurrentPitcher;
+            slotA = origSlotA; slotB = origSlotB; activeSlot = origActive;
+            currentTeam = origCurrentTeam; currentPitcher = origCurrentPitcher;
             if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            // 還原打者模式分頁 display（若有截圖過）
+            ['bmStatsTab','bmBatterDataTab'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.style.display = 'none'; el.classList.remove('active'); }
+            });
             document.getElementById(origTabId)?.classList.add('active');
             if (origTabId === 'statsTab' || origTabId === 'analysisTab') updateStats();
             else if (origTabId === 'compareTab') updateCompare();
