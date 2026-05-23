@@ -1127,7 +1127,7 @@
 .bm-lineup-module .bm-lineup-order { width:20px; height:20px; font-size:11px; }
 .bm-lineup-module .bm-lineup-num { font-size:10px; padding:3px 3px; }
 .bm-lineup-module .bm-lineup-name { font-size:11px; padding:3px 4px; }
-.bm-lineup-module .bm-lineup-hand { font-size:10px; padding:3px 4px; }
+.bm-lineup-module .bm-lineup-hand { font-size:18px; padding:5px 4px; }
 /* 落點圖＋打席結果 55/45 格線 */
 .bm-field-result-grid {
     display: grid;
@@ -1254,8 +1254,8 @@
 }
 #bmSidebarContent .bm-lineup-name::placeholder { color: rgba(255,255,255,0.35); }
 #bmSidebarContent .bm-lineup-hand {
-    padding: 4px 6px;
-    font-size: 14px;
+    padding: 6px 6px;
+    font-size: 18px;
     background: rgba(255,255,255,0.08);
     border-color: rgba(255,255,255,0.2);
     color: rgba(255,255,255,0.7);
