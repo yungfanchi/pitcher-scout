@@ -10713,31 +10713,30 @@
     const BM_OUTCOMES = [
         { label:'三振',    cls:'bm-out' },
         { label:'不死三振', cls:'bm-out' },
-        { label:'保送',    cls:'bm-bb' },
-        { label:'觸身球',  cls:'bm-bb' },
-        { label:'故意四壞', cls:'bm-bb' },
-        { label:'內野安打', cls:'bm-hit' },
-        { label:'一壘安打', cls:'bm-hit' },
-        { label:'二壘安打', cls:'bm-hit' },
-        { label:'三壘安打', cls:'bm-hit' },
-        { label:'全壘打',  cls:'bm-hit' },
         { label:'滾地球出局', cls:'bm-out' },
         { label:'飛球出局',   cls:'bm-out' },
         { label:'平飛球出局', cls:'bm-out' },
         { label:'犧牲觸擊',  cls:'bm-out' },
         { label:'高飛犧牲打', cls:'bm-out' },
         { label:'雙殺',   cls:'bm-out' },
-        { label:'野選',   cls:'' },
-        { label:'失誤',   cls:'' },
+        { label:'內野安打', cls:'bm-hit' },
+        { label:'一壘安打', cls:'bm-hit' },
+        { label:'二壘安打', cls:'bm-hit' },
+        { label:'三壘安打', cls:'bm-hit' },
+        { label:'全壘打',  cls:'bm-hit' },
+        { label:'保送',    cls:'bm-bb' },
+        { label:'觸身球',  cls:'bm-bb' },
+        { label:'故意四壞', cls:'bm-bb' },
+        { label:'野選',   cls:'bm-bb' },
+        { label:'失誤',   cls:'bm-bb' },
     ];
     const BM_BALL_IN_PLAY = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
 
     const BM_OUTCOME_GROUPS = [
         { label:'出局', color:'#dc0000', outcomes: ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'] },
         { label:'安打', color:'#16a34a', outcomes: ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'] },
-        { label:'上壘', color:'#0051a5', outcomes: ['保送','觸身球','故意四壞'] },
-        { label:'其他', color:'#6b7280', outcomes: ['野選','失誤'] },
-        { label:'戰術標籤', color:'#7c3aed', outcomes: ['打帶跑','戰術失敗'], type:'modifier' },
+        { label:'上壘', color:'#0051a5', outcomes: ['保送','觸身球','故意四壞','野選','失誤'] },
+        { label:'戰術標籤', color:'#7c3aed', outcomes: ['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗'], type:'modifier' },
     ];
     // 各 outcome 對應的 cls（供 grouped 渲染使用）
     const BM_OUTCOME_CLS = {};
