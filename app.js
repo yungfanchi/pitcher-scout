@@ -11618,7 +11618,7 @@
                   <th style="${thLS}" onclick="setBmSort('number')">打者${_bmArrow('number')}</th>
                   <th style="${thS}" onclick="setBmSort('pa')">打席${_bmArrow('pa')}</th>
                   <th style="${thS}" onclick="setBmSort('hits')">安打${_bmArrow('hits')}</th>
-                  <th style="${thS}min-width:110px;" onclick="setBmSort('avg')">打率${_bmArrow('avg')}</th>
+                  <th style="${thS}min-width:110px;" onclick="setBmSort('avg')">打擊率${_bmArrow('avg')}</th>
                   <th style="${thS}min-width:90px;" onclick="setBmSort('ops')">OPS${_bmArrow('ops')}</th>
                   <th style="${thS}" onclick="setBmSort('k')">三振${_bmArrow('k')}</th>
                   <th style="${thS}" onclick="setBmSort('bb')">保送${_bmArrow('bb')}</th>
