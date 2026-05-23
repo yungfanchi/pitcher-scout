@@ -6445,6 +6445,7 @@
         btn.textContent = isOpen ? '▼ 展開' : '▲ 收合';
     }
     window.toggleTeamManagement = toggleTeamManagement;
+    window.injectDemoData = injectDemoData;
 
     // ── 管理後台：帳號列表 ──
     async function adminLoadTeams() {
