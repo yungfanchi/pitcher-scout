@@ -1728,50 +1728,109 @@
 
     // injectDemoData 已移除，上線版禁止自動覆蓋真實資料
     function injectDemoData() {
-        console.warn('[injectDemoData] 已停用。如需測試資料請手動於 Firebase Console 新增。');
-        // bm 打者模式示範資料（可從 console 呼叫此函式注入）
-        const demoBm = {
-            lineup: [
-                { number: '5',  name: '陳傑憲', hand: '右打' },
-                { number: '23', name: '林立',   hand: '右打' },
-                { number: '7',  name: '鄭宗哲', hand: '右打' },
-                { number: '2',  name: '曾峻岳', hand: '右打' },
-                { number: '15', name: '吳念庭', hand: '左打' },
-                { number: '34', name: '高宇杰', hand: '右打' },
-                { number: '9',  name: '林子偉', hand: '左打' },
-                { number: '18', name: '陳晨威', hand: '右打' },
-                { number: '28', name: '呂彥青', hand: '右打' },
-            ],
-            gameIdx: 0,
-            attackingTeam: 'B',
-            atBats: [
-                { number:'5',  name:'陳傑憲', order:1, hand:'右打', inning:1, half:'上', outs:0, bases:[false,false,false], pitcherHand:'右投', outcome:'一壘安打',  hitLocation:{x:0.22,y:0.45,zone:'3B'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3600000 },
-                { number:'23', name:'林立',   order:2, hand:'右打', inning:1, half:'上', outs:0, bases:[true,false,false],  pitcherHand:'右投', outcome:'三振',      hitLocation:null, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3550000 },
-                { number:'7',  name:'鄭宗哲', order:3, hand:'右打', inning:1, half:'上', outs:1, bases:[true,false,false],  pitcherHand:'右投', outcome:'二壘安打',  hitLocation:{x:0.25,y:0.2,zone:'LCF'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3500000 },
-                { number:'2',  name:'曾峻岳', order:4, hand:'右打', inning:1, half:'上', outs:1, bases:[false,false,true],  pitcherHand:'右投', outcome:'飛球出局',  hitLocation:{x:0.5,y:0.15,zone:'CF'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3450000 },
-                { number:'15', name:'吳念庭', order:5, hand:'左打', inning:2, half:'上', outs:0, bases:[false,false,false], pitcherHand:'右投', outcome:'保送',      hitLocation:null, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-3000000 },
-                { number:'34', name:'高宇杰', order:6, hand:'右打', inning:2, half:'上', outs:0, bases:[false,false,false], pitcherHand:'右投', outcome:'滾地球出局', hitLocation:{x:0.55,y:0.55,zone:'2B'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-2950000 },
-                { number:'5',  name:'陳傑憲', order:1, hand:'右打', inning:3, half:'上', outs:0, bases:[false,false,false], pitcherHand:'左投', outcome:'三振',      hitLocation:null, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-2400000 },
-                { number:'23', name:'林立',   order:2, hand:'右打', inning:3, half:'上', outs:1, bases:[false,false,false], pitcherHand:'左投', outcome:'一壘安打',  hitLocation:{x:0.72,y:0.42,zone:'1B'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-2350000 },
-                { number:'7',  name:'鄭宗哲', order:3, hand:'右打', inning:3, half:'上', outs:1, bases:[true,false,false],  pitcherHand:'左投', outcome:'全壘打',    hitLocation:{x:0.5,y:0.08,zone:'CF'}, mode:'linked', pitches:[], gameIdx:0, ts: Date.now()-2300000 },
-                { number:'5',  name:'陳傑憲', order:0, hand:'右打', inning:1, half:'上', outs:0, bases:[false,false,false], pitcherHand:'左投', outcome:'三振', hitLocation:null, mode:'standalone',
-                    pitches:[
-                        {type:'四縫線',zone:'5',reaction:'看球',isStrike:true},
-                        {type:'四縫線',zone:'2',reaction:'揮棒落空',isStrike:true},
-                        {type:'滑球',zone:'B9',reaction:'看球',isStrike:false},
-                        {type:'滑球',zone:'6',reaction:'揮棒落空',isStrike:true}
-                    ], gameIdx:1, ts: Date.now()-1800000 },
-                { number:'23', name:'林立', order:0, hand:'右打', inning:1, half:'上', outs:1, bases:[false,false,false], pitcherHand:'左投', outcome:'一壘安打', hitLocation:{x:0.68,y:0.35,zone:'RF'}, mode:'standalone',
-                    pitches:[
-                        {type:'四縫線',zone:'3',reaction:'看球',isStrike:true},
-                        {type:'變速球',zone:'B7',reaction:'揮棒落空',isStrike:true},
-                        {type:'四縫線',zone:'6',reaction:'打進場內',isStrike:true}
-                    ], gameIdx:1, ts: Date.now()-1750000 },
-            ]
-        };
-        allData.bm = demoBm;
+        // 打者分析四大區塊完整測試資料
+        // 示範打者：陳傑憲 #5（右打）17個打席，涵蓋 zone 1-9、各球種、各球數情境
+        const _ts = Date.now();
+        function mkp(balls, strikes, zone, type, swing, foul, outcomes, hitLoc, runnersOn) {
+            const spd = {快速球:130,卡特球:122,二縫線:125,滑球:118,曲球:112,變速球:108};
+            return {
+                type, zone, result: /^[1-9]$/.test(String(zone)) ? '好球' : '壞球',
+                speed: spd[type] || 120, swing: !!swing, wild: false, foul: !!foul,
+                batterHand: '右打', batterName: '陳傑憲', batterNumber: 5, batterTeam: '日本',
+                batterOrder: 3, outcomes: outcomes || [], balls, strikes,
+                runnersOn: !!runnersOn, timestamp: _ts
+            };
+        }
+        const pitches5 = [
+            // AB1：0-2 三振（zone:6 滑球）
+            mkp(0,0,'5','快速球'),
+            mkp(0,1,'6','滑球',true),
+            mkp(0,2,'6','滑球',true,false,['三振']),
+            // AB2：首球外角快速球安打（zone:3，右高）
+            mkp(0,0,'3','快速球',true,false,['一壘安打'],{x:0.72,y:0.42,zone:'RF'}),
+            // AB3：2-2 飛球出局（zone:4 快速球，有壘上）
+            mkp(0,0,'1','快速球',false,false,[],null,true),
+            mkp(0,1,'B5','滑球',false,false,[],null,true),
+            mkp(1,1,'7','快速球',true,true,[],null,true),
+            mkp(1,2,'B13','曲球',false,false,[],null,true),
+            mkp(2,2,'4','快速球',true,false,['飛球出局'],{x:0.5,y:0.18,zone:'CF'},true),
+            // AB4：首球外角揮棒空振 → 1-1 滾地出局（zone:2 二縫線）
+            mkp(0,0,'9','滑球',true),
+            mkp(0,1,'B12','快速球'),
+            mkp(1,1,'2','二縫線',true,false,['滾地球出局'],{x:0.5,y:0.72,zone:'P'}),
+            // AB5：0-2 三振（zone:7 卡特球）
+            mkp(0,0,'5','快速球'),
+            mkp(0,1,'7','卡特球',true),
+            mkp(0,2,'7','卡特球',true,false,['三振']),
+            // AB6：外角首球揮棒空振 → 1-2 二壘安打（zone:3 快速球）
+            mkp(0,0,'6','快速球',true),
+            mkp(0,1,'B2','曲球'),
+            mkp(1,1,'8','快速球'),
+            mkp(1,2,'3','快速球',true,false,['二壘安打'],{x:0.72,y:0.28,zone:'RCF'}),
+            // AB7：首球觸擊（有壘上，0-0 count，中間 zone:8）
+            mkp(0,0,'8','快速球',true,false,['犧牲觸擊'],{x:0.46,y:0.82,zone:'P'},true),
+            // AB8：3-2 打帶跑（有壘上，最終一壘安打）
+            mkp(0,0,'B1','快速球',false,false,[],null,true),
+            mkp(1,0,'5','滑球',false,false,[],null,true),
+            mkp(1,1,'B6','快速球',false,false,[],null,true),
+            mkp(2,1,'9','曲球',true,true,[],null,true),
+            mkp(2,2,'B4','快速球',false,false,[],null,true),
+            mkp(3,2,'6','滑球',true,true,[],null,true),
+            mkp(3,2,'2','快速球',true,false,['一壘安打','打帶跑'],{x:0.55,y:0.68,zone:'2B'},true),
+            // AB9：四壞球保送
+            mkp(0,0,'B3','快速球'),
+            mkp(1,0,'B7','滑球'),
+            mkp(2,0,'B11','快速球'),
+            mkp(3,0,'B15','曲球',false,false,['保送']),
+            // AB10：首球外角快速球安打（有壘上）
+            mkp(0,0,'6','快速球',true,false,['一壘安打'],{x:0.78,y:0.5,zone:'RF'},true),
+            // AB11：1-2 三振（zone:1 滑球，內角高）
+            mkp(0,0,'4','快速球'),
+            mkp(0,1,'B8','快速球'),
+            mkp(1,1,'7','滑球',true),
+            mkp(1,2,'1','滑球',true,false,['三振']),
+            // AB12：2-2 飛球出局（zone:3 快速球）
+            mkp(0,0,'5','快速球'),
+            mkp(0,1,'B3','曲球'),
+            mkp(1,1,'5','卡特球',true,true),
+            mkp(1,2,'B9','滑球'),
+            mkp(2,2,'3','快速球',true,false,['飛球出局'],{x:0.75,y:0.2,zone:'RF'}),
+            // AB13：0-2 三振（zone:6 滑球，加強 zone6 滑球 K 樣本）
+            mkp(0,0,'5','快速球'),
+            mkp(0,1,'6','滑球',true),
+            mkp(0,2,'6','滑球',true,false,['三振']),
+            // AB14：1-2 三振（zone:1 滑球，加強 zone1 內角 K 樣本）
+            mkp(0,0,'4','快速球'),
+            mkp(0,1,'B8','曲球'),
+            mkp(1,1,'1','滑球',true),
+            mkp(1,2,'1','滑球',true,false,['三振']),
+            // AB15：0-2 飛球出局（zone:7 卡特球，加強 zone7 樣本）
+            mkp(0,0,'5','快速球'),
+            mkp(0,1,'7','卡特球',true),
+            mkp(0,2,'7','卡特球',true,false,['飛球出局'],{x:0.5,y:0.18,zone:'CF'}),
+            // AB16：外角首球揮棒空振 → 1-1 一壘安打（zone:3 快速球）
+            mkp(0,0,'6','快速球',true),
+            mkp(0,1,'B10','曲球'),
+            mkp(1,1,'3','快速球',true,false,['一壘安打'],{x:0.72,y:0.45,zone:'RF'}),
+            // AB17：0-2 三振（zone:9 快速球，外角低）
+            mkp(0,0,'5','快速球'),
+            mkp(0,1,'9','快速球',true),
+            mkp(0,2,'9','快速球',true,false,['三振']),
+        ];
+        allData.teams = [{
+            gameName: '2026 打者分析測試',
+            name: '中華台北', opponent: '日本',
+            date: '2026-05-23',
+            pitchers: [{
+                name: '山田太郎', number: '18', hand: '右投', role: '先發', style: '速球型',
+                pitches: pitches5,
+                score: { home: 2, away: 5, inning: 7, half: '下' }
+            }]
+        }];
+        allData.bm = { lineup: [], lineupA: [], lineupB: [], gameIdx: 0, attackingTeam: 'B', steals: [], atBats: [] };
+        rebuildPitcherDB();
         saveToLocalStorage();
-        console.log('[injectDemoData] bm 示範資料已注入，可切換到打者模式查看');
+        console.log('[injectDemoData] 測試資料已注入。請切換到「打者分析」分頁，點擊「陳傑憲」卡片查看四大區塊。');
     }
     /* ── 以下為已停用的舊測試資料產生器 ── */
     function _removedInjectDemoData_DISABLED() {
