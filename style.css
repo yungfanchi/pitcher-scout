@@ -1233,13 +1233,13 @@
 #bmSidebarContent .bm-lineup-order {
     background: rgba(0,61,121,0.9);
     color: #ffd700;
-    width: 22px;
-    height: 22px;
-    font-size: 12px;
+    width: 26px;
+    height: 26px;
+    font-size: 15px;
 }
 #bmSidebarContent .bm-lineup-num {
     padding: 4px 4px;
-    font-size: 12px;
+    font-size: 15px;
     background: rgba(255,255,255,0.1);
     border-color: rgba(255,255,255,0.2);
     color: white;
@@ -1247,7 +1247,7 @@
 #bmSidebarContent .bm-lineup-num::placeholder { color: rgba(255,255,255,0.35); }
 #bmSidebarContent .bm-lineup-name {
     padding: 4px 5px;
-    font-size: 12px;
+    font-size: 15px;
     background: rgba(255,255,255,0.1);
     border-color: rgba(255,255,255,0.2);
     color: white;
@@ -1255,7 +1255,7 @@
 #bmSidebarContent .bm-lineup-name::placeholder { color: rgba(255,255,255,0.35); }
 #bmSidebarContent .bm-lineup-hand {
     padding: 4px 6px;
-    font-size: 11px;
+    font-size: 14px;
     background: rgba(255,255,255,0.08);
     border-color: rgba(255,255,255,0.2);
     color: rgba(255,255,255,0.7);
