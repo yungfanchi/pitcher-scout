@@ -9035,36 +9035,72 @@
             _pzSt[_pz]={n:_zPitches.length,hits:_zHits,avg:_zPitches.length>0?_zHits/_zPitches.length:null,best:_zBestK?_zBestK[0]:null,bestKP:_zBestK?Math.round(_zBestK[1].k/_zBestK[1].n*100):0};
         }
         const _hasZD=Object.values(_pzSt).some(z=>z.n>0);
-        // 熱區色階（安打率越高越深/越紅）
-        const _pzHeatBg = a => a===null ? '#f0ece3' : a>=0.400 ? '#7b1d1d' : a>=0.300 ? '#b83c1a' : a>=0.200 ? '#d4751e' : a>=0.100 ? '#c9a45a' : '#d8c89a';
-        const _pzHeatTc = a => (a===null || a<0.200) ? '#5c4a2a' : 'white';
+        const _pzNm=['','左高','中高','右高','左中','中間','右中','左低','中低','右低'];
+        const _pzFill = a => a===null?'#f3f4f6':a>=0.400?'#dc2626':a>=0.250?'#f59e0b':'#10b981';
+        const _pzTC   = a => a===null?'#9ca3af':'white';
+        // 策略清單：有資料的 zone，按安打率由低到高
+        const _stratList=[1,2,3,4,5,6,7,8,9].filter(z=>_pzSt[z].n>0).sort((a,b)=>(_pzSt[a].avg||1)-(_pzSt[b].avg||1));
+        // 最佳組合：n≥5 且有球種
+        const _bestComboZ=_stratList.find(z=>_pzSt[z].n>=5&&_pzSt[z].best)||null;
 
         const secB = `<div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);break-inside:avoid;">
             <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:10px;border-left:4px solid #003d79;padding-left:8px;">② 弱點球路 × 位置</div>
             ${!_hasZD?`<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0;">資料不足</div>`:`
-            <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">格色＝安打率熱區 · 數字＝球數 · 標字＝最有效球種（≥2球）</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-                <div style="font-size:12px;font-weight:700;color:#9ca3af;padding:4px 2px;writing-mode:vertical-rl;letter-spacing:2px;">L</div>
-                <div style="flex:1;border:2.5px solid #ffd700;border-radius:10px;overflow:hidden;background:#003d79;">
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:#003d79;padding:2px;">
-                        ${[1,2,3,4,5,6,7,8,9].map(_pz=>{
-                            const zs=_pzSt[_pz];
-                            const bg=_pzHeatBg(zs.n>0?zs.avg:null);
-                            const tc=_pzHeatTc(zs.n>0?zs.avg:null);
-                            return `<div style="background:${bg};padding:8px 4px;text-align:center;min-height:66px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;">
-                                ${zs.best?`<div style="font-size:9px;font-weight:800;color:${tc};opacity:0.85;line-height:1.1;">${zs.best}</div>`:''}
-                                <div style="font-size:24px;font-weight:900;font-family:'Oswald',sans-serif;color:${tc};line-height:1.1;">${zs.n||0}</div>
-                                <div style="font-size:10px;font-weight:700;color:${tc};opacity:0.8;">${zs.avg!==null?fmtAvg(zs.avg):'—'}</div>
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+                <!-- 左側：好球帶SVG示意圖 -->
+                <div style="flex:0 0 auto;">
+                    <div style="display:flex;align-items:center;gap:3px;">
+                        <div style="font-size:11px;font-weight:700;color:#9ca3af;writing-mode:vertical-rl;letter-spacing:2px;padding:2px 0;">L</div>
+                        <div style="border:2.5px solid #ffd700;border-radius:8px;overflow:hidden;background:#003d79;">
+                            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5px;background:#003d79;padding:1.5px;">
+                                ${[1,2,3,4,5,6,7,8,9].map(_pz=>{
+                                    const zs=_pzSt[_pz];
+                                    const _a=zs.n>0?zs.avg:null;
+                                    const bg=_pzFill(_a); const tc=_pzTC(_a);
+                                    return `<div style="background:${bg};width:56px;height:60px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;padding:2px;">
+                                        <div style="font-size:8px;color:${tc};opacity:0.8;line-height:1;">${_pzNm[_pz]}</div>
+                                        ${zs.best?`<div style="font-size:8px;font-weight:800;color:${tc};line-height:1.1;">${zs.best}</div>`:`<div style="height:10px;"></div>`}
+                                        <div style="font-size:14px;font-weight:900;font-family:'Oswald',sans-serif;color:${tc};line-height:1.1;">${_a!==null?fmtAvg(_a):'—'}</div>
+                                        <div style="font-size:8px;color:${tc};opacity:0.75;">${zs.n}球</div>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                        <div style="font-size:11px;font-weight:700;color:#9ca3af;writing-mode:vertical-rl;letter-spacing:2px;padding:2px 0;">R</div>
+                    </div>
+                    <div style="display:flex;gap:6px;font-size:10px;margin-top:6px;flex-wrap:wrap;">
+                        <span><span style="display:inline-block;width:8px;height:8px;background:#dc2626;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.400危</span>
+                        <span><span style="display:inline-block;width:8px;height:8px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.250注意</span>
+                        <span><span style="display:inline-block;width:8px;height:8px;background:#10b981;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>安全</span>
+                    </div>
+                </div>
+                <!-- 右側：建議投球策略 -->
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">建議投球策略</div>
+                    <div style="display:grid;grid-template-columns:34px 1fr 42px 26px;gap:3px;font-size:10px;color:#9ca3af;font-weight:600;padding:0 2px 4px;">
+                        <span>區域</span><span>球種</span><span style="text-align:center;">安打率</span><span style="text-align:right;">球數</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:3px;">
+                        ${_stratList.map(z=>{
+                            const zs=_pzSt[z];
+                            const rowBg=zs.avg>=0.400?'#fff1f2':zs.avg>=0.250?'#fffbeb':'#f0fdf4';
+                            const avgC =zs.avg>=0.400?'#dc2626':zs.avg>=0.250?'#b45309':'#059669';
+                            return `<div style="display:grid;grid-template-columns:34px 1fr 42px 26px;gap:3px;align-items:center;padding:5px 4px;background:${rowBg};border-radius:6px;">
+                                <div style="font-size:10px;font-weight:700;color:#374151;">${_pzNm[z]}</div>
+                                <div style="font-size:11px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${zs.best||'—'}</div>
+                                <div style="font-size:12px;font-weight:800;color:${avgC};text-align:center;">${fmtAvg(zs.avg)}</div>
+                                <div style="font-size:11px;color:#9ca3af;text-align:right;">${zs.n}</div>
                             </div>`;
                         }).join('')}
                     </div>
+                    ${_bestComboZ?`
+                    <div style="margin-top:8px;padding:8px 10px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10b981;">
+                        <div style="font-size:10px;color:#6b7280;margin-bottom:3px;">✅ 最佳組合（≥5球）</div>
+                        <div style="font-size:14px;font-weight:900;color:#065f46;">${_pzNm[_bestComboZ]} × ${_pzSt[_bestComboZ].best}</div>
+                        <div style="font-size:11px;color:#047857;margin-top:2px;">安打率 ${fmtAvg(_pzSt[_bestComboZ].avg)} · ${_pzSt[_bestComboZ].n}球</div>
+                    </div>`:`
+                    <div style="margin-top:8px;padding:7px;background:#f9fafb;border-radius:8px;font-size:11px;color:#9ca3af;text-align:center;">最佳組合需 ≥5 球樣本</div>`}
                 </div>
-                <div style="font-size:12px;font-weight:700;color:#9ca3af;padding:4px 2px;writing-mode:vertical-rl;letter-spacing:2px;">R</div>
-            </div>
-            <div style="display:flex;gap:10px;font-size:11px;flex-wrap:wrap;">
-                <span><span style="display:inline-block;width:10px;height:10px;background:#b83c1a;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.300 危</span>
-                <span><span style="display:inline-block;width:10px;height:10px;background:#d4751e;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.200 注意</span>
-                <span><span style="display:inline-block;width:10px;height:10px;background:#d8c89a;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>安全</span>
             </div>`}
         </div>`;
 
