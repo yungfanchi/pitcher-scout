@@ -8814,12 +8814,28 @@
             else                            _adv = `打擊方向均衡，全場防守皆需注意。`;
         }
         const _hitCnt = _dH(locs);
+
+        // 從打線查找自訂備註（trait）
+        const _bmNum = entry._bmNum ? String(entry._bmNum) : '';
+        let _trait = '';
+        if (_bmNum) {
+            const _allLineup = [...(allData.bm?.lineupA || []), ...(allData.bm?.lineupB || [])];
+            const _lineupEntry = _allLineup.find(b => String(b.number || '') === _bmNum);
+            if (_lineupEntry) _trait = _lineupEntry.trait || '';
+        }
+        const _traitSafe = _trait.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const secNotes = `
+        <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:13px;font-weight:900;color:#003d79;margin-bottom:10px;">📝 情蒐備註</div>
+            <div style="background:#fffbeb;border-radius:8px;padding:12px 14px;border:1px solid #fde68a;min-height:100px;font-size:15px;font-weight:700;color:#374151;line-height:1.9;white-space:pre-wrap;">${_traitSafe || '<span style="font-size:12px;color:#9ca3af;font-weight:400;font-style:italic;">尚未填寫情蒐備註</span>'}</div>
+        </div>`;
+
         const sec2 = `
         <div style="background:#fffdf5;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
           <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ 打擊落點圖</div>
           ${locs.length === 0
-            ? `<div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af;">尚無落點資料</div>`
-            : `<div style="display:grid;grid-template-columns:55% 1fr;gap:16px;align-items:start;">
+            ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;"><div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af;">尚無落點資料</div>${secNotes}</div>`
+            : `<div style="display:grid;grid-template-columns:55% 1fr 1fr;gap:16px;align-items:start;">
             <!-- 落點圖 左側 -->
             <div style="min-width:0;">
               ${buildFieldSVG(linesHTML, false, true, hrLinesHTML)}
@@ -8829,7 +8845,7 @@
                 <span style="margin-left:auto;color:#9ca3af;">共 ${locs.length} 筆</span>
               </div>
             </div>
-            <!-- 統計面板 右側 -->
+            <!-- 統計面板 中間 -->
             <div style="min-width:0;display:flex;flex-direction:column;gap:16px;">
               <div>
                 <div style="font-size:13px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:8px;">方向分佈</div>
@@ -8868,6 +8884,8 @@
               </div>` : ''}
               ${_adv ? `<div style="background:#fffbeb;border-radius:8px;padding:10px 12px;font-size:14px;color:#92400e;border:1px solid #fde68a;line-height:1.6;">${_adv}</div>` : ''}
             </div>
+            <!-- 情蒐備註 右側 -->
+            <div style="min-width:0;">${secNotes}</div>
           </div>`}
         </div>`;
 
@@ -9078,27 +9096,9 @@
           </div>`:''}
         </div>`;
 
-        // 從打線查找自訂備註（trait）
-        const _bmNum = entry._bmNum ? String(entry._bmNum) : '';
-        let _trait = '';
-        if (_bmNum) {
-            const _allLineup = [...(allData.bm?.lineupA || []), ...(allData.bm?.lineupB || [])];
-            const _lineupEntry = _allLineup.find(b => String(b.number || '') === _bmNum);
-            if (_lineupEntry) _trait = _lineupEntry.trait || '';
-        }
-        const _traitSafe = _trait.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const secNotes = `
-        <div style="background:white;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:12px;">
-            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:14px;">📝 情蒐備註</div>
-            <div style="background:#fffbeb;border-radius:10px;padding:16px 18px;border:1px solid #fde68a;min-height:120px;font-size:17px;font-weight:700;color:#374151;line-height:2;white-space:pre-wrap;">${_traitSafe || '<span style="font-size:13px;color:#9ca3af;font-weight:400;font-style:italic;">尚未填寫情蒐備註</span>'}</div>
-        </div>`;
-
         container.innerHTML = sec0 + sec2 + `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-top:12px;">
-            <div style="display:flex;flex-direction:column;gap:12px;">
-                ${[sec_lr,sec_first,sec_patience,sec_2strike,sec_out,sec_zone,sec5].filter(Boolean).join('')}
-            </div>
-            <div>${secNotes}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start;margin-top:12px;">
+          ${[sec_lr,sec_first,sec_patience,sec_2strike,sec_out,sec_zone,sec5].filter(Boolean).join('')}
         </div>`;
         container.scrollTop = 0;
     }
