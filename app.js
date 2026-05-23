@@ -9078,9 +9078,30 @@
           </div>`:''}
         </div>`;
 
-        container.innerHTML = sec0 + sec2 + `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start;margin-top:12px;">
-          ${sec_lr}${sec_first}${sec_patience}${sec_2strike}${sec_out}${sec_zone}${sec5}
+        // 從打線查找自訂備註（trait）
+        const _bmNum = entry._bmNum ? String(entry._bmNum) : '';
+        let _trait = '';
+        if (_bmNum) {
+            const _allLineup = [...(allData.bm?.lineupA || []), ...(allData.bm?.lineupB || [])];
+            const _lineupEntry = _allLineup.find(b => String(b.number || '') === _bmNum);
+            if (_lineupEntry) _trait = _lineupEntry.trait || '';
+        }
+        const _traitSafe = _trait.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const secNotes = `
+        <div style="background:white;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:12px;">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:14px;">📝 情蒐備註</div>
+            <div style="background:#fffbeb;border-radius:10px;padding:16px 18px;border:1px solid #fde68a;min-height:120px;font-size:17px;font-weight:700;color:#374151;line-height:2;white-space:pre-wrap;">${_traitSafe || '<span style="font-size:13px;color:#9ca3af;font-weight:400;font-style:italic;">尚未填寫情蒐備註</span>'}</div>
+        </div>`;
+
+        container.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+            <div style="min-width:0;">
+                ${sec0}${sec2}
+                <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;">
+                    ${[sec_lr,sec_first,sec_patience,sec_2strike,sec_out,sec_zone,sec5].filter(Boolean).join('')}
+                </div>
+            </div>
+            <div style="min-width:0;">${secNotes}</div>
         </div>`;
         container.scrollTop = 0;
     }
