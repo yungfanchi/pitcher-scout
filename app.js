@@ -8740,7 +8740,7 @@
           </div>
         </div>`;
 
-        // ── 2. 球種弱點 ──
+        // ── 2. 球種弱點（保留供 sec6 使用）──
         const pitchW = {};
         paPitches.forEach(p => {
             if (!p.type) return;
@@ -8871,67 +8871,186 @@
           </div>`}
         </div>`;
 
-        // ── 4. 球數傾向矩陣 ──
-        const matrix = {};
-        for (let b2=0;b2<=3;b2++) for (let s2=0;s2<=2;s2++) matrix[`${b2}-${s2}`]={pa:0,hits:0};
-        paPitches.forEach(p => {
-            const b2=Math.min(p.balls||0,3), s2=Math.min(p.strikes||0,2);
-            matrix[`${b2}-${s2}`].pa++;
-            if ((p.outcomes||[]).some(o=>HIT.includes(o))) matrix[`${b2}-${s2}`].hits++;
-        });
-        const maxPa = Math.max(...Object.values(matrix).map(m=>m.pa), 1);
-        const sec3 = `
-        <div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-          <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🔢 球數傾向矩陣</div>
-          <div style="overflow-x:auto;">
-          <table style="border-collapse:collapse;min-width:220px;">
-            <thead><tr>
-              <th style="padding:5px 8px;font-size:11px;color:#6b7280;border:none;"></th>
-              ${['0S','1S','2S'].map(s2=>`<th style="padding:7px 10px;text-align:center;font-size:12px;font-weight:700;color:#374151;border:1px solid #e5e7eb;">${s2}</th>`).join('')}
-            </tr></thead>
-            <tbody>
-            ${[0,1,2,3].map(b2=>`<tr>
-              <td style="padding:7px 10px;font-size:12px;font-weight:700;color:#374151;border:1px solid #e5e7eb;">${b2}B</td>
-              ${[0,1,2].map(s2=>{
-                const m=matrix[`${b2}-${s2}`];
-                const alpha=m.pa>0?Math.round(Math.max(0.08,m.pa/maxPa)*200).toString(16).padStart(2,'0'):'00';
-                const hitRate=m.pa>0?Math.round(m.hits/m.pa*100):null;
-                return `<td style="padding:8px 12px;text-align:center;border:1px solid #e5e7eb;background:#003d79${alpha};min-width:72px;">
-                  <div style="font-size:18px;font-weight:900;font-family:'Oswald';color:${m.pa>0?'#003d79':'#d1d5db'};">${m.pa||'·'}</div>
-                  ${hitRate!==null?`<div style="font-size:10px;color:#6b7280;">${hitRate}% 安打</div>`:''}
-                </td>`;
-              }).join('')}
-            </tr>`).join('')}
-            </tbody>
-          </table>
-          <div style="font-size:10px;color:#9ca3af;margin-top:6px;">數字=打席數 · 顏色深淺=出現頻率</div>
-          </div>
+        // ══════════════════════════════════════════════
+        // 新版七大區塊
+        // ══════════════════════════════════════════════
+
+        // ── ① 對左右投差異 ──
+        const _lrHits = arr => arr.filter(p=>(p.outcomes||[]).some(o=>HIT.includes(o))).length;
+        const _lrK    = arr => arr.filter(p=>(p.outcomes||[]).some(o=>['三振','不死三振'].includes(o))).length;
+        const _lrBB   = arr => arr.filter(p=>(p.outcomes||[]).some(o=>['保送','觸身球','故意四壞'].includes(o))).length;
+        const vsR = paPitches.filter(p=>(p.pitcherHand||'右投')==='右投');
+        const vsL = paPitches.filter(p=>p.pitcherHand==='左投');
+        function _lrBox(arr, label) {
+            if (arr.length===0) return `<div style="flex:1;text-align:center;padding:10px 8px;background:#f9fafb;border-radius:8px;"><div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:4px;">${label}</div><div style="font-size:14px;color:#9ca3af;">無資料</div></div>`;
+            const avg=_lrHits(arr)/arr.length, kp=Math.round(_lrK(arr)/arr.length*100), bbp=Math.round(_lrBB(arr)/arr.length*100);
+            const col=avg>=0.300?'#dc2626':avg>=0.200?'#374151':'#10b981';
+            return `<div style="flex:1;text-align:center;padding:10px 8px;background:#f9fafb;border-radius:8px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">${label}</div>
+                <div style="font-size:32px;font-weight:900;font-family:'Oswald',sans-serif;color:${col};">${fmtAvg(avg)}</div>
+                <div style="font-size:11px;color:#6b7280;margin-top:4px;">${arr.length} 打席</div>
+                <div style="font-size:11px;margin-top:4px;"><span style="color:#dc2626;">K ${kp}%</span><span style="color:#10b981;margin-left:8px;">BB ${bbp}%</span></div>
+            </div>`;
+        }
+        const _lrAdvice = (()=>{
+            if (vsL.length<3||vsR.length<3) return '';
+            const aL=_lrHits(vsL)/vsL.length, aR=_lrHits(vsR)/vsR.length, diff=Math.abs(aL-aR);
+            if (diff<0.05) return '左右投差異不明顯，均衡型打者';
+            return aL>aR ? `對左投較強（差距 +${(aL-aR).toFixed(3).slice(1)}），建議使用右投對陣` : `對右投較強（差距 +${(aR-aL).toFixed(3).slice(1)}），建議使用左投對陣`;
+        })();
+        const sec_lr = `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">⚔️ ① 對左右投差異</div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">${_lrBox(vsR,'對右投')}${_lrBox(vsL,'對左投')}</div>
+            ${_lrAdvice?`<div style="font-size:12px;background:#fffbeb;border-radius:6px;padding:7px 10px;color:#92400e;border:1px solid #fde68a;">💡 ${_lrAdvice}</div>`:''}
         </div>`;
 
-        // ── 5. 壘上狀況應對 ──
-        const baseS = {'空壘':{pa:0,hits:0,k:0},'一壘':{pa:0,hits:0,k:0},'得點圈':{pa:0,hits:0,k:0},'滿壘':{pa:0,hits:0,k:0}};
-        paPitches.forEach(p => {
-            const bs = p.basesSnapshot || [false,false,false];
-            const bk = (bs[0]&&bs[1]&&bs[2]) ? '滿壘' : (bs[1]||bs[2]) ? '得點圈' : bs[0] ? '一壘' : '空壘';
-            baseS[bk].pa++;
-            if ((p.outcomes||[]).some(x=>HIT.includes(x))) baseS[bk].hits++;
-            if ((p.outcomes||[]).some(x=>['三振','不死三振'].includes(x))) baseS[bk].k++;
-        });
-        const baseColors = {'空壘':'#6b7280','一壘':'#0051a5','得點圈':'#f59e0b','滿壘':'#dc0000'};
-        const sec4 = `
-        <div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-          <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:10px;">🏃 壘上狀況應對</div>
-          ${Object.entries(baseS).filter(([,v])=>v.pa>0).map(([k,v])=>`
-          <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f3f4f6;font-size:13px;">
-            <div style="width:10px;height:10px;border-radius:50%;background:${baseColors[k]};flex-shrink:0;"></div>
-            <span style="font-weight:700;min-width:48px;">${k}</span>
-            <span style="color:#6b7280;">${v.pa} 打席</span>
-            <span style="color:#10b981;font-weight:700;margin-left:auto;">打率 ${v.pa>0?(v.hits/v.pa).toFixed(3):'---'}</span>
-            <span style="color:#dc2626;font-size:11px;">K ${v.pa>0?Math.round(v.k/v.pa*100):0}%</span>
-          </div>`).join('') || '<div style="font-size:12px;color:#9ca3af;">尚無資料</div>'}
+        // ── ② 首球攻擊傾向 ──
+        const firstPAs  = paPitches.filter(p=>(p.balls||0)===0&&(p.strikes||0)===0);
+        const firstHits = firstPAs.filter(p=>(p.outcomes||[]).some(o=>HIT.includes(o))).length;
+        const firstOuts = firstPAs.filter(p=>!(p.outcomes||[]).some(o=>[...HIT,'保送','觸身球','故意四壞','捕逸'].includes(o))).length;
+        const firstPct  = paPitches.length>0?Math.round(firstPAs.length/paPitches.length*100):0;
+        const firstCol  = firstPct>=40?'#dc2626':firstPct>=25?'#f59e0b':'#10b981';
+        const firstLabel= firstPct>=40?'積極出手型':firstPct>=25?'中等積極':'耐心等球型';
+        const sec_first = `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">⚡ ② 首球攻擊傾向</div>
+            <div style="text-align:center;margin-bottom:12px;">
+                <div style="font-size:48px;font-weight:900;font-family:'Oswald',sans-serif;color:${firstCol};">${firstPct}%</div>
+                <div style="font-size:12px;color:#6b7280;">首球就結束的打席比例</div>
+                <div style="display:inline-block;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:700;background:${firstCol}22;color:${firstCol};margin-top:4px;">${firstLabel}</div>
+            </div>
+            ${firstPAs.length>0?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:10px;">
+                <div style="text-align:center;padding:6px;background:#fef2f2;border-radius:6px;"><div style="font-weight:700;color:#dc2626;">安打 ${firstHits}次</div><div style="color:#6b7280;">安打率 ${firstPAs.length>0?fmtAvg(firstHits/firstPAs.length):'.000'}</div></div>
+                <div style="text-align:center;padding:6px;background:#f9fafb;border-radius:6px;"><div style="font-weight:700;color:#374151;">出局 ${firstOuts}次</div><div style="color:#6b7280;">出局率 ${firstPAs.length>0?Math.round(firstOuts/firstPAs.length*100):0}%</div></div>
+            </div>`:''}
+            <div style="font-size:11px;color:#6b7280;text-align:center;">${firstPct>=40?'💡 首球配誘導球，不要輕易進好球帶':firstPct<25?'💡 首球可直接挑戰，他傾向等球':'💡 首球可測試，觀察其反應'}</div>
         </div>`;
 
-        // ── 6. 戰術時機點（全為 0 則不顯示）──
+        // ── ③ 選球傾向（打席深度） ──
+        const totPA_n   = paPitches.length||1;
+        const earlyN    = paPitches.filter(p=>(p.balls||0)+(p.strikes||0)<=1).length;
+        const midN      = paPitches.filter(p=>{const t=(p.balls||0)+(p.strikes||0);return t===2||t===3;}).length;
+        const deepN     = paPitches.filter(p=>(p.balls||0)+(p.strikes||0)>=4).length;
+        const earlyPct  = Math.round(earlyN/totPA_n*100);
+        const midPct_n  = Math.round(midN/totPA_n*100);
+        const deepPct_n = 100-earlyPct-midPct_n;
+        const bbCnt     = paPitches.filter(p=>(p.outcomes||[]).some(o=>['保送','觸身球','故意四壞'].includes(o))).length;
+        const bbPctN    = Math.round(bbCnt/totPA_n*100);
+        const patienceL = bbPctN>=15?'選球型':earlyPct>=40?'積極型':deepPct_n>=35?'耐心型':'均衡型';
+        const patienceC = bbPctN>=15?'#10b981':earlyPct>=40?'#dc2626':deepPct_n>=35?'#3b82f6':'#374151';
+        const sec_patience = `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🎯 ③ 選球傾向</div>
+            <div style="text-align:center;margin-bottom:12px;">
+                <div style="font-size:28px;font-weight:900;color:${patienceC};">${patienceL}</div>
+                <div style="font-size:12px;color:#6b7280;">保送率 ${bbPctN}%</div>
+            </div>
+            <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:8px;">打席球數深度分佈</div>
+            <div style="display:flex;flex-direction:column;gap:7px;">
+                ${[{l:'1-2球（首球）',p:earlyPct,c:'#f59e0b'},{l:'3-4球（中段）',p:midPct_n,c:'#6b7280'},{l:'5球＋（深球數）',p:deepPct_n,c:'#3b82f6'}].map(r=>`
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="width:80px;font-size:11px;color:#374151;flex-shrink:0;">${r.l}</span>
+                    <div style="flex:1;height:10px;background:#f3f4f6;border-radius:5px;overflow:hidden;"><div style="width:${r.p}%;height:100%;background:${r.c};border-radius:5px;"></div></div>
+                    <span style="font-size:12px;font-weight:700;color:${r.c};width:32px;text-align:right;">${r.p}%</span>
+                </div>`).join('')}
+            </div>
+            <div style="font-size:11px;color:#6b7280;margin-top:10px;text-align:center;">${bbPctN>=15?'💡 選球好，必須投到好球帶':earlyPct>=40?'💡 容易早出手，可配誘導球':'💡 打席較長，需耐心佈局'}</div>
+        </div>`;
+
+        // ── ④ 兩好球應對 ──
+        const tsPA   = paPitches.filter(p=>(p.strikes||0)>=2);
+        const tsK    = tsPA.filter(p=>(p.outcomes||[]).some(o=>['三振','不死三振'].includes(o))).length;
+        const tsH    = tsPA.filter(p=>(p.outcomes||[]).some(o=>HIT.includes(o))).length;
+        const tsO    = Math.max(0,tsPA.length-tsK-tsH);
+        const tsKp   = tsPA.length>0?Math.round(tsK/tsPA.length*100):0;
+        const tsHp   = tsPA.length>0?Math.round(tsH/tsPA.length*100):0;
+        const tsOp   = Math.max(0,100-tsKp-tsHp);
+        const tsTypes={};
+        tsPA.forEach(p=>{if(!p.type)return;if(!tsTypes[p.type])tsTypes[p.type]={n:0,k:0,h:0};tsTypes[p.type].n++;if((p.outcomes||[]).some(o=>['三振','不死三振'].includes(o)))tsTypes[p.type].k++;if((p.outcomes||[]).some(o=>HIT.includes(o)))tsTypes[p.type].h++;});
+        const bestType2S=Object.entries(tsTypes).filter(([,v])=>v.n>=2).sort((a,b)=>b[1].k/b[1].n-a[1].k/a[1].n)[0];
+        const sec_2strike = `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🔴 ④ 兩好球應對</div>
+            ${tsPA.length===0?`<div style="text-align:center;font-size:12px;color:#9ca3af;padding:10px;">資料不足</div>`:`
+            <div style="text-align:center;margin-bottom:10px;">
+                <div style="font-size:11px;color:#6b7280;margin-bottom:6px;">進入兩好球共 ${tsPA.length} 打席</div>
+                <div style="display:flex;height:20px;border-radius:10px;overflow:hidden;gap:1px;margin-bottom:8px;">
+                    <div style="flex:${tsKp||0.5};background:#10b981;"></div>
+                    <div style="flex:${tsHp||0.5};background:#ef4444;"></div>
+                    <div style="flex:${tsOp||0.5};background:#d1d5db;"></div>
+                </div>
+                <div style="display:flex;justify-content:center;gap:14px;font-size:13px;font-weight:800;">
+                    <span style="color:#10b981;">三振 ${tsKp}%</span>
+                    <span style="color:#ef4444;">安打 ${tsHp}%</span>
+                    <span style="color:#9ca3af;">其他出局 ${tsOp}%</span>
+                </div>
+            </div>
+            ${bestType2S?`<div style="background:#f0fdf4;border-radius:8px;padding:8px 12px;font-size:12px;color:#15803d;border:1px solid #bbf7d0;margin-bottom:8px;">💡 兩好球最有效：<strong>${bestType2S[0]}</strong>（K率 ${Math.round(bestType2S[1].k/bestType2S[1].n*100)}%）</div>`:''}
+            <div style="font-size:11px;color:#6b7280;text-align:center;">${tsKp>=40?'三振率高，進兩好球積極配球':tsHp>=30?'⚠️ 兩好球仍具威脅，謹慎收尾':'保守出局居多，持續施壓'}</div>`}
+        </div>`;
+
+        // ── ⑤ 出局方式分佈 ──
+        const OUT_LIST=['滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤','三振','不死三振'];
+        const outsPA = paPitches.filter(p=>(p.outcomes||[]).some(o=>OUT_LIST.includes(o)));
+        const kOuts  = outsPA.filter(p=>(p.outcomes||[]).some(o=>['三振','不死三振'].includes(o))).length;
+        const gOuts  = outsPA.filter(p=>(p.outcomes||[]).some(o=>['滾地球出局','雙殺'].includes(o))).length;
+        const fOuts  = outsPA.filter(p=>(p.outcomes||[]).some(o=>['飛球出局','平飛球出局','高飛犧牲打'].includes(o))).length;
+        const oOuts  = Math.max(0,outsPA.length-kOuts-gOuts-fOuts);
+        const totO   = outsPA.length||1;
+        const defTip = fOuts>gOuts&&fOuts>kOuts?'飛球型，外野宜守深，防長打':gOuts>fOuts&&gOuts>kOuts?'滾地球型，內野前衝可守':kOuts>fOuts&&kOuts>gOuts?'三振型，積極配球效果佳':'均衡型，無特定守備建議';
+        const sec_out = `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">📊 ⑤ 出局方式</div>
+            ${outsPA.length===0?`<div style="text-align:center;font-size:12px;color:#9ca3af;padding:10px;">資料不足</div>`:`
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+                ${[{l:'三振',n:kOuts,c:'#8b5cf6'},{l:'飛球出局',n:fOuts,c:'#3b82f6'},{l:'滾地出局',n:gOuts,c:'#f59e0b'},{l:'其他',n:oOuts,c:'#9ca3af'}].map(r=>`
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="width:60px;font-size:12px;color:#374151;flex-shrink:0;">${r.l}</span>
+                    <div style="flex:1;height:12px;background:#f3f4f6;border-radius:6px;overflow:hidden;"><div style="width:${Math.round(r.n/totO*100)}%;height:100%;background:${r.c};border-radius:6px;"></div></div>
+                    <span style="font-size:12px;font-weight:700;color:${r.c};width:28px;text-align:right;">${r.n}</span>
+                </div>`).join('')}
+            </div>
+            <div style="font-size:12px;background:#fffbeb;border-radius:6px;padding:7px 10px;color:#92400e;border:1px solid #fde68a;">🛡️ ${defTip}</div>`}
+        </div>`;
+
+        // ── ⑥ 弱點球種 × 落點熱區 ──
+        const locs3 = paPitches.filter(p=>p.hitLocation);
+        function _zStat(x0,x1,y0,y1){
+            const z=locs3.filter(p=>p.hitLocation.x>=x0&&p.hitLocation.x<x1&&p.hitLocation.y>=y0&&p.hitLocation.y<y1);
+            const h=z.filter(p=>(p.outcomes||[]).some(o=>HIT.includes(o))).length;
+            return {n:z.length,h,avg:z.length>0?h/z.length:null};
+        }
+        const GRID=[
+            [_zStat(0,0.43,0,0.45),_zStat(0.43,0.57,0,0.45),_zStat(0.57,1,0,0.45)],
+            [_zStat(0,0.43,0.45,0.70),_zStat(0.43,0.57,0.45,0.70),_zStat(0.57,1,0.45,0.70)],
+            [_zStat(0,0.43,0.70,1),_zStat(0.43,0.57,0.70,1),_zStat(0.57,1,0.70,1)],
+        ];
+        const ZLABELS=[['左深','中深','右深'],['左中','中間','右中'],['左淺','中淺','右淺']];
+        function _zbg(a){return a===null?'#f9fafb':a>=0.400?'#fee2e2':a>=0.250?'#fef9c3':'#dcfce7';}
+        function _zcol(a){return a===null?'#d1d5db':a>=0.400?'#dc2626':a>=0.250?'#92400e':'#15803d';}
+        const sec_zone = `<div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ ⑥ 弱點球種 × 落點熱區</div>
+            ${ptchEntries.length>0?`
+            <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">球種弱點</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;">
+                <thead><tr style="background:#f9fafb;">
+                    <th style="padding:5px 6px;text-align:left;color:#6b7280;font-size:11px;">球種</th>
+                    <th style="padding:5px 4px;text-align:center;color:#6b7280;font-size:11px;">打席</th>
+                    <th style="padding:5px 4px;text-align:center;color:#15803d;font-size:11px;">安打率</th>
+                    <th style="padding:5px 4px;text-align:center;color:#dc2626;font-size:11px;">K率</th>
+                </tr></thead><tbody>
+                ${ptchEntries.map(([t,v])=>{const a2=v.pa>0?v.hits/v.pa:0,kp2=v.pa>0?Math.round(v.k/v.pa*100):0;return `<tr style="border-bottom:1px solid #f3f4f6;"><td style="padding:6px;">${t}</td><td style="padding:6px;text-align:center;color:#374151;">${v.pa}</td><td style="padding:6px;text-align:center;font-weight:700;color:${a2>=0.300?'#dc2626':a2>=0.200?'#374151':'#10b981'};">${fmtAvg(a2)}</td><td style="padding:6px;text-align:center;font-weight:700;color:${kp2>=35?'#dc2626':'#374151'};">${kp2}%</td></tr>`;}).join('')}
+                </tbody>
+            </table>`:''}
+            ${locs3.length>=3?`
+            <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">落點安打率（紅＝危 綠＝安全）</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+                ${GRID.flatMap((row,ri)=>row.map((z,ci)=>`<div style="background:${_zbg(z.avg)};border-radius:6px;padding:8px 4px;text-align:center;">
+                    <div style="font-size:10px;color:#6b7280;">${ZLABELS[ri][ci]}</div>
+                    <div style="font-size:18px;font-weight:900;font-family:'Oswald',sans-serif;color:${_zcol(z.avg)};">${z.avg!==null?fmtAvg(z.avg):'—'}</div>
+                    <div style="font-size:10px;color:#9ca3af;">${z.n}筆</div>
+                </div>`)).join('')}
+            </div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:6px;">≥.400 危險 ≥.250 注意</div>`:`<div style="font-size:12px;color:#9ca3af;text-align:center;margin-top:4px;">需更多落點資料（至少3筆）</div>`}
+        </div>`;
+
+        // ── ⑦ 戰術時機點（全為 0 則不顯示）──
         const buntPA   = paPitches.filter(p=>(p.outcomes||[]).includes('犧牲觸擊'));
         const hitRunPA = paPitches.filter(p=>(p.outcomes||[]).includes('打帶跑'));
         const steals   = (allData.bm?.steals||[]).filter(s =>
@@ -8960,8 +9079,8 @@
         </div>`;
 
         container.innerHTML = sec0 + sec2 + `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start;">
-          ${sec1}${sec4}${sec3}${sec5}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start;margin-top:12px;">
+          ${sec_lr}${sec_first}${sec_patience}${sec_2strike}${sec_out}${sec_zone}${sec5}
         </div>`;
         container.scrollTop = 0;
     }
