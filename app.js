@@ -2601,11 +2601,11 @@
                 <input type="text" inputmode="numeric" placeholder="#" value="${p.number||''}" data-order="${i}" data-field="number"
                     style="padding:7px 4px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;"
                     onkeydown="if(event.key==='Enter')this.blur()">
-                <select data-order="${i}" data-field="hand"
-                    style="padding:7px 4px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;">
-                    <option value="右打" ${p.hand==='右打'?'selected':''}>右打</option>
-                    <option value="左打" ${p.hand==='左打'?'selected':''}>左打</option>
-                </select>
+                <button type="button" data-order="${i}" data-field="hand" data-value="${p.hand||'右打'}"
+                    onclick="toggleLineupHand(this)"
+                    style="padding:7px 4px;border:none;border-radius:7px;font-size:15px;font-weight:700;width:100%;box-sizing:border-box;cursor:pointer;background:${(p.hand||'右打')==='左打'?'#dc0000':'#003d79'};color:white;font-family:'Noto Sans TC',sans-serif;letter-spacing:1px;">
+                    ${p.hand||'右打'}
+                </button>
                 <input type="text" placeholder="姓名" value="${p.name||''}" data-order="${i}" data-field="name"
                     style="padding:7px 6px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;"
                     onkeydown="if(event.key==='Enter')this.blur()">` ;
@@ -2619,10 +2619,17 @@
         document.getElementById('lineupModal').style.display = 'none';
     }
 
+    function toggleLineupHand(btn) {
+        const next = btn.dataset.value === '右打' ? '左打' : '右打';
+        btn.dataset.value = next;
+        btn.textContent = next;
+        btn.style.background = next === '左打' ? '#dc0000' : '#003d79';
+    }
+
     function saveLineup() {
         document.querySelectorAll('#lineupRows [data-order]').forEach(el => {
             const i = parseInt(el.dataset.order);
-            lineup[i][el.dataset.field] = el.value;
+            lineup[i][el.dataset.field] = el.tagName === 'BUTTON' ? el.dataset.value : el.value;
         });
         closeLineupModal();
         // Auto-fill current batter if order is set
