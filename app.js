@@ -8855,9 +8855,9 @@
           </div>
           <div style="display:flex;gap:0;background:rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;flex-wrap:wrap;">
             ${[
+              { lbl:'打席',   val: stats.pa,  col: 'white'  },
               { lbl:'打擊率', val: fmtAvg(stats.avgNum), col: avgColor },
               { lbl:'OPS',    val: opsFmt,    col: opsColor },
-              { lbl:'打席',   val: stats.pa,  col: 'white'  },
               { lbl:'三振率', val: kRateFmt+'%', col: stats.kRate>=0.35?'#fbbf24':'white' },
               { lbl:'保送率', val: bbRateFmt+'%', col: 'white' },
             ].map((d,i) => `<div style="flex:1;min-width:60px;text-align:center;padding:10px 6px;${i>0?'border-left:1px solid rgba(255,255,255,0.15);':''}">
