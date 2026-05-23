@@ -5454,7 +5454,12 @@
         saveToLocalStorage();
         if (btn) { btn.textContent = '⏳ 儲存中...'; btn.disabled = true; }
         try {
-            getDataRef().set(getFirebasePayload())
+            const gamesObj = {};
+            (allData.teams || []).forEach(t => {
+                if (!t.gameId) t.gameId = _makeGameId();
+                gamesObj[t.gameId] = JSON.parse(JSON.stringify(t));
+            });
+            getGamesRef().set(gamesObj)
                 .then(() => {
                     setSyncStatus(true);
                     if (btn) { btn.textContent = '✅ 已儲存'; setTimeout(() => { btn.textContent = '💾 儲存'; btn.disabled = false; }, 2000); }
@@ -5472,7 +5477,12 @@
         const btn = event && event.target;
         if (btn) { btn.textContent = '⏳ 同步中...'; btn.disabled = true; }
         try {
-            getDataRef().set(getFirebasePayload())
+            const gamesObj = {};
+            (allData.teams || []).forEach(t => {
+                if (!t.gameId) t.gameId = _makeGameId();
+                gamesObj[t.gameId] = JSON.parse(JSON.stringify(t));
+            });
+            getGamesRef().set(gamesObj)
                 .then(() => {
                     setSyncStatus(true);
                     if (btn) { btn.textContent = '✅ 同步成功'; setTimeout(() => { btn.textContent = '☁️ 上傳至雲端'; btn.disabled = false; }, 2000); }
