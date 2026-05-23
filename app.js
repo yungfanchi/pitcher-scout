@@ -11389,23 +11389,38 @@
             const totalK    = rows.reduce((s, r) => s + r.k, 0);
             const teamAvg   = totalPA > 0 ? totalHits / totalPA : 0;
             const teamKRate = totalPA > 0 ? totalK / totalPA * 100 : 0;
-            const topThreat = rows.length > 0
-                ? rows.reduce((best, r) => r.threatScore > best.threatScore ? r : best)
-                : null;
             const teamAvgFmt = totalPA > 0
                 ? '.' + String(Math.round(teamAvg * 1000)).padStart(3,'0') : '---';
             const teamKFmt  = totalPA > 0 ? teamKRate.toFixed(1) + '%' : '---';
-            const topName   = topThreat ? `#${topThreat.number}${topThreat.name ? ' ' + topThreat.name : ''}` : '---';
             const avgFill   = teamAvg >= 0.300 ? '#4ade80' : teamAvg >= 0.200 ? '#fbbf24' : '#f87171';
             const kFill     = parseFloat(teamKFmt) >= 30 ? '#4ade80' : '#fbbf24';
+
+            // 作戰率計算
+            const _teamRaw = atBats.filter(ab => (ab.teamName || '未標記球隊') === tname);
+            const _basesOf  = ab => ab.bases || ab.basesSnapshot || [];
+            const _hasRunner = ab => _basesOf(ab).some(b => b);
+            const _notFull   = ab => !_basesOf(ab).every(b => b);
+            const _roAbs     = _teamRaw.filter(_hasRunner);
+            const _roPACount = _roAbs.filter(ab => PA_END.includes(ab.outcome)).length;
+            const _rnfPACount = _roAbs.filter(ab => _notFull(ab) && PA_END.includes(ab.outcome)).length;
+            const _buntCount    = _teamRaw.filter(ab => ab.outcome === '犧牲觸擊').length;
+            const _hitRunCount  = _teamRaw.filter(ab => (ab.tactics || []).includes('打帶跑')).length;
+            const _teamNums     = new Set(rows.map(r => String(r.number || '')).filter(Boolean));
+            const _stealCount   = (allData.bm?.steals || []).filter(s => _teamNums.has(String(s.runnerNumber || ''))).length;
+            const _fmtRate = (n, d) => d > 0 ? (n / d * 100).toFixed(1) + '%' : '---';
+            const _buntRate    = _fmtRate(_buntCount,   _roPACount);
+            const _hitRunRate  = _fmtRate(_hitRunCount, _roPACount);
+            const _stealRate   = _fmtRate(_stealCount,  _rnfPACount);
+
             const thS = 'padding:8px 5px;text-align:center;font-size:12px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #0051a5;';
             const thLS = 'padding:8px 8px;text-align:left;font-size:12px;font-weight:700;color:white;background:#003d79;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid #0051a5;';
 
             return `
               <!-- 球隊摘要 -->
               <div style="background:linear-gradient(135deg,#003d79,#0051a5);border-radius:10px;padding:12px 14px;margin-bottom:10px;color:white;">
-                <div style="font-size:11px;font-weight:700;opacity:0.7;margin-bottom:9px;letter-spacing:0.05em;">⚡ ${tname} · 整體分析</div>
-                <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+                <div style="font-size:22px;font-weight:900;letter-spacing:0.03em;margin-bottom:4px;">${tname}</div>
+                <div style="font-size:11px;font-weight:600;opacity:0.6;margin-bottom:10px;letter-spacing:0.05em;">整體分析</div>
+                <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:10px;">
                   <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;color:${avgFill};">${teamAvgFmt}</div>
                     <div style="font-size:11px;opacity:0.7;">整體打擊率</div>
@@ -11414,13 +11429,26 @@
                     <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;color:${kFill};">${teamKFmt}</div>
                     <div style="font-size:11px;opacity:0.7;">整體三振率</div>
                   </div>
-                  <div style="text-align:center;flex:1;min-width:80px;">
-                    <div style="font-size:15px;font-weight:900;">${topName}</div>
-                    <div style="font-size:11px;opacity:0.7;">最高威脅打者</div>
-                  </div>
                   <div style="text-align:center;">
                     <div style="font-size:22px;font-weight:900;">${rows.length}</div>
                     <div style="font-size:11px;opacity:0.7;">登錄打者</div>
+                  </div>
+                </div>
+                <div style="padding-top:10px;border-top:1px solid rgba(255,255,255,0.2);">
+                  <div style="font-size:11px;font-weight:600;opacity:0.6;margin-bottom:7px;letter-spacing:0.05em;">🎯 整體作戰率</div>
+                  <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                    <div style="text-align:center;">
+                      <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;">${_buntRate}</div>
+                      <div style="font-size:11px;opacity:0.7;">觸擊率</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;">${_hitRunRate}</div>
+                      <div style="font-size:11px;opacity:0.7;">打帶跑率</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;">${_stealRate}</div>
+                      <div style="font-size:11px;opacity:0.7;">盜壘率</div>
+                    </div>
                   </div>
                 </div>
               </div>
