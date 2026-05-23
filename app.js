@@ -2854,14 +2854,39 @@
         updateAutoResultDisplay();
     }
 
+    let _wildBaseSnapshot = null;
+    let _passballBaseSnapshot = null;
+
+    function _advanceRunnersOne() {
+        const [b1, b2] = gameState.bases;
+        gameState.bases = [false, b1, b2];
+        renderBases();
+    }
+
     function toggleWild(btn) {
         currentPitch.wild = !currentPitch.wild;
         btn.classList.toggle('active');
+        if (currentPitch.wild) {
+            _wildBaseSnapshot = [...gameState.bases];
+            _advanceRunnersOne();
+        } else if (_wildBaseSnapshot) {
+            gameState.bases = [..._wildBaseSnapshot];
+            _wildBaseSnapshot = null;
+            renderBases();
+        }
     }
 
     function togglePassball(btn) {
         currentPitch.passball = !currentPitch.passball;
         btn.classList.toggle('active');
+        if (currentPitch.passball) {
+            _passballBaseSnapshot = [...gameState.bases];
+            _advanceRunnersOne();
+        } else if (_passballBaseSnapshot) {
+            gameState.bases = [..._passballBaseSnapshot];
+            _passballBaseSnapshot = null;
+            renderBases();
+        }
     }
 
     const OUT_OUTCOMES = ['滾地球出局','飛球出局','平飛球出局','三振','趁傳出局','雙殺','出局','高飛犧牲打','犧牲觸擊'];
@@ -3005,6 +3030,7 @@
         document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.outcome-btn').forEach(b => b.classList.remove('selected'));
         ['foulBtn','swingBtn','wildBtn','passballBtn'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+        _wildBaseSnapshot = null; _passballBaseSnapshot = null;
         document.getElementById('pitchSpeed').value = '';
         document.getElementById('currentSpeed').textContent = '--';
         document.getElementById('pitchNote').value = '';
