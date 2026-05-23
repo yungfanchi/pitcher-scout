@@ -2519,6 +2519,7 @@
         updateTeamList();
         updateSlotDisplay();
         saveToLocalStorage();
+        saveToFirebase();
     }
 
     function deletePitcher(teamIndex, pitcherIndex) {
@@ -2536,7 +2537,7 @@
             if (slotB.pitcher === pitcherIndex) slotB = { team: null, pitcher: null };
             else if (slotB.pitcher > pitcherIndex) slotB.pitcher--;
         }
-        updateTeamList(); updateSlotDisplay(); updateStats(); updatePitchLog(); saveToLocalStorage();
+        updateTeamList(); updateSlotDisplay(); updateStats(); updatePitchLog(); saveToLocalStorage(); saveToFirebase();
     }
 
     // ====== LINEUP MANAGEMENT ======
