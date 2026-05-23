@@ -3831,10 +3831,12 @@
         usedTypes.forEach((type) => {
             const count = pitches.filter(p => p.type === type).length;
             const pct = pitches.length > 0 ? ((count/pitches.length)*100).toFixed(1) : 0;
+            const strikes = pitches.filter(p => p.type === type && p.result === '好球').length;
+            const strikeRatePct = count > 0 ? ((strikes/count)*100).toFixed(0) : 0;
             const color = PITCH_COLORS[type] || '#999';
             const item = document.createElement('div');
             item.className = 'pattern-item';
-            item.innerHTML = `<span style="font-size:17px;font-weight:900;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;">${type}</span><span style="color:var(--ct-red);font-weight:700;">${count} 球 (${pct}%)</span>`;
+            item.innerHTML = `<span style="font-size:17px;font-weight:900;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;">${type}</span><span style="color:var(--ct-red);font-weight:700;">${count} 球 (${pct}%)</span><span style="color:#b45309;font-weight:700;font-size:13px;">好球率 ${strikeRatePct}%</span>`;
             statsDiv.appendChild(item);
         });
         // pie chart
@@ -4011,38 +4013,9 @@
         const topBall = Object.entries(bCounts).sort((a,b)=>b[1]-a[1]).filter(e=>e[1]>0).slice(0,2);
         document.getElementById('ballZoneTip').textContent = topBall.length ? '壞球常用: ' + topBall.map(e=>e[0]+'('+e[1]+')').join(', ') : '尚無資料';
 
-        // Insight with pitch type breakdown
-        const insight = document.getElementById('tendencyInsight');
-        const used = PITCH_ORDER.filter(t => pitches.some(p => p.type===t));
         if (tendencyTypeChartInstance) { tendencyTypeChartInstance.destroy(); tendencyTypeChartInstance = null; }
-        if (used.length === 0) { insight.innerHTML = ''; return; }
-        const typeRows = used.map(type => {
-            const tp = pitches.filter(p => p.type===type);
-            const cnt = tp.length;
-            const pct = pitches.length ? ((cnt/pitches.length)*100).toFixed(1) : 0;
-            const strikeRate = tp.length ? ((tp.filter(p=>p.result==='好球').length/tp.length)*100).toFixed(0) : 0;
-            const color = PITCH_COLORS[type] || '#999';
-            return `<div style="display:flex;align-items:center;gap:12px;padding:9px 6px;border-bottom:1px solid #e5e7eb;">
-                <span style="width:13px;height:13px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
-                <span style="font-weight:700;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;font-size:18px;min-width:54px;">${type}</span>
-                <span style="font-size:15px;color:#374151;font-weight:600;">${cnt}球</span>
-                <span style="font-size:15px;font-weight:700;color:var(--ct-blue-dark);">${pct}%</span>
-                <span style="font-size:15px;font-weight:700;color:#b45309;">好球率 ${strikeRate}%</span>
-            </div>`;
-        }).join('');
-        insight.innerHTML = `<div style="background:#f0f9ff;border:2px solid var(--ct-blue);border-radius:10px;padding:12px;">
-            <strong style="color:var(--ct-blue-dark);display:block;font-size:16px;margin-bottom:8px;text-align:center;">⚾ 各球種投球傾向</strong>
-            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center;">
-                <div style="flex:0 1 auto;min-width:180px;max-width:340px;">${typeRows}</div>
-                <div style="flex:0 0 auto;width:min(340px,90vw);height:min(340px,90vw);position:relative;"><canvas id="tendencyTypeChart"></canvas></div>
-            </div>
-        </div>`;
-        const tendencyCanvas = document.getElementById('tendencyTypeChart');
-        if (tendencyCanvas) {
-            tendencyTypeChartInstance = _makeDoughnut(tendencyCanvas, used,
-                used.map(t => pitches.filter(p=>p.type===t).length),
-                used.map(t => PITCH_COLORS[t] || '#999'), pitches.length);
-        }
+        const insight = document.getElementById('tendencyInsight');
+        if (insight) insight.innerHTML = '';
     }
 
     function updateBallTendencyHeatmap(elementId, pitches) {
