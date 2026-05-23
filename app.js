@@ -11316,7 +11316,7 @@
             ? _deriveBmAtBatsFromPitches(currentTeam)
             : allData.bm.atBats || [];
         if (atBats.length === 0) {
-            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無打席記錄<br><span style="font-size:12px;">請先在側欄選取一場賽事</span></div>';
+            container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無打席記錄<br><span style="font-size:12px;">請先在側欄選取一場賽事</span><br><br><button onclick="injectDemoData();switchBmTab(\'stats\')" style="margin-top:8px;padding:8px 20px;background:#003d79;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">注入測試資料</button></div>';
             return;
         }
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
