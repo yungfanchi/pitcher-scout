@@ -9059,47 +9059,64 @@
             </div>`}
         </div>`;
 
-        // ── ③ 有利球數 ──
-        const _cntD={};
-        paPitches.forEach(p=>{
-            const ck=`${p.balls||0}-${p.strikes||0}`;
-            if(!_cntD[ck])_cntD[ck]={n:0,k:0,h:0};
-            _cntD[ck].n++;
-            if((p.outcomes||[]).some(o=>['三振','不死三振'].includes(o)))_cntD[ck].k++;
-            if((p.outcomes||[]).some(o=>HIT.includes(o)))_cntD[ck].h++;
-        });
-        const _cntOrder=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
-        const _cntSorted=_cntOrder.filter(k=>_cntD[k]&&_cntD[k].n>=1)
-            .sort((a,b)=>{const da=_cntD[a],db=_cntD[b];return (db.k/db.n-db.h/db.n)-(da.k/da.n-da.h/da.n);});
-        const _bestCnt=_cntSorted[0]||null;
+        // ── ③ 兩好球應對 ──
+        const _tsPA    = paPitches.filter(p => (p.strikes||0) === 2);
+        const _tsTotal = _tsPA.length;
+        const _tsK     = _tsPA.filter(p => (p.outcomes||[]).some(o => ['三振','不死三振'].includes(o))).length;
+        const _tsHit   = _tsPA.filter(p => (p.outcomes||[]).some(o => HIT.includes(o))).length;
+        const _tsOther = _tsTotal - _tsK - _tsHit;
+        const _tsKRate    = _tsTotal > 0 ? _tsK    / _tsTotal : 0;
+        const _tsHitRate  = _tsTotal > 0 ? _tsHit  / _tsTotal : 0;
+        const _tsOthRate  = _tsTotal > 0 ? _tsOther / _tsTotal : 0;
+        // 兩好球被K的球種統計
+        const _tsKTypes = {};
+        _tsPA.filter(p => (p.outcomes||[]).some(o => ['三振','不死三振'].includes(o)))
+            .forEach(p => { if (p.type) _tsKTypes[p.type] = (_tsKTypes[p.type]||0) + 1; });
+        const _tsKBestType = Object.entries(_tsKTypes).sort((a,b) => b[1]-a[1])[0]?.[0] || null;
+        // 連動②：_pzSt 各區最有效球種的出現頻率，找最常見者
+        const _tsZoneVotes = {};
+        Object.values(_pzSt).forEach(z => { if (z.best) _tsZoneVotes[z.best] = (_tsZoneVotes[z.best]||0)+1; });
+        const _tsZoneBest = Object.entries(_tsZoneVotes).sort((a,b) => b[1]-a[1])[0]?.[0] || null;
+        // 結論標籤
+        const _tsConclusion = (() => {
+            if (!_tsTotal) return null;
+            if (_tsKRate >= 0.40) return { text:'兩好球容易被三振', bg:'#dcfce7', color:'#15803d' };
+            if (_tsHitRate >= 0.30) return { text:'兩好球仍具威脅', bg:'#fee2e2', color:'#b91c1c' };
+            if (_tsKRate >= 0.25) return { text:'兩好球有所劣勢', bg:'#fef9c3', color:'#92400e' };
+            return { text:'兩好球尚可應對', bg:'#f3f4f6', color:'#374151' };
+        })();
 
         const secC = `<div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);break-inside:avoid;">
-            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:14px;border-left:4px solid #003d79;padding-left:8px;">③ 有利球數</div>
-            ${_cntSorted.length===0?`<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0;">資料不足</div>`:`
-            ${_bestCnt?`<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;margin-bottom:12px;border-left:3px solid #10b981;">
-                <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">最有利球數（投手優勢）</div>
-                <div style="font-size:28px;font-weight:900;font-family:'Oswald',sans-serif;color:#10b981;">${_bestCnt}</div>
-                <div style="font-size:12px;color:#374151;">K率 ${Math.round(_cntD[_bestCnt].k/_cntD[_bestCnt].n*100)}% · 安打率 ${fmtAvg(_cntD[_bestCnt].h/_cntD[_bestCnt].n)}</div>
-            </div>`:''}
-            <div style="display:flex;flex-direction:column;gap:4px;">
-                <div style="display:grid;grid-template-columns:40px 1fr 36px 48px;gap:4px;font-size:10px;font-weight:700;color:#9ca3af;padding:0 2px 4px;">
-                    <span>球數</span><span></span><span style="text-align:center;">K率</span><span style="text-align:center;">安打率</span>
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:14px;border-left:4px solid #003d79;padding-left:8px;">③ 兩好球應對</div>
+            ${_tsTotal === 0 ? `<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0;">資料不足</div>` : `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+                <div style="text-align:center;padding:8px 16px;background:#f8fafc;border-radius:10px;">
+                    <div style="font-size:30px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${_tsTotal}</div>
+                    <div style="font-size:11px;color:#9ca3af;">兩好球打席</div>
                 </div>
-                ${_cntSorted.slice(0,8).map((k,i)=>{
-                    const d=_cntD[k];
-                    const kp=Math.round(d.k/d.n*100);
-                    const hp=d.h/d.n;
-                    const adv=d.k/d.n-d.h/d.n;
-                    const rowBg=i===0?'#f0fdf4':adv>0.1?'#f9fafb':'white';
-                    const tagBg=i===0?'#10b981':adv>0.1?'#3b82f6':'#9ca3af';
-                    return `<div style="display:grid;grid-template-columns:40px 1fr 36px 48px;gap:4px;align-items:center;padding:5px 4px;background:${rowBg};border-radius:6px;">
-                        <div style="padding:2px 4px;border-radius:5px;background:${tagBg};color:white;font-size:12px;font-weight:800;text-align:center;">${k}</div>
-                        <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;"><div style="width:${kp}%;height:100%;background:${tagBg};border-radius:4px;"></div></div>
-                        <div style="font-size:12px;font-weight:700;color:${kp>=40?'#10b981':'#374151'};text-align:center;">${kp}%</div>
-                        <div style="font-size:12px;font-weight:700;color:${hp>=0.300?'#dc2626':'#374151'};text-align:center;">${fmtAvg(hp)}</div>
-                    </div>`;
-                }).join('')}
-            </div>`}
+                ${_tsConclusion ? `<div style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:800;background:${_tsConclusion.bg};color:${_tsConclusion.color};">${_tsConclusion.text}</div>` : ''}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+                <div style="text-align:center;padding:10px 6px;background:#f0fdf4;border-radius:8px;">
+                    <div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#10b981;">${Math.round(_tsKRate*100)}%</div>
+                    <div style="font-size:11px;color:#6b7280;">被三振率</div>
+                </div>
+                <div style="text-align:center;padding:10px 6px;background:#fef2f2;border-radius:8px;">
+                    <div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#ef4444;">${fmtAvg(_tsHitRate)}</div>
+                    <div style="font-size:11px;color:#6b7280;">安打率</div>
+                </div>
+                <div style="text-align:center;padding:10px 6px;background:#f9fafb;border-radius:8px;">
+                    <div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#6b7280;">${Math.round(_tsOthRate*100)}%</div>
+                    <div style="font-size:11px;color:#6b7280;">其他出局率</div>
+                </div>
+            </div>
+            ${_tsKBestType ? `<div style="padding:8px 10px;background:#f0fdf4;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="color:#6b7280;">🎯 最常被K的球種</span>
+                <span style="font-weight:800;color:#10b981;">${_tsKBestType}</span>
+                <span style="color:#9ca3af;">(${_tsKTypes[_tsKBestType]}次)</span>
+                ${(_tsZoneBest && _tsZoneBest !== _tsKBestType) ? `<span style="color:#9ca3af;margin-left:4px;">· ②建議：<span style="font-weight:700;color:#3b82f6;">${_tsZoneBest}</span></span>` : ''}
+            </div>` : ''}
+            `}
         </div>`;
 
         // ── ④ 戰術時機 ──
