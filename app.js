@@ -3737,6 +3737,8 @@
             });
             const infoEl = document.getElementById('statsPitcherInfo');
             if (infoEl) infoEl.style.display = 'none';
+            const notesArea = document.getElementById('statsPitcherNotesArea');
+            if (notesArea) notesArea.style.display = 'none';
             return;
         }
 
@@ -3752,6 +3754,9 @@
             document.getElementById('spGame').textContent =
                 [_t?.gameName, _t?.name, _t?.opponent ? 'vs ' + _t.opponent : '', _t?.date].filter(Boolean).join('　');
             infoEl.style.display = 'block';
+            const notesArea = document.getElementById('statsPitcherNotesArea');
+            const notesTA = document.getElementById('statsPitcherNotes');
+            if (notesArea && notesTA) { notesTA.value = _p.notes || ''; notesArea.style.display = 'block'; }
         }
 
         populateFilterDropdown();
@@ -3792,6 +3797,18 @@
         // Right-panel heatmaps (analysis split layout)
         updateSingleHeatmap('tendencyStrikeRight', pitches.filter(p => p.result==='好球' && !String(p.zone).startsWith('B')), 'yellow');
         updateBallTendencyHeatmap('tendencyBallRight', pitches.filter(p => p.result==='壞球'));
+    }
+
+    let _pitcherNotesTimer = null;
+    function onPitcherNotesInput() {
+        clearTimeout(_pitcherNotesTimer);
+        _pitcherNotesTimer = setTimeout(() => {
+            if (currentTeam === null || currentPitcher === null) return;
+            const val = document.getElementById('statsPitcherNotes')?.value || '';
+            allData.teams[currentTeam].pitchers[currentPitcher].notes = val;
+            saveToLocalStorage();
+            saveToFirebase();
+        }, 800);
     }
 
     function updateBatterStats(pitches) {

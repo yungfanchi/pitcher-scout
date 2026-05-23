@@ -896,6 +896,10 @@
                     </div>
                     <div id="spGame" style="font-size:13px;opacity:0.75;margin-top:5px;font-family:'Noto Sans TC',sans-serif;"></div>
                 </div>
+                <!-- 投手習慣備註 -->
+                <div id="statsPitcherNotesArea" style="display:none;margin-bottom:10px;">
+                    <textarea id="statsPitcherNotes" oninput="onPitcherNotesInput()" placeholder="賽後備註：投手習慣、弱點、特徵…" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-family:'Noto Sans TC',sans-serif;font-size:13px;color:#374151;background:#f9fafb;resize:vertical;min-height:64px;line-height:1.6;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#0051a5'" onblur="this.style.borderColor='#d1d5db'"></textarea>
+                </div>
                 <div class="stats-grid" id="statsGrid">
                     <div class="stat-card"><div class="stat-label">總球數</div><div class="stat-value" id="statTotal">0</div></div>
                     <div class="stat-card"><div class="stat-label">好球率</div><div class="stat-value" id="statStrike">0%</div></div>
