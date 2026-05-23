@@ -9034,29 +9034,37 @@
             const _zBestK=Object.entries(_zByType).filter(([,v])=>v.n>=2).sort((a,b)=>b[1].k/b[1].n-a[1].k/a[1].n)[0];
             _pzSt[_pz]={n:_zPitches.length,hits:_zHits,avg:_zPitches.length>0?_zHits/_zPitches.length:null,best:_zBestK?_zBestK[0]:null,bestKP:_zBestK?Math.round(_zBestK[1].k/_zBestK[1].n*100):0};
         }
-        const _pzNm=['','左高','中高','右高','左中','中間','右中','左低','中低','右低'];
-        const _pzBg=a=>a===null?'#f9fafb':a>=0.400?'#fee2e2':a>=0.250?'#fef9c3':'#dcfce7';
-        const _pzCl=a=>a===null?'#d1d5db':a>=0.400?'#dc2626':a>=0.250?'#92400e':'#15803d';
         const _hasZD=Object.values(_pzSt).some(z=>z.n>0);
+        // 熱區色階（安打率越高越深/越紅）
+        const _pzHeatBg = a => a===null ? '#f0ece3' : a>=0.400 ? '#7b1d1d' : a>=0.300 ? '#b83c1a' : a>=0.200 ? '#d4751e' : a>=0.100 ? '#c9a45a' : '#d8c89a';
+        const _pzHeatTc = a => (a===null || a<0.200) ? '#5c4a2a' : 'white';
 
         const secB = `<div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);break-inside:avoid;">
-            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:14px;border-left:4px solid #003d79;padding-left:8px;">② 弱點球路 × 位置</div>
+            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:10px;border-left:4px solid #003d79;padding-left:8px;">② 弱點球路 × 位置</div>
             ${!_hasZD?`<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0;">資料不足</div>`:`
-            <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">格色＝安打率 · 標字＝最有效球種（K率最高，≥2球）</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:10px;">
-                ${[1,2,3,4,5,6,7,8,9].map(_pz=>{const zs=_pzSt[_pz];return `<div style="background:${_pzBg(zs.avg)};border-radius:6px;padding:7px 4px;text-align:center;min-height:68px;display:flex;flex-direction:column;justify-content:space-between;">
-                    <div style="font-size:10px;color:#6b7280;">${_pzNm[_pz]}</div>
-                    <div style="font-size:10px;font-weight:800;color:#374151;min-height:14px;line-height:1.2;">${zs.best||''}</div>
-                    <div>
-                        <div style="font-size:15px;font-weight:900;font-family:'Oswald',sans-serif;color:${_pzCl(zs.avg)};">${zs.avg!==null?fmtAvg(zs.avg):'—'}</div>
-                        <div style="font-size:10px;color:#9ca3af;">${zs.n}球</div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">格色＝安打率熱區 · 數字＝球數 · 標字＝最有效球種（≥2球）</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:700;color:#9ca3af;padding:4px 2px;writing-mode:vertical-rl;letter-spacing:2px;">L</div>
+                <div style="flex:1;border:2.5px solid #ffd700;border-radius:10px;overflow:hidden;background:#003d79;">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:#003d79;padding:2px;">
+                        ${[1,2,3,4,5,6,7,8,9].map(_pz=>{
+                            const zs=_pzSt[_pz];
+                            const bg=_pzHeatBg(zs.n>0?zs.avg:null);
+                            const tc=_pzHeatTc(zs.n>0?zs.avg:null);
+                            return `<div style="background:${bg};padding:8px 4px;text-align:center;min-height:66px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;">
+                                ${zs.best?`<div style="font-size:9px;font-weight:800;color:${tc};opacity:0.85;line-height:1.1;">${zs.best}</div>`:''}
+                                <div style="font-size:24px;font-weight:900;font-family:'Oswald',sans-serif;color:${tc};line-height:1.1;">${zs.n||0}</div>
+                                <div style="font-size:10px;font-weight:700;color:${tc};opacity:0.8;">${zs.avg!==null?fmtAvg(zs.avg):'—'}</div>
+                            </div>`;
+                        }).join('')}
                     </div>
-                </div>`;}).join('')}
+                </div>
+                <div style="font-size:12px;font-weight:700;color:#9ca3af;padding:4px 2px;writing-mode:vertical-rl;letter-spacing:2px;">R</div>
             </div>
             <div style="display:flex;gap:10px;font-size:11px;flex-wrap:wrap;">
-                <span><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.400 危</span>
-                <span><span style="display:inline-block;width:10px;height:10px;background:#fef9c3;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.250 注意</span>
-                <span><span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>安全</span>
+                <span><span style="display:inline-block;width:10px;height:10px;background:#b83c1a;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.300 危</span>
+                <span><span style="display:inline-block;width:10px;height:10px;background:#d4751e;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>≥.200 注意</span>
+                <span><span style="display:inline-block;width:10px;height:10px;background:#d8c89a;border-radius:2px;vertical-align:middle;margin-right:2px;"></span>安全</span>
             </div>`}
         </div>`;
 
