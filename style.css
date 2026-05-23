@@ -497,6 +497,7 @@
 
         /* ===== 球種/配球模式 行版型 ===== */
         .pattern-row { display:flex; gap:16px; align-items:center; justify-content:center; }
+        .pattern-section-label { flex:0 0 auto; font-family:'Noto Sans TC',sans-serif; font-size:12px; font-weight:700; color:#fff; background:#003d79; border-radius:6px; padding:4px 8px; white-space:nowrap; align-self:flex-start; margin-top:4px; }
         .pattern-chart-canvas { flex:0 0 auto; width:210px; height:255px; position:relative; }
         @media (max-width:760px) {
             .pattern-row { flex-wrap:wrap; }
