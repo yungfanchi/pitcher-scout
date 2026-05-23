@@ -9065,23 +9065,27 @@
         const _tsK     = _tsPA.filter(p => (p.outcomes||[]).some(o => ['三振','不死三振'].includes(o))).length;
         const _tsHit   = _tsPA.filter(p => (p.outcomes||[]).some(o => HIT.includes(o))).length;
         const _tsOther = _tsTotal - _tsK - _tsHit;
-        const _tsKRate    = _tsTotal > 0 ? _tsK    / _tsTotal : 0;
-        const _tsHitRate  = _tsTotal > 0 ? _tsHit  / _tsTotal : 0;
-        const _tsOthRate  = _tsTotal > 0 ? _tsOther / _tsTotal : 0;
-        // 兩好球被K的球種統計
-        const _tsKTypes = {};
-        _tsPA.filter(p => (p.outcomes||[]).some(o => ['三振','不死三振'].includes(o)))
-            .forEach(p => { if (p.type) _tsKTypes[p.type] = (_tsKTypes[p.type]||0) + 1; });
-        const _tsKBestType = Object.entries(_tsKTypes).sort((a,b) => b[1]-a[1])[0]?.[0] || null;
-        // 連動②：_pzSt 各區最有效球種的出現頻率，找最常見者
+        const _tsKRate   = _tsTotal > 0 ? _tsK   / _tsTotal : 0;
+        const _tsHitRate = _tsTotal > 0 ? _tsHit / _tsTotal : 0;
+        const _tsOthRate = _tsTotal > 0 ? _tsOther / _tsTotal : 0;
+        // 終結球種：只計算出局打席（三振＋其他出局），不含安打
+        const _tsOutPA = _tsPA.filter(p => !(p.outcomes||[]).some(o => HIT.includes(o)));
+        const _tsOutTypes = {};
+        _tsOutPA.forEach(p => { if (p.type) _tsOutTypes[p.type] = (_tsOutTypes[p.type]||0) + 1; });
+        const _tsOutTotal = Object.values(_tsOutTypes).reduce((s,n) => s+n, 0);
+        const _tsTop2 = Object.entries(_tsOutTypes).sort((a,b) => b[1]-a[1]).slice(0,2);
+        const _tsTopType = _tsTop2[0]?.[0] || null;
+        // 連動②：_pzSt 各區最有效球種的出現頻率
         const _tsZoneVotes = {};
         Object.values(_pzSt).forEach(z => { if (z.best) _tsZoneVotes[z.best] = (_tsZoneVotes[z.best]||0)+1; });
         const _tsZoneBest = Object.entries(_tsZoneVotes).sort((a,b) => b[1]-a[1])[0]?.[0] || null;
-        // 結論標籤
+        // 結論標籤：優先依終結球種，再依比率
         const _tsConclusion = (() => {
             if (!_tsTotal) return null;
-            if (_tsKRate >= 0.40) return { text:'兩好球容易被三振', bg:'#dcfce7', color:'#15803d' };
             if (_tsHitRate >= 0.30) return { text:'兩好球仍具威脅', bg:'#fee2e2', color:'#b91c1c' };
+            if (_tsTopType && _tsOutTotal > 0 && (_tsOutTypes[_tsTopType]/_tsOutTotal) >= 0.50)
+                return { text:`兩好球易被${_tsTopType}解決`, bg:'#dcfce7', color:'#15803d' };
+            if (_tsKRate >= 0.40) return { text:'兩好球容易被三振', bg:'#dcfce7', color:'#15803d' };
             if (_tsKRate >= 0.25) return { text:'兩好球有所劣勢', bg:'#fef9c3', color:'#92400e' };
             return { text:'兩好球尚可應對', bg:'#f3f4f6', color:'#374151' };
         })();
@@ -9110,11 +9114,21 @@
                     <div style="font-size:11px;color:#6b7280;">其他出局率</div>
                 </div>
             </div>
-            ${_tsKBestType ? `<div style="padding:8px 10px;background:#f0fdf4;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span style="color:#6b7280;">🎯 最常被K的球種</span>
-                <span style="font-weight:800;color:#10b981;">${_tsKBestType}</span>
-                <span style="color:#9ca3af;">(${_tsKTypes[_tsKBestType]}次)</span>
-                ${(_tsZoneBest && _tsZoneBest !== _tsKBestType) ? `<span style="color:#9ca3af;margin-left:4px;">· ②建議：<span style="font-weight:700;color:#3b82f6;">${_tsZoneBest}</span></span>` : ''}
+            ${_tsTop2.length > 0 ? `
+            <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;">🎯 終結球種（出局打席）</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+                ${_tsTop2.map(([type, cnt], i) => {
+                    const pct = _tsOutTotal > 0 ? Math.round(cnt/_tsOutTotal*100) : 0;
+                    const col = i===0 ? '#10b981' : '#6b7280';
+                    const bg  = i===0 ? '#f0fdf4' : '#f9fafb';
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${bg};border-radius:8px;">
+                        <span style="font-size:13px;font-weight:800;color:${col};min-width:54px;">${type}</span>
+                        <div style="flex:1;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:4px;"></div></div>
+                        <span style="font-size:12px;font-weight:700;color:${col};min-width:34px;text-align:right;">${pct}%</span>
+                        <span style="font-size:11px;color:#9ca3af;">(${cnt}次)</span>
+                    </div>`;
+                }).join('')}
+                ${(_tsZoneBest && !_tsTop2.some(([t])=>t===_tsZoneBest)) ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">②建議：<span style="font-weight:700;color:#3b82f6;">${_tsZoneBest}</span></div>` : ''}
             </div>` : ''}
             `}
         </div>`;
