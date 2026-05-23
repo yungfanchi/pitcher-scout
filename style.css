@@ -226,13 +226,13 @@
         .count-light.out-on { background:#ef4444; border-color:#ef4444; box-shadow:0 0 6px rgba(239,68,68,0.6); }
         .bases-display { background:rgba(0,0,0,0.3); border-radius:8px; padding:8px; border:1px solid rgba(255,215,0,0.2); }
         .bases-title { font-size:15px; color:var(--ct-gold); font-weight:700; text-align:center; margin-bottom:8px; letter-spacing:1px; }
-        .bases-diamond { position:relative; width:76px; height:76px; margin:0 auto; }
-        .base-indicator { position:absolute; width:24px; height:24px; transform:rotate(45deg); background:rgba(255,255,255,0.15); border:2px solid rgba(255,255,255,0.3); transition:all 0.2s; }
+        .bases-diamond { position:relative; width:96px; height:96px; flex-shrink:0; }
+        .base-indicator { position:absolute; width:30px; height:30px; transform:rotate(45deg); background:rgba(255,255,255,0.15); border:2px solid rgba(255,255,255,0.3); transition:all 0.2s; }
         .base-indicator.on { background:var(--ct-yellow); border-color:var(--ct-yellow); box-shadow:0 0 8px rgba(251,191,36,0.7); }
-        .base-1b { top:26px; right:2px; }
-        .base-2b { top:2px; left:26px; }
-        .base-3b { top:26px; left:2px; }
-        .base-home { bottom:2px; left:26px; background:rgba(255,255,255,0.4); border-color:rgba(255,255,255,0.6); }
+        .base-1b { top:33px; right:2px; }
+        .base-2b { top:2px; left:33px; }
+        .base-3b { top:33px; left:2px; }
+        .base-home { bottom:2px; left:33px; background:rgba(255,255,255,0.4); border-color:rgba(255,255,255,0.6); }
 
         /* ===== BATTER INFO (compact) ===== */
         .batter-info {
