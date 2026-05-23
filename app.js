@@ -9149,6 +9149,11 @@
         const _tsOutTotal = Object.values(_tsOutTypes).reduce((s,n) => s+n, 0);
         const _tsTop2 = Object.entries(_tsOutTypes).sort((a,b) => b[1]-a[1]).slice(0,2);
         const _tsTopType = _tsTop2[0]?.[0] || null;
+        // 三振專用球種：三振時投的球種
+        const _tsKPitches = _tsPA.filter(p => (p.outcomes||[]).some(o => ['三振','不死三振'].includes(o)));
+        const _tsKTypes = {};
+        _tsKPitches.forEach(p => { if (p.type) _tsKTypes[p.type] = (_tsKTypes[p.type]||0) + 1; });
+        const _tsKTopType = Object.entries(_tsKTypes).sort((a,b) => b[1]-a[1])[0]?.[0] || null;
         // 連動②：_pzSt 各區最有效球種的出現頻率
         const _tsZoneVotes = {};
         Object.values(_pzSt).forEach(z => { if (z.best) _tsZoneVotes[z.best] = (_tsZoneVotes[z.best]||0)+1; });
@@ -9175,7 +9180,7 @@
             if (_tsHitRate >= 0.30) return { text:'兩好球仍具威脅', bg:'#fee2e2', color:'#b91c1c' };
             if (_tsTopType && _tsOutTotal > 0 && (_tsOutTypes[_tsTopType]/_tsOutTotal) >= 0.50)
                 return { text:`兩好球易被${_tsZoneSuffix}${_tsTopType}解決`, bg:'#dcfce7', color:'#15803d' };
-            if (_tsKRate >= 0.40) return { text:`兩好球${_tsZoneSuffix ? _tsZoneSuffix + '容易被三振' : '容易被三振'}`, bg:'#dcfce7', color:'#15803d' };
+            if (_tsKRate >= 0.40) return { text:`兩好球${_tsZoneSuffix ? _tsZoneSuffix + '容易被三振' : '容易被三振'}${_tsKTopType ? `（${_tsKTopType}）` : ''}`, bg:'#dcfce7', color:'#15803d' };
             if (_tsKRate >= 0.25) return { text:'兩好球有所劣勢', bg:'#fef9c3', color:'#92400e' };
             return { text:'兩好球尚可應對', bg:'#f3f4f6', color:'#374151' };
         })();
