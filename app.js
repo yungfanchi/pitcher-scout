@@ -9080,6 +9080,21 @@
         const _tsZoneVotes = {};
         Object.values(_pzSt).forEach(z => { if (z.best) _tsZoneVotes[z.best] = (_tsZoneVotes[z.best]||0)+1; });
         const _tsZoneBest = Object.entries(_tsZoneVotes).sort((a,b) => b[1]-a[1])[0]?.[0] || null;
+        // 兩好球出局落點：內/外角分佈
+        const _bHand2 = (() => { const m={}; _tsPA.forEach(p=>{const h=p.batterHand||'右打';m[h]=(m[h]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1])[0]?.[0]||'右打'; })();
+        const _inZ2  = _bHand2==='右打' ? new Set(['1','4','7']) : new Set(['3','6','9']);
+        const _outZ2 = _bHand2==='右打' ? new Set(['3','6','9']) : new Set(['1','4','7']);
+        const _tsOutIn  = _tsOutPA.filter(p => _inZ2.has(String(p.zone))).length;
+        const _tsOutOut = _tsOutPA.filter(p => _outZ2.has(String(p.zone))).length;
+        const _tsOutMid = _tsOutPA.filter(p => /^[1-9]$/.test(String(p.zone)) && !_inZ2.has(String(p.zone)) && !_outZ2.has(String(p.zone))).length;
+        const _tsZoneLabel = (() => {
+            const tot = _tsOutIn + _tsOutOut + _tsOutMid;
+            if (!tot) return null;
+            if (_tsOutIn >= _tsOutOut * 1.5 && _tsOutIn >= _tsOutMid) return { text:'內角解決', icon:'⬅️' };
+            if (_tsOutOut >= _tsOutIn * 1.5 && _tsOutOut >= _tsOutMid) return { text:'外角解決', icon:'➡️' };
+            if (_tsOutMid >= _tsOutIn && _tsOutMid >= _tsOutOut) return { text:'中間解決', icon:'⬆️' };
+            return null;
+        })();
         // 結論標籤：優先依終結球種，再依比率
         const _tsConclusion = (() => {
             if (!_tsTotal) return null;
@@ -9099,7 +9114,10 @@
                     <div style="font-size:30px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${_tsTotal}</div>
                     <div style="font-size:11px;color:#9ca3af;">兩好球打席</div>
                 </div>
-                ${_tsConclusion ? `<div style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:800;background:${_tsConclusion.bg};color:${_tsConclusion.color};">${_tsConclusion.text}</div>` : ''}
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    ${_tsConclusion ? `<div style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:800;background:${_tsConclusion.bg};color:${_tsConclusion.color};">${_tsConclusion.text}</div>` : ''}
+                    ${_tsZoneLabel ? `<div style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;background:#eff6ff;color:#1d4ed8;">${_tsZoneLabel.icon} ${_tsZoneLabel.text}</div>` : ''}
+                </div>
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
                 <div style="text-align:center;padding:10px 6px;background:#f0fdf4;border-radius:8px;">
