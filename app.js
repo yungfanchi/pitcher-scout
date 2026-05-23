@@ -8825,17 +8825,21 @@
         }
         const _traitSafe = _trait.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const secNotes = `
-        <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);display:flex;flex-direction:column;height:100%;box-sizing:border-box;">
             <div style="font-size:13px;font-weight:900;color:#003d79;margin-bottom:10px;">📝 情蒐備註</div>
-            <div style="background:#fffbeb;border-radius:8px;padding:12px 14px;border:1px solid #fde68a;min-height:100px;font-size:15px;font-weight:700;color:#374151;line-height:1.9;white-space:pre-wrap;">${_traitSafe || '<span style="font-size:12px;color:#9ca3af;font-weight:400;font-style:italic;">尚未填寫情蒐備註</span>'}</div>
+            <textarea id="bmProfileNotes"
+                placeholder="點此輸入情蒐備註…"
+                style="flex:1;width:100%;border:1.5px solid #fde68a;border-radius:8px;background:#fffbeb;padding:12px 14px;font-size:15px;font-weight:600;color:#374151;line-height:1.9;resize:none;outline:none;font-family:inherit;box-sizing:border-box;min-height:80px;"
+                oninput="saveBmProfileNotes('${_bmNum}',this.value)"
+            >${_traitSafe}</textarea>
         </div>`;
 
         const sec2 = `
         <div style="background:#fffdf5;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
           <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ 打擊落點圖</div>
           ${locs.length === 0
-            ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;"><div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af;">尚無落點資料</div>${secNotes}</div>`
-            : `<div style="display:grid;grid-template-columns:55% 1fr 1fr;gap:16px;align-items:start;">
+            ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;"><div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af;">尚無落點資料</div>${secNotes}</div>`
+            : `<div style="display:grid;grid-template-columns:55% 1fr 1fr;gap:16px;align-items:stretch;">
             <!-- 落點圖 左側 -->
             <div style="min-width:0;">
               ${buildFieldSVG(linesHTML, false, true, hrLinesHTML)}
@@ -9594,6 +9598,19 @@
         saveToFirebase();
         const batter = allData.batterData[batterIdx];
         renderBatterDetail(batter.name, 'standalone', batterIdx);
+    }
+
+    // ── 情蒐備註即時儲存 ──
+
+    function saveBmProfileNotes(bmNum, value) {
+        if (!bmNum) return;
+        _initBmData();
+        [allData.bm.lineupA, allData.bm.lineupB].forEach(lineup => {
+            if (!lineup) return;
+            lineup.forEach(b => { if (String(b.number || '') === String(bmNum)) b.trait = value; });
+        });
+        saveToLocalStorage();
+        saveToFirebase();
     }
 
     // ── 打者分析截圖 ──
