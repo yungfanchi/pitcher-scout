@@ -26,6 +26,7 @@
     let slotB = { team: null, pitcher: null };
     let lastSelectedSlot = 'A'; // 記錄上次記錄投球的 slot，下次自動切換到另一個
     let editingPitchIndex = null;
+    let _pitchLogShowAll = false; // 投球記錄列表是否展開全部
     let statsFilter = 'all'; // 'all' or a gameKey
     let expandedGames = new Set(); // track which game groups are expanded (pitcher mode)
     let bmExpandedGames = new Set(); // track which game groups are expanded (batter mode)
@@ -2404,6 +2405,7 @@
         if (s.team !== null && s.pitcher !== null) {
             currentTeam = s.team;
             currentPitcher = s.pitcher;
+            _pitchLogShowAll = false; // 切換投手時回到「只顯示最近 25 球」
             // 切換槽位時載入該場比賽的打序，避免不同比賽打序互相干擾
             _restoreLineupForTeam(s.team);
             updatePitchLog();
@@ -3706,9 +3708,27 @@
             document.getElementById('totalPitches').textContent = '0'; return;
         }
         const pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
+        const SHOW_LIMIT = 25;
+        const total = pitches.length;
+        const showAll = _pitchLogShowAll || total <= SHOW_LIMIT;
+        const displayPitches = showAll ? pitches : pitches.slice(-SHOW_LIMIT);
+
+        // 「顯示更早的球」按鈕（放在列表最下方，因為列表是由新到舊）
+        if (!showAll) {
+            const moreBtn = document.createElement('div');
+            moreBtn.style.cssText = 'text-align:center;padding:10px 0 4px;';
+            const btn = document.createElement('button');
+            btn.className = 'edit-btn';
+            btn.style.cssText = 'font-size:13px;padding:7px 18px;background:rgba(0,61,121,0.08);color:var(--ct-blue-dark);border:1px solid rgba(0,61,121,0.2);border-radius:6px;cursor:pointer;';
+            btn.textContent = `▲ 顯示更早的 ${total - SHOW_LIMIT} 球（共 ${total} 球）`;
+            btn.addEventListener('click', () => { _pitchLogShowAll = true; updatePitchLog(); });
+            moreBtn.appendChild(btn);
+            logDiv.appendChild(moreBtn);
+        }
+
         let lastBatterKey = null;
-        pitches.slice().reverse().forEach((pitch, revIndex) => {
-            const index = pitches.length - 1 - revIndex;
+        displayPitches.slice().reverse().forEach((pitch, revIndex) => {
+            const index = total - 1 - revIndex;
             const outcomes = pitch.outcomes && pitch.outcomes.length > 0 ? pitch.outcomes : (pitch.outcome ? [pitch.outcome] : []);
 
             // 打席分隔線：當打者或棒次改變時插入
