@@ -652,14 +652,12 @@
                             </div>
                             <div class="bases-display">
                                 <div class="bases-title">壘上 / 盜壘</div>
-                                <div style="display:flex;align-items:center;">
-                                    <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;padding-right:12px;">
-                                        <div class="bases-diamond">
-                                            <div class="base-indicator base-2b" id="base2b" onclick="toggleBase(2)" title="二壘"></div>
-                                            <div class="base-indicator base-3b" id="base3b" onclick="toggleBase(3)" title="三壘"></div>
-                                            <div class="base-indicator base-1b" id="base1b" onclick="toggleBase(1)" title="一壘"></div>
-                                            <div class="base-indicator base-home"></div>
-                                        </div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:20px;width:100%;">
+                                    <div class="bases-diamond" style="flex-shrink:0;">
+                                        <div class="base-indicator base-2b" id="base2b" onclick="toggleBase(2)" title="二壘"></div>
+                                        <div class="base-indicator base-3b" id="base3b" onclick="toggleBase(3)" title="三壘"></div>
+                                        <div class="base-indicator base-1b" id="base1b" onclick="toggleBase(1)" title="一壘"></div>
+                                        <div class="base-indicator base-home"></div>
                                     </div>
                                     <div style="display:flex;flex-direction:column;gap:4px;align-items:stretch;flex-shrink:0;">
                                         <button onclick="stealBase(true)" style="background:#10b981;color:white;border:none;border-radius:6px;padding:4px 8px;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap;" title="盜壘成功：前進一壘">盜壘成功</button>
