@@ -1104,6 +1104,9 @@
 /* 卡片內左右分欄 */
 .bm-card-inner { display:flex; gap:10px; width:100%; }
 .bm-card-batter { flex:1; min-width:0; text-align:center; }
+.bm-card-batter .pitcher-slot-team { font-size:18px; }
+.bm-card-batter .pitcher-slot-name { font-size:44px; }
+.bm-card-batter .pitcher-slot-badge { font-size:15px; padding:5px 14px; }
 .bm-card-vs { width:82px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.18); }
 .bm-vs-hdr { font-size:9px; font-weight:700; color:rgba(255,215,0,0.85); letter-spacing:0.5px; white-space:nowrap; }
 .bm-vs-num { font-size:15px; font-weight:900; color:white; font-family:'Oswald',sans-serif; line-height:1.2; }
