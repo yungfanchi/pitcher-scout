@@ -3409,6 +3409,37 @@
         if (isOut) {
             gameState.outs += isDoublePlay ? 2 : 1;
             gameState.strikes = 0; gameState.balls = 0;
+
+            // 高飛犧牲打/犧牲觸擊：打者出局同時跑者推進（applyBaseRunning 處理壘包與得分）
+            const isSacrifice = outcomes.includes('高飛犧牲打') || outcomes.includes('犧牲觸擊');
+            if (isSacrifice && gameState.outs < 3) {
+                const _sacOldBases = [...gameState.bases];
+                const { newBases: sacBases, runsScored: sacAutoRuns } = applyBaseRunning(gameState.bases, outcomes);
+                gameState.bases = sacBases;
+                _advanceRunners(outcomes, _sacOldBases, {
+                    number: pitch.batterNumber || null,
+                    order:  parseInt(pitch.batterOrder) || 0,
+                    name:   pitch.batterName   || null
+                });
+                if (pitch.finalBases) {
+                    for (let i = 0; i < 3; i++) {
+                        if (!pitch.finalBases[i] && gameState.bases[i]) {
+                            gameState.bases[i] = false;
+                            gameState.runners[i] = null;
+                        }
+                    }
+                }
+                const sacRunsScored = (pitch.runsScored !== undefined && pitch.runsScored !== null)
+                    ? pitch.runsScored : sacAutoRuns;
+                if (sacRunsScored > 0 && currentTeam !== null) {
+                    const score = getTeamScore();
+                    if (gameState.half === '上') score.home = (score.home || 0) + sacRunsScored;
+                    else score.away = (score.away || 0) + sacRunsScored;
+                    updateScoreboard();
+                }
+                renderBases();
+            }
+
             if (gameState.outs >= 3) {
                 // 三出局換局：自動觸發，重置計數與壘包
                 if (currentTeam !== null) {
