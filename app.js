@@ -10429,7 +10429,9 @@
             const arr = saved[key];
             if (!arr) return;
             const list = Array.isArray(arr) ? arr : Object.values(arr);
-            return list.map(p => ({number: p?.number||'', name: p?.name||'', hand: p?.hand||'右打', trait: p?.trait||''}));
+            const result = list.map(p => ({number: p?.number||'', name: p?.name||'', hand: p?.hand||'右打', trait: p?.trait||''}));
+            // 只在有實際內容時才回傳（防止空陣列覆蓋真實打線）
+            return result.some(p => p.number || p.name) ? result : null;
         };
         const lA = _restore('teamA'); if (lA) allData.bm.lineupA = lA; // teamA = team.name → lineupA
         const lB = _restore('teamB'); if (lB) allData.bm.lineupB = lB; // teamB = team.opponent → lineupB
