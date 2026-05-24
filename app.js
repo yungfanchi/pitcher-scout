@@ -10437,6 +10437,7 @@
         _initBmData();
         _saveBmLineupToGame();
         saveToLocalStorage();
+        saveToFirebase();
         if (btn) {
             const orig = btn.textContent;
             btn.textContent = '✓';
@@ -10449,6 +10450,7 @@
         _getLineup(team)[idx][field] = val;
         _saveBmLineupToGame();
         saveToLocalStorage();
+        saveToFirebase();
         if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
     }
 
@@ -10462,6 +10464,7 @@
         btn.classList.toggle('bm-on', next === '右打');
         _saveBmLineupToGame();
         saveToLocalStorage();
+        saveToFirebase();
         if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
     }
 
@@ -10597,7 +10600,9 @@
             }
         }
         _renderBmLineupTeam(team);
+        _saveBmLineupToGame();
         saveToLocalStorage();
+        saveToFirebase();
     }
 
     function clearBmLineup(team) {
