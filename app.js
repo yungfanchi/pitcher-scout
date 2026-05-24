@@ -10107,9 +10107,11 @@
             userMode = 'batter';
             _showBatterModeUI();
             _initBmData();
+            _restoreBmGameStateToUI();
             _renderBmLineup();
             _populateBmGameSelect();
             _renderBmSessionList();
+            _renderBmBatterDisplay();
             switchBatterTab(null, 'record');
         } else {
             userMode = 'pitcher';
@@ -10126,9 +10128,11 @@
         setTimeout(() => {
             _showBatterModeUI();
             _initBmData();
+            _restoreBmGameStateToUI();
             _renderBmLineup();
             _populateBmGameSelect();
             _renderBmSessionList();
+            _renderBmBatterDisplay();
             switchBatterTab(null, 'record');
             _updateModeToggleBtn();
         }, 300);
@@ -10419,6 +10423,84 @@
         allData.teams[gi].lineups.teamA = allData.bm.lineupA.map(p => ({...p})); // team.name 先攻
         allData.teams[gi].lineups.teamB = allData.bm.lineupB.map(p => ({...p})); // team.opponent 後攻
         saveToFirebase(gi);
+    }
+
+    // ★ 將比賽狀態（局數/半局/出局/壘包/棒次）存入 allData.bm 並呼叫 saveToLocalStorage
+    function _saveBmGameState() {
+        _initBmData();
+        allData.bm.currentOrder = _bmState.currentOrder;
+        allData.bm.half   = _bmState.half;
+        allData.bm.outs   = _bmState.outs;
+        allData.bm.bases  = [..._bmState.bases];
+        const inningEl = document.getElementById('bmInning');
+        if (inningEl) allData.bm.inning = parseInt(inningEl.value) || 1;
+        allData.bm.spHalf  = _bmState.spHalf;
+        allData.bm.spOuts  = _bmState.spOuts;
+        allData.bm.spBases = [..._bmState.spBases];
+        const spInningEl = document.getElementById('spInning');
+        if (spInningEl) allData.bm.spInning = parseInt(spInningEl.value) || 1;
+        saveToLocalStorage();
+    }
+
+    // ★ 進入打者模式時，從 allData.bm 還原 _bmState 並同步更新 UI
+    function _restoreBmGameStateToUI() {
+        _initBmData();
+        if ('currentOrder' in allData.bm) _bmState.currentOrder = allData.bm.currentOrder;
+        // 聯動模式
+        if ('half' in allData.bm) {
+            _bmState.half = allData.bm.half;
+            const topBtn = document.getElementById('bmHalfTopBtn');
+            const botBtn = document.getElementById('bmHalfBotBtn');
+            if (topBtn) topBtn.classList.toggle('bm-on', allData.bm.half === '上');
+            if (botBtn) botBtn.classList.toggle('bm-on', allData.bm.half === '下');
+        }
+        if ('outs' in allData.bm) {
+            _bmState.outs = allData.bm.outs;
+            for (let i = 0; i < 3; i++) {
+                const btn = document.getElementById(`bmOD${i}`);
+                if (btn) { btn.classList.toggle('bm-on', i < allData.bm.outs); btn.textContent = i < allData.bm.outs ? '●' : '○'; }
+            }
+        }
+        if (Array.isArray(allData.bm.bases)) {
+            _bmState.bases = [...allData.bm.bases];
+            const labels = ['一壘','二壘','三壘'];
+            ['bmBase1','bmBase2','bmBase3'].forEach((id, i) => {
+                const btn = document.getElementById(id);
+                if (btn) { btn.classList.toggle('bm-on', _bmState.bases[i]); btn.textContent = (_bmState.bases[i] ? '●' : '') + labels[i]; }
+            });
+        }
+        if ('inning' in allData.bm) {
+            const el = document.getElementById('bmInning');
+            if (el) el.value = allData.bm.inning;
+        }
+        // 獨立模式
+        if ('spHalf' in allData.bm) {
+            _bmState.spHalf = allData.bm.spHalf;
+            const t = document.getElementById('spHalfTopBtn');
+            const b = document.getElementById('spHalfBotBtn');
+            if (t) t.classList.toggle('bm-on', allData.bm.spHalf === '上');
+            if (b) b.classList.toggle('bm-on', allData.bm.spHalf === '下');
+        }
+        if ('spOuts' in allData.bm) {
+            _bmState.spOuts = allData.bm.spOuts;
+            ['spOD0','spOD1','spOD2'].forEach((id, i) => {
+                const btn = document.getElementById(id);
+                if (btn) { btn.classList.toggle('bm-on', i < allData.bm.spOuts); btn.textContent = i < allData.bm.spOuts ? '●' : '○'; }
+            });
+        }
+        if (Array.isArray(allData.bm.spBases)) {
+            _bmState.spBases = [...allData.bm.spBases];
+            const labels = ['一壘','二壘','三壘'];
+            ['spBase1','spBase2','spBase3'].forEach((id, i) => {
+                const btn = document.getElementById(id);
+                if (btn) { btn.classList.toggle('bm-on', _bmState.spBases[i]); btn.textContent = (_bmState.spBases[i] ? '●' : '') + labels[i]; }
+            });
+        }
+        if ('spInning' in allData.bm) {
+            _bmState.spInning = allData.bm.spInning;
+            const el = document.getElementById('spInning');
+            if (el) el.value = allData.bm.spInning;
+        }
     }
 
     // ★ 切換賽事時從賽事資料還原打線
@@ -11149,11 +11231,13 @@
         _bmState.currentOrder = (_bmState.currentOrder + 8) % 9;
         _renderBmBatterDisplay();
         resetBmLinkedForm();
+        _saveBmGameState();
     }
     function nextBmBatter() {
         _bmState.currentOrder = (_bmState.currentOrder + 1) % 9;
         _renderBmBatterDisplay();
         resetBmLinkedForm();
+        _saveBmGameState();
     }
 
     function resetBmLinkedForm() {
@@ -11199,6 +11283,7 @@
         const b = document.getElementById('spHalfBotBtn');
         if (t) t.classList.toggle('bm-on', half==='上');
         if (b) b.classList.toggle('bm-on', half==='下');
+        _saveBmGameState();
     }
 
     function toggleSpBase(idx) {
@@ -11210,11 +11295,11 @@
             btn.classList.toggle('bm-on', _bmState.spBases[idx]);
             btn.textContent = (_bmState.spBases[idx] ? '●' : '') + labels[idx];
         }
+        _saveBmGameState();
     }
 
     function setSpOuts(n) {
         _bmState.spOuts = n + 1 > _bmState.spOuts ? n + 1 : n;
-        const max = 3;
         ['spOD0','spOD1','spOD2'].forEach((id, i) => {
             const dot = document.getElementById(id);
             if (dot) {
@@ -11223,6 +11308,7 @@
                 dot.textContent = lit ? '●' : '○';
             }
         });
+        _saveBmGameState();
     }
 
     // ── 獨立模式：打席結果選擇（內嵌式，非彈窗） ──
@@ -11286,6 +11372,7 @@
         const botBtn = document.getElementById('bmHalfBotBtn');
         if (topBtn) topBtn.classList.toggle('bm-on', half==='上');
         if (botBtn) botBtn.classList.toggle('bm-on', half==='下');
+        if (userMode === 'batter') _saveBmGameState();
     }
 
     function setBmOuts(n) {
@@ -11296,6 +11383,7 @@
             btn.classList.toggle('bm-on', i < n);
             btn.textContent = i < n ? '●' : '○';
         }
+        if (userMode === 'batter') _saveBmGameState();
     }
 
     function toggleBmBase(idx) {
@@ -11307,6 +11395,7 @@
             btn.classList.toggle('bm-on', _bmState.bases[idx]);
             btn.textContent = (_bmState.bases[idx] ? '●' : '') + labels[idx];
         }
+        _saveBmGameState();
     }
 
     function selectBmPh(hand, side) {

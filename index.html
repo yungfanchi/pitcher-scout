@@ -1302,7 +1302,8 @@
                             <span style="font-size:15px;font-weight:700;color:#374151;">第</span>
                             <input type="number" id="bmInning" value="1" min="1" max="15" inputmode="numeric"
                                 style="width:42px;padding:5px 3px;text-align:center;border:1.5px solid #d1d5db;border-radius:7px;font-size:16px;font-weight:700;font-family:'Oswald',inherit;"
-                                onkeydown="if(event.key==='Enter')this.blur()">
+                                onkeydown="if(event.key==='Enter')this.blur()"
+                                onchange="_saveBmGameState()">
                             <span style="font-size:15px;font-weight:700;color:#374151;">局</span>
                             <button id="bmHalfTopBtn" class="bm-toggle-btn bm-on" onclick="selectBmHalf('上')" style="padding:6px 10px;font-size:14px;">上半</button>
                             <button id="bmHalfBotBtn" class="bm-toggle-btn" onclick="selectBmHalf('下')" style="padding:6px 10px;font-size:14px;">下半</button>
@@ -1372,7 +1373,8 @@
                         <span style="font-size:12px;font-weight:700;color:#374151;">第</span>
                         <input type="number" id="spInning" value="1" min="1" max="15" inputmode="numeric"
                             style="width:38px;padding:3px;text-align:center;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;"
-                            onkeydown="if(event.key==='Enter')this.blur()">
+                            onkeydown="if(event.key==='Enter')this.blur()"
+                            onchange="_saveBmGameState()">
                         <span style="font-size:12px;font-weight:700;color:#374151;">局</span>
                         <button id="spHalfTopBtn" class="bm-toggle-btn bm-on" onclick="selectSpHalf('上')">上半</button>
                         <button id="spHalfBotBtn" class="bm-toggle-btn" onclick="selectSpHalf('下')">下半</button>
