@@ -10504,12 +10504,13 @@
     }
 
     // ★ 切換賽事時從賽事資料還原打線
+    // 回傳 true 表示有讀到真實資料；false 表示賽事無儲存打線（供呼叫端決定是否 fallback）
     function _loadBmLineupFromGame(gi) {
         const saved = allData.teams[gi]?.lineups;
-        if (!saved) return;
+        if (!saved) return false;
         const _restore = (key) => {
             const arr = saved[key];
-            if (!arr) return;
+            if (!arr) return null;
             const list = Array.isArray(arr) ? arr : Object.values(arr);
             const result = list.map(p => ({number: p?.number||'', name: p?.name||'', hand: p?.hand||'右打', trait: p?.trait||''}));
             // 只在有實際內容時才回傳（防止空陣列覆蓋真實打線）
@@ -10517,7 +10518,9 @@
         };
         const lA = _restore('teamA'); if (lA) allData.bm.lineupA = lA; // teamA = team.name → lineupA
         const lB = _restore('teamB'); if (lB) allData.bm.lineupB = lB; // teamB = team.opponent → lineupB
-        _renderBmLineup();
+        const loaded = !!(lA || lB);
+        if (loaded) _renderBmLineup();
+        return loaded;
     }
 
     function saveBmLineupManual(team, btn) {
@@ -10857,9 +10860,9 @@
                         const sel = document.getElementById('bmGameSelect');
                         if (sel) sel.value = i;
                         switchBmRecordMode('linked');
-                        // 優先從賽事資料還原打線，沒有再從 gameState 同步
-                        _loadBmLineupFromGame(i);
-                        _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
+                        // 優先從賽事資料還原打線，沒有資料才 fallback 到 gameState
+                        const _loaded = _loadBmLineupFromGame(i);
+                        if (!_loaded) _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
                         _updateBmTeamBtns();
                         _renderBmSessionList();
                         _renderBmLineup();
@@ -10894,9 +10897,10 @@
         saveToLocalStorage();
         // ★ 自動連動：選了賽事→聯動模式；選不連動→獨立模式
         switchBmRecordMode(allData.bm.gameIdx >= 0 ? 'linked' : 'standalone');
-        // ★ 聯動模式：自動帶入對應隊的打線（優先從 gameState 帶入）
+        // ★ 聯動模式：優先從賽事儲存打線還原，沒有資料才 fallback 到 gameState
         if (allData.bm.gameIdx >= 0) {
-            _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
+            const _loaded = _loadBmLineupFromGame(allData.bm.gameIdx);
+            if (!_loaded) _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
         }
         _updateBmTeamBtns();
     }
