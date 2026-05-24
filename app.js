@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v196';
+﻿    const APP_VERSION = 'v274';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -783,24 +783,6 @@
         }
 
         closePDFFilter();
-
-        // 2. 建立合成投手放到 allData.teams
-        const handSuffix = handFilter === 'left' ? ' (對左打)' : handFilter === 'right' ? ' (對右打)' : '';
-        const syntheticTeam = {
-            gameName: '📄 PDF 報告',
-            name: refPitcher?.name || pitcherName,
-            opponent: handSuffix.trim() || '全部打者',
-            date: new Date().toISOString().split('T')[0],
-            pitchers: [{
-                name: pitcherName + handSuffix,
-                number: refPitcher?.number || '',
-                hand: refPitcher?.hand || '',
-                role: refPitcher?.role || '',
-                style: refPitcher?.style || '',
-                pitches: filtered,
-                score: { home:0, away:0, inning:1, half:'上' }
-            }]
-        };
 
         // 組合要截圖的 tab 列表
         const tabIds = [];
