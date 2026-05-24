@@ -10391,8 +10391,8 @@
         const { nameA, nameB } = _getBmTeamNames();
         const ta = document.getElementById('bmLineupTitleA');
         const tb = document.getElementById('bmLineupTitleB');
-        if (ta) ta.textContent = (nameA || 'A隊') + ' 打線';
-        if (tb) tb.textContent = (nameB || 'B隊') + ' 打線';
+        if (ta) ta.textContent = (nameA || '後攻') + ' 打線';
+        if (tb) tb.textContent = (nameB || '先攻') + ' 打線';
     }
 
     function toggleBmLineupPanel(team) {
@@ -10890,16 +10890,16 @@
         const tb = document.getElementById('bmTeamBBtn');
         if (!ta || !tb) return;
 
-        let nameA = 'A隊'; // 後攻
-        let nameB = 'B隊'; // 先攻
+        let nameA = '後攻';
+        let nameB = '先攻';
 
         if (_bmState.recMode === 'linked') {
             _initBmData();
             const gi = allData.bm.gameIdx;
             if (gi >= 0 && allData.teams && allData.teams[gi]) {
                 const t = allData.teams[gi];
-                nameB = t.name     || 'B隊';  // name = 先攻
-                nameA = t.opponent || 'A隊';  // opponent = 後攻
+                nameB = t.name     || '先攻';  // name = 先攻
+                nameA = t.opponent || '後攻';  // opponent = 後攻
             }
         } else {
             // 獨立模式：用賽事資訊欄位
@@ -11036,15 +11036,20 @@
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
     }
 
-    // ── 取得聯動模式的球隊名稱 ──
+    // ── 取得打者模式的球隊名稱（A=後攻/opponent, B=先攻/name）──
     function _getBmTeamNames() {
         _initBmData();
-        let nameA = 'A隊（後攻）', nameB = 'B隊（先攻）';
-        const gi = allData.bm.gameIdx;
-        if (gi >= 0 && allData.teams && allData.teams[gi]) {
-            const t = allData.teams[gi];
-            if (t.name)     nameA = t.name;
-            if (t.opponent) nameB = t.opponent;
+        let nameA = '後攻', nameB = '先攻';
+        if (_bmState.recMode === 'linked') {
+            const gi = allData.bm.gameIdx;
+            if (gi >= 0 && allData.teams && allData.teams[gi]) {
+                const t = allData.teams[gi];
+                if (t.opponent) nameA = t.opponent;  // A 槽 = 後攻 = opponent
+                if (t.name)     nameB = t.name;      // B 槽 = 先攻 = name
+            }
+        } else {
+            if (allData.bm.spOpponent)  nameA = allData.bm.spOpponent;
+            if (allData.bm.spTeamName)  nameB = allData.bm.spTeamName;
         }
         return { nameA, nameB };
     }

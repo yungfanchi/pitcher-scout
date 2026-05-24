@@ -412,8 +412,8 @@
                     <option value="-1" style="background:#003d79;">— 不連動 —</option>
                 </select>
                 <div style="display:flex;gap:5px;">
-                    <button id="bmTeamABtn" class="bm-team-btn bm-sidebar-team" onclick="selectBmTeam('A')">A隊 進攻</button>
-                    <button id="bmTeamBBtn" class="bm-team-btn bm-sidebar-team bm-on" onclick="selectBmTeam('B')">B隊 進攻</button>
+                    <button id="bmTeamABtn" class="bm-team-btn bm-sidebar-team" onclick="selectBmTeam('A')">後攻 進攻</button>
+                    <button id="bmTeamBBtn" class="bm-team-btn bm-sidebar-team bm-on" onclick="selectBmTeam('B')">先攻 進攻</button>
                 </div>
             </div>
 
@@ -1158,7 +1158,7 @@
                     <div class="active-indicator" id="bmActiveIndA" style="display:none;"></div>
                     <div class="bm-card-inner">
                         <div class="bm-card-batter">
-                            <div class="pitcher-slot-team" id="bmSlotTeamA">A隊（後攻）</div>
+                            <div class="pitcher-slot-team" id="bmSlotTeamA">後攻</div>
                             <div class="pitcher-slot-name" id="bmSlotNumA">#--</div>
                             <div style="font-size:19px;font-weight:700;color:rgba(255,255,255,0.9);margin-top:3px;" id="bmSlotNameA">（未設打線）</div>
                             <div class="pitcher-slot-meta">
@@ -1180,7 +1180,7 @@
                 </div>
                 <div class="bm-lineup-module" id="bmLineupModuleA">
                     <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('A')">
-                        <span class="bm-lineup-module-title" id="bmLineupTitleA">A隊 打線</span>
+                        <span class="bm-lineup-module-title" id="bmLineupTitleA">後攻 打線</span>
                         <div class="bm-lineup-module-btns" onclick="event.stopPropagation()">
                             <button class="bm-lm-btn" onclick="copyBmLineup('A')">複製</button>
                             <button class="bm-lm-btn bm-lm-save" onclick="saveBmLineupManual('A',this)">儲存</button>
@@ -1199,7 +1199,7 @@
                     <div class="active-indicator" id="bmActiveIndB"></div>
                     <div class="bm-card-inner">
                         <div class="bm-card-batter">
-                            <div class="pitcher-slot-team" id="bmSlotTeamB">B隊（先攻）</div>
+                            <div class="pitcher-slot-team" id="bmSlotTeamB">先攻</div>
                             <div class="pitcher-slot-name" id="bmSlotNumB">#--</div>
                             <div style="font-size:19px;font-weight:700;color:rgba(255,255,255,0.9);margin-top:3px;" id="bmSlotNameB">（未填姓名）</div>
                             <div class="pitcher-slot-meta">
@@ -1221,7 +1221,7 @@
                 </div>
                 <div class="bm-lineup-module" id="bmLineupModuleB">
                     <div class="bm-lineup-module-hdr" onclick="toggleBmLineupPanel('B')">
-                        <span class="bm-lineup-module-title" id="bmLineupTitleB">B隊 打線</span>
+                        <span class="bm-lineup-module-title" id="bmLineupTitleB">先攻 打線</span>
                         <div class="bm-lineup-module-btns" onclick="event.stopPropagation()">
                             <button class="bm-lm-btn" onclick="copyBmLineup('B')">複製</button>
                             <button class="bm-lm-btn bm-lm-save" onclick="saveBmLineupManual('B',this)">儲存</button>
