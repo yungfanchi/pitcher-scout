@@ -11079,11 +11079,11 @@
         const isA = attackingTeam === 'A';
         const { nameA, nameB } = _getBmTeamNames();
 
-        // 更新隊名標籤
+        // 更新隊名標籤（有球隊名稱時加上先攻/後攻括號）
         const ta = document.getElementById('bmSlotTeamA');
         const tb = document.getElementById('bmSlotTeamB');
-        if (ta) ta.textContent = nameA;
-        if (tb) tb.textContent = nameB;
+        if (ta) ta.textContent = nameA === '後攻' ? nameA : nameA + '（後攻）';
+        if (tb) tb.textContent = nameB === '先攻' ? nameB : nameB + '（先攻）';
 
         // 進攻槽位：顯示當前打者
         const actNum   = document.getElementById(isA ? 'bmSlotNumA'   : 'bmSlotNumB');
