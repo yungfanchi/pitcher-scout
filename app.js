@@ -3434,6 +3434,15 @@
                 order:  parseInt(pitch.batterOrder) || 0,
                 name:   pitch.batterName   || null
             });
+            // 若使用者已確認壘況（得分多於算法值），以確認值覆蓋（清除已得分的跑者）
+            if (pitch.finalBases) {
+                for (let i = 0; i < 3; i++) {
+                    if (!pitch.finalBases[i] && gameState.bases[i]) {
+                        gameState.bases[i] = false;
+                        gameState.runners[i] = null;
+                    }
+                }
+            }
             // 優先使用使用者確認過的得分（pitch.runsScored），舊資料無此欄則退回算法值
             const runsScored = (pitch.runsScored !== undefined && pitch.runsScored !== null)
                 ? pitch.runsScored : autoRuns;
@@ -8033,6 +8042,21 @@
                 else                   score.away = Math.max(0, (score.away || 0) + delta);
                 updateScoreboard();
             }
+        }
+
+        // 實際得分 > 算法值：把多出來的跑者從壘包移除（由三壘往一壘），並存入 pitch.finalBases
+        if (actualRuns > autoRuns) {
+            const extra = actualRuns - autoRuns;
+            let removed = 0;
+            for (let i = 2; i >= 0 && removed < extra; i--) {
+                if (gameState.bases[i]) {
+                    gameState.bases[i] = false;
+                    if (gameState.runners) gameState.runners[i] = null;
+                    removed++;
+                }
+            }
+            pitch.finalBases = [...gameState.bases];
+            renderBases();
         }
 
         rebuildPitcherDB();
