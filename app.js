@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v277';
+﻿    const APP_VERSION = 'v278';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2372,6 +2372,29 @@
     }
 
     // ====== SLOT SYSTEM ======
+
+    /**
+     * 清空 gameState.lineups，再從指定賽事載入打序。
+     * 必須先清空，否則切換賽事時前一場的打序資料會殘留（不同賽事打線互相污染）。
+     */
+    function _restoreLineupForTeam(teamIndex) {
+        const empty = () => ({ number: '', name: '', hand: '右打' });
+        gameState.lineups.teamA = Array.from({ length: 10 }, empty);
+        gameState.lineups.teamB = Array.from({ length: 10 }, empty);
+        const saved = allData.teams[teamIndex]?.lineups;
+        if (saved) {
+            ['teamA', 'teamB'].forEach(side => {
+                const arr = saved[side];
+                if (!arr) return;
+                const list = Array.isArray(arr) ? arr : Object.values(arr);
+                list.forEach((p, i) => {
+                    if (p) gameState.lineups[side][i + 1] = { number: p.number||'', name: p.name||'', hand: p.hand||'右打' };
+                });
+            });
+        }
+        lineup = gameState.half === '上' ? gameState.lineups.teamA : gameState.lineups.teamB;
+    }
+
     function activateSlot(slot) {
         activeSlot = slot;
         document.getElementById('slotA').classList.toggle('active-slot', slot === 'A');
@@ -2381,6 +2404,8 @@
         if (s.team !== null && s.pitcher !== null) {
             currentTeam = s.team;
             currentPitcher = s.pitcher;
+            // 切換槽位時載入該場比賽的打序，避免不同比賽打序互相干擾
+            _restoreLineupForTeam(s.team);
             updatePitchLog();
             updateStats();
             updateScoreboard();
@@ -2412,19 +2437,8 @@
         _bmAnalysisBatterFilter = null;
         expandedTeams.add(teamIndex);
 
-        // 還原該賽事的打序（若曾儲存過）
-        const _savedLineups = allData.teams[teamIndex]?.lineups;
-        if (_savedLineups) {
-            ['teamA','teamB'].forEach(side => {
-                const arr = _savedLineups[side];
-                if (!arr) return;
-                const list = Array.isArray(arr) ? arr : Object.values(arr);
-                list.forEach((p, i) => {
-                    if (p) gameState.lineups[side][i + 1] = { number: p.number||'', name: p.name||'', hand: p.hand||'右打' };
-                });
-            });
-            lineup = gameState.half === '上' ? gameState.lineups.teamA : gameState.lineups.teamB;
-        }
+        // 清空後還原該賽事打序（先清空確保不同賽事打序不互相污染）
+        _restoreLineupForTeam(teamIndex);
 
         // 閃爍提示目前放入的 slot
         const slotEl = document.getElementById('slot' + activeSlot);
