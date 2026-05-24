@@ -144,7 +144,7 @@
         .pitcher-slot {
             border-radius:12px; padding:16px 18px; cursor:pointer; transition:all 0.2s;
             position:relative; display:flex; flex-direction:column; justify-content:space-between;
-            min-height:110px; border:2px solid transparent;
+            min-height:110px; border:2px solid transparent; text-align:center;
         }
         .pitcher-slot-a {
             background:#001f3f; border-color:#c0c8d0;
@@ -165,8 +165,8 @@
         }
         .pitcher-slot-label { display:none; }
         .pitcher-slot-team {
-            font-size:14px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
-            margin-bottom:6px; opacity:0.75;
+            font-size:16px; font-weight:700; letter-spacing:1px;
+            margin-bottom:6px; opacity:0.85;
         }
         .pitcher-slot-a .pitcher-slot-team { color:#c0c8d0; }
         .pitcher-slot-b .pitcher-slot-team { color:#aaa; }
@@ -177,7 +177,7 @@
         .pitcher-slot-a .pitcher-slot-name { color:#ffffff; }
         .pitcher-slot-b .pitcher-slot-name { color:#e0e0e0; }
         .pitcher-slot-meta {
-            display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:8px;
+            display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-top:8px;
         }
         .pitcher-slot-badge {
             font-size:13px; font-weight:700; padding:3px 10px; border-radius:4px;
@@ -1103,7 +1103,7 @@
 .bm-match-col.bm-col-active { border-color:var(--ct-gold); box-shadow:0 0 0 3px rgba(255,215,0,0.22); }
 /* 卡片內左右分欄 */
 .bm-card-inner { display:flex; gap:10px; width:100%; }
-.bm-card-batter { flex:1; min-width:0; }
+.bm-card-batter { flex:1; min-width:0; text-align:center; }
 .bm-card-vs { width:82px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding-left:10px; border-left:1px solid rgba(255,255,255,0.18); }
 .bm-vs-hdr { font-size:9px; font-weight:700; color:rgba(255,215,0,0.85); letter-spacing:0.5px; white-space:nowrap; }
 .bm-vs-num { font-size:15px; font-weight:900; color:white; font-family:'Oswald',sans-serif; line-height:1.2; }
