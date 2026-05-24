@@ -8,10 +8,11 @@
 ## 專案基本資訊
 
 - **專案名稱**：情蒐系統（Chinese Taipei Pitcher Scouting）
-- **目標用戶**：國小到國家隊的棒壘球教練、情蒐員 運動選手家長
+- **目標用戶**：國小到國家隊的棒壘球教練、情蒐員、運動選手家長
 - **架構**：單頁 PWA，拆分為 `index.html`（HTML 結構）、`style.css`（樣式）、`app.js`（邏輯）
 - **部署**：GitHub Pages（HTTPS），已可安裝到手機/平板桌面
 - **資料庫**：Firebase Realtime Database（雲端同步）+ localStorage（本機備份）
+- **目前版本**：v296（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
 
 ---
 
@@ -22,9 +23,9 @@
 | 前端 | 純 HTML + CSS + 原生 JavaScript（無框架） |
 | 資料庫 | Firebase 9.23.0 Compat SDK（Realtime Database） |
 | 字體 | Bebas Neue、Oswald、Noto Sans TC（Google Fonts） |
-| 工具 | html2canvas 1.4.1、jsPDF 2.5.1（用於報表輸出） |
-| PWA | manifest.json + sw.js（Service Worker） |
-| 版控 | Git（需確認 repo 位置） |
+| 工具 | html2canvas 1.4.1、jsPDF 2.5.1、Chart.js 4.4.4（統計圖表） |
+| PWA | manifest.json + sw.js（Service Worker，CACHE_NAME = `pitcher-scout-v{版本號}`） |
+| 版控 | Git → GitHub（yungfanchi/pitcher-scout），部署到 GitHub Pages |
 
 ---
 
@@ -35,6 +36,7 @@
 allData = {
   teams: [
     {
+      gameId: 'uuid-xxx',              // Firebase key（唯一，自動產生）
       gameName: '2026 世界盃青棒賽',  // 賽事名稱（用於分組）
       name: '中華台北',               // 我方球隊
       opponent: '日本',               // 對手
@@ -48,7 +50,7 @@ allData = {
           style: '速球型',
           pitches: [                  // 每球記錄
             {
-              type: '快速球',          // 球種
+              type: '快速球',          // 球種（見球種列表）
               zone: '5',              // 好球帶 1-9，壞球 B1-B16
               result: '好球',          // 好球 / 壞球
               speed: 132,             // 球速 km/h
@@ -62,20 +64,59 @@ allData = {
               balls: 2,
               strikes: 1,
               runnersOn: false,
+              runsScored: 0,          // 使用者確認的得分
+              finalBases: [f,f,f],    // 使用者確認的壘況
               timestamp: 1234567890
             }
           ],
           score: { home: 2, away: 5, inning: 7, half: '下' }
         }
-      ]
+      ],
+      lineups: {
+        teamA: Array(10),  // 先攻打線
+        teamB: Array(10)   // 後攻打線
+      }
     }
   ],
-  pitcherDB: {}  // 跨場次同名投手彙整（由 rebuildPitcherDB() 產生）
+  pitcherDB: {},   // 跨場次同名投手彙整（由 rebuildPitcherDB() 產生）
+  batterData: [    // 打者資料庫（獨立節點，與 games 分開存）
+    {
+      name: '陳大文',
+      number: '3',
+      hand: '右打',
+      team: '中華台北',
+      atBats: [
+        {
+          date: '2026-05-10',
+          opponent: '日本',
+          pitcherName: '...',
+          outcome: '一壘安打',
+          direction: '左',
+          isBunt: false,
+          isRunAndHit: false,
+          isPinch: false,
+          runnersOn: true
+        }
+      ]
+    }
+  ]
 }
 
 // 當前情蒐槽位
 slotA = { team: null, pitcher: null }  // A 槽
 slotB = { team: null, pitcher: null }  // B 槽
+
+// 使用模式
+userMode = 'pitcher' | 'batter'  // 登入後選擇，影響整體介面
+```
+
+### Firebase 節點結構
+
+```
+teams/{teamCode}/
+  config/           ← 球隊設定（scoutPw hash、viewPw hash、teamName）
+  games/{gameId}    ← 每場比賽資料（per-game write）
+  batterData/       ← 打者資料庫（獨立節點）
 ```
 
 ---
@@ -84,8 +125,10 @@ slotB = { team: null, pitcher: null }  // B 槽
 
 - **情蒐員（Scout）**：可新增/編輯資料，有完整側邊欄操作
 - **觀看者（Viewer）**：唯讀模式，只能看統計分析，無法輸入
-- 登入邏輯在 `loginTeamCode`（球隊代碼）+ 密碼驗證
-- Firebase DB key 格式：`chineseTaipei_{teamCode}`
+- **管理員（Admin）**：本地驗證，可建立/管理各球隊帳號
+- 登入流程：球隊代碼 + 密碼 → 本地快取驗證（SHA-256）→ Firebase 驗證
+- 密碼儲存：SHA-256 雜湊，向下相容舊明文帳號
+- 離線登入：首次連線後快取憑證，之後可離線登入
 
 ---
 
@@ -94,42 +137,54 @@ slotB = { team: null, pitcher: null }  // B 槽
 ### 1. 側邊欄
 - 新增球隊/賽事
 - 投手選擇（點擊 tag 分配到 A/B 槽）
-- 按賽事名稱分組顯示
+- 按賽事名稱分組顯示（可展開/收折）
 - 快速備份/還原/雲端同步
 
 ### 2. 雙投手槽位（A/B）
 - A 槽：深藍底（中華台北主色）
 - B 槽：深灰底（對手用）
-- 點擊切換當前情蒐對象
-- 切換時自動儲存
+- 點擊切換當前情蒐對象，切換時自動儲存
 
-### 3. 記錄分頁（recordTab）
-- 即時記分板（比分、局數、上下局）
-- 壘上狀況（壘包圖示）
+### 3. 記錄分頁（recordTab）— 投手模式
+- 即時記分板（比分、局數、上下局、出局數）
+- 壘上狀況（壘包圖示，含跑者身份追蹤）
 - 球數顯示（好壞球燈號）
-- 打者資訊（背號、打序、慣用手）
+- 打者資訊（背號、打序、慣用手）+ 打線管理
 - 5x5 投球落點九宮格（3x3 好球帶 + 周邊壞球區）
-- 球種選擇（6種）
-- 球速輸入（快捷鍵 + 手動）
-- 揮棒/觸身球/暴投 checkbox
-- 打席結果記錄
-- 確認記錄按鈕
+- 球種選擇（7 種）：快速球、上飄球、下墜球、變速球、二速球、內曲、外曲
+- 球速輸入（快捷鍵按鈕 + 手動輸入）
+- 揮棒/觸身球/暴投/捕逸 checkbox
+- 打席結果記錄（含壘包確認、得分確認）
+- 落球點記錄（安打方向）
 
-### 4. 統計分頁（stats）
-- 投球數、好球率、各球種使用率
-- 球速統計（平均/最高/最低）
-- 好球帶熱區圖（3x3 格）
-- 壞球分佈圖（5x5 格）
+### 4. 打者模式（userMode = 'batter'）
+- 獨立的打者資料庫（batterData）
+- 記錄每打席：結果、打擊方向、戰術（短打/跑打/代打）、壘上狀況
+- 打者統計分頁（打擊率、各類型分布、壘上應對）
+- 打者情蒐卡（歷史比對）
 
-### 5. 分析分頁（analysis）
-- 投球傾向（領先/落後球數時的選球）
+### 5. 統計分頁（statsTab）
+- 投球數、好球率、各球種使用率（圓餅圖）
+- 球速統計（平均/最高/最低、折線圖）
+- 好球帶熱區圖（3x3）、壞球分佈圖（5x5）
+- 支援篩選：全部場次 / 指定場次
+
+### 6. 分析分頁（analysisTab）
+- 投球傾向（領先/落後/平球數時的選球）
 - 壘上狀況分析
 - 對陣左右打者差異
+- 配球模式、首球、兩好球分析
 - 跨場次同名投手彙整比對
 
-### 6. 對比分頁（compare）
+### 7. 對比分頁（compareTab）
 - A vs B 槽投手數據並列比較
 - 跨賽事歷史對戰記錄（historyModal）
+
+### 8. PDF 報表匯出
+- 入口：`exportReportPDF()` → `openPDFFilter()` → `_buildAndOpenReport()`
+- 支援篩選：指定投手、全部/指定場次、左/右/全部打者
+- 新開視窗顯示 HTML 報表（含統計、熱區、球種分析）
+- html2canvas 截圖各分頁後合成 PDF
 
 ---
 
@@ -145,6 +200,8 @@ slotB = { team: null, pitcher: null }  // B 槽
 --ct-gray: #f5f5f5
 --ct-green: #10b981       /* 壞球顏色 */
 --ct-yellow: #fbbf24      /* 記分板數字 */
+--ct-orange: #f97316
+--ct-purple: #7c3aed
 ```
 
 字體優先序：`'Oswald'` 用於標題/數據，`'Noto Sans TC'` 用於中文內容，`'Bebas Neue'` 用於大標題。
@@ -167,8 +224,8 @@ slotB = { team: null, pitcher: null }  // B 槽
 | 函式 | 功能 |
 |------|------|
 | `init()` | 初始化，載入 localStorage → Firebase |
-| `injectDemoData()` | 注入測試資料（已從 init 移除，需測試時從 console 手動呼叫） |
-| `saveToFirebase()` | 寫入 Firebase |
+| `injectDemoData()` | 注入測試資料（console 手動呼叫，勿放進 init） |
+| `saveToFirebase(gameIdx?)` | 寫入 Firebase（內建 300ms debounce，gameIdx 可指定單場） |
 | `saveToLocalStorage()` | 備份到 localStorage |
 | `updateTeamList()` | 重繪側邊欄球隊列表 |
 | `updateSlotDisplay()` | 更新 A/B 槽卡片顯示 |
@@ -176,39 +233,46 @@ slotB = { team: null, pitcher: null }  // B 槽
 | `updateStats()` | 重算並重繪統計 |
 | `recordPitch()` | 記錄一球（核心函式） |
 | `activateSlot('A'/'B')` | 切換當前情蒐槽位 |
-| `rebuildPitcherDB()` | 重建跨場次投手DB |
+| `rebuildPitcherDB()` | 重建跨場次投手DB（全量重算，import 後呼叫） |
 | `refreshData()` | 從 Firebase 拉取最新資料 |
+| `exportReportPDF()` | 開啟 PDF 報表篩選器 |
+| `updateGameStateFromPitch(pitch)` | 根據一球更新比賽狀態（壘包/球數/出局） |
+| `applyBaseRunning(bases, outcomes)` | 計算壘包推進與得分（返回 newBases + runsScored） |
 
 ---
 
-## 已知待優化項目（按優先序）
-
-### 🔴 高優先
-- [x] `injectDemoData()` 已從 `init()` 移除，僅保留供 console 手動呼叫（測試用）
-- [x] CSS/JS 已拆分為獨立檔案（`style.css`、`app.js`）
-- [x] 密碼改用 SHA-256 雜湊儲存（Web Crypto API），向下相容舊明文帳號
+## 已知待優化項目
 
 ### 🟡 中優先
-- [ ] 球種可讓使用者自訂（不只固定 6 種）
-- [ ] 報表匯出（PDF/截圖）目前尚未完整串接 jsPDF
+- [ ] 球種可讓使用者自訂（目前固定 7 種）
 - [ ] 離線模式：Service Worker 快取策略尚未最佳化
 - [ ] 側邊欄在手機橫置時操作不便
+- [ ] 投球記錄列表無虛擬捲動（100球+時渲染偏慢）
 
 ### 🟢 低優先（功能擴充）
-- [ ] 打者資料庫（目前只記錄打者編號，無歷史彙整）
 - [ ] 多使用者即時協作（目前只有單一情蒐員寫入）
 - [ ] 圖表匯出為圖片
 - [ ] 深色模式
+
+### ✅ 已完成
+- [x] `injectDemoData()` 已從 `init()` 移除，僅保留供 console 手動呼叫
+- [x] CSS/JS 已拆分為獨立檔案
+- [x] 密碼改用 SHA-256 雜湊儲存，向下相容舊明文帳號
+- [x] Firebase 寫入已有 300ms debounce（`_fbSaveTimer`，app.js ~6140 行）
+- [x] PDF 報表匯出已實作（`exportReportPDF` → `_buildAndOpenReport`）
+- [x] 打者資料庫已實作（`allData.batterData`，獨立 Firebase 節點）
+- [x] APP_VERSION 與 sw.js CACHE_NAME 同步（目前皆為 v296）
 
 ---
 
 ## 開發注意事項
 
-1. **不要動 Firebase config**：在 HTML 最上方的 `firebaseConfig` 物件
-2. **測試時用 `injectDemoData()`**：真實資料不要放進 commit
-3. **改 CSS 時注意**：手機版按鈕最小點擊區要維持 44px 以上（無障礙）
-4. **觸控事件**：有些按鈕同時用了 `onclick` 和 `ontouchend`，改動時兩者都要顧到
-5. **Firebase 寫入頻率**：`saveToFirebase()` 在每次記球後都會觸發，注意 quota
+1. **不要動 Firebase config**：在 `index.html` 最上方的 `firebaseConfig` 物件
+2. **版本號同步**：每次更新 `sw.js` 的 `CACHE_NAME`（`pitcher-scout-vNNN`），必須同時更新 `app.js` 第一行的 `APP_VERSION`
+3. **測試時用 `injectDemoData()`**：真實資料不要放進 commit
+4. **改 CSS 時注意**：手機版按鈕最小點擊區要維持 44px 以上（無障礙）
+5. **觸控事件**：有些按鈕同時用了 `onclick` 和 `ontouchend`，改動時兩者都要顧到
+6. **Firebase 寫入**：Realtime Database 無每日寫入次數上限，限制是儲存（1GB）與下載流量（10GB/月）。寫入已有 300ms debounce，不需額外處理
 
 ---
 
@@ -216,11 +280,11 @@ slotB = { team: null, pitcher: null }  // B 槽
 
 ```
 /
-├── index.html      ← HTML 結構（987 行）
-├── style.css       ← 所有 CSS 樣式（628 行）
-├── app.js          ← 所有應用邏輯（3395 行）
+├── index.html      ← HTML 結構（1,986 行）
+├── style.css       ← 所有 CSS 樣式（1,292 行）
+├── app.js          ← 所有應用邏輯（12,673 行）
 ├── manifest.json   ← PWA manifest
-├── sw.js           ← Service Worker（v3，含 style.css / app.js 快取）
+├── sw.js           ← Service Worker（87 行，CACHE_NAME = pitcher-scout-v296）
 ├── icon-192.png    ← PWA 圖示
 └── icon-512.png    ← PWA 圖示
 ```
@@ -235,4 +299,4 @@ slotB = { team: null, pitcher: null }  // B 槽
 
 ---
 
-*最後更新：2026-05-16*
+*最後更新：2026-05-24*
