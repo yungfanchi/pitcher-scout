@@ -3511,15 +3511,24 @@
         score.half = '上';
         gameState.inning = 1;
         gameState.half = '上';
+        gameState.currentBatterIndex = { teamA: 0, teamB: 0 };
 
         if (currentTeam === null || currentPitcher === null) return;
         const pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
-        pitches.forEach(p => updateGameStateFromPitch(p));
+        pitches.forEach(p => {
+            const prePitchHalf = gameState.half;
+            updateGameStateFromPitch(p);
+            if ((p.outcomes || []).some(o => PA_ENDING.includes(o))) {
+                const bt = prePitchHalf === '上' ? 'teamA' : 'teamB';
+                gameState.currentBatterIndex[bt] = (gameState.currentBatterIndex[bt] + 1) % 9;
+            }
+        });
 
         renderCountLights();
         renderBases();
         updateScoreboard();
         updateZoneCountDisplay();
+        autoUpdateBatterInfoByInning();
     }
 
     function stealBase(success) {
@@ -5944,10 +5953,12 @@
 
         // 同時讀取新路徑 (games/) 和舊路徑，以「內容指紋」去重後再掛監聽
         // 指紋 = gameName|name|opponent|date，避免 gameId 不一致時產生重複賽事
+        const bmRef = USER_TEAM_REF ? USER_TEAM_REF.child('bm') : null;
         Promise.all([
             gRef.once('value'),
-            getDataRef().once('value')
-        ]).then(([newSnap, oldSnap]) => {
+            getDataRef().once('value'),
+            bmRef ? bmRef.once('value') : Promise.resolve(null)
+        ]).then(([newSnap, oldSnap, bmSnap]) => {
 
             // ── 收集所有候選賽事 ──
             const candidates = [];
@@ -5992,6 +6003,15 @@
             const needWrite = hasPendingSync
                 || mergedArr.length !== originalCount
                 || mergedArr.some(g => !newRaw || !newRaw[g.gameId]);
+
+            // 從 Firebase 還原打者模式狀態（登入後棒次/局數/壘包才能繼續）
+            if (bmSnap) {
+                const bmVal = bmSnap.val();
+                if (bmVal && typeof bmVal === 'object') {
+                    if (!allData.bm) allData.bm = {};
+                    Object.assign(allData.bm, bmVal);
+                }
+            }
 
             // 立即更新本機畫面
             if (mergedArr.length > 0) {
@@ -6268,6 +6288,7 @@
             if (activeS.team != null && allData.teams[activeS.team]) {
                 currentTeam = activeS.team;
                 currentPitcher = activeS.pitcher;
+                recomputeGameState(); // 重算局數/出局/壘包/棒次，避免登入後棒次顯示為第1棒
             }
         } catch(e) {}
     }
