@@ -3115,6 +3115,20 @@
         const pitcher = allData.teams[currentTeam].pitchers[currentPitcher];
         syncPitchToDB({...currentPitch}, currentTeam, pitcher.name, pitcher.number);
 
+        // 捕捉此球資訊（須在 updateGameStateFromPitch 前，避免三出局換局時 currentTeam/currentPitcher 被切換）
+        const _bipOutcomes = [...currentPitch.outcomes];
+        const _bipTeam = currentTeam;
+        const _bipPitcher = currentPitcher;
+        const _bipIdx = allData.teams[currentTeam].pitchers[currentPitcher].pitches.length - 1;
+        const _preBasesSnapshot = allData.teams[_bipTeam].pitchers[_bipPitcher].pitches[_bipIdx].basesSnapshot || [false, false, false];
+        const _hasBIP = _bipOutcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o));
+        const _hasRunners = _preBasesSnapshot.some(b => b);
+        const _isBunt = _bipOutcomes.includes('犧牲觸擊');
+        // 三出局判斷（在 gameState.outs 被重置前計算）
+        const _isOutThisPitch = _bipOutcomes.some(o => OUT_OUTCOMES.includes(o));
+        const _isDP = _bipOutcomes.includes('雙殺');
+        const _isThirdOut = _isOutThisPitch && (gameState.outs + (_isDP ? 2 : 1) >= 3);
+
         // Update game state counts
         const _prePitchHalf = gameState.half; // 捕捉此球投出時的局半，供得分確認使用
         updateGameStateFromPitch(currentPitch);
@@ -3144,19 +3158,10 @@
         updatePitchLog();
         updateStats();
         saveToLocalStorage();
-        saveToFirebase(currentTeam);
+        saveToFirebase(_bipTeam);
 
-        // 紀錄此球資訊，供球場圖模式 + 得分確認使用（reset 前先存）
-        const _bipOutcomes = [...currentPitch.outcomes];
-        const _bipTeam = currentTeam;
-        const _bipPitcher = currentPitcher;
-        const _bipIdx = allData.teams[currentTeam].pitchers[currentPitcher].pitches.length - 1;
-        const _preBasesSnapshot = allData.teams[_bipTeam].pitchers[_bipPitcher].pitches[_bipIdx].basesSnapshot || [false, false, false];
-        const _hasBIP = _bipOutcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o));
-        const _hasRunners = _preBasesSnapshot.some(b => b);
         const _autoRuns = (_hasBIP && _hasRunners) ? applyBaseRunning(_preBasesSnapshot, _bipOutcomes).runsScored : 0;
         const _autoBases = [...gameState.bases]; // post-advance bases from updateGameStateFromPitch
-        const _isBunt = _bipOutcomes.includes('犧牲觸擊');
         if (_isBunt) window._pendingBuntCtx = { autoBases: _autoBases };
         else window._pendingBuntCtx = null;
 
@@ -3197,7 +3202,8 @@
         };
 
         // 球場圖模式：球有進場結果 → 落點選擇，結束後接得分確認
-        if (fieldMapEnabled && _hasBIP) {
+        // 三出局 BIP 時無條件顯示（不受 fieldMapEnabled 開關影響）
+        if ((fieldMapEnabled || _isThirdOut) && _hasBIP) {
             showHitLocationModal(function(loc) {
                 if (loc && allData.teams[_bipTeam] &&
                         allData.teams[_bipTeam].pitchers[_bipPitcher] &&
