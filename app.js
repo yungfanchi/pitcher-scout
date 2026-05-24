@@ -2975,7 +2975,17 @@
         if (snapshot[2]) {
             // 三壘有人 → 彈窗
             _showThirdBaseScoreModal(
-                () => { _advanceRunnersOne(); if (onConfirmed) onConfirmed(); },
+                () => {
+                    _advanceRunnersOne();
+                    // 三壘跑者確認得分 → 更新記分板
+                    if (currentTeam !== null) {
+                        const score = getTeamScore();
+                        if (gameState.half === '上') score.home = (score.home || 0) + 1;
+                        else score.away = (score.away || 0) + 1;
+                        updateScoreboard();
+                    }
+                    if (onConfirmed) onConfirmed();
+                },
                 () => {
                     // 未得分 → 還原壘包，取消按鈕狀態
                     gameState.bases = [...snapshot];
