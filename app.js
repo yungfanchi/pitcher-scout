@@ -2526,9 +2526,12 @@
                 if (pitcher) {
                     const isActive = activeSlot === slot;
                     // Slot A = 後攻隊 (away), Slot B = 先攻隊 (home)
-                    const teamLabel = slot === 'A'
+                    const _rawLabel = slot === 'A'
                         ? (team.opponent || team.name)
                         : team.name;
+                    const teamLabel = _rawLabel
+                        ? _rawLabel + (slot === 'A' ? '（後攻）' : '（先攻）')
+                        : (slot === 'A' ? '後攻' : '先攻');
 
                     const fatigue = checkFatigue(pitcher.pitches);
                     const fatigueHTML = fatigue
