@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v274';
+﻿    const APP_VERSION = 'v276';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2926,8 +2926,51 @@
 
     function _advanceRunnersOne() {
         const [b1, b2] = gameState.bases;
+        // b1=1壘, b2=2壘 → 各往前一壘；3壘跑者視為已得分/消失
         gameState.bases = [false, b1, b2];
         renderBases();
+    }
+
+    // 顯示三壘得分確認彈窗
+    function _showThirdBaseScoreModal(onScore, onNoScore) {
+        const existing = document.getElementById('_thirdScoreModal');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = '_thirdScoreModal';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+        overlay.innerHTML = `
+            <div style="background:#0f172a;border:2px solid #ffd700;border-radius:14px;padding:24px 28px;text-align:center;max-width:280px;width:100%;">
+                <div style="font-size:36px;margin-bottom:8px;">🏃</div>
+                <div style="font-size:18px;font-weight:900;color:#ffd700;font-family:'Oswald','Noto Sans TC',sans-serif;margin-bottom:4px;">三壘跑者</div>
+                <div style="font-size:14px;color:rgba(255,255,255,0.75);margin-bottom:20px;font-family:'Noto Sans TC',sans-serif;">是否已得分？</div>
+                <div style="display:flex;gap:10px;">
+                    <button id="_score3bYes" style="flex:1;padding:13px;background:#10b981;color:white;border:none;border-radius:8px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;touch-action:manipulation;">✅ 已得分</button>
+                    <button id="_score3bNo" style="flex:1;padding:13px;background:#6b7280;color:white;border:none;border-radius:8px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;touch-action:manipulation;">❌ 未得分</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#_score3bYes').addEventListener('click', () => { overlay.remove(); onScore(); });
+        overlay.querySelector('#_score3bNo' ).addEventListener('click', () => { overlay.remove(); onNoScore(); });
+    }
+
+    // 暴投/捕逸共用推進邏輯（三壘有人時彈窗確認）
+    function _advanceWithThirdCheck(snapshot, onConfirmed, onCancelled) {
+        if (snapshot[2]) {
+            // 三壘有人 → 彈窗
+            _showThirdBaseScoreModal(
+                () => { _advanceRunnersOne(); if (onConfirmed) onConfirmed(); },
+                () => {
+                    // 未得分 → 還原壘包，取消按鈕狀態
+                    gameState.bases = [...snapshot];
+                    renderBases();
+                    if (onCancelled) onCancelled();
+                }
+            );
+        } else {
+            // 三壘無人 → 直接推進
+            _advanceRunnersOne();
+            if (onConfirmed) onConfirmed();
+        }
     }
 
     function toggleWild(btn) {
@@ -2935,7 +2978,11 @@
         btn.classList.toggle('active');
         if (currentPitch.wild) {
             _wildBaseSnapshot = [...gameState.bases];
-            _advanceRunnersOne();
+            _advanceWithThirdCheck(
+                _wildBaseSnapshot,
+                null,
+                () => { currentPitch.wild = false; btn.classList.remove('active'); _wildBaseSnapshot = null; }
+            );
         } else if (_wildBaseSnapshot) {
             gameState.bases = [..._wildBaseSnapshot];
             _wildBaseSnapshot = null;
@@ -2948,7 +2995,11 @@
         btn.classList.toggle('active');
         if (currentPitch.passball) {
             _passballBaseSnapshot = [...gameState.bases];
-            _advanceRunnersOne();
+            _advanceWithThirdCheck(
+                _passballBaseSnapshot,
+                null,
+                () => { currentPitch.passball = false; btn.classList.remove('active'); _passballBaseSnapshot = null; }
+            );
         } else if (_passballBaseSnapshot) {
             gameState.bases = [..._passballBaseSnapshot];
             _passballBaseSnapshot = null;
