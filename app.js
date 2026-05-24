@@ -2549,7 +2549,7 @@
                         : '';
 
                     contentEl.innerHTML = `
-                        ${isActive ? '<div class="active-indicator"></div>' : ''}
+                        ${isActive ? '<div class="active-indicator">▶ 正在投球</div>' : ''}
                         <div>
                             <div class="pitcher-slot-team">${teamLabel}</div>
                             <div class="pitcher-slot-name">${pitcher.name}</div>
