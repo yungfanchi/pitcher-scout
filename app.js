@@ -2421,6 +2421,7 @@
             }
             autoUpdateBatterInfoByInning();
         }
+        _saveLastPosition();
     }
 
     function selectPitcherToSlot(teamIndex, pitcherIndex) {
@@ -2461,6 +2462,7 @@
         updateStats();
         updateScoreboard();
         saveToLocalStorage();
+        _saveLastPosition();
 
         // 若打者模式分頁正在顯示，同步更新
         if (userMode === 'batter') {
@@ -3169,6 +3171,7 @@
         updateStats();
         saveToLocalStorage();
         saveToFirebase(_bipTeam);
+        _saveLastPosition();
 
         const _autoRuns = (_hasBIP && _hasRunners) ? applyBaseRunning(_preBasesSnapshot, _bipOutcomes).runsScored : 0;
         const _autoBases = [...gameState.bases]; // post-advance bases from updateGameStateFromPitch
@@ -5964,6 +5967,7 @@
                 allData.teams = mergedArr;
                 rebuildPitcherDB();
                 saveToLocalStorage();
+                _restoreLastPosition(); // 還原上次情蒐位置（登入/重開後）
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
             }
 
@@ -6182,6 +6186,59 @@
         const st = document.getElementById('autoSaveStatus');
         if (st) st.textContent = autoSave ? '開啟' : '關閉';
         // listenFirebase() 移至 enterSystem() 呼叫，確保 USER_TEAM_REF 已設定後才開始監聽
+    }
+
+    // ── 上次情蒐位置：存/還原（用 gameId 避免 Firebase 合併後 index 跑掉）──
+
+    function _saveLastPosition() {
+        try {
+            localStorage.setItem('pitcherScoutLastPos', JSON.stringify({
+                v: 1,
+                teamCode: currentTeamCode,
+                slotA: {
+                    gameId: (slotA.team != null && allData.teams[slotA.team]) ? allData.teams[slotA.team].gameId : null,
+                    pitcherIdx: slotA.pitcher
+                },
+                slotB: {
+                    gameId: (slotB.team != null && allData.teams[slotB.team]) ? allData.teams[slotB.team].gameId : null,
+                    pitcherIdx: slotB.pitcher
+                },
+                activeSlot: activeSlot
+            }));
+        } catch(e) {}
+    }
+
+    function _restoreLastPosition() {
+        try {
+            const raw = localStorage.getItem('pitcherScoutLastPos');
+            if (!raw) return;
+            const s = JSON.parse(raw);
+            if (!s || s.v !== 1 || s.teamCode !== currentTeamCode) return;
+
+            const findTeamIdx = (gameId) => {
+                if (!gameId) return -1;
+                return allData.teams.findIndex(t => t.gameId === gameId);
+            };
+
+            const idxA = findTeamIdx(s.slotA?.gameId);
+            const idxB = findTeamIdx(s.slotB?.gameId);
+
+            if (idxA >= 0 && s.slotA.pitcherIdx != null &&
+                    allData.teams[idxA]?.pitchers[s.slotA.pitcherIdx]) {
+                slotA = { team: idxA, pitcher: s.slotA.pitcherIdx };
+            }
+            if (idxB >= 0 && s.slotB.pitcherIdx != null &&
+                    allData.teams[idxB]?.pitchers[s.slotB.pitcherIdx]) {
+                slotB = { team: idxB, pitcher: s.slotB.pitcherIdx };
+            }
+
+            if (s.activeSlot) activeSlot = s.activeSlot;
+            const activeS = activeSlot === 'A' ? slotA : slotB;
+            if (activeS.team != null && allData.teams[activeS.team]) {
+                currentTeam = activeS.team;
+                currentPitcher = activeS.pitcher;
+            }
+        } catch(e) {}
     }
 
     // Close modals on outside click - use stopPropagation to prevent flash
