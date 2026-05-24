@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v276';
+﻿    const APP_VERSION = 'v277';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -5876,14 +5876,19 @@
             // ── 收集所有候選賽事 ──
             const candidates = [];
             const newRaw = newSnap.val();
-            if (newRaw && typeof newRaw === 'object') {
+            const hasNewData = newRaw && typeof newRaw === 'object' && Object.keys(newRaw).length > 0;
+            if (hasNewData) {
                 Object.entries(newRaw).forEach(([id, data]) => {
                     const g = _normalizeGameEntry(data);
                     if (g) { if (!g.gameId) g.gameId = id; candidates.push(g); }
                 });
             }
-            const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
-            oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); candidates.push(t); });
+            // 只在新路徑（games/）沒有資料時才從舊路徑遷移資料（一次性遷移）
+            // 若新路徑已有資料，跳過舊路徑，避免已刪除的賽事從舊路徑復活
+            if (!hasNewData) {
+                const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
+                oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); candidates.push(t); });
+            }
             (allData.teams || []).forEach(t => {
                 if (!t.gameId) t.gameId = _makeGameId();
                 candidates.push(JSON.parse(JSON.stringify(t)));
@@ -5918,6 +5923,12 @@
                 rebuildPitcherDB();
                 saveToLocalStorage();
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+            }
+
+            // 一旦新路徑有資料，清除舊路徑，防止刪除的賽事日後從舊路徑復活
+            const oldSnapVal = oldSnap.val();
+            if (hasNewData && oldSnapVal !== null) {
+                getDataRef().remove().catch(() => {});
             }
 
             if (needWrite) {
