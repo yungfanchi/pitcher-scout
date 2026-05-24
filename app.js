@@ -3423,9 +3423,9 @@
                 ? pitch.runsScored : autoRuns;
             if (runsScored > 0 && currentTeam !== null) {
                 const score = getTeamScore();
-                // Determine which side scores (away = top half, home = bottom half)
-                if (gameState.half === '上') score.away = (score.away || 0) + runsScored;
-                else score.home = (score.home || 0) + runsScored;
+                // 上半局=先攻打擊→先攻得分(home)；下半局=後攻打擊→後攻得分(away)
+                if (gameState.half === '上') score.home = (score.home || 0) + runsScored;
+                else score.away = (score.away || 0) + runsScored;
                 updateScoreboard();
             }
             renderBases();
@@ -8013,8 +8013,8 @@
             const delta = actualRuns - autoRuns;
             if (currentTeam !== null) {
                 const score = getTeamScore();
-                if (ctx.half === '上') score.away = Math.max(0, (score.away || 0) + delta);
-                else                   score.home = Math.max(0, (score.home || 0) + delta);
+                if (ctx.half === '上') score.home = Math.max(0, (score.home || 0) + delta);
+                else                   score.away = Math.max(0, (score.away || 0) + delta);
                 updateScoreboard();
             }
         }
