@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v316';
+﻿    const APP_VERSION = 'v317';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2291,6 +2291,13 @@
                     headerLeft.appendChild(teamName);
                     teamHeader.appendChild(headerLeft);
 
+                    const editTeamBtn = document.createElement('button');
+                    editTeamBtn.className = 'edit-team-btn';
+                    editTeamBtn.textContent = '✏️';
+                    editTeamBtn.title = '編輯賽事資訊';
+                    editTeamBtn.addEventListener('click', (e) => { e.stopPropagation(); editTeam(teamIndex); });
+                    teamHeader.appendChild(editTeamBtn);
+
                     const deleteTeamBtn = document.createElement('button');
                     deleteTeamBtn.className = 'delete-team-btn';
                     deleteTeamBtn.textContent = '刪除';
@@ -2576,6 +2583,78 @@
             }
             contentEl.innerHTML = '<span class="pitcher-slot-empty">點選左側投手選擇</span>';
         });
+    }
+
+    // ====== EDIT TEAM MODAL ======
+    function editTeam(teamIndex) {
+        const team = allData.teams[teamIndex];
+        const existing = document.getElementById('_editTeamModal');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = '_editTeamModal';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:360px;border-top:4px solid var(--ct-red);border-left:3px solid var(--ct-gold);box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                <h3 style="margin:0 0 16px;font-size:16px;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;">✏️ 編輯賽事資訊</h3>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">🏟️ 賽事名稱</label>
+                        <input id="_etGameName" type="text" value="${escapeHtml(team.gameName||'')}" placeholder="例：2026 世界盃青棒賽"
+                            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">先攻隊名</label>
+                            <input id="_etName" type="text" value="${escapeHtml(team.name||'')}" placeholder="先攻隊名"
+                                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">後攻隊名</label>
+                            <input id="_etOpponent" type="text" value="${escapeHtml(team.opponent||'')}" placeholder="後攻隊名"
+                                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">📅 日期</label>
+                        <input id="_etDate" type="date" value="${escapeHtml(team.date||'')}"
+                            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:18px;">
+                    <button id="_etCancel" style="flex:1;padding:11px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">取消</button>
+                    <button id="_etSave" style="flex:2;padding:11px;background:var(--ct-blue-dark);color:#ffd700;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 儲存</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('#_etCancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        overlay.querySelector('#_etSave').addEventListener('click', () => {
+            const newGameName = document.getElementById('_etGameName').value.trim();
+            const newName     = document.getElementById('_etName').value.trim();
+            const newOpponent = document.getElementById('_etOpponent').value.trim();
+            const newDate     = document.getElementById('_etDate').value;
+            if (!newName) { alert('先攻隊名不能為空！'); return; }
+            const oldGameName = allData.teams[teamIndex].gameName || '未分類';
+            allData.teams[teamIndex].gameName  = newGameName;
+            allData.teams[teamIndex].name      = newName;
+            allData.teams[teamIndex].opponent  = newOpponent;
+            allData.teams[teamIndex].date      = newDate;
+            // 若賽事名稱改變，同步更新 expandedGames
+            if (oldGameName !== newGameName) {
+                expandedGames.delete(oldGameName);
+                expandedGames.add(newGameName || '未分類');
+            }
+            overlay.remove();
+            updateTeamList();
+            updateSlotDisplay();
+            saveToLocalStorage();
+            saveToFirebase(teamIndex);
+        });
+
+        // 自動聚焦第一個欄位
+        setTimeout(() => document.getElementById('_etGameName').focus(), 50);
     }
 
     // ====== PITCHER MANAGEMENT ======
