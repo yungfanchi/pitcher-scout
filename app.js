@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v334';
+﻿    const APP_VERSION = 'v335';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -658,7 +658,7 @@
                         if (!isNaN(oi)) name = lineupB[oi]?.name || lineupA[oi]?.name || '';
                         const dbKey = num ? `${battingTeam}|${num}` : '';
                         const teamFromDB = dbKey ? (bdTeamByKey[dbKey] || '') : '';
-                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: teamFromDB, battingTeam };
+                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: teamFromDB || battingTeam, battingTeam };
                     }
                     if (!map[key].hand && pitch.batterHand) map[key].hand = pitch.batterHand;
                     if (!map[key].name) {
