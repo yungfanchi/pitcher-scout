@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v319';
+﻿    const APP_VERSION = 'v320';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3268,6 +3268,8 @@
         const _hasBIP = _bipOutcomes.some(o => BALL_IN_PLAY_OUTCOMES.includes(o));
         const _hasRunners = _preBasesSnapshot.some(b => b);
         const _isBunt = _bipOutcomes.includes('犧牲觸擊');
+        // 失誤/野選：壘上有人時需要確認壘況
+        const _isErrorOrFC = _bipOutcomes.some(o => ['失誤','野選'].includes(o)) && _hasRunners;
         // 三出局判斷（在 gameState.outs 被重置前計算）
         const _isOutThisPitch = _bipOutcomes.some(o => OUT_OUTCOMES.includes(o));
         const _isDP = _bipOutcomes.includes('雙殺');
@@ -3307,8 +3309,14 @@
 
         const _autoRuns = (_hasBIP && _hasRunners) ? applyBaseRunning(_preBasesSnapshot, _bipOutcomes).runsScored : 0;
         const _autoBases = [...gameState.bases]; // post-advance bases from updateGameStateFromPitch
-        if (_isBunt) window._pendingBuntCtx = { autoBases: _autoBases };
-        else window._pendingBuntCtx = null;
+        if (_isBunt || _isErrorOrFC) {
+            let _baseConfirmTitle = '⚾ 觸擊後壘況？';
+            if (_bipOutcomes.includes('失誤')) _baseConfirmTitle = '⚾ 失誤後壘況？';
+            else if (_bipOutcomes.includes('野選')) _baseConfirmTitle = '⚾ 野選後壘況？';
+            window._pendingBuntCtx = { autoBases: _autoBases, title: _baseConfirmTitle };
+        } else {
+            window._pendingBuntCtx = null;
+        }
 
         document.querySelectorAll('.pitch-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.zone-cell').forEach(c => c.classList.remove('selected'));
@@ -3518,6 +3526,12 @@
 
         if (outcomes.includes('不死三振')) {
             // 打者跑向一壘（接捕手未接好），壘上跑者不強迫推進
+            return { newBases: [true, has2b, has3b], runsScored: 0 };
+        }
+
+        if (outcomes.some(o => ['野選','失誤'].includes(o))) {
+            // 打者上一壘；一壘跑者在野選時出局（已由外層加出局數）或失誤時推進
+            // 保守預設：二三壘跑者留在原位，壘況確認 modal 供使用者手動修正
             return { newBases: [true, has2b, has3b], runsScored: 0 };
         }
 
@@ -8393,6 +8407,9 @@
         _buntBasesContext = ctx;
         _buntBasesSelected = [...ctx.autoBases];
         _renderBuntBasesBtns();
+        // 動態更新標題（觸擊 / 失誤 / 野選）
+        const titleEl = document.getElementById('buntBasesModalTitle');
+        if (titleEl && ctx.title) titleEl.textContent = ctx.title;
         const modal = document.getElementById('buntBasesModal');
         if (modal) modal.style.display = 'flex';
     }
