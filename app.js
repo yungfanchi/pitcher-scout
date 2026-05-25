@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v328';
+﻿    const APP_VERSION = 'v329';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1810,15 +1810,25 @@
 
     function refreshData(btn) {
         if (btn) { btn.textContent = '⏳ 更新中...'; btn.disabled = true; }
-        getDataRef().once('value')
-            .then(snap => {
+        const bdRefresh = USER_TEAM_REF ? USER_TEAM_REF.child('batterData') : null;
+        Promise.all([
+            getDataRef().once('value'),
+            bdRefresh ? bdRefresh.once('value') : Promise.resolve(null)
+        ]).then(([snap, bdSnap]) => {
                 const teams = normalizeTeamsData(snap.val());
                 if (teams) {
                     allData.teams = teams;
                     allData.pitcherDB = {};
                     rebuildPitcherDB();
-                    saveToLocalStorage();
                 }
+                if (bdSnap) {
+                    const bdVal = bdSnap.val();
+                    if (bdVal) {
+                        const arr = Array.isArray(bdVal) ? bdVal : Object.values(bdVal);
+                        if (arr.length > 0) allData.batterData = arr;
+                    }
+                }
+                saveToLocalStorage();
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
                 if (btn) {
                     const origText = btn.id === 'viewerRefreshBtn' ? '🔄 重新整理' : '🔄 重整';
@@ -6344,11 +6354,13 @@
         // 同時讀取新路徑 (games/) 和舊路徑，以「內容指紋」去重後再掛監聽
         // 指紋 = gameName|name|opponent|date，避免 gameId 不一致時產生重複賽事
         const bmRef = USER_TEAM_REF ? USER_TEAM_REF.child('bm') : null;
+        const bdRef = USER_TEAM_REF ? USER_TEAM_REF.child('batterData') : null;
         Promise.all([
             gRef.once('value'),
             getDataRef().once('value'),
-            bmRef ? bmRef.once('value') : Promise.resolve(null)
-        ]).then(([newSnap, oldSnap, bmSnap]) => {
+            bmRef ? bmRef.once('value') : Promise.resolve(null),
+            bdRef ? bdRef.once('value') : Promise.resolve(null)
+        ]).then(([newSnap, oldSnap, bmSnap, bdSnap]) => {
 
             // ── 收集所有候選賽事 ──
             const candidates = [];
@@ -6400,6 +6412,19 @@
                 if (bmVal && typeof bmVal === 'object') {
                     if (!allData.bm) allData.bm = {};
                     Object.assign(allData.bm, bmVal);
+                }
+            }
+
+            // 從 Firebase 載入打者資料庫（batterData 獨立節點，localStorage 未必同步）
+            if (bdSnap) {
+                const bdVal = bdSnap.val();
+                if (bdVal) {
+                    // Firebase 可能存成 array 或 object（key→entry）
+                    const arr = Array.isArray(bdVal) ? bdVal : Object.values(bdVal);
+                    if (arr.length > 0) {
+                        allData.batterData = arr;
+                        saveToLocalStorage();
+                    }
                 }
             }
 
