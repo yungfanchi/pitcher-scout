@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v317';
+﻿    const APP_VERSION = 'v318';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -152,7 +152,8 @@
     let currentPitch = {
         type: null, zone: null, speed: null, result: null,
         batterHand: null, batterNumber: null, batterOrder: null,
-        outcomes: [], wild: false, foul: false, swing: false, passball: false, pinchHit: false
+        outcomes: [], wild: false, foul: false, swing: false, passball: false, pinchHit: false,
+        hitType: null
     };
 
     // ====== INIT ======
@@ -3172,7 +3173,24 @@
 
         btn.classList.toggle('selected');
         currentPitch.outcomes = Array.from(document.querySelectorAll('.outcome-btn.selected')).map(b => b.dataset.outcome);
+
+        // 安打類型子選單：有安打選中時顯示，否則隱藏並清除
+        const hasHit = document.querySelector('.outcome-btn.hit-btn.selected') !== null;
+        const hitTypeRow = document.getElementById('hitTypeRow');
+        if (hitTypeRow) {
+            hitTypeRow.style.display = hasHit ? 'block' : 'none';
+            if (!hasHit) {
+                document.querySelectorAll('.hit-type-btn').forEach(b => b.classList.remove('selected'));
+                currentPitch.hitType = null;
+            }
+        }
         // 不在此修改 gameState，避免雙重計算；由 recordPitch → updateGameStateFromPitch 統一處理
+    }
+
+    function selectHitType(btn) {
+        document.querySelectorAll('.hit-type-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        currentPitch.hitType = btn.dataset.hittype;
     }
 
     // ====== RECORD PITCH ======
@@ -3309,8 +3327,12 @@
             batterHand: currentPitch.batterHand,
             batterNumber: document.getElementById('batterNumber').value,
             batterOrder: document.getElementById('batterOrder').value,
-            outcomes: [], outcome: null, wild: false, foul: false, swing: false, passball: false, pinchHit: false
+            outcomes: [], outcome: null, wild: false, foul: false, swing: false, passball: false, pinchHit: false,
+            hitType: null
         };
+        const _htr = document.getElementById('hitTypeRow');
+        if (_htr) { _htr.style.display = 'none'; }
+        document.querySelectorAll('.hit-type-btn').forEach(b => b.classList.remove('selected'));
 
         // 得分確認 chip helper（球場圖結束後 or 直接觸發）
         const _maybeShowRunsChip = () => {

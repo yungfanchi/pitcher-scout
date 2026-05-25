@@ -855,6 +855,15 @@
                                     <button class="outcome-btn hit-btn" data-outcome="三壘安打" onclick="toggleOutcome(this)">三壘安打</button>
                                     <button class="outcome-btn hit-btn" data-outcome="全壘打" onclick="toggleOutcome(this)">全壘打</button>
                                 </div>
+                                <!-- 打球類型（安打後顯示） -->
+                                <div id="hitTypeRow" style="display:none;margin-bottom:6px;padding:6px 8px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;">
+                                    <div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:5px;">打球類型</div>
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                        <button class="hit-type-btn" data-hittype="滾地球" onclick="selectHitType(this)">🏃 滾地球</button>
+                                        <button class="hit-type-btn" data-hittype="平飛球" onclick="selectHitType(this)">➡️ 平飛</button>
+                                        <button class="hit-type-btn" data-hittype="高飛球" onclick="selectHitType(this)">⬆️ 高飛</button>
+                                    </div>
+                                </div>
                                 <!-- 上壘（非安打） -->
                                 <span class="outcome-group-label reach">上壘</span>
                                 <div class="at-bat-result" style="margin-bottom:4px;">
