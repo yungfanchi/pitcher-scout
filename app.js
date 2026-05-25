@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v313';
+﻿    const APP_VERSION = 'v314';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -32,6 +32,9 @@
     let lastSelectedSlot = 'A'; // 記錄上次記錄投球的 slot，下次自動切換到另一個
     let editingPitchIndex = null;
     let _pitchLogShowAll = false; // 投球記錄列表是否展開全部
+    let _pitchLogLastKey = null;     // 上次渲染的 "{teamIdx}:{pitcherIdx}"
+    let _pitchLogLastTotal = -1;     // 上次渲染時的球數
+    let _pitchLogLastShowAll = false; // 上次渲染時的 showAll 狀態
     let statsFilter = 'all'; // 'all' or a gameKey
     let expandedGames = new Set(); // track which game groups are expanded (pitcher mode)
     let bmExpandedGames = new Set(); // track which game groups are expanded (batter mode)
@@ -3704,19 +3707,88 @@
     }
 
     // ====== PITCH LOG ======
+    function _buildPitchNode(pitch, index) {
+        const outcomes = pitch.outcomes && pitch.outcomes.length > 0 ? pitch.outcomes : (pitch.outcome ? [pitch.outcome] : []);
+        const record = document.createElement('div');
+        record.className = 'pitch-record';
+        const resultColor = pitch.result === '好球' ? '#92400e' : pitch.result === '壞球' ? '#065f46' : 'var(--ct-blue-dark)';
+        const batterInfo = `${pitch.batterHand || ''}${pitch.batterNumber ? ' #'+pitch.batterNumber : ''}${pitch.batterOrder ? ' ('+pitch.batterOrder+'棒)' : ''}${pitch.pinchHit ? ' 代打' : ''}`;
+        const extras = [];
+        if (pitch.foul) extras.push('界外球');
+        if (pitch.swing) extras.push('揮空');
+        if (pitch.wild) extras.push('⚠️暴投');
+        record.innerHTML = `
+            <div class="pitch-record-header">
+                <div style="flex:1;min-width:0;overflow:hidden;">
+                    <strong style="color:${resultColor}">#${index+1}</strong>
+                    ${batterInfo} | <strong>${escapeHtml(pitch.type) || '-'}</strong> | 位置:${escapeHtml(pitch.zone)}
+                    ${pitch.speed ? ' | <strong style="color:var(--ct-red);">'+pitch.speed+'</strong>' : ''}
+                    | <strong style="color:${resultColor}">${escapeHtml(pitch.result)}</strong>
+                    ${extras.length ? ' <span style="color:#c2410c;font-weight:700;">'+extras.join(' ')+'</span>' : ''}
+                </div>
+                <div class="pitch-record-actions" style="flex-shrink:0;"></div>
+            </div>
+            ${outcomes.length ? `<div class="pitch-record-details">打擊結果: <strong style="color:var(--ct-red);">${outcomes.join('、')}</strong></div>` : ''}
+            ${pitch.note ? `<div class="pitch-record-details" style="color:#6b7280;">📝 ${escapeHtml(pitch.note)}</div>` : ''}
+            <div class="pitch-record-details" style="font-size:11px;color:#9ca3af;">${pitch.balls !== undefined ? pitch.balls+'B-'+pitch.strikes+'S' : ''} ${pitch.timestamp ? new Date(pitch.timestamp).toLocaleTimeString('zh-TW') : ''}</div>
+        `;
+        const actions = record.querySelector('.pitch-record-actions');
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-btn';
+        editBtn.textContent = '✏️';
+        editBtn.addEventListener('click', () => openEditModal(index));
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-btn';
+        delBtn.textContent = '刪除';
+        delBtn.addEventListener('click', () => deletePitch(index));
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+        return record;
+    }
+
     function updatePitchLog() {
         const logDiv = document.getElementById('pitchLog');
-        logDiv.innerHTML = '';
         if (currentTeam === null || currentPitcher === null) {
-            document.getElementById('totalPitches').textContent = '0'; return;
+            logDiv.innerHTML = '';
+            document.getElementById('totalPitches').textContent = '0';
+            _pitchLogLastKey = null;
+            _pitchLogLastTotal = -1;
+            return;
         }
         const pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
         const SHOW_LIMIT = 25;
         const total = pitches.length;
         const showAll = _pitchLogShowAll || total <= SHOW_LIMIT;
-        const displayPitches = showAll ? pitches : pitches.slice(-SHOW_LIMIT);
+        const pitcherKey = `${currentTeam}:${currentPitcher}`;
 
-        // 「顯示更早的球」按鈕（放在列表最下方，因為列表是由新到舊）
+        // 增量路徑：只在「顯示全部」模式下，且同一投手新增恰好一球時使用
+        if (showAll &&
+            showAll === _pitchLogLastShowAll &&
+            pitcherKey === _pitchLogLastKey &&
+            total === _pitchLogLastTotal + 1) {
+            const newIdx = total - 1;
+            const node = _buildPitchNode(pitches[newIdx], newIdx);
+            logDiv.insertBefore(node, logDiv.firstChild);
+            if (total >= 2) {
+                const newBK = `${pitches[newIdx].batterOrder}-${pitches[newIdx].batterNumber}`;
+                const prevBK = `${pitches[newIdx-1].batterOrder}-${pitches[newIdx-1].batterNumber}`;
+                if (newBK !== prevBK) {
+                    const hr = document.createElement('hr');
+                    hr.className = 'pa-divider';
+                    logDiv.insertBefore(hr, node.nextSibling);
+                }
+            }
+            _pitchLogLastTotal = total;
+            document.getElementById('totalPitches').textContent = total;
+            return;
+        }
+
+        // 全量重建
+        logDiv.innerHTML = '';
+        _pitchLogLastKey = pitcherKey;
+        _pitchLogLastShowAll = showAll;
+        _pitchLogLastTotal = total;
+
         if (!showAll) {
             const moreBtn = document.createElement('div');
             moreBtn.style.cssText = 'text-align:center;padding:10px 0 4px;';
@@ -3729,62 +3801,20 @@
             logDiv.appendChild(moreBtn);
         }
 
+        const displayPitches = showAll ? pitches : pitches.slice(-SHOW_LIMIT);
         let lastBatterKey = null;
         displayPitches.slice().reverse().forEach((pitch, revIndex) => {
             const index = total - 1 - revIndex;
-            const outcomes = pitch.outcomes && pitch.outcomes.length > 0 ? pitch.outcomes : (pitch.outcome ? [pitch.outcome] : []);
-
-            // 打席分隔線：當打者或棒次改變時插入
             const batterKey = `${pitch.batterOrder}-${pitch.batterNumber}`;
             if (lastBatterKey !== null && batterKey !== lastBatterKey) {
-                const div = document.createElement('hr');
-                div.className = 'pa-divider';
-                logDiv.appendChild(div);
+                const hr = document.createElement('hr');
+                hr.className = 'pa-divider';
+                logDiv.appendChild(hr);
             }
             lastBatterKey = batterKey;
-
-            const record = document.createElement('div');
-            record.className = 'pitch-record';
-            const resultColor = pitch.result === '好球' ? '#92400e' : pitch.result === '壞球' ? '#065f46' : 'var(--ct-blue-dark)';
-            const batterInfo = `${pitch.batterHand || ''}${pitch.batterNumber ? ' #'+pitch.batterNumber : ''}${pitch.batterOrder ? ' ('+pitch.batterOrder+'棒)' : ''}${pitch.pinchHit ? ' 代打' : ''}`;
-            const extras = [];
-            if (pitch.foul) extras.push('界外球');
-            if (pitch.swing) extras.push('揮空');
-            if (pitch.wild) extras.push('⚠️暴投');
-
-            // 用 DOM 操作而非 innerHTML，確保按鈕事件在各裝置正常運作
-            record.innerHTML = `
-                <div class="pitch-record-header">
-                    <div style="flex:1;min-width:0;overflow:hidden;">
-                        <strong style="color:${resultColor}">#${index+1}</strong>
-                        ${batterInfo} | <strong>${escapeHtml(pitch.type) || '-'}</strong> | 位置:${escapeHtml(pitch.zone)}
-                        ${pitch.speed ? ' | <strong style="color:var(--ct-red);">'+pitch.speed+'</strong>' : ''}
-                        | <strong style="color:${resultColor}">${escapeHtml(pitch.result)}</strong>
-                        ${extras.length ? ' <span style="color:#c2410c;font-weight:700;">'+extras.join(' ')+'</span>' : ''}
-                    </div>
-                    <div class="pitch-record-actions" style="flex-shrink:0;">
-                    </div>
-                </div>
-                ${outcomes.length ? `<div class="pitch-record-details">打擊結果: <strong style="color:var(--ct-red);">${outcomes.join('、')}</strong></div>` : ''}
-                ${pitch.note ? `<div class="pitch-record-details" style="color:#6b7280;">📝 ${escapeHtml(pitch.note)}</div>` : ''}
-                <div class="pitch-record-details" style="font-size:11px;color:#9ca3af;">${pitch.balls !== undefined ? pitch.balls+'B-'+pitch.strikes+'S' : ''} ${pitch.timestamp ? new Date(pitch.timestamp).toLocaleTimeString('zh-TW') : ''}</div>
-            `;
-            // 用 addEventListener 確保行動裝置按鈕不會失效
-            const actions = record.querySelector('.pitch-record-actions');
-            const editBtn = document.createElement('button');
-            editBtn.className = 'edit-btn';
-            editBtn.textContent = '✏️';
-            editBtn.addEventListener('click', () => openEditModal(index));
-            const delBtn = document.createElement('button');
-            delBtn.className = 'delete-btn';
-            delBtn.textContent = '刪除';
-            delBtn.addEventListener('click', () => deletePitch(index));
-            actions.appendChild(editBtn);
-            actions.appendChild(delBtn);
-
-            logDiv.appendChild(record);
+            logDiv.appendChild(_buildPitchNode(pitch, index));
         });
-        document.getElementById('totalPitches').textContent = pitches.length;
+        document.getElementById('totalPitches').textContent = total;
     }
 
     function deletePitch(index) {
