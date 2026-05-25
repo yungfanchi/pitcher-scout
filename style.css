@@ -309,6 +309,9 @@
         .zone-cell.selected.ball-zone { background:var(--ct-green) !important; color:white; border-color:var(--ct-red); box-shadow:0 0 0 3px rgba(220,0,0,0.45); transform:scale(1.05); }
         .zone-label { position:absolute; top:3px; left:4px; font-size:10px; color:#9ca3af; font-weight:700; }
         .zone-cell.selected .zone-label { color:rgba(0,0,0,0.65); }
+        /* 打者視角：鏡像翻轉格子，文字反向還原保持可讀 */
+        #strikeZone.batter-view { transform:scaleX(-1); }
+        #strikeZone.batter-view .zone-cell { transform:scaleX(-1); }
 
         /* Count display below zone */
         .zone-count-display { background:#0d1b2a; border-radius:8px; padding:8px 12px; border:2px solid var(--ct-gold); text-align:center; width:100%; }

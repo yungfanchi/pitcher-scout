@@ -767,13 +767,13 @@
                 <!-- 九宮格 + 左右側欄 -->
                 <div style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;flex-wrap:wrap;">
                     <span style="font-size:12px;font-weight:700;color:var(--ct-blue-dark);">投球位置</span>
-                    <span style="font-size:11px;color:#92400e;background:#fef9c3;border:1px solid #fde68a;border-radius:5px;padding:2px 8px;font-weight:700;">📌 投手視角</span>
+                    <button id="zoneViewToggle" onclick="toggleZoneView()" style="font-size:11px;color:#92400e;background:#fef9c3;border:1px solid #fde68a;border-radius:5px;padding:2px 8px;font-weight:700;cursor:pointer;touch-action:manipulation;">📌 投手視角</button>
                 </div>
                 <div class="pitch-zone-result-row">
                     <!-- 九宮格 + L/R 標示在外側 -->
                     <div class="pitch-zone-col">
                         <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
-                            <div style="font-size:13px;font-weight:900;color:#2563eb;background:#dbeafe;border-radius:5px;padding:4px 7px;flex-shrink:0;">L</div>
+                            <div id="zoneLLabel" style="font-size:13px;font-weight:900;color:#2563eb;background:#dbeafe;border-radius:5px;padding:4px 7px;flex-shrink:0;">L</div>
                             <div class="strike-zone-extended" id="strikeZone">
                                 <div class="zone-cell ball-zone" data-zone="B1" onclick="selectZone('B1')"><span class="zone-label">B1</span></div>
                                 <div class="zone-cell ball-zone" data-zone="B2" onclick="selectZone('B2')"><span class="zone-label">B2</span></div>
@@ -801,7 +801,7 @@
                                 <div class="zone-cell ball-zone" data-zone="B15" onclick="selectZone('B15')"><span class="zone-label">B15</span></div>
                                 <div class="zone-cell ball-zone" data-zone="B16" onclick="selectZone('B16')"><span class="zone-label">B16</span></div>
                             </div>
-                            <div style="font-size:13px;font-weight:900;color:#dc2626;background:#fee2e2;border-radius:5px;padding:4px 7px;flex-shrink:0;">R</div>
+                            <div id="zoneRLabel" style="font-size:13px;font-weight:900;color:#dc2626;background:#fee2e2;border-radius:5px;padding:4px 7px;flex-shrink:0;">R</div>
                         </div>
                         <div class="zone-count-display">
                             <div class="zone-count-label">當前球數</div>

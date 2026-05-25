@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v315';
+﻿    const APP_VERSION = 'v316';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -32,6 +32,7 @@
     let lastSelectedSlot = 'A'; // 記錄上次記錄投球的 slot，下次自動切換到另一個
     let editingPitchIndex = null;
     let _pitchLogShowAll = false; // 投球記錄列表是否展開全部
+    let _zoneViewAngle = 'pitcher'; // 'pitcher' | 'batter'
     let _pitchLogLastKey = null;     // 上次渲染的 "{teamIdx}:{pitcherIdx}"
     let _pitchLogLastTotal = -1;     // 上次渲染時的球數
     let _pitchLogLastShowAll = false; // 上次渲染時的 showAll 狀態
@@ -2863,6 +2864,32 @@
         document.querySelectorAll('.pitch-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentPitch.type = btn.dataset.pitch;
+    }
+
+    function toggleZoneView() {
+        _zoneViewAngle = _zoneViewAngle === 'pitcher' ? 'batter' : 'pitcher';
+        const isBatter = _zoneViewAngle === 'batter';
+        const zone    = document.getElementById('strikeZone');
+        const lLabel  = document.getElementById('zoneLLabel');
+        const rLabel  = document.getElementById('zoneRLabel');
+        const btn     = document.getElementById('zoneViewToggle');
+        if (isBatter) {
+            zone.classList.add('batter-view');
+            lLabel.textContent = 'R';
+            lLabel.style.cssText = 'font-size:13px;font-weight:900;color:#dc2626;background:#fee2e2;border-radius:5px;padding:4px 7px;flex-shrink:0;';
+            rLabel.textContent = 'L';
+            rLabel.style.cssText = 'font-size:13px;font-weight:900;color:#2563eb;background:#dbeafe;border-radius:5px;padding:4px 7px;flex-shrink:0;';
+            btn.textContent = '👁️ 打者視角';
+            btn.style.cssText = 'font-size:11px;color:#1d4ed8;background:#dbeafe;border:1px solid #93c5fd;border-radius:5px;padding:2px 8px;font-weight:700;cursor:pointer;touch-action:manipulation;';
+        } else {
+            zone.classList.remove('batter-view');
+            lLabel.textContent = 'L';
+            lLabel.style.cssText = 'font-size:13px;font-weight:900;color:#2563eb;background:#dbeafe;border-radius:5px;padding:4px 7px;flex-shrink:0;';
+            rLabel.textContent = 'R';
+            rLabel.style.cssText = 'font-size:13px;font-weight:900;color:#dc2626;background:#fee2e2;border-radius:5px;padding:4px 7px;flex-shrink:0;';
+            btn.textContent = '📌 投手視角';
+            btn.style.cssText = 'font-size:11px;color:#92400e;background:#fef9c3;border:1px solid #fde68a;border-radius:5px;padding:2px 8px;font-weight:700;cursor:pointer;touch-action:manipulation;';
+        }
     }
 
     function selectZone(zone) {
