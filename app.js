@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v323';
+﻿    const APP_VERSION = 'v324';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4142,8 +4142,13 @@
         const selectedOutcomes = Array.from(document.querySelectorAll('#editPitchForm .outcome-btn.selected')).map(b => b.dataset.outcome);
         pitch.outcomes = selectedOutcomes;
         pitch.outcome = selectedOutcomes[0] || null;
-        recomputeGameState();
-        updatePitchLog(); updateStats(); saveToLocalStorage(); saveToFirebase(currentTeam);
+
+        // ── 只更新數據與統計，不呼叫 recomputeGameState()
+        // ── 計分板、打線、球數、壘包維持使用者目前的 live state ──
+        updatePitchLog();
+        updateStats();
+        saveToLocalStorage();
+        saveToFirebase(currentTeam);
         closeEditModal();
     }
 
