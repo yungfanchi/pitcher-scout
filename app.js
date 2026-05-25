@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v318';
+﻿    const APP_VERSION = 'v319';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3595,6 +3595,28 @@
             }
         } else if (isPA) {
             gameState.strikes = 0; gameState.balls = 0;
+            // 野選：打者上壘但有一名跑者被刺出局
+            if (outcomes.includes('野選')) {
+                gameState.outs++;
+                if (gameState.outs >= 3) {
+                    if (currentTeam !== null) {
+                        const score = getTeamScore();
+                        score.half = score.half === '上' ? '下' : '上';
+                        if (score.half === '上') score.inning = Math.min(20, score.inning + 1);
+                        gameState.half = score.half;
+                    }
+                    gameState.outs = 0;
+                    gameState.bases = [false, false, false];
+                    gameState.runners = [null, null, null];
+                    gameState.strikes = 0; gameState.balls = 0;
+                    renderCountLights(); renderBases();
+                    updateScoreboard();
+                    autoUpdateBatterInfoByInning();
+                    renderCountLights();
+                    updateZoneCountDisplay();
+                    return;
+                }
+            }
             // Apply base running + auto score
             const _oldBases = [...gameState.bases];
             const { newBases, runsScored: autoRuns } = applyBaseRunning(gameState.bases, outcomes);
