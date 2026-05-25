@@ -1,4 +1,9 @@
-﻿    const APP_VERSION = 'v312';
+﻿    const APP_VERSION = 'v313';
+
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -2237,7 +2242,7 @@
             gameHeader.innerHTML = `
                 <span style="font-size:11px;color:var(--ct-gold);transition:transform 0.2s;display:inline-block;transform:${isGameExpanded ? 'rotate(90deg)' : 'rotate(0)'}">▶</span>
                 ${hasLive ? '<span class="live-badge">LIVE</span>' : ''}
-                <span style="font-size:13px;font-weight:700;color:white;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🏟️ ${gameName}</span>
+                <span style="font-size:13px;font-weight:700;color:white;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🏟️ ${escapeHtml(gameName)}</span>
                 <span style="font-size:10px;color:rgba(255,255,255,0.5);">${teams.length}隊</span>
             `;
             gameHeader.onclick = () => {
@@ -2541,20 +2546,20 @@
                         : '';
 
                     const metaBadges = [
-                        pitcher.number ? `#${pitcher.number}` : null,
+                        pitcher.number ? `#${escapeHtml(pitcher.number)}` : null,
                         pitcher.hand || null,
                         pitcher.role || null,
-                    ].filter(Boolean).map(t => `<span class="pitcher-slot-badge">${t}</span>`).join('');
+                    ].filter(Boolean).map(t => `<span class="pitcher-slot-badge">${escapeHtml(t)}</span>`).join('');
 
                     const styleTag = pitcher.style
-                        ? `<span class="pitcher-slot-type">${pitcher.style}</span>`
+                        ? `<span class="pitcher-slot-type">${escapeHtml(pitcher.style)}</span>`
                         : '';
 
                     contentEl.innerHTML = `
                         ${isActive ? '<div class="active-indicator">▶ 正在投球</div>' : ''}
                         <div>
-                            <div class="pitcher-slot-team">${teamLabel}</div>
-                            <div class="pitcher-slot-name">${pitcher.name}</div>
+                            <div class="pitcher-slot-team">${escapeHtml(teamLabel)}</div>
+                            <div class="pitcher-slot-name">${escapeHtml(pitcher.name)}</div>
                         </div>
                         <div>
                             <div class="pitcher-slot-meta">${metaBadges}${styleTag}</div>
@@ -2666,15 +2671,15 @@
             row.style.cssText = 'display:grid;grid-template-columns:44px 2fr 3fr 4fr;gap:6px;margin-bottom:8px;align-items:center;';
             row.innerHTML = `
                 <div style="width:36px;height:36px;border-radius:50%;background:var(--ct-blue-dark);color:#ffd700;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;flex-shrink:0;">${i}</div>
-                <input type="text" inputmode="numeric" placeholder="#" value="${p.number||''}" data-order="${i}" data-field="number"
+                <input type="text" inputmode="numeric" placeholder="#" value="${escapeHtml(p.number)}" data-order="${i}" data-field="number"
                     style="padding:7px 4px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;"
                     onkeydown="if(event.key==='Enter')this.blur()">
-                <button type="button" data-order="${i}" data-field="hand" data-value="${p.hand||'右打'}"
+                <button type="button" data-order="${i}" data-field="hand" data-value="${escapeHtml(p.hand||'右打')}"
                     onclick="toggleLineupHand(this)"
                     style="padding:7px 4px;border:none;border-radius:7px;font-size:15px;font-weight:700;width:100%;box-sizing:border-box;cursor:pointer;background:${(p.hand||'右打')==='左打'?'#dc0000':'#003d79'};color:white;font-family:'Noto Sans TC',sans-serif;letter-spacing:1px;">
-                    ${p.hand||'右打'}
+                    ${escapeHtml(p.hand||'右打')}
                 </button>
-                <input type="text" placeholder="姓名" value="${p.name||''}" data-order="${i}" data-field="name"
+                <input type="text" placeholder="姓名" value="${escapeHtml(p.name)}" data-order="${i}" data-field="name"
                     style="padding:7px 6px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;"
                     onkeydown="if(event.key==='Enter')this.blur()">` ;
             container.appendChild(row);
@@ -3752,16 +3757,16 @@
                 <div class="pitch-record-header">
                     <div style="flex:1;min-width:0;overflow:hidden;">
                         <strong style="color:${resultColor}">#${index+1}</strong>
-                        ${batterInfo} | <strong>${pitch.type || '-'}</strong> | 位置:${pitch.zone}
+                        ${batterInfo} | <strong>${escapeHtml(pitch.type) || '-'}</strong> | 位置:${escapeHtml(pitch.zone)}
                         ${pitch.speed ? ' | <strong style="color:var(--ct-red);">'+pitch.speed+'</strong>' : ''}
-                        | <strong style="color:${resultColor}">${pitch.result}</strong>
+                        | <strong style="color:${resultColor}">${escapeHtml(pitch.result)}</strong>
                         ${extras.length ? ' <span style="color:#c2410c;font-weight:700;">'+extras.join(' ')+'</span>' : ''}
                     </div>
                     <div class="pitch-record-actions" style="flex-shrink:0;">
                     </div>
                 </div>
                 ${outcomes.length ? `<div class="pitch-record-details">打擊結果: <strong style="color:var(--ct-red);">${outcomes.join('、')}</strong></div>` : ''}
-                ${pitch.note ? `<div class="pitch-record-details" style="color:#6b7280;">📝 ${pitch.note}</div>` : ''}
+                ${pitch.note ? `<div class="pitch-record-details" style="color:#6b7280;">📝 ${escapeHtml(pitch.note)}</div>` : ''}
                 <div class="pitch-record-details" style="font-size:11px;color:#9ca3af;">${pitch.balls !== undefined ? pitch.balls+'B-'+pitch.strikes+'S' : ''} ${pitch.timestamp ? new Date(pitch.timestamp).toLocaleTimeString('zh-TW') : ''}</div>
             `;
             // 用 addEventListener 確保行動裝置按鈕不會失效
@@ -4118,7 +4123,7 @@
             const color = PITCH_COLORS[type] || '#999';
             const item = document.createElement('div');
             item.className = 'pattern-item';
-            item.innerHTML = `<span style="font-size:17px;font-weight:900;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;">${type}</span><span style="color:var(--ct-red);font-weight:700;">${count} 球 (${pct}%)</span><span style="color:#b45309;font-weight:700;font-size:13px;">好球率 ${strikeRatePct}%</span>`;
+            item.innerHTML = `<span style="font-size:17px;font-weight:900;color:${color};font-family:'Oswald','Noto Sans TC',sans-serif;">${escapeHtml(type)}</span><span style="color:var(--ct-red);font-weight:700;">${count} 球 (${pct}%)</span><span style="color:#b45309;font-weight:700;font-size:13px;">好球率 ${strikeRatePct}%</span>`;
             statsDiv.appendChild(item);
         });
         // pie chart
@@ -4511,7 +4516,7 @@
             const dot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${PITCH_COLORS[type]||'#999'};margin-right:6px;vertical-align:middle;flex-shrink:0;"></span>`;
             const item = document.createElement('div');
             item.className = 'pattern-item';
-            item.innerHTML = `<span style="display:flex;align-items:center;">${dot}<span style="font-size:18px;font-weight:900;color:${PITCH_COLORS[type]||'var(--ct-blue-dark)'};font-family:'Oswald','Noto Sans TC',sans-serif;">${type}</span></span><span style="font-size:16px;color:var(--ct-red);font-weight:700;white-space:nowrap;">${cnt}球 ${((cnt/total)*100).toFixed(1)}%</span>`;
+            item.innerHTML = `<span style="display:flex;align-items:center;">${dot}<span style="font-size:18px;font-weight:900;color:${PITCH_COLORS[type]||'var(--ct-blue-dark)'};font-family:'Oswald','Noto Sans TC',sans-serif;">${escapeHtml(type)}</span></span><span style="font-size:16px;color:var(--ct-red);font-weight:700;white-space:nowrap;">${cnt}球 ${((cnt/total)*100).toFixed(1)}%</span>`;
             divType.appendChild(item);
         });
 
@@ -4526,7 +4531,7 @@
         Object.entries(sequences).sort((a,b)=>b[1]-a[1]).slice(0,5).forEach(([seq,cnt]) => {
             const item = document.createElement('div');
             item.className = 'pattern-item';
-            item.innerHTML = `<span style="font-size:17px;font-weight:700;color:var(--ct-blue-dark);">${seq}</span><span style="font-size:16px;color:var(--ct-red);font-weight:700;white-space:nowrap;">${cnt}次</span>`;
+            item.innerHTML = `<span style="font-size:17px;font-weight:700;color:var(--ct-blue-dark);">${escapeHtml(seq)}</span><span style="font-size:16px;color:var(--ct-red);font-weight:700;white-space:nowrap;">${cnt}次</span>`;
             divSeq.appendChild(item);
         });
     }
@@ -5304,7 +5309,7 @@
             const gameName = parts[0] || gk;
             const dateVs = parts[1] && parts[2] ? `${parts[1]} · ${parts[2]}` : '';
             return `<div style="border:2px solid var(--ct-gold);border-radius:10px;padding:12px;margin-bottom:10px;">
-                <div style="font-weight:900;color:var(--ct-blue-dark);font-size:14px;margin-bottom:4px;">🏟️ ${gameName}</div>
+                <div style="font-weight:900;color:var(--ct-blue-dark);font-size:14px;margin-bottom:4px;">🏟️ ${escapeHtml(gameName)}</div>
                 ${dateVs ? `<div style="font-size:11px;color:#6b7280;margin-bottom:8px;">${dateVs}</div>` : ''}
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:12px;">
                     <div style="text-align:center;background:#f0f9ff;border-radius:6px;padding:6px;"><div style="color:#6b7280;margin-bottom:2px;">球數</div><strong>${gTotal}</strong></div>
@@ -10975,7 +10980,7 @@
             gameHeader.innerHTML = `
                 <span style="font-size:11px;color:var(--ct-gold);transition:transform 0.2s;display:inline-block;transform:${isExpanded?'rotate(90deg)':'rotate(0)'}">▶</span>
                 ${hasActive ? '<span class="live-badge">LIVE</span>' : ''}
-                <span style="font-size:13px;font-weight:700;color:white;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🏟️ ${gameName}</span>
+                <span style="font-size:13px;font-weight:700;color:white;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🏟️ ${escapeHtml(gameName)}</span>
                 <span style="font-size:10px;color:rgba(255,255,255,0.5);">${items.length}場</span>
             `;
             gameHeader.onclick = () => {
