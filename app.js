@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v321';
+﻿    const APP_VERSION = 'v322';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3780,15 +3780,35 @@
     }
 
     function advanceLeadRunner() {
+        // 趁傳進壘：只移動領先跑者（最靠近本壘板的那位）
         if (gameState.bases[2]) {
-            gameState.bases[2] = false; // 三壘跑者得分
+            gameState.bases[2] = false;
+            gameState.runners[2] = null;
         } else if (gameState.bases[1]) {
             gameState.bases[1] = false;
             gameState.bases[2] = true;
+            gameState.runners[2] = gameState.runners[1];
+            gameState.runners[1] = null;
         } else if (gameState.bases[0]) {
             gameState.bases[0] = false;
             gameState.bases[1] = true;
+            gameState.runners[1] = gameState.runners[0];
+            gameState.runners[0] = null;
         }
+        renderBases();
+    }
+
+    function advanceAllRunners() {
+        // 失誤進壘：所有壘上跑者同時前進一壘
+        // 三壘跑者得分（清除）；二壘→三壘；一壘→二壘；一壘清空
+        const oldBases   = [...gameState.bases];
+        const oldRunners = [...gameState.runners];
+        gameState.bases[2]   = oldBases[1];
+        gameState.runners[2] = oldRunners[1];
+        gameState.bases[1]   = oldBases[0];
+        gameState.runners[1] = oldRunners[0];
+        gameState.bases[0]   = false;
+        gameState.runners[0] = null;
         renderBases();
     }
 
