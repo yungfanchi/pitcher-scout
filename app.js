@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v322';
+﻿    const APP_VERSION = 'v323';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2327,12 +2327,24 @@
                         pitcherTagsDiv.appendChild(empty);
                     } else {
                         team.pitchers.forEach((pitcher, pitcherIndex) => {
-                            const isActive = (slotA.team === teamIndex && slotA.pitcher === pitcherIndex) ||
-                                             (slotB.team === teamIndex && slotB.pitcher === pitcherIndex);
+                            const isInSlotA  = slotA.team === teamIndex && slotA.pitcher === pitcherIndex;
+                            const isInSlotB  = slotB.team === teamIndex && slotB.pitcher === pitcherIndex;
+                            const isInAnySlot = isInSlotA || isInSlotB;
+                            // 正在投球 = 在 activeSlot 的那位
+                            const isPitching = (isInSlotA && activeSlot === 'A') || (isInSlotB && activeSlot === 'B');
 
                             const tag = document.createElement('button');
                             tag.type = 'button';
-                            tag.className = 'pitcher-tag' + (isActive ? ' active' : '');
+                            tag.title = isPitching ? '目前正在投球（點選切換為對方投手投球）'
+                                      : isInAnySlot ? '點選切換為此投手正在投球'
+                                      : '點選分配到當前槽位';
+                            if (isPitching) {
+                                tag.className = 'pitcher-tag pitching';
+                            } else if (isInAnySlot) {
+                                tag.className = 'pitcher-tag active';
+                            } else {
+                                tag.className = 'pitcher-tag';
+                            }
 
                             const label = document.createTextNode(
                                 pitcher.name +
@@ -2342,6 +2354,14 @@
                                 ' '
                             );
                             tag.appendChild(label);
+
+                            // 正在投球 chip
+                            if (isPitching) {
+                                const chip = document.createElement('span');
+                                chip.className = 'pitcher-pitching-chip';
+                                chip.textContent = '▶ 正在投球';
+                                tag.appendChild(chip);
+                            }
 
                             const editBtn = document.createElement('span');
                             editBtn.className = 'pitcher-tag-edit';
@@ -2442,6 +2462,15 @@
     }
 
     function selectPitcherToSlot(teamIndex, pitcherIndex) {
+        // 已在 slot 中的投手：直接切換到那個 slot（讓使用者手動選擇「正在投球」）
+        if (slotA.team === teamIndex && slotA.pitcher === pitcherIndex) {
+            activateSlot('A');
+            return;
+        }
+        if (slotB.team === teamIndex && slotB.pitcher === pitcherIndex) {
+            activateSlot('B');
+            return;
+        }
         // 放入目前 activeSlot
         if (activeSlot === 'A') {
             slotA = { team: teamIndex, pitcher: pitcherIndex };
