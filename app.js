@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v327';
+﻿    const APP_VERSION = 'v328';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -702,8 +702,8 @@
             });
         });
 
-        // 蒐集此球隊的打者
-        const batterList = (allData.batterData || []).filter(b => b.team === teamName);
+        // 打者資料庫記錄己方打者，不以對手隊名過濾，顯示全部可用打者
+        const batterList = (allData.batterData || []);
 
         // ── 投手清單 ──
         const pitcherWrap     = document.getElementById('pdfPitcherListWrap');
