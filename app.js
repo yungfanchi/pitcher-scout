@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v325';
+﻿    const APP_VERSION = 'v326';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -650,30 +650,32 @@
     }
 
     function openPDFFilter() {
-        // 建立投手名單：name -> { number, games:[{ti, label}] }
+        // 建立投手名單：key("name#number") -> { name, number, games:[{ti, label}] }
         const pitcherMap = {};
         allData.teams.forEach((team, ti) => {
             (team.pitchers || []).forEach(p => {
                 if (!p.name) return;
-                if (!pitcherMap[p.name]) pitcherMap[p.name] = { number: p.number, games: [] };
+                const pKey = getPitcherKey(p.name, p.number);
+                if (!pitcherMap[pKey]) pitcherMap[pKey] = { name: p.name, number: p.number, games: [] };
                 const label = [team.date, team.gameName, team.opponent ? 'vs ' + team.opponent : ''].filter(Boolean).join(' ');
-                pitcherMap[p.name].games.push({ ti, label });
+                pitcherMap[pKey].games.push({ ti, label });
             });
         });
 
         const sel = document.getElementById('pdfPitcherSelect');
         sel.innerHTML = '<option value="">— 請選擇投手 —</option>';
-        Object.entries(pitcherMap).forEach(([name, info]) => {
+        Object.entries(pitcherMap).forEach(([pKey, info]) => {
             const gameCount = info.games.length;
-            sel.innerHTML += `<option value="${name}">${name}${info.number ? ' #' + info.number : ''} (${gameCount} 場)</option>`;
+            sel.innerHTML += `<option value="${pKey}">${info.name}${info.number ? ' #' + info.number : ''} (${gameCount} 場)</option>`;
         });
 
         // 自動帶入當前情蒐投手
         const activeS = activeSlot === 'A' ? slotA : slotB;
         const activePitcher = (activeS.team !== null && activeS.pitcher !== null)
             ? allData.teams[activeS.team]?.pitchers[activeS.pitcher] : null;
-        const autoSelected = activePitcher?.name && pitcherMap[activePitcher.name];
-        if (autoSelected) sel.value = activePitcher.name;
+        const activePKey = activePitcher?.name ? getPitcherKey(activePitcher.name, activePitcher.number) : null;
+        const autoSelected = activePKey && pitcherMap[activePKey];
+        if (autoSelected) sel.value = activePKey;
 
         // 重置 UI 狀態
         const inclPitcherCb = document.getElementById('pdfIncludePitcher');
@@ -735,11 +737,11 @@
     }
 
     // 填入場次下拉選單（只列出該投手有參與的場次）
-    function _populatePDFGameSelect(pitcherName) {
+    function _populatePDFGameSelect(pitcherKey) {
         const gameSel = document.getElementById('pdfGameSelect');
         gameSel.innerHTML = '<option value="">— 請選擇場次 —</option>';
         allData.teams.forEach((team, ti) => {
-            const hasPitcher = (team.pitchers || []).some(p => p.name === pitcherName);
+            const hasPitcher = (team.pitchers || []).some(p => getPitcherKey(p.name, p.number) === pitcherKey);
             if (!hasPitcher) return;
             const label = [
                 team.date || '',
@@ -764,14 +766,16 @@
 
         if (!inclPitcher && !inclBatter) { alert('請至少勾選一項輸出內容'); return; }
 
-        const pitcherName = document.getElementById('pdfPitcherSelect').value;
+        const pitcherKey = document.getElementById('pdfPitcherSelect').value;
+        // pitcherKey 格式為 "name#number"，拆解出顯示用姓名
+        const pitcherName = pitcherKey.includes('#') ? pitcherKey.split('#')[0] : pitcherKey;
         const scopeEl = document.querySelector('input[name="pdfScope"]:checked');
         const scope = scopeEl ? scopeEl.value : 'all';
         const gameIndex = scope === 'single' ? document.getElementById('pdfGameSelect').value : 'all';
         const handEl = document.querySelector('input[name="pdfHand"]:checked');
         const handFilter = handEl ? handEl.value : 'all';
 
-        if (inclPitcher && !pitcherName) { alert('請選擇投手'); return; }
+        if (inclPitcher && !pitcherKey) { alert('請選擇投手'); return; }
         if (inclPitcher && scope === 'single' && !gameIndex) { alert('請選擇場次'); return; }
 
         // 1. 收集該投手符合條件的所有球（只有 inclPitcher 才需要）
@@ -782,7 +786,7 @@
             allData.teams.forEach((team, ti) => {
                 if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
                 (team.pitchers || []).forEach(p => {
-                    if (p.name !== pitcherName) return;
+                    if (getPitcherKey(p.name, p.number) !== pitcherKey) return;
                     if (!refPitcher) refPitcher = p;
                     (p.pitches || []).forEach(pitch => aggregated.push(pitch));
                 });
