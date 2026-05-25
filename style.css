@@ -7,7 +7,7 @@
         }
         body {
             font-family:"Noto Sans TC","Microsoft JhengHei","Segoe UI",Arial,sans-serif;
-            background:linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%);
+            background:#0d1f3c;
             display:flex; min-height:100vh; overflow-x:hidden;
             -webkit-overflow-scrolling:touch;
             overscroll-behavior-y:contain;
@@ -686,7 +686,7 @@
         #syncDot span { font-size:10px; color:white; font-weight:700; }
         #loginScreen {
             position:fixed; inset:0; z-index:9999;
-            background:linear-gradient(135deg,#001f3f 0%,#003d79 60%,#0051a5 100%);
+            background:linear-gradient(135deg,#091629 0%,#0d1f3c 100%);
             display:flex; align-items:center; justify-content:center; padding:20px;
             -webkit-overflow-scrolling:touch; overflow-y:auto;
         }
