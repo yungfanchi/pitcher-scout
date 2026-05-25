@@ -887,9 +887,7 @@
             });
         });
 
-        // 預留殼：console 呈現過濾結果，PDF 實體導出待接套件
-        console.log(`[exportToPDF] 投手: ${pitcherName} | 場次: ${gameId === 'all' ? '全部場次' : '第 ' + gameId + ' 場'} | 打者篩選: ${handFilter}`);
-        console.log('[exportToPDF] 過濾結果 sections:', sections);
+        // 預留殼：PDF 實體導出待接套件
 
         if (!sections.length) { alert('所選條件無投球數據'); return; }
 
@@ -5726,7 +5724,6 @@
         setSyncStatus(connected);
         if (connected && pendingSync) {
             // 重新連線，自動補傳離線期間的資料
-            console.log('[Firebase] 重新連線，補傳離線資料...');
             pendingSync = false;
             saveToFirebase();
         }
@@ -5735,7 +5732,6 @@
     // 瀏覽器網路狀態也監控
     window.addEventListener('online', () => {
         if (pendingSync) {
-            console.log('[Network] 連線恢復，補傳資料...');
             pendingSync = false;
             saveToFirebase();
         }
@@ -6059,7 +6055,6 @@
                             try { localStorage.removeItem('_pendingSync'); } catch(e) {}
                             setSyncStatus(true);
                         }
-                        console.log(`[Firebase] 初始化完成（${mergedArr.length} 場，已去重）`);
                         _startGamesListener(gRef);
                     })
                     .catch(e => {
