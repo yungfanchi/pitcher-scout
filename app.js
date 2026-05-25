@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v300';
+﻿    const APP_VERSION = 'v301';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
@@ -6756,8 +6756,8 @@
             const cfg = snap.val() || {};
             const t = document.getElementById('loginPageTitle');
             const s = document.getElementById('loginPageSub');
-            if (t) t.textContent = cfg.siteTitle || '投手情蒐系統';
-            if (s) s.textContent = cfg.siteSub   || 'PITCHER SCOUTING · CHINESE TAIPEI';
+            if (t) t.textContent = cfg.siteTitle || 'Scout';
+            if (s) s.textContent = cfg.siteSub   || 'BASEBALL SCOUTING · CHINESE TAIPEI';
         }).catch(() => {});
     }
 
@@ -6765,19 +6765,19 @@
     async function adminSetSiteConfig() {
         const snap = await db.ref('systemConfig').once('value');
         const cfg = snap.val() || {};
-        const newTitle = prompt('登入頁大字（例：投手情蒐系統）：', cfg.siteTitle || '投手情蒐系統');
+        const newTitle = prompt('登入頁大字（例：Scout）：', cfg.siteTitle || 'Scout');
         if (newTitle === null) return;
-        const newSub = prompt('登入頁小字（例：PITCHER SCOUTING · CHINESE TAIPEI）：', cfg.siteSub || 'PITCHER SCOUTING · CHINESE TAIPEI');
+        const newSub = prompt('登入頁小字（例：BASEBALL SCOUTING · CHINESE TAIPEI）：', cfg.siteSub || 'BASEBALL SCOUTING · CHINESE TAIPEI');
         if (newSub === null) return;
         await db.ref('systemConfig').update({
-            siteTitle: newTitle.trim() || '投手情蒐系統',
-            siteSub:   newSub.trim()   || 'PITCHER SCOUTING · CHINESE TAIPEI'
+            siteTitle: newTitle.trim() || 'Scout',
+            siteSub:   newSub.trim()   || 'BASEBALL SCOUTING · CHINESE TAIPEI'
         });
         // 即時更新當前頁面
         const t = document.getElementById('loginPageTitle');
         const s = document.getElementById('loginPageSub');
-        if (t) t.textContent = newTitle.trim() || '投手情蒐系統';
-        if (s) s.textContent = newSub.trim()   || 'PITCHER SCOUTING · CHINESE TAIPEI';
+        if (t) t.textContent = newTitle.trim() || 'Scout';
+        if (s) s.textContent = newSub.trim()   || 'BASEBALL SCOUTING · CHINESE TAIPEI';
         alert('✅ 登入頁名稱已更新');
     }
 
@@ -6788,13 +6788,13 @@
         if (!nameEl || !subEl) return;
         if (!code || code === 'ADMIN') {
             nameEl.textContent = 'CHINESE TAIPEI';
-            subEl.textContent  = '投手情蒐系統 · PITCHER SCOUTING';
+            subEl.textContent  = 'Scout · BASEBALL SCOUTING';
             return;
         }
         db.ref(`teams/${code}/config`).once('value').then(snap => {
             const cfg = snap.val() || {};
             nameEl.textContent = cfg.teamName || 'CHINESE TAIPEI';
-            subEl.textContent  = cfg.teamSub  || '投手情蒐系統 · PITCHER SCOUTING';
+            subEl.textContent  = cfg.teamSub  || 'Scout · BASEBALL SCOUTING';
         }).catch(() => {});
     }
 
@@ -10377,7 +10377,7 @@
         const sub = document.getElementById('headerTeamSub');
         if (sub) {
             const vSpan = sub.querySelector('#appVersionMain');
-            sub.innerHTML = '投手情蒐系統 · PITCHER SCOUTING ';
+            sub.innerHTML = 'Scout · BASEBALL SCOUTING ';
             if (vSpan) sub.appendChild(vSpan);
         }
         // ★ 重新強制執行帳號安全 UI（防止打者模式返回時洩漏受限功能）
