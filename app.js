@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v302';
+﻿    const APP_VERSION = 'v303';
 
     // 局數制標準：壘球 7 局、棒球 9 局
     const GAME_INNING_STANDARD = 7;
