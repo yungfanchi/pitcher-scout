@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v331';
+﻿    const APP_VERSION = 'v332';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -636,9 +636,14 @@
     // key 格式：'P|{batterNumber}'，便於 generatePDF 識別來源
     function _deriveBattersFromPitches(teamName) {
         const map = {};
+        // 優先從 batterData 按背號查隊名
+        const bdTeamByNum = {};
+        (allData.batterData || []).forEach(bd => {
+            if (bd.number) bdTeamByNum[String(bd.number)] = bd.team || '';
+        });
         allData.teams.forEach(team => {
             if (team.opponent !== teamName) return;
-            const battingTeam = team.name || '';          // 打者所屬球隊（我方）
+            const battingTeam = team.name || '';
             const lineupA = team.lineups?.teamA || [];
             const lineupB = team.lineups?.teamB || [];
             (team.pitchers || []).forEach(p => {
@@ -651,7 +656,8 @@
                         let name = '';
                         const oi = parseInt(ord);
                         if (!isNaN(oi)) name = lineupB[oi]?.name || lineupA[oi]?.name || '';
-                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: battingTeam };
+                        const teamFromDB = num ? (bdTeamByNum[num] || '') : '';
+                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: teamFromDB || battingTeam };
                     }
                     if (!map[key].hand && pitch.batterHand) map[key].hand = pitch.batterHand;
                     if (!map[key].team && battingTeam) map[key].team = battingTeam;
@@ -849,7 +855,7 @@
         const bmSet = new Set(pitchBatters.map(b => b.number).filter(Boolean));
         const bmBatters = (allData.batterData || [])
             .filter(b => b.name)
-            .map(b => ({ key: `BM|${b.name}`, number: b.number || '', hand: b.hand || '', name: b.name, _bm: true }))
+            .map(b => ({ key: `BM|${b.name}`, number: b.number || '', hand: b.hand || '', name: b.name, team: b.team || '', _bm: true }))
             .filter(b => !b.number || !bmSet.has(b.number)); // 避免與投手模式重複
 
         const batterList = [...pitchBatters, ...bmBatters];
