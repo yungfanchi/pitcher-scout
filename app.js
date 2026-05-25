@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v329';
+﻿    const APP_VERSION = 'v330';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -632,6 +632,144 @@
         }
     }
 
+    // ── 從投球記錄反推打者清單（投手模式資料）──
+    // key 格式：'P|{batterNumber}'，便於 generatePDF 識別來源
+    function _deriveBattersFromPitches(teamName) {
+        const map = {};
+        allData.teams.forEach(team => {
+            if (team.opponent !== teamName) return;
+            // lineups 是 1-indexed 陣列，嘗試從打線取姓名
+            const lineupA = team.lineups?.teamA || [];
+            const lineupB = team.lineups?.teamB || [];
+            (team.pitchers || []).forEach(p => {
+                (p.pitches || []).forEach(pitch => {
+                    const num = pitch.batterNumber != null ? String(pitch.batterNumber) : null;
+                    const ord = pitch.batterOrder  != null ? String(pitch.batterOrder)  : null;
+                    if (!num && !ord) return;
+                    const key = `P|${num || 'ord' + ord}`;
+                    if (!map[key]) {
+                        let name = '';
+                        const oi = parseInt(ord);
+                        if (!isNaN(oi)) name = lineupB[oi]?.name || lineupA[oi]?.name || '';
+                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name };
+                    }
+                    if (!map[key].hand && pitch.batterHand) map[key].hand = pitch.batterHand;
+                    if (!map[key].name) {
+                        const oi = parseInt(ord);
+                        if (!isNaN(oi)) map[key].name = lineupB[oi]?.name || lineupA[oi]?.name || '';
+                    }
+                });
+            });
+        });
+        return Object.values(map).sort((a, b) => {
+            const na = parseInt(a.number || a.order) || 99;
+            const nb = parseInt(b.number || b.order) || 99;
+            return na - nb;
+        });
+    }
+
+    // ── 計算指定打者在投球記錄中的成績 ──
+    function _calcBatterStatsFromPitches(numKey, teamName, gameIndex) {
+        // numKey = 'P|{numberOrOrd}' 或純 number 字串
+        const rawKey = numKey.startsWith('P|') ? numKey.slice(2) : numKey;
+        const isOrd  = rawKey.startsWith('ord');
+        const val    = isOrd ? rawKey.slice(3) : rawKey;
+
+        const pitches = [];
+        allData.teams.forEach((team, ti) => {
+            if (team.opponent !== teamName) return;
+            if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
+            (team.pitchers || []).forEach(p => {
+                (p.pitches || []).forEach(pitch => {
+                    const num = pitch.batterNumber != null ? String(pitch.batterNumber) : null;
+                    const ord = pitch.batterOrder  != null ? String(pitch.batterOrder)  : null;
+                    const match = isOrd ? ord === val : num === val;
+                    if (match) pitches.push(pitch);
+                });
+            });
+        });
+
+        const oc = p => (p.outcomes && p.outcomes.length) ? p.outcomes : (p.outcome ? [p.outcome] : []);
+        const endPitches = pitches.filter(p => oc(p).length > 0);
+        const PA  = endPitches.length;
+        const K   = endPitches.filter(p => oc(p).some(o => o === '三振' || o === '不死三振')).length;
+        const BB  = endPitches.filter(p => oc(p).some(o => o === '保送')).length;
+        const HBP = endPitches.filter(p => oc(p).some(o => o === '觸身球')).length;
+        const H   = endPitches.filter(p => oc(p).some(o => o && (o.includes('安打') || o === '全壘打'))).length;
+        const H2  = endPitches.filter(p => oc(p).some(o => o === '二壘安打')).length;
+        const H3  = endPitches.filter(p => oc(p).some(o => o === '三壘安打')).length;
+        const HR  = endPitches.filter(p => oc(p).some(o => o === '全壘打')).length;
+        const AB  = Math.max(0, PA - BB - HBP);
+        const AVG = AB > 0 ? (H / AB).toFixed(3) : '.000';
+        const locMap = {};
+        pitches.forEach(p => {
+            const z = p.hitLocation?.zone || p.hitLocation?.dir || null;
+            if (z) locMap[z] = (locMap[z] || 0) + 1;
+        });
+        return { PA, AB, H, H2, H3, HR, K, BB, HBP, AVG, locMap, totalPitches: pitches.length };
+    }
+
+    // ── 生成打者成績報告（off-screen HTML → canvas）──
+    async function _generateBatterReportCapture(pitchKeys, teamName, gameIndex) {
+        const batters = _deriveBattersFromPitches(teamName);
+        const pageW   = 210;
+
+        const div = document.createElement('div');
+        div.style.cssText = 'position:fixed;top:-99999px;left:0;width:900px;padding:24px 24px 16px;background:#f8f9fa;font-family:"Noto Sans TC",Arial,sans-serif;color:#1e3a5f;font-size:13px;';
+
+        const scopeLabel = gameIndex === 'all' ? '全部場次' : '單場';
+        let html = `<h1 style="font-size:22px;font-weight:900;color:#003d79;border-bottom:4px solid #d4af37;padding-bottom:8px;margin-bottom:16px;">🏃 打者成績 — vs ${teamName}（${scopeLabel}）</h1>`;
+
+        let hasData = false;
+        for (const key of pitchKeys) {
+            const b = batters.find(x => x.key === key);
+            if (!b) continue;
+            const st = _calcBatterStatsFromPitches(key, teamName, gameIndex);
+            if (!st.PA && !st.totalPitches) continue;
+            hasData = true;
+            const displayName = b.name || (b.number ? `#${b.number}` : `打序${b.order}`);
+            const topLocs = Object.entries(st.locMap).sort((a,z) => z[1]-a[1]).slice(0,5);
+            html += `<div style="background:white;border-radius:10px;padding:14px 18px;margin-bottom:14px;border:1px solid #e5e7eb;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                    <div style="background:linear-gradient(135deg,#003d79,#0051a5);color:white;border-radius:8px;padding:5px 14px;font-size:17px;font-weight:900;">${displayName}</div>
+                    ${b.hand ? `<div style="background:#f0f4ff;border:1px solid #c7d7f0;border-radius:6px;padding:3px 10px;font-size:12px;color:#003d79;font-weight:700;">${b.hand}</div>` : ''}
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:10px;">
+                    ${[['打席',st.PA],['打數',st.AB],['安打',st.H],['二壘打',st.H2],['三壘打',st.H3],['全壘打',st.HR],['三振',st.K],['保送',st.BB]].map(([l,v]) =>
+                        `<div style="text-align:center;background:#f0f4ff;border-radius:6px;padding:7px 2px;">
+                            <div style="font-size:17px;font-weight:900;color:#003d79;">${v}</div>
+                            <div style="font-size:9px;color:#6b7280;margin-top:1px;">${l}</div>
+                        </div>`).join('')}
+                </div>
+                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                    <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:5px 14px;">
+                        <span style="font-size:10px;color:#92400e;">打擊率</span>
+                        <span style="font-size:20px;font-weight:900;color:#92400e;margin-left:6px;">${st.AVG}</span>
+                    </div>
+                    ${topLocs.length ? `<div style="font-size:11px;color:#6b7280;">落點分布：${topLocs.map(([z,n]) => `<strong style="color:#003d79;">${z}</strong>(${n})`).join('　')}</div>` : ''}
+                </div>
+            </div>`;
+        }
+        if (!hasData) return null;
+
+        div.innerHTML = html;
+        document.body.appendChild(div);
+        await new Promise(r => setTimeout(r, 500));
+
+        const canvas = await html2canvas(div, {
+            scale: 2, useCORS: true, backgroundColor: '#f8f9fa',
+            width: 900, height: div.scrollHeight,
+            windowWidth: 900, windowHeight: div.scrollHeight + 100, logging: false
+        });
+        document.body.removeChild(div);
+
+        const pxPerMm = canvas.width / pageW;
+        const imgHeightMm = canvas.height / pxPerMm;
+        return { canvas, imgHeightMm };
+    }
+
+    // ====== PDF EXPORT MODAL ======
+
     function openPDFFilter() {
         // 從對手名稱 + 打者資料庫 team 欄位蒐集所有球隊名稱
         const teamSet = new Set();
@@ -702,8 +840,18 @@
             });
         });
 
-        // 打者資料庫記錄己方打者，不以對手隊名過濾，顯示全部可用打者
-        const batterList = (allData.batterData || []);
+        // ── 合併打者來源：投手模式（pitch records）+ 打者模式（allData.batterData）──
+        // 投手模式：從 pitch.batterNumber / batterOrder 反推，key = 'P|...'
+        const pitchBatters = _deriveBattersFromPitches(teamName);
+
+        // 打者模式：allData.batterData，key = 'BM|{name}'
+        const bmSet = new Set(pitchBatters.map(b => b.number).filter(Boolean));
+        const bmBatters = (allData.batterData || [])
+            .filter(b => b.name)
+            .map(b => ({ key: `BM|${b.name}`, number: b.number || '', hand: b.hand || '', name: b.name, _bm: true }))
+            .filter(b => !b.number || !bmSet.has(b.number)); // 避免與投手模式重複
+
+        const batterList = [...pitchBatters, ...bmBatters];
 
         // ── 投手清單 ──
         const pitcherWrap     = document.getElementById('pdfPitcherListWrap');
@@ -730,12 +878,19 @@
         if (inclBatter) {
             batterWrap.style.display = '';
             batterChecklist.innerHTML = batterList.length
-                ? batterList.map(b =>
-                    `<label class="pf-check-item">
-                        <input type="checkbox" class="pdf-batter-cb" value="${b.name}" onchange="onPDFMemberChange()">
-                        <span>${b.name}${b.number ? ' <em style="color:#6b7280;font-style:normal;">#' + b.number + '</em>' : ''}${b.hand ? ' · <em style="color:#6b7280;font-style:normal;">' + b.hand + '</em>' : ''}</span>
-                    </label>`).join('')
-                : '<div style="color:#9ca3af;font-size:12px;padding:6px 0;">此球隊暫無打者情蒐資料</div>';
+                ? batterList.map(b => {
+                    const displayNum  = b.number ? ` <em style="color:#6b7280;font-style:normal;">#${b.number}</em>` : '';
+                    const displayHand = b.hand   ? ` · <em style="color:#6b7280;font-style:normal;">${b.hand}</em>` : '';
+                    const srcTag = b._bm
+                        ? `<em style="color:#059669;font-size:10px;font-style:normal;margin-left:4px;">打者模式</em>`
+                        : `<em style="color:#0051a5;font-size:10px;font-style:normal;margin-left:4px;">投手記錄</em>`;
+                    const label = b.name ? b.name : (b.number ? `#${b.number}` : `打序${b.order}`);
+                    return `<label class="pf-check-item">
+                        <input type="checkbox" class="pdf-batter-cb" value="${b.key}" onchange="onPDFMemberChange()">
+                        <span>${label}${displayNum}${displayHand}${srcTag}</span>
+                    </label>`;
+                  }).join('')
+                : '<div style="color:#9ca3af;font-size:12px;padding:6px 0;">此球隊暫無打者記錄（投手或打者模式）</div>';
             document.getElementById('pdfSelectAllBatters').checked       = false;
             document.getElementById('pdfSelectAllBatters').indeterminate = false;
         } else {
@@ -921,14 +1076,27 @@
                 }
             }
 
-            // ====== 打者截圖（暫時以選中打者覆蓋 batterData）======
+            // ====== 打者截圖：投手模式記錄（P|...）→ 自訂報告；打者模式（BM|...）→ bmStatsTab ======
             if (inclBatter && selBatterCbs.length) {
-                setProg('整理打者資料...');
-                const selNames = new Set(selBatterCbs.map(cb => cb.value));
-                allData.batterData = origBatterData.filter(b => selNames.has(b.name));
-                const captures = await _captureTabsToArray(['bmStatsTab', 'bmBatterDataTab'], setProg);
-                allCaptures.push(...captures);
-                allData.batterData = origBatterData;
+                const pitchKeys = selBatterCbs.filter(cb => cb.value.startsWith('P|')).map(cb => cb.value);
+                const bmNames   = selBatterCbs.filter(cb => cb.value.startsWith('BM|')).map(cb => cb.value.slice(3));
+
+                // 投手模式：生成打者成績自訂報告
+                if (pitchKeys.length) {
+                    setProg('生成打者成績報告...');
+                    const cap = await _generateBatterReportCapture(pitchKeys, teamName, gameIndex);
+                    if (cap) allCaptures.push(cap);
+                }
+
+                // 打者模式：截圖 bmStatsTab（過濾至勾選打者）
+                if (bmNames.length) {
+                    setProg('截圖打者模式數據...');
+                    const selNameSet = new Set(bmNames);
+                    allData.batterData = origBatterData.filter(b => selNameSet.has(b.name));
+                    const captures = await _captureTabsToArray(['bmStatsTab', 'bmBatterDataTab'], setProg);
+                    allCaptures.push(...captures);
+                    allData.batterData = origBatterData;
+                }
             }
 
             if (!allCaptures.length) { toast.remove(); alert('所選條件無任何可用數據'); return; }
