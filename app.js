@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v314';
+﻿    const APP_VERSION = 'v315';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3821,7 +3821,7 @@
         if (confirm('確定要刪除這筆記錄嗎？')) {
             allData.teams[currentTeam].pitchers[currentPitcher].pitches.splice(index, 1);
             recomputeGameState();
-            updateSlotDisplay(); updatePitchLog(); updateStats(); saveToLocalStorage();
+            updateSlotDisplay(); updatePitchLog(); updateStats(); saveToLocalStorage(); saveToFirebase(currentTeam);
         }
     }
 
@@ -3930,7 +3930,7 @@
         pitch.outcomes = selectedOutcomes;
         pitch.outcome = selectedOutcomes[0] || null;
         recomputeGameState();
-        updatePitchLog(); updateStats(); saveToLocalStorage();
+        updatePitchLog(); updateStats(); saveToLocalStorage(); saveToFirebase(currentTeam);
         closeEditModal();
     }
 
