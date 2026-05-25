@@ -293,6 +293,7 @@
             display:grid; grid-template-columns:repeat(5,64px); grid-template-rows:repeat(5,64px);
             gap:3px; background:var(--ct-blue-dark); padding:3px; border-radius:10px;
             box-shadow:0 4px 16px rgba(0,0,0,0.1); touch-action:manipulation; border:3px solid var(--ct-gold);
+            max-width:100%; flex-shrink:0;
         }
         .zone-cell {
             background:#fff; border:2px solid #cbd5e1; cursor:pointer;
@@ -399,11 +400,11 @@
         .heatmap-col-title { font-size:13px; font-weight:700; color:var(--ct-blue-dark); }
 
         /* Strike zone heatmap (3x3) */
-        .heatmap { display:grid; grid-template-columns:repeat(3,72px); grid-template-rows:repeat(3,72px); gap:4px; background:var(--ct-blue-dark); padding:4px; border-radius:8px; border:3px solid var(--ct-gold); margin:0 auto; }
+        .heatmap { display:grid; grid-template-columns:repeat(3,min(72px,calc((100vw - 80px)/3))); grid-template-rows:repeat(3,min(72px,calc((100vw - 80px)/3))); gap:4px; background:var(--ct-blue-dark); padding:4px; border-radius:8px; border:3px solid var(--ct-gold); margin:0 auto; }
         .heat-cell { background:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; position:relative; border-radius:4px; border:2px solid #e5e7eb; }
 
-        /* Ball zone heatmap (4x4 extended) */
-        .ball-heatmap-grid { display:grid; grid-template-columns:repeat(6,42px); grid-template-rows:repeat(5,42px); gap:3px; background:var(--ct-blue-dark); padding:3px; border-radius:8px; border:3px solid var(--ct-green); margin:0 auto; }
+        /* Ball zone heatmap (6x5 extended) */
+        .ball-heatmap-grid { display:grid; grid-template-columns:repeat(6,min(42px,calc((100vw - 50px)/6))); grid-template-rows:repeat(5,min(42px,calc((100vw - 50px)/6))); gap:3px; background:var(--ct-blue-dark); padding:3px; border-radius:8px; border:3px solid var(--ct-green); margin:0 auto; }
         .ball-heat-cell { background:#d1fae5; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; position:relative; border-radius:4px; border:1px solid #86efac; color:#065f46; }
         .ball-heat-cell.inner { background:#fff0e6; border-color:#f97316; color:#c2410c; }
 
@@ -620,13 +621,17 @@
             .heatmap { grid-template-columns:repeat(3,58px); grid-template-rows:repeat(3,58px); }
             .tendency-heatmap { grid-template-columns:repeat(3,50px); grid-template-rows:repeat(3,50px); }
             /* 九宮格手機版 */
-            .strike-zone-extended { grid-template-columns:repeat(5,60px); grid-template-rows:repeat(5,60px); gap:3px; }
+            .strike-zone-extended { grid-template-columns:repeat(5,min(60px,calc((100vw - 72px)/5))); grid-template-rows:repeat(5,min(60px,calc((100vw - 72px)/5))); gap:3px; }
+            /* 球速按鈕：手機改為橫向滑動 */
+            .speed-grid { display:flex; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; gap:4px; padding-bottom:2px; }
+            .speed-grid::-webkit-scrollbar { display:none; }
+            .speed-btn { flex-shrink:0; width:44px; height:38px; font-size:12px; font-weight:900; }
         }
         @media (max-width:480px) {
             h1 { font-size:16px; padding:12px; letter-spacing:1px; gap:6px; }
             h1 .h1-baseball { font-size:18px; }
             .zone-label { font-size:9px; }
-            .heatmap { grid-template-columns:repeat(3,52px); grid-template-rows:repeat(3,52px); }
+            .heatmap { grid-template-columns:repeat(3,min(52px,calc((100vw - 60px)/3))); grid-template-rows:repeat(3,min(52px,calc((100vw - 60px)/3))); }
             .pitch-types { grid-template-columns:repeat(4,1fr); gap:5px; }
             .pitch-btn { padding:11px 4px; font-size:13px; }
             .at-bat-result { gap:4px; }
@@ -636,16 +641,13 @@
             /* 球速：小手機改為堆疊（左側→上方橫排，按鈕→橫向滑動） */
             .speed-input { flex-direction:column; gap:4px; }
             .speed-left { flex-direction:row; width:auto; justify-content:flex-start; align-items:center; gap:8px; padding:6px 10px; }
-            .speed-grid { display:flex; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; gap:4px; padding-bottom:2px; }
-            .speed-grid::-webkit-scrollbar { display:none; }
-            .speed-btn { flex-shrink:0; width:44px; height:38px; font-size:12px; font-weight:900; }
             .stats-grid { grid-template-columns:repeat(4,1fr); }
             .stat-card { padding:8px 4px; }
             .stat-value { font-size:18px; }
             .batter-details { grid-template-columns:1fr 1fr; }
             .dual-pitcher-cards { grid-template-columns:1fr; }
             /* 小手機九宮格 */
-            .strike-zone-extended { grid-template-columns:repeat(5,50px); grid-template-rows:repeat(5,50px); gap:2px; }
+            .strike-zone-extended { grid-template-columns:repeat(5,min(50px,calc((100vw - 64px)/5))); grid-template-rows:repeat(5,min(50px,calc((100vw - 64px)/5))); gap:2px; }
             .zone-cell { font-size:16px; }
             .zone-cell.ball-zone { font-size:10px; }
             .outcome-btn { height:46px; font-size:12px; }
@@ -726,7 +728,7 @@
         .login-error { color:#f87171; font-size:13px; margin-top:10px; min-height:18px; font-weight:700; }
         .login-hint { color:rgba(255,255,255,0.35); font-size:11px; margin-top:14px; line-height:1.6; }
         /* 模式選擇頁 */
-        #modeSelectScreen { display:none; position:fixed; inset:0; z-index:10000; background:linear-gradient(135deg,#001a3d 0%,#003d79 60%,#0051a5 100%); flex-direction:column; align-items:center; justify-content:center; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        #modeSelectScreen { display:none; position:fixed; inset:0; z-index:10000; background:linear-gradient(135deg,#091629 0%,#0d1f3c 100%); flex-direction:column; align-items:center; justify-content:center; overflow-y:auto; -webkit-overflow-scrolling:touch; }
         .mode-card { background:rgba(255,255,255,0.07); border:2px solid rgba(255,215,0,0.3); border-radius:16px; padding:28px 32px; width:220px; text-align:center; cursor:pointer; transition:all 0.2s; touch-action:manipulation; margin:10px; font-family:inherit; -webkit-appearance:none; appearance:none; }
         .mode-card:active { transform:scale(0.97); }
         .mode-card:hover { background:rgba(255,215,0,0.12); border-color:var(--ct-gold); }
@@ -1180,7 +1182,7 @@
 
 /* ─── 打者情蒐槽位（仿 dual-pitcher-section）─── */
 .bm-current-section {
-    background: linear-gradient(135deg, #003d79 0%, #0051a5 100%);
+    background: linear-gradient(135deg, #091629 0%, #0d1f3c 100%);
     color: white; padding: 12px 16px; border-radius: 12px; margin: 0 auto 8px;
     box-shadow: 0 4px 16px rgba(0,61,121,0.15);
     border: 4px solid #dc0000; border-top: 5px solid #ffd700; max-width: 1280px;
