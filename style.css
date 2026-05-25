@@ -772,6 +772,17 @@
         /* Fade-in animation */
         .pf-fade-in { animation:pfFade 0.2s ease; }
         @keyframes pfFade { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+        /* Member checklist (PDF filter) */
+        .pf-member-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+        .pf-member-header > span { font-size:12px; font-weight:700; color:var(--ct-blue-dark); }
+        .pf-select-all-label { display:flex; align-items:center; gap:5px; font-size:12px; color:#374151; cursor:pointer; font-weight:600; padding:4px 10px; background:#f0f4ff; border:1px solid #c7d7f0; border-radius:20px; transition:background 0.15s; }
+        .pf-select-all-label:hover { background:#dbeafe; }
+        .pf-select-all-label input[type=checkbox] { width:14px; height:14px; cursor:pointer; accent-color:var(--ct-blue); }
+        .pf-checklist { display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto; }
+        .pf-check-item { display:flex; align-items:center; gap:10px; padding:7px 11px; border-radius:8px; border:1.5px solid #e5e7eb; cursor:pointer; font-size:13px; background:white; transition:all 0.15s; }
+        .pf-check-item:hover { background:#f0f4ff; border-color:#93c5fd; }
+        .pf-check-item input[type=checkbox] { width:16px; height:16px; cursor:pointer; flex-shrink:0; accent-color:var(--ct-blue); }
+        .pf-check-item input[type=checkbox]:checked + span { color:var(--ct-blue-dark); font-weight:700; }
         /* View-only overlay */
         #viewOnlyBanner { display:none; position:fixed; top:0; left:0; right:0; z-index:500; background:linear-gradient(90deg,#b45309,#d97706); color:white; text-align:center; padding:8px; font-size:13px; font-weight:700; letter-spacing:1px; }
 

@@ -216,7 +216,7 @@
             </div>
             <div class="pf-body">
 
-                <!-- Step 0: 輸出內容 -->
+                <!-- Step 1: 輸出內容 -->
                 <div class="pf-section">
                     <div class="pf-step-label"><span class="pf-step-num">1</span>輸出內容</div>
                     <label class="pf-radio-item">
@@ -235,26 +235,50 @@
                             <div class="pf-radio-icon">🏃</div>
                             <div>
                                 <div class="pf-radio-title">打者數據</div>
-                                <div class="pf-radio-sub">打者模式統計＋個人分析（當前載入資料）</div>
+                                <div class="pf-radio-sub">打者模式統計＋個人分析</div>
                             </div>
                         </div>
                     </label>
                 </div>
 
-                <!-- Steps 2-4: 投手相關（僅選了「投手數據」才顯示） -->
-                <div id="pdfPitcherSteps">
-
-                <!-- Step 2: 選擇投手 -->
+                <!-- Step 2: 選擇球隊 -->
                 <div class="pf-section">
-                    <div class="pf-step-label"><span class="pf-step-num">2</span>選擇投手</div>
-                    <select id="pdfPitcherSelect" class="pf-select" onchange="onPDFPitcherChange()">
-                        <option value="">— 請選擇投手 —</option>
+                    <div class="pf-step-label"><span class="pf-step-num">2</span>選擇球隊</div>
+                    <select id="pdfTeamSelect" class="pf-select" onchange="onPDFTeamChange()">
+                        <option value="">— 請選擇球隊 —</option>
                     </select>
                 </div>
 
-                <!-- Step 3: 場次範圍（選完投手才顯示） -->
+                <!-- Step 3: 選擇成員（選完球隊才顯示） -->
+                <div class="pf-section pf-fade-in" id="pdfMemberSection" style="display:none;">
+                    <div class="pf-step-label"><span class="pf-step-num">3</span>選擇成員</div>
+
+                    <!-- 投手清單 -->
+                    <div id="pdfPitcherListWrap">
+                        <div class="pf-member-header">
+                            <span>⚾ 投手</span>
+                            <label class="pf-select-all-label">
+                                <input type="checkbox" id="pdfSelectAllPitchers" onchange="onPDFSelectAllPitchers(this.checked)"> 整隊全選
+                            </label>
+                        </div>
+                        <div id="pdfPitcherChecklist" class="pf-checklist"></div>
+                    </div>
+
+                    <!-- 打者清單 -->
+                    <div id="pdfBatterListWrap" style="display:none;margin-top:10px;">
+                        <div class="pf-member-header">
+                            <span>🏃 打者</span>
+                            <label class="pf-select-all-label">
+                                <input type="checkbox" id="pdfSelectAllBatters" onchange="onPDFSelectAllBatters(this.checked)"> 整隊全選
+                            </label>
+                        </div>
+                        <div id="pdfBatterChecklist" class="pf-checklist"></div>
+                    </div>
+                </div>
+
+                <!-- Step 4: 匯出範圍（選完投手才顯示） -->
                 <div class="pf-section pf-fade-in" id="pdfScopeSection" style="display:none;">
-                    <div class="pf-step-label"><span class="pf-step-num">3</span>匯出範圍</div>
+                    <div class="pf-step-label"><span class="pf-step-num">4</span>匯出範圍</div>
                     <label class="pf-radio-item">
                         <input type="radio" name="pdfScope" value="all" checked onchange="onPDFScopeChange()">
                         <div class="pf-radio-card">
@@ -275,7 +299,6 @@
                             </div>
                         </div>
                     </label>
-                    <!-- 場次選單：選「單一場次」時出現 -->
                     <div id="pdfGameSelectWrap" style="display:none;margin-top:10px;">
                         <select id="pdfGameSelect" class="pf-select">
                             <option value="">— 請選擇場次 —</option>
@@ -283,9 +306,9 @@
                     </div>
                 </div>
 
-                <!-- Step 4: 打者分類 -->
+                <!-- Step 5: 打者分類 -->
                 <div class="pf-section pf-fade-in" id="pdfHandSection" style="display:none;">
-                    <div class="pf-step-label"><span class="pf-step-num">4</span>打者分類 <span style="font-size:11px;font-weight:400;color:#6b7280;">（客製化選手報告）</span></div>
+                    <div class="pf-step-label"><span class="pf-step-num">5</span>打者分類 <span style="font-size:11px;font-weight:400;color:#6b7280;">（客製化選手報告）</span></div>
                     <label class="pf-radio-item">
                         <input type="radio" name="pdfHand" value="all" checked>
                         <div class="pf-radio-card">
@@ -317,8 +340,6 @@
                         </div>
                     </label>
                 </div>
-
-                </div><!-- /pdfPitcherSteps -->
 
                 <!-- 產生按鈕 -->
                 <button id="pdfGenerateBtn" onclick="generatePDF()" style="display:none;width:100%;padding:15px;background:linear-gradient(135deg,var(--ct-blue-dark),var(--ct-blue));color:white;border:none;border-radius:10px;font-size:16px;font-weight:900;cursor:pointer;touch-action:manipulation;letter-spacing:1px;margin-top:4px;">
