@@ -1,7 +1,7 @@
 {
-  "name": "投手情蒐系統",
-  "short_name": "投手情蒐",
-  "description": "壘球投手情蒐系統，支援離線使用",
+  "name": "Scout",
+  "short_name": "Scout",
+  "description": "棒壘球情蒐系統，支援離線使用",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
