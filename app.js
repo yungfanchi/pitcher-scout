@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v333';
+﻿    const APP_VERSION = 'v334';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -633,13 +633,13 @@
     }
 
     // ── 從投球記錄反推打者清單（投手模式資料）──
-    // key 格式：'P|{batterNumber}'，便於 generatePDF 識別來源
+    // key 格式：'P|{battingTeam}|{batterNumber}'，不同隊同背號各自獨立
     function _deriveBattersFromPitches(teamName) {
         const map = {};
-        // 優先從 batterData 按背號查隊名
-        const bdTeamByNum = {};
+        // 優先從 batterData 按背號查隊名（key = "{battingTeam}|{num}"）
+        const bdTeamByKey = {};
         (allData.batterData || []).forEach(bd => {
-            if (bd.number) bdTeamByNum[String(bd.number)] = bd.team || '';
+            if (bd.number && bd.team) bdTeamByKey[`${bd.team}|${bd.number}`] = bd.team;
         });
         allData.teams.forEach(team => {
             if (team.opponent !== teamName) return;
@@ -651,16 +651,16 @@
                     const num = pitch.batterNumber != null ? String(pitch.batterNumber) : null;
                     const ord = pitch.batterOrder  != null ? String(pitch.batterOrder)  : null;
                     if (!num && !ord) return;
-                    const key = `P|${num || 'ord' + ord}`;
+                    const key = `P|${battingTeam}|${num || 'ord' + ord}`;
                     if (!map[key]) {
                         let name = '';
                         const oi = parseInt(ord);
                         if (!isNaN(oi)) name = lineupB[oi]?.name || lineupA[oi]?.name || '';
-                        const teamFromDB = num ? (bdTeamByNum[num] || '') : '';
-                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: teamFromDB };
+                        const dbKey = num ? `${battingTeam}|${num}` : '';
+                        const teamFromDB = dbKey ? (bdTeamByKey[dbKey] || '') : '';
+                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: teamFromDB, battingTeam };
                     }
                     if (!map[key].hand && pitch.batterHand) map[key].hand = pitch.batterHand;
-                    if (!map[key].team && num && bdTeamByNum[num]) map[key].team = bdTeamByNum[num];
                     if (!map[key].name) {
                         const oi = parseInt(ord);
                         if (!isNaN(oi)) map[key].name = lineupB[oi]?.name || lineupA[oi]?.name || '';
@@ -677,14 +677,22 @@
 
     // ── 計算指定打者在投球記錄中的成績 ──
     function _calcBatterStatsFromPitches(numKey, teamName, gameIndex) {
-        // numKey = 'P|{numberOrOrd}' 或純 number 字串
-        const rawKey = numKey.startsWith('P|') ? numKey.slice(2) : numKey;
-        const isOrd  = rawKey.startsWith('ord');
-        const val    = isOrd ? rawKey.slice(3) : rawKey;
+        // numKey = 'P|{battingTeam}|{numberOrOrd}'（新格式）或 'P|{numberOrOrd}'（舊格式）
+        let rawKey = numKey.startsWith('P|') ? numKey.slice(2) : numKey;
+        let battingTeamFilter = null;
+        // 新格式：第一段是 battingTeam，第二段是 num/ord
+        const pipeIdx = rawKey.indexOf('|');
+        if (pipeIdx !== -1) {
+            battingTeamFilter = rawKey.slice(0, pipeIdx);
+            rawKey = rawKey.slice(pipeIdx + 1);
+        }
+        const isOrd = rawKey.startsWith('ord');
+        const val   = isOrd ? rawKey.slice(3) : rawKey;
 
         const pitches = [];
         allData.teams.forEach((team, ti) => {
             if (team.opponent !== teamName) return;
+            if (battingTeamFilter !== null && team.name !== battingTeamFilter) return;
             if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
             (team.pitchers || []).forEach(p => {
                 (p.pitches || []).forEach(pitch => {
