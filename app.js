@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v324';
+﻿    const APP_VERSION = 'v325';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3014,6 +3014,23 @@
         } else {
             currentPitch.result = isStrike ? '好球' : '壞球';
         }
+
+        // ── 三壞球後再投壞球 → 自動預選「保送」──
+        const bbBtn = document.querySelector('.outcome-btn[data-outcome="保送"]');
+        if (bbBtn) {
+            if (gameState.balls === 3 && currentPitch.result === '壞球'
+                    && !currentPitch.foul && !currentPitch.swing) {
+                // 自動選取保送（若尚未選取）
+                if (!bbBtn.classList.contains('selected')) {
+                    toggleOutcome(bbBtn);
+                    // 短暫閃爍提示
+                    bbBtn.style.animation = 'none';
+                    bbBtn.style.boxShadow = '0 0 0 3px #ffd700, 0 0 12px rgba(255,215,0,0.8)';
+                    setTimeout(() => { bbBtn.style.boxShadow = ''; }, 900);
+                }
+            }
+        }
+
         updateAutoResultDisplay();
         updateZoneCountDisplay();
     }
@@ -3267,6 +3284,13 @@
         const countBefore = computeCountBefore(prev, batterNumber, batterOrder);
         currentPitch.balls = countBefore.balls;
         currentPitch.strikes = countBefore.strikes;
+
+        // 安全網：三壞球後投壞球，確保保送在 outcomes 中
+        if (gameState.balls === 3 && currentPitch.result === '壞球'
+                && !currentPitch.foul && !currentPitch.swing
+                && !currentPitch.outcomes.includes('保送')) {
+            currentPitch.outcomes = ['保送', ...currentPitch.outcomes];
+        }
 
         // For legacy compatibility, set outcome as primary outcome
         currentPitch.outcome = currentPitch.outcomes.length > 0 ? currentPitch.outcomes[0] : null;
