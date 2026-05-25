@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v332';
+﻿    const APP_VERSION = 'v333';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -657,10 +657,10 @@
                         const oi = parseInt(ord);
                         if (!isNaN(oi)) name = lineupB[oi]?.name || lineupA[oi]?.name || '';
                         const teamFromDB = num ? (bdTeamByNum[num] || '') : '';
-                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: teamFromDB || battingTeam };
+                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: teamFromDB };
                     }
                     if (!map[key].hand && pitch.batterHand) map[key].hand = pitch.batterHand;
-                    if (!map[key].team && battingTeam) map[key].team = battingTeam;
+                    if (!map[key].team && num && bdTeamByNum[num]) map[key].team = bdTeamByNum[num];
                     if (!map[key].name) {
                         const oi = parseInt(ord);
                         if (!isNaN(oi)) map[key].name = lineupB[oi]?.name || lineupA[oi]?.name || '';
