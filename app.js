@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v320';
+﻿    const APP_VERSION = 'v321';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8509,12 +8509,15 @@
         // 外野舊名稱（相容舊資料）
         'LF':  { x: 66,  y: 159 }, 'LCF': { x: 106, y: 136 },
         'CF':  { x: 150, y: 125 }, 'RCF': { x: 194, y: 136 }, 'RF': { x: 234, y: 159 },
-        // 淺外野（R 100→140）
-        '淺LF': { x: 80, y: 175 }, '淺LCF': { x: 113, y: 158 },
-        '淺CF': { x: 150, y: 152 }, '淺RCF': { x: 187, y: 158 }, '淺RF': { x: 220, y: 175 },
-        // 深外野（R 140→180）
-        '深LF': { x: 56, y: 143 }, '深LCF': { x: 101, y: 120 },
-        '深CF': { x: 150, y: 112 }, '深RCF': { x: 199, y: 120 }, '深RF': { x: 244, y: 143 },
+        // 淺外野（R 100→127）
+        '淺LF': { x: 84, y: 180 }, '淺LCF': { x: 115, y: 165 },
+        '淺CF': { x: 150, y: 159 }, '淺RCF': { x: 185, y: 165 }, '淺RF': { x: 216, y: 180 },
+        // 中外野（R 127→153）
+        '中LF': { x: 68, y: 159 }, '中LCF': { x: 107, y: 139 },
+        '中CF': { x: 150, y: 132 }, '中RCF': { x: 193, y: 139 }, '中RF': { x: 232, y: 159 },
+        // 深外野（R 153→180）
+        '深LF': { x: 53, y: 137 }, '深LCF': { x: 99, y: 114 },
+        '深CF': { x: 150, y: 106 }, '深RCF': { x: 201, y: 114 }, '深RF': { x: 247, y: 137 },
         // 深內野 8 區
         '3B': { x: 102, y: 213 }, '三游之間': { x: 114, y: 205 },
         'SS': { x: 128, y: 199 }, '中線靠左': { x: 143, y: 196 },
@@ -8609,8 +8612,9 @@
         const FAIR_S = '#5aad4a';  // 靜態-公平區（淺草地綠）
         const FOUL_S = '#3d8a30';  // 靜態-界外區（稍深綠，與公平區區分）
 
-        const GR1 = isAny ? '#3a8428' : FAIR_S;
-        const GR2 = isAny ? '#1f5215' : FAIR_S;
+        const GR1 = isAny ? '#3a8428' : FAIR_S;  // 淺外野
+        const GR3 = isAny ? '#2d6e20' : FAIR_S;  // 中外野（新增）
+        const GR2 = isAny ? '#1f5215' : FAIR_S;  // 深外野
         const HRC = isAny ? '#7a1f20' : FAIR_S;
         const DT  = isAny ? '#c45e00' : FAIR_S;
         const DC  = isAny ? '#e8870a' : FAIR_S;
@@ -8642,19 +8646,26 @@
         const hrRCF = zp('HR右中','M 178 94 L 182 69 A 205 205 0 0 1 243 90 L 232 112 A 180 180 0 0 0 178 94 Z', HRC);
         const hrRF  = zp('HR右',  'M 232 112 L 243 90 A 205 205 0 0 1 295 128 L 277 145 A 180 180 0 0 0 232 112 Z', HRC);
 
-        // ── 淺外野五區（R 100→140）──
-        const sLF  = zp('淺LF',  'M 79 201 L 51 173 A 140 140 0 0 1 86 147 L 105 183 A 100 100 0 0 0 79 201 Z',  GR1);
-        const sLCF = zp('淺LCF', 'M 105 183 L 86 147 A 140 140 0 0 1 128 134 L 134 173 A 100 100 0 0 0 105 183 Z', GR1);
-        const sCF  = zp('淺CF',  'M 134 173 L 128 134 A 140 140 0 0 1 172 134 L 166 173 A 100 100 0 0 0 134 173 Z',  GR1);
-        const sRCF = zp('淺RCF', 'M 166 173 L 172 134 A 140 140 0 0 1 214 147 L 195 183 A 100 100 0 0 0 166 173 Z', GR1);
-        const sRF  = zp('淺RF',  'M 195 183 L 214 147 A 140 140 0 0 1 249 173 L 221 201 A 100 100 0 0 0 195 183 Z', GR1);
+        // ── 淺外野五區（R 100→127）──
+        const sLF  = zp('淺LF',  'M 79 201 L 60 182 A 127 127 0 0 1 93 159 L 105 183 A 100 100 0 0 0 79 201 Z',  GR1);
+        const sLCF = zp('淺LCF', 'M 105 183 L 93 159 A 127 127 0 0 1 130 147 L 134 173 A 100 100 0 0 0 105 183 Z', GR1);
+        const sCF  = zp('淺CF',  'M 134 173 L 130 147 A 127 127 0 0 1 170 147 L 166 173 A 100 100 0 0 0 134 173 Z',  GR1);
+        const sRCF = zp('淺RCF', 'M 166 173 L 170 147 A 127 127 0 0 1 207 159 L 195 183 A 100 100 0 0 0 166 173 Z', GR1);
+        const sRF  = zp('淺RF',  'M 195 183 L 207 159 A 127 127 0 0 1 240 182 L 221 201 A 100 100 0 0 0 195 183 Z', GR1);
 
-        // ── 深外野五區（R 140→180）──
-        const dLF  = zp('深LF',  'M 51 173 L 23 145 A 180 180 0 0 1 68 112 L 86 147 A 140 140 0 0 0 51 173 Z',  GR2);
-        const dLCF = zp('深LCF', 'M 86 147 L 68 112 A 180 180 0 0 1 122 94 L 128 134 A 140 140 0 0 0 86 147 Z', GR2);
-        const dCF  = zp('深CF',  'M 128 134 L 122 94 A 180 180 0 0 1 178 94 L 172 134 A 140 140 0 0 0 128 134 Z',  GR2);
-        const dRCF = zp('深RCF', 'M 172 134 L 178 94 A 180 180 0 0 1 232 112 L 214 147 A 140 140 0 0 0 172 134 Z', GR2);
-        const dRF  = zp('深RF',  'M 214 147 L 232 112 A 180 180 0 0 1 277 145 L 249 173 A 140 140 0 0 0 214 147 Z', GR2);
+        // ── 中外野五區（R 127→153，新增）──
+        const mLF  = zp('中LF',  'M 60 182 L 42 164 A 153 153 0 0 1 81 136 L 93 159 A 127 127 0 0 0 60 182 Z',  GR3);
+        const mLCF = zp('中LCF', 'M 93 159 L 81 136 A 153 153 0 0 1 126 121 L 130 147 A 127 127 0 0 0 93 159 Z', GR3);
+        const mCF  = zp('中CF',  'M 130 147 L 126 121 A 153 153 0 0 1 174 121 L 170 147 A 127 127 0 0 0 130 147 Z',  GR3);
+        const mRCF = zp('中RCF', 'M 170 147 L 174 121 A 153 153 0 0 1 219 136 L 207 159 A 127 127 0 0 0 170 147 Z', GR3);
+        const mRF  = zp('中RF',  'M 207 159 L 219 136 A 153 153 0 0 1 258 164 L 240 182 A 127 127 0 0 0 207 159 Z', GR3);
+
+        // ── 深外野五區（R 153→180）──
+        const dLF  = zp('深LF',  'M 42 164 L 23 145 A 180 180 0 0 1 68 112 L 81 136 A 153 153 0 0 0 42 164 Z',  GR2);
+        const dLCF = zp('深LCF', 'M 81 136 L 68 112 A 180 180 0 0 1 122 94 L 126 121 A 153 153 0 0 0 81 136 Z', GR2);
+        const dCF  = zp('深CF',  'M 126 121 L 122 94 A 180 180 0 0 1 178 94 L 174 121 A 153 153 0 0 0 126 121 Z',  GR2);
+        const dRCF = zp('深RCF', 'M 174 121 L 178 94 A 180 180 0 0 1 232 112 L 219 136 A 153 153 0 0 0 174 121 Z', GR2);
+        const dRF  = zp('深RF',  'M 219 136 L 232 112 A 180 180 0 0 1 277 145 L 258 164 A 153 153 0 0 0 219 136 Z', GR2);
 
         // ── 深內野八區（R 42→100，每區 11.25°）──
         const i3B  = zp('3B',      'M 120 242 L 79 201 A 100 100 0 0 1 94 189 L 127 237 A 42 42 0 0 0 120 242 Z', DT);
@@ -8718,14 +8729,20 @@
           <!-- 公平區域底色 -->
           <path d="M 150 272 L 23 145 A 180 180 0 0 1 277 145 Z" fill="${isAny ? '#1f4a18' : FAIR_S}"/>
 
-          <!-- 深外野（R 140→180） -->
+          <!-- 深外野（R 153→180） -->
           ${dLF}${dLCF}${dCF}${dRCF}${dRF}
 
-          <!-- 淺外野（R 100→140） -->
+          <!-- 中外野（R 127→153） -->
+          ${mLF}${mLCF}${mCF}${mRCF}${mRF}
+
+          <!-- 淺外野（R 100→127） -->
           ${sLF}${sLCF}${sCF}${sRCF}${sRF}
 
-          <!-- 淺/深外野分界虛線弧（互動模式才顯示） -->
-          ${isAny ? `<path d="M 51 173 A 140 140 0 0 1 249 173" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>` : ''}
+          <!-- 外野分界虛線弧（互動模式才顯示） -->
+          ${isAny ? `
+          <path d="M 60 182 A 127 127 0 0 1 240 182" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>
+          <path d="M 42 164 A 153 153 0 0 1 258 164" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>
+          ` : ''}
 
           <!-- 深內野（8區） -->
           ${i3B}${iSS3}${iSS}${iML}${iMR}${i2B}${i12}${i1B}
@@ -8762,21 +8779,27 @@
 
           ${isAny ? `
           <!-- 淺外野標籤（互動模式才顯示） -->
-          <text x="80"  y="179" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺LF</text>
-          <text x="113" y="162" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺LCF</text>
-          <text x="150" y="156" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺CF</text>
-          <text x="187" y="162" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RCF</text>
-          <text x="220" y="179" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RF</text>
+          <text x="84"  y="182" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺LF</text>
+          <text x="115" y="167" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺LCF</text>
+          <text x="150" y="161" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺CF</text>
+          <text x="185" y="167" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RCF</text>
+          <text x="216" y="182" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">淺RF</text>
+          <!-- 中外野標籤 -->
+          <text x="68"  y="160" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">中LF</text>
+          <text x="107" y="141" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">中LCF</text>
+          <text x="150" y="134" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">中CF</text>
+          <text x="193" y="141" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">中RCF</text>
+          <text x="232" y="160" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">中RF</text>
           <text x="35"  y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR LF</text>
           <text x="88"  y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR LCF</text>
           <text x="150" y="78"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR CF</text>
           <text x="212" y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR RCF</text>
           <text x="265" y="116" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="7" font-weight="700" font-family="sans-serif" style="pointer-events:none;">HR RF</text>
-          <text x="56"  y="148" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LF</text>
-          <text x="101" y="125" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LCF</text>
-          <text x="150" y="117" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深CF</text>
-          <text x="199" y="125" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深RCF</text>
-          <text x="244" y="148" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深RF</text>
+          <text x="53"  y="139" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LF</text>
+          <text x="99"  y="116" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深LCF</text>
+          <text x="150" y="108" text-anchor="middle" fill="white" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深CF</text>
+          <text x="201" y="116" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深RCF</text>
+          <text x="247" y="139" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.9" style="pointer-events:none;">深RF</text>
           <text x="102" y="215" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">3B</text>
           <text x="114" y="207" text-anchor="middle" fill="white" font-size="7" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">三游</text>
           <text x="128" y="200" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="sans-serif" opacity="0.95" style="pointer-events:none;">SS</text>
