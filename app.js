@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v330';
+﻿    const APP_VERSION = 'v331';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -638,7 +638,7 @@
         const map = {};
         allData.teams.forEach(team => {
             if (team.opponent !== teamName) return;
-            // lineups 是 1-indexed 陣列，嘗試從打線取姓名
+            const battingTeam = team.name || '';          // 打者所屬球隊（我方）
             const lineupA = team.lineups?.teamA || [];
             const lineupB = team.lineups?.teamB || [];
             (team.pitchers || []).forEach(p => {
@@ -651,9 +651,10 @@
                         let name = '';
                         const oi = parseInt(ord);
                         if (!isNaN(oi)) name = lineupB[oi]?.name || lineupA[oi]?.name || '';
-                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name };
+                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: battingTeam };
                     }
                     if (!map[key].hand && pitch.batterHand) map[key].hand = pitch.batterHand;
+                    if (!map[key].team && battingTeam) map[key].team = battingTeam;
                     if (!map[key].name) {
                         const oi = parseInt(ord);
                         if (!isNaN(oi)) map[key].name = lineupB[oi]?.name || lineupA[oi]?.name || '';
@@ -877,20 +878,28 @@
         const batterChecklist = document.getElementById('pdfBatterChecklist');
         if (inclBatter) {
             batterWrap.style.display = '';
-            batterChecklist.innerHTML = batterList.length
-                ? batterList.map(b => {
-                    const displayNum  = b.number ? ` <em style="color:#6b7280;font-style:normal;">#${b.number}</em>` : '';
-                    const displayHand = b.hand   ? ` · <em style="color:#6b7280;font-style:normal;">${b.hand}</em>` : '';
-                    const srcTag = b._bm
-                        ? `<em style="color:#059669;font-size:10px;font-style:normal;margin-left:4px;">打者模式</em>`
-                        : `<em style="color:#0051a5;font-size:10px;font-style:normal;margin-left:4px;">投手記錄</em>`;
-                    const label = b.name ? b.name : (b.number ? `#${b.number}` : `打序${b.order}`);
+            if (batterList.length) {
+                // 小提示：這些打者是對陣所選隊伍時出現的
+                const hint = `<div style="font-size:11px;color:#6b7280;margin-bottom:6px;">以下為對陣「${teamName}」場次中記錄的打者</div>`;
+                const items = batterList.map(b => {
+                    // 主要顯示文字：隊名 · 姓名 #背號 · 慣用手
+                    const teamTag  = b.team ? `<em style="color:#7c3aed;font-size:10px;font-style:normal;font-weight:700;margin-right:4px;">${b.team}</em> · ` : '';
+                    const namePart = b.name ? b.name : '';
+                    const numPart  = b.number ? `<em style="color:#6b7280;font-style:normal;">#${b.number}</em>` : (b.order ? `<em style="color:#6b7280;font-style:normal;">打序${b.order}</em>` : '');
+                    const label    = namePart ? `${namePart} ${numPart}` : numPart;
+                    const handTag  = b.hand ? ` · <em style="color:#6b7280;font-style:normal;">${b.hand}</em>` : '';
+                    const srcTag   = b._bm
+                        ? `<em style="color:#059669;font-size:10px;font-style:normal;margin-left:6px;">打者模式</em>`
+                        : `<em style="color:#0051a5;font-size:10px;font-style:normal;margin-left:6px;">投手記錄</em>`;
                     return `<label class="pf-check-item">
                         <input type="checkbox" class="pdf-batter-cb" value="${b.key}" onchange="onPDFMemberChange()">
-                        <span>${label}${displayNum}${displayHand}${srcTag}</span>
+                        <span>${teamTag}${label}${handTag}${srcTag}</span>
                     </label>`;
-                  }).join('')
-                : '<div style="color:#9ca3af;font-size:12px;padding:6px 0;">此球隊暫無打者記錄（投手或打者模式）</div>';
+                }).join('');
+                batterChecklist.innerHTML = hint + items;
+            } else {
+                batterChecklist.innerHTML = '<div style="color:#9ca3af;font-size:12px;padding:6px 0;">此球隊暫無打者記錄（投手或打者模式）</div>';
+            }
             document.getElementById('pdfSelectAllBatters').checked       = false;
             document.getElementById('pdfSelectAllBatters').indeterminate = false;
         } else {
