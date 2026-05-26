@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v337';
+﻿    const APP_VERSION = 'v338';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2968,11 +2968,22 @@
             const newOpponent = document.getElementById('_etOpponent').value.trim();
             const newDate     = document.getElementById('_etDate').value;
             if (!newName) { alert('先攻隊名不能為空！'); return; }
-            const oldGameName = allData.teams[teamIndex].gameName || '未分類';
+            const oldGameName  = allData.teams[teamIndex].gameName || '未分類';
+            const oldName      = allData.teams[teamIndex].name     || '';
+            const oldOpponent  = allData.teams[teamIndex].opponent || '';
             allData.teams[teamIndex].gameName  = newGameName;
             allData.teams[teamIndex].name      = newName;
             allData.teams[teamIndex].opponent  = newOpponent;
             allData.teams[teamIndex].date      = newDate;
+            // 若先攻/後攻隊名有改變，同步更新該場次所有球路的 batterTeam
+            if (oldName !== newName || oldOpponent !== newOpponent) {
+                (allData.teams[teamIndex].pitchers || []).forEach(p => {
+                    (p.pitches || []).forEach(pitch => {
+                        if (pitch.batterTeam === oldName)     pitch.batterTeam = newName;
+                        if (pitch.batterTeam === oldOpponent) pitch.batterTeam = newOpponent;
+                    });
+                });
+            }
             // 若賽事名稱改變，同步更新 expandedGames
             if (oldGameName !== newGameName) {
                 expandedGames.delete(oldGameName);
