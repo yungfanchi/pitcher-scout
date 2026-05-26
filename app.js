@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v336';
+﻿    const APP_VERSION = 'v337';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10663,15 +10663,43 @@
         }
     }
 
+    function openEditBatterInfo(batterIdx) {
+        const b = allData.batterData[batterIdx];
+        if (!b) return;
+        const newName = prompt('打者姓名：', b.name || '');
+        if (newName === null) return;
+        const newNum  = prompt('背號：', b.number || '');
+        if (newNum === null) return;
+        const newTeam = prompt('所屬球隊（隊名）：', b.team || '');
+        if (newTeam === null) return;
+        b.name   = newName.trim() || b.name;
+        b.number = newNum.trim();
+        b.team   = newTeam.trim();
+        saveToLocalStorage();
+        saveToFirebase();
+        const cv = _currentBatterView;
+        if (cv) {
+            document.getElementById('batterDetailName').textContent = b.name + (b.number ? ` #${b.number}` : '') + (b.team ? `（${b.team}）` : '');
+            renderAtBatLog(b.atBats || [], batterIdx);
+        }
+    }
+
     function renderAtBatLog(atBats, batterIdx) {
         const el = document.getElementById('batterAtBatLogSection');
         if (!el) return;
+        const b = allData.batterData[batterIdx];
+        const infoLine = b ? [b.team, b.number ? `#${b.number}` : '', b.hand].filter(Boolean).join('　') : '';
         const HIT_OUTCOMES = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
         el.innerHTML = `<div class="container">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <h2 style="margin:0;border:none;padding:0;">📋 打席記錄</h2>
             <button class="btn btn-danger" onclick="openRecordAtBat(${batterIdx})">+ 新增打席</button>
           </div>
+          ${infoLine ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 10px;background:#f0f4ff;border-radius:8px;font-size:12px;color:#374151;">
+            <span>${infoLine}</span>
+            <button onclick="openEditBatterInfo(${batterIdx})" style="margin-left:auto;background:none;border:1px solid #c7d7f0;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;color:#0051a5;font-weight:700;">✏️ 編輯資料</button>
+          </div>` : `<div style="margin-bottom:10px;"><button onclick="openEditBatterInfo(${batterIdx})" style="background:none;border:1px solid #c7d7f0;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:#0051a5;font-weight:700;">✏️ 編輯打者資料</button></div>`}
+
           ${atBats.length === 0 ? '<div style="text-align:center;padding:16px;color:#6b7280;">尚無打席記錄</div>' :
             atBats.map((ab, i) => {
               const isHit = HIT_OUTCOMES.includes(ab.outcome);
