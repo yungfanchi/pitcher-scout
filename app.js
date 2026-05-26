@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v339';
+﻿    const APP_VERSION = 'v340';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -649,7 +649,6 @@
     function _deriveBattersFromPitches(teamName) {
         const map = {};
         allData.teams.forEach(team => {
-            if (team.opponent !== teamName) return;
             const battingTeam = team.name || '';
             // ★ 打線查詢表（最可靠的隊伍歸屬來源）
             const lineupNumMap = _buildNumToTeamFromLineups(team);
@@ -663,6 +662,7 @@
                     // 從打線查詢此背號的隊名
                     const lineupInfo = num ? lineupNumMap[num] : null;
                     const resolvedTeam = lineupInfo?.team || pitch.batterTeam || battingTeam;
+                    if (resolvedTeam !== teamName) return;
                     const key = `P|${resolvedTeam}|${num || 'ord' + ord}`;
                     if (!map[key]) {
                         let name = lineupInfo?.name || '';
@@ -806,7 +806,7 @@
     function openPDFFilter() {
         // 從對手名稱 + 打者資料庫 team 欄位蒐集所有球隊名稱
         const teamSet = new Set();
-        allData.teams.forEach(t => { if (t.opponent) teamSet.add(t.opponent); });
+        allData.teams.forEach(t => { if (t.opponent) teamSet.add(t.opponent); if (t.name) teamSet.add(t.name); });
         (allData.batterData || []).forEach(b => { if (b.team) teamSet.add(b.team); });
 
         const sel = document.getElementById('pdfTeamSelect');
