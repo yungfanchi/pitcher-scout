@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v338';
+﻿    const APP_VERSION = 'v339';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -634,16 +634,25 @@
 
     // ── 從投球記錄反推打者清單（投手模式資料）──
     // key 格式：'P|{battingTeam}|{batterNumber}'，不同隊同背號各自獨立
+    // 從打線建立「背號 → 隊名」對照表（優先度最高的真相來源）
+    function _buildNumToTeamFromLineups(team) {
+        const map = {};
+        (team.lineups?.teamA || []).forEach(p => {
+            if (p && p.number) map[String(p.number)] = { team: team.name || '', name: p.name || '', hand: p.hand || '' };
+        });
+        (team.lineups?.teamB || []).forEach(p => {
+            if (p && p.number) map[String(p.number)] = { team: team.opponent || '', name: p.name || '', hand: p.hand || '' };
+        });
+        return map;
+    }
+
     function _deriveBattersFromPitches(teamName) {
         const map = {};
-        // 優先從 batterData 按背號查隊名（key = "{battingTeam}|{num}"）
-        const bdTeamByKey = {};
-        (allData.batterData || []).forEach(bd => {
-            if (bd.number && bd.team) bdTeamByKey[`${bd.team}|${bd.number}`] = bd.team;
-        });
         allData.teams.forEach(team => {
             if (team.opponent !== teamName) return;
             const battingTeam = team.name || '';
+            // ★ 打線查詢表（最可靠的隊伍歸屬來源）
+            const lineupNumMap = _buildNumToTeamFromLineups(team);
             const lineupA = team.lineups?.teamA || [];
             const lineupB = team.lineups?.teamB || [];
             (team.pitchers || []).forEach(p => {
@@ -651,19 +660,27 @@
                     const num = pitch.batterNumber != null ? String(pitch.batterNumber) : null;
                     const ord = pitch.batterOrder  != null ? String(pitch.batterOrder)  : null;
                     if (!num && !ord) return;
-                    const key = `P|${battingTeam}|${num || 'ord' + ord}`;
+                    // 從打線查詢此背號的隊名
+                    const lineupInfo = num ? lineupNumMap[num] : null;
+                    const resolvedTeam = lineupInfo?.team || pitch.batterTeam || battingTeam;
+                    const key = `P|${resolvedTeam}|${num || 'ord' + ord}`;
                     if (!map[key]) {
-                        let name = '';
-                        const oi = parseInt(ord);
-                        if (!isNaN(oi)) name = lineupB[oi]?.name || lineupA[oi]?.name || '';
-                        const dbKey = num ? `${battingTeam}|${num}` : '';
-                        const teamFromDB = dbKey ? (bdTeamByKey[dbKey] || '') : '';
-                        map[key] = { key, number: num || '', order: ord, hand: pitch.batterHand || '', name, team: teamFromDB || battingTeam, battingTeam };
+                        let name = lineupInfo?.name || '';
+                        if (!name) {
+                            const oi = parseInt(ord);
+                            if (!isNaN(oi)) name = lineupB[oi]?.name || lineupA[oi]?.name || '';
+                        }
+                        const hand = lineupInfo?.hand || pitch.batterHand || '';
+                        map[key] = { key, number: num || '', order: ord, hand, name, team: resolvedTeam, battingTeam: resolvedTeam };
                     }
                     if (!map[key].hand && pitch.batterHand) map[key].hand = pitch.batterHand;
                     if (!map[key].name) {
-                        const oi = parseInt(ord);
-                        if (!isNaN(oi)) map[key].name = lineupB[oi]?.name || lineupA[oi]?.name || '';
+                        const name2 = lineupInfo?.name || '';
+                        if (name2) { map[key].name = name2; }
+                        else {
+                            const oi = parseInt(ord);
+                            if (!isNaN(oi)) map[key].name = lineupB[oi]?.name || lineupA[oi]?.name || '';
+                        }
                     }
                 });
             });
@@ -3148,9 +3165,52 @@
             const side = (lineup === gameState.lineups.teamA) ? 'teamA' : 'teamB';
             // lineup 是 1-indexed；存成 0-indexed array 方便讀取
             allData.teams[currentTeam].lineups[side] = lineup.slice(1).map(p => p ? {...p} : {number:'',name:'',hand:'右打'});
+
+            // ★ 自動分類：根據打線確認背號屬於哪隊，回寫既有球路的 batterTeam
+            _syncBatterTeamFromLineup(currentTeam);
+
             saveToLocalStorage();
             saveToFirebase(currentTeam);
         }
+    }
+
+    // ★ 根據打線（lineupA/B）回寫該場次所有球路的 batterTeam，並同步 batterData.team
+    function _syncBatterTeamFromLineup(teamIdx) {
+        const team = allData.teams[teamIdx];
+        if (!team || !team.lineups) return;
+
+        // 建立 背號 → 隊名 對照表
+        const numToTeam = {};
+        (team.lineups.teamA || []).forEach(p => {
+            if (p && p.number) numToTeam[String(p.number)] = team.name || '';
+        });
+        (team.lineups.teamB || []).forEach(p => {
+            if (p && p.number) numToTeam[String(p.number)] = team.opponent || '';
+        });
+        if (Object.keys(numToTeam).length === 0) return;
+
+        // 回寫球路 batterTeam
+        (team.pitchers || []).forEach(p => {
+            (p.pitches || []).forEach(pitch => {
+                const num = String(pitch.batterNumber ?? '');
+                if (num && numToTeam[num]) pitch.batterTeam = numToTeam[num];
+            });
+        });
+
+        // 同步 batterData.team（按姓名比對，補上正確隊名）
+        const nameToTeam = {};
+        const allLineup = [...(team.lineups.teamA || []), ...(team.lineups.teamB || [])];
+        allLineup.forEach(p => {
+            if (p && p.name && p.number && numToTeam[String(p.number)]) {
+                nameToTeam[p.name] = numToTeam[String(p.number)];
+            }
+        });
+        (allData.batterData || []).forEach(bd => {
+            if (bd.name && nameToTeam[bd.name]) bd.team = nameToTeam[bd.name];
+            else if (bd.number && numToTeam[String(bd.number)] && !bd.team) {
+                bd.team = numToTeam[String(bd.number)];
+            }
+        });
     }
 
     function applyLineupToUI(order) {
@@ -9292,18 +9352,23 @@
         // 從投手記錄
         allData.teams.forEach((team, ti) => {
             if (currentTeam !== null && ti !== currentTeam) return;
+            const _lineupNumMap9 = _buildNumToTeamFromLineups(team);
             (team.pitchers || []).forEach(pitcher => {
                 (pitcher.pitches || []).forEach(pitch => {
                     const name = (pitch.batterName || '').trim();
                     const num  = String(pitch.batterNumber || '').trim();
                     const nameKey = name || (num ? `#${num}` : '');
                     if (!nameKey) return;
-                    const bTeam = pitch.batterTeam || _inferBatterTeam(pitch, team) || '未分類';
+                    // ★ 優先從打線查隊名，再 fallback pitch.batterTeam
+                    const lineupTeam = num ? _lineupNumMap9[num]?.team : '';
+                    const bTeam = lineupTeam || pitch.batterTeam || _inferBatterTeam(pitch, team) || '未分類';
                     const mapKey = `${bTeam}||${nameKey}`;
                     if (!batterMap.has(mapKey)) {
+                        const lineupName = num ? (_lineupNumMap9[num]?.name || '') : '';
+                        const lineupHand = num ? (_lineupNumMap9[num]?.hand || '') : '';
                         batterMap.set(mapKey, {
-                            name: name || `背號 ${num}`, nameKey, teamName: bTeam,
-                            pitches: [], games: new Set(), hand: pitch.batterHand || '',
+                            name: name || lineupName || `背號 ${num}`, nameKey, teamName: bTeam,
+                            pitches: [], games: new Set(), hand: pitch.batterHand || lineupHand,
                         });
                     }
                     const entry = batterMap.get(mapKey);
@@ -10376,9 +10441,11 @@
                         } else {
                             match = (pitch.batterName || '').trim() === name.trim();
                         }
-                        // 若有隊伍篩選，進一步確認 pitch 的隊伍
+                        // 若有隊伍篩選，優先從打線查隊名
                         if (match && teamFilter) {
-                            const pitchTeam = pitch.batterTeam || _inferBatterTeam(pitch, team) || '未分類';
+                            const num2 = String(pitch.batterNumber || '');
+                            const lineupMap2 = _buildNumToTeamFromLineups(team);
+                            const pitchTeam = (num2 && lineupMap2[num2]?.team) || pitch.batterTeam || _inferBatterTeam(pitch, team) || '未分類';
                             match = pitchTeam === teamFilter;
                         }
                         if (match) pitches.push({ ...pitch, _ti: ti });
