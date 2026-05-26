@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v340';
+﻿    const APP_VERSION = 'v341';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -708,15 +708,20 @@
 
         const pitches = [];
         allData.teams.forEach((team, ti) => {
-            if (team.opponent !== teamName) return;
-            if (battingTeamFilter !== null && team.name !== battingTeamFilter) return;
             if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
+            const lineupNumMap = battingTeamFilter ? _buildNumToTeamFromLineups(team) : null;
             (team.pitchers || []).forEach(p => {
                 (p.pitches || []).forEach(pitch => {
                     const num = pitch.batterNumber != null ? String(pitch.batterNumber) : null;
                     const ord = pitch.batterOrder  != null ? String(pitch.batterOrder)  : null;
                     const match = isOrd ? ord === val : num === val;
-                    if (match) pitches.push(pitch);
+                    if (!match) return;
+                    if (battingTeamFilter !== null) {
+                        const lineupInfo = lineupNumMap && num ? lineupNumMap[num] : null;
+                        const resolvedTeam = lineupInfo?.team || pitch.batterTeam || team.name || '';
+                        if (resolvedTeam !== battingTeamFilter) return;
+                    }
+                    pitches.push(pitch);
                 });
             });
         });
