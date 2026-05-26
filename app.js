@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v335';
+﻿    const APP_VERSION = 'v336';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -748,6 +748,7 @@
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                     <div style="background:linear-gradient(135deg,#003d79,#0051a5);color:white;border-radius:8px;padding:5px 14px;font-size:17px;font-weight:900;">${displayName}</div>
                     ${b.hand ? `<div style="background:#f0f4ff;border:1px solid #c7d7f0;border-radius:6px;padding:3px 10px;font-size:12px;color:#003d79;font-weight:700;">${b.hand}</div>` : ''}
+                    ${b.team ? `<div style="background:#f5f0ff;border:1px solid #c4b5fd;border-radius:6px;padding:3px 10px;font-size:12px;color:#7c3aed;font-weight:700;">${b.team}</div>` : ''}
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:10px;">
                     ${[['打席',st.PA],['打數',st.AB],['安打',st.H],['二壘打',st.H2],['三壘打',st.H3],['全壘打',st.HR],['三振',st.K],['保送',st.BB]].map(([l,v]) =>
@@ -862,7 +863,10 @@
         // 打者模式：allData.batterData，key = 'BM|{name}'
         const bmSet = new Set(pitchBatters.map(b => b.number).filter(Boolean));
         const bmBatters = (allData.batterData || [])
-            .filter(b => b.name)
+            .filter(b => b.name && (
+                b.team === teamName ||
+                (b.atBats && b.atBats.some(ab => ab.opponent === teamName))
+            ))
             .map(b => ({ key: `BM|${b.name}`, number: b.number || '', hand: b.hand || '', name: b.name, team: b.team || '', _bm: true }))
             .filter(b => !b.number || !bmSet.has(b.number)); // 避免與投手模式重複
 
