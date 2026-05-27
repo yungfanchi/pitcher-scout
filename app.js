@@ -7481,6 +7481,7 @@
         const errEl = document.getElementById('adminLoginError');
         if (!code || !pw) { errEl.textContent = '❌ 請輸入代碼與密碼'; return; }
         const inputHash = await _sha256(pw);
+        if (!ADMIN_PW_HASH) ADMIN_PW_HASH = await _sha256('foba1224');
         if (code === ADMIN_CODE && inputHash === ADMIN_PW_HASH) {
             currentTeamCode = 'ADMIN';
             await _cacheCredential(code, 'scout', pw);
@@ -11608,6 +11609,7 @@
             lineupB: Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''})),
             gameIdx: -1,
             attackingTeam: 'A',
+        };
         saveToLocalStorage();
         saveToFirebase();
         alert('✅ 打者資料已全部清除');
