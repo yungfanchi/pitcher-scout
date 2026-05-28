@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v369';
+﻿    const APP_VERSION = 'v370';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3621,6 +3621,7 @@
     // ====== LINEUP MANAGEMENT ======
     // index 0 unused; 1-9 = batting order slots
     let lineup = gameState.lineups.teamB; // 預設上半局：B 隊打擊，autoUpdateBatterInfoByInning() 會動態切換
+    let _lineupModalSide = 'teamB'; // 記錄目前 modal 開的是哪一邊（'teamA'|'teamB'），取代不穩定的物件參考比較
 
     // 依局數上下半判斷打擊隊名稱：上半局=先攻(team.name)打，下半局=後攻(team.opponent)打
     function getBattingTeamName() {
@@ -3658,6 +3659,7 @@
     function openLineupModal(side) {
         // side: 'teamA' (先攻/team.name) or 'teamB' (後攻/team.opponent); default to current batting team
         const targetSide = side || (gameState.half === '上' ? 'teamA' : 'teamB');
+        _lineupModalSide = targetSide; // 記住這次 modal 是為哪一邊開的
         lineup = gameState.lineups[targetSide];
 
         const ti = currentTeam !== null ? currentTeam : (slotA.team !== null ? slotA.team : (slotB.team !== null ? slotB.team : null));
@@ -3718,8 +3720,11 @@
         _syncGameStateToBmLineup();
         if (currentTeam !== null && allData.teams[currentTeam]) {
             if (!allData.teams[currentTeam].lineups) allData.teams[currentTeam].lineups = {};
-            const side = (lineup === gameState.lineups.teamA) ? 'teamA' : 'teamB';
-            allData.teams[currentTeam].lineups[side] = lineup.slice(1).map(p => p ? {...p} : {number:'',name:'',hand:'右打'});
+            // 使用 _lineupModalSide（在 openLineupModal 設定），取代不穩定的物件參考比較
+            const side = _lineupModalSide || ((lineup === gameState.lineups.teamA) ? 'teamA' : 'teamB');
+            // 從 gameState.lineups[side] 讀取（與 lineup 相同，但即使 lineup 被外部改動也安全）
+            const sourceLineup = gameState.lineups[side];
+            allData.teams[currentTeam].lineups[side] = sourceLineup.slice(1).map(p => p ? {...p} : {number:'',name:'',hand:'右打'});
             _syncBatterTeamFromLineup(currentTeam);
             saveToLocalStorage();
             saveToFirebase(currentTeam);
@@ -7801,6 +7806,7 @@
             if (activeS.team != null && allData.teams[activeS.team]) {
                 currentTeam = activeS.team;
                 currentPitcher = activeS.pitcher;
+                _restoreLineupForTeam(currentTeam); // 重整後從 allData 還原打序到 gameState.lineups
                 recomputeGameState(); // 重算局數/出局/壘包/棒次，避免登入後棒次顯示為第1棒
             }
         } catch(e) {}
