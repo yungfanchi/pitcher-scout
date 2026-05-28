@@ -2945,35 +2945,35 @@
         } else {
             Object.entries(byTeam).forEach(([team, players]) => {
                 const unnamed = players.filter(p => !p.name).length;
-                html += `<div class="container" style="margin-bottom:0;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                        <h3 style="margin:0;font-size:15px;color:white;font-family:'Oswald','Noto Sans TC',sans-serif;">${escapeHtml(team)}</h3>
-                        <span style="font-size:11px;color:rgba(255,255,255,0.5);">${players.length}人</span>
-                        ${unnamed > 0 ? `<span style="font-size:10px;color:#fbbf24;background:rgba(251,191,36,0.12);padding:1px 6px;border-radius:4px;">⚠️ ${unnamed} 人未命名</span>` : ''}
+                html += `<div class="container" style="margin-bottom:10px;padding:0;overflow:hidden;background:#fff;border:1.5px solid #d1d5db;border-radius:12px;">
+                    <!-- 隊伍標題列 -->
+                    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--ct-blue-dark);border-bottom:2px solid var(--ct-red);">
+                        <span style="font-size:15px;font-weight:700;color:#fff;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:0.5px;">🏟️ ${escapeHtml(team)}</span>
+                        <span style="font-size:11px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.12);padding:1px 7px;border-radius:10px;">${players.length} 人</span>
+                        ${unnamed > 0 ? `<span style="font-size:10px;color:#fbbf24;background:rgba(251,191,36,0.2);padding:1px 7px;border-radius:10px;border:1px solid rgba(251,191,36,0.4);">⚠️ ${unnamed} 人未命名</span>` : ''}
                     </div>
-                    <div style="display:flex;flex-direction:column;gap:5px;">`;
-                players.forEach(p => {
+                    <div style="display:flex;flex-direction:column;">`;
+                players.forEach((p, idx) => {
                     const isUnnamed = !p.name;
                     const numsHtml = (p.numbers||[]).length > 0
-                        ? (p.numbers).map(n => `<span style="font-size:11px;font-weight:700;color:var(--ct-gold);background:rgba(255,215,0,0.12);padding:2px 7px;border-radius:4px;white-space:nowrap;">#${escapeHtml(n)}</span>`).join('')
-                        : `<span style="font-size:11px;color:rgba(255,255,255,0.35);font-style:italic;">無背號</span>`;
+                        ? (p.numbers).map(n => `<span style="font-size:12px;font-weight:800;color:#fff;background:var(--ct-blue-dark);padding:2px 8px;border-radius:5px;white-space:nowrap;letter-spacing:0.3px;">#${escapeHtml(n)}</span>`).join('')
+                        : `<span style="font-size:11px;color:#9ca3af;font-style:italic;">無背號</span>`;
+                    const borderTop = idx > 0 ? 'border-top:1px solid #f3f4f6;' : '';
                     html += `
-                        <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
-                            background:${isUnnamed ? 'rgba(251,191,36,0.06)' : 'rgba(255,255,255,0.04)'};
-                            border:1px solid ${isUnnamed ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.08)'};
-                            border-radius:8px;">
-                            <div style="display:flex;gap:3px;flex-shrink:0;flex-wrap:wrap;max-width:96px;">${numsHtml}</div>
+                        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+                            background:${isUnnamed ? '#fffbeb' : '#fff'};${borderTop}">
+                            <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;min-width:52px;">${numsHtml}</div>
                             <div style="flex:1;min-width:0;overflow:hidden;">
-                                <div style="font-size:14px;font-weight:700;color:${isUnnamed ? '#fbbf24' : 'white'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                <div style="font-size:14px;font-weight:700;color:${isUnnamed ? '#d97706' : '#111827'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                                     ${isUnnamed ? '（未命名）' : escapeHtml(p.name)}
                                 </div>
-                                <div style="font-size:11px;color:rgba(255,255,255,0.45);">${escapeHtml(p.hand||'')}${p.note ? '　' + escapeHtml(p.note) : ''}</div>
+                                ${(p.hand || p.note) ? `<div style="font-size:11px;color:#6b7280;margin-top:1px;">${escapeHtml(p.hand||'')}${p.note ? '　' + escapeHtml(p.note) : ''}</div>` : ''}
                             </div>
-                            <div style="display:flex;gap:3px;flex-shrink:0;">
+                            <div style="display:flex;gap:5px;flex-shrink:0;">
                                 <button onclick="_openEditPlayerModal('${p.playerId}')"
-                                    style="padding:4px 8px;font-size:12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:5px;cursor:pointer;font-family:inherit;touch-action:manipulation;">✏️</button>
+                                    style="padding:5px 10px;font-size:13px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">✏️</button>
                                 <button onclick="_deletePlayerFromRegistry('${p.playerId}')"
-                                    style="padding:4px 8px;font-size:12px;background:rgba(220,0,0,0.12);color:rgba(255,100,100,0.8);border:1px solid rgba(220,0,0,0.2);border-radius:5px;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️</button>
+                                    style="padding:5px 10px;font-size:13px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️</button>
                             </div>
                         </div>`;
                 });
