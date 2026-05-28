@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v344';
+﻿    const APP_VERSION = 'v345';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -6622,43 +6622,42 @@
         const gRef = getGamesRef();
         const hasPendingSync = localStorage.getItem('_pendingSync') === '1';
 
-        // 同時讀取新路徑 (games/) 和舊路徑，以「內容指紋」去重後再掛監聽
-        // 指紋 = gameName|name|opponent|date，避免 gameId 不一致時產生重複賽事
         const bmRef = USER_TEAM_REF ? USER_TEAM_REF.child('bm') : null;
         const bdRef = USER_TEAM_REF ? USER_TEAM_REF.child('batterData') : null;
         Promise.all([
             gRef.once('value'),
-            getDataRef().once('value'),
+            getDataRef().once('value'),   // 舊路徑 pitchers/
             bmRef ? bmRef.once('value') : Promise.resolve(null),
             bdRef ? bdRef.once('value') : Promise.resolve(null)
         ]).then(([newSnap, oldSnap, bmSnap, bdSnap]) => {
 
-            // ── 收集所有候選賽事 ──
+            // ── 收集所有候選賽事：永遠合併新舊兩條路徑 ──
+            // 安全原則：寧可多讀，不可漏讀；舊路徑只在寫入新路徑成功後才刪除
             const candidates = [];
             const newRaw = newSnap.val();
             const hasNewData = newRaw && typeof newRaw === 'object' && Object.keys(newRaw).length > 0;
+
             if (hasNewData) {
                 Object.entries(newRaw).forEach(([id, data]) => {
                     const g = _normalizeGameEntry(data);
                     if (g) { if (!g.gameId) g.gameId = id; candidates.push(g); }
                 });
             }
-            // 只在新路徑（games/）沒有資料時才從舊路徑遷移資料（一次性遷移）
-            // 若新路徑已有資料，跳過舊路徑，避免已刪除的賽事從舊路徑復活
-            if (!hasNewData) {
-                const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
-                oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); candidates.push(t); });
-            }
+
+            // 始終讀舊路徑（pitchers/），確保任何時期存進去的資料都不會漏掉
+            const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
+            oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); candidates.push(t); });
+
             (allData.teams || []).forEach(t => {
                 if (!t.gameId) t.gameId = _makeGameId();
                 candidates.push(JSON.parse(JSON.stringify(t)));
             });
 
             // ── 以內容指紋去重：保留球數最多的版本 ──
-            const fpMap = new Map(); // fingerprint → game
+            const fpMap = new Map();
             candidates.forEach(g => {
                 const fp = [g.gameName||'', g.name||'', g.opponent||'', g.date||''].join('|');
-                if (!fp.replace(/\|/g,'').trim()) return; // 空賽事略過
+                if (!fp.replace(/\|/g,'').trim()) return;
                 if (!fpMap.has(fp)) {
                     fpMap.set(fp, g);
                 } else {
@@ -6671,13 +6670,21 @@
 
             const mergedArr = [...fpMap.values()];
             const originalCount = newRaw && typeof newRaw === 'object' ? Object.keys(newRaw).length : 0;
+            const oldSnapVal = oldSnap.val();
+            const hasOldData = oldSnapVal !== null;
 
-            // 需要回寫：有去重（少了幾筆）、有新賽事（多了幾筆）、離線補傳
-            const needWrite = hasPendingSync
+            // 安全閘：合併結果不得少於 Firebase 現有筆數（防止資料縮水覆寫）
+            const safeToWrite = mergedArr.length >= originalCount;
+
+            // 需要回寫：有新/舊路徑待合併、去重減少、離線補傳
+            const needWrite = safeToWrite && (
+                hasPendingSync
                 || mergedArr.length !== originalCount
-                || mergedArr.some(g => !newRaw || !newRaw[g.gameId]);
+                || mergedArr.some(g => !newRaw || !newRaw[g.gameId])
+                || hasOldData  // 舊路徑仍有資料，需要遷移到新路徑
+            );
 
-            // 從 Firebase 還原打者模式狀態（登入後棒次/局數/壘包才能繼續）
+            // ── 還原打者模式狀態 ──
             if (bmSnap) {
                 const bmVal = bmSnap.val();
                 if (bmVal && typeof bmVal === 'object') {
@@ -6686,11 +6693,10 @@
                 }
             }
 
-            // 從 Firebase 載入打者資料庫（batterData 獨立節點，localStorage 未必同步）
+            // ── 載入打者資料庫 ──
             if (bdSnap) {
                 const bdVal = bdSnap.val();
                 if (bdVal) {
-                    // Firebase 可能存成 array 或 object（key→entry）
                     const arr = Array.isArray(bdVal) ? bdVal : Object.values(bdVal);
                     if (arr.length > 0) {
                         allData.batterData = arr;
@@ -6699,19 +6705,13 @@
                 }
             }
 
-            // 立即更新本機畫面
+            // ── 立即更新本機畫面 ──
             if (mergedArr.length > 0) {
                 allData.teams = mergedArr;
                 rebuildPitcherDB();
                 saveToLocalStorage();
-                _restoreLastPosition(); // 還原上次情蒐位置（登入/重開後）
+                _restoreLastPosition();
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
-            }
-
-            // 一旦新路徑有資料，清除舊路徑，防止刪除的賽事日後從舊路徑復活
-            const oldSnapVal = oldSnap.val();
-            if (hasNewData && oldSnapVal !== null) {
-                getDataRef().remove().catch(() => {});
             }
 
             if (needWrite) {
@@ -6720,6 +6720,8 @@
                 lastSaveTime = Date.now();
                 gRef.set(writeObj)
                     .then(() => {
+                        // 只有在新路徑寫入成功後，才刪除舊路徑（避免遷移中途資料遺失）
+                        if (hasOldData) getDataRef().remove().catch(() => {});
                         if (hasPendingSync) {
                             pendingSync = false;
                             try { localStorage.removeItem('_pendingSync'); } catch(e) {}
@@ -6728,10 +6730,15 @@
                         _startGamesListener(gRef);
                     })
                     .catch(e => {
-                        console.warn('[Firebase] 初始化寫入失敗:', e.code);
+                        // 寫入失敗：保留舊路徑資料，下次登入再試
+                        console.warn('[Firebase] 初始化寫入失敗，舊路徑資料保留中:', e.code);
                         _startGamesListener(gRef);
                     });
             } else {
+                // 不需寫入：若新路徑已有所有資料且安全，清除舊路徑
+                if (hasNewData && hasOldData && safeToWrite) {
+                    getDataRef().remove().catch(() => {});
+                }
                 _startGamesListener(gRef);
             }
         }).catch(() => _startGamesListener(gRef));
