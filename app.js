@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v363';
+﻿    const APP_VERSION = 'v364';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2498,6 +2498,8 @@
         document.getElementById('editPitcherHand').value = pitcher.hand || '';
         document.getElementById('editPitcherRole').value = pitcher.role || '先發';
         document.getElementById('editPitcherStyle').value = pitcher.style || '';
+        const sideEl = document.getElementById('editPitcherSide');
+        if (sideEl) sideEl.value = pitcher.pitchingTeam || 'A';
         document.getElementById('editPitcherModal').style.display = 'block';
     }
 
@@ -2514,11 +2516,12 @@
         if (!pitcher) return;
         const name = document.getElementById('editPitcherName').value.trim();
         if (!name) { alert('請輸入投手姓名！'); return; }
-        pitcher.name   = name;
-        pitcher.number = document.getElementById('editPitcherNumber').value.trim();
-        pitcher.hand   = document.getElementById('editPitcherHand').value;
-        pitcher.role   = document.getElementById('editPitcherRole').value;
-        pitcher.style  = document.getElementById('editPitcherStyle').value.trim();
+        pitcher.name         = name;
+        pitcher.number       = document.getElementById('editPitcherNumber').value.trim();
+        pitcher.hand         = document.getElementById('editPitcherHand').value;
+        pitcher.role         = document.getElementById('editPitcherRole').value;
+        pitcher.style        = document.getElementById('editPitcherStyle').value.trim();
+        pitcher.pitchingTeam = document.getElementById('editPitcherSide')?.value || pitcher.pitchingTeam || 'A';
         rebuildPitcherDB();
         updateTeamList();
         updateSlotDisplay();

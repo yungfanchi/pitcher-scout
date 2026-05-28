@@ -1708,6 +1708,13 @@
                 <label>球種型態</label>
                 <input type="text" id="editPitcherStyle" placeholder="例：速球型、軟投派、側投變化球" autocomplete="off">
             </div>
+            <div class="input-group">
+                <label>所屬球隊</label>
+                <select id="editPitcherSide">
+                    <option value="A">先攻</option>
+                    <option value="B">後攻</option>
+                </select>
+            </div>
             <button class="btn btn-success" style="width:100%;margin-top:14px;"
                 onclick="confirmEditPitcher()" ontouchend="event.preventDefault();confirmEditPitcher()">✅ 儲存修改</button>
         </div>
