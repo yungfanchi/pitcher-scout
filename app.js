@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v376';
+﻿    const APP_VERSION = 'v377';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10306,9 +10306,19 @@
             const _lineupNumMap9 = _buildNumToTeamFromLineups(team);
             (team.pitchers || []).forEach(pitcher => {
                 (pitcher.pitches || []).forEach(pitch => {
-                    const name = (pitch.batterName || '').trim();
-                    const num  = String(pitch.batterNumber || '').trim();
-                    const nameKey = name || (num ? `#${num}` : '');
+                    let name = (pitch.batterName || '').trim();
+                    let num  = String(pitch.batterNumber || '').trim();
+                    // 背號和姓名都空白時，用棒次從打線補
+                    if (!name && !num && pitch.batterOrder) {
+                        const ord = parseInt(pitch.batterOrder) - 1;
+                        const lineupSide = pitch.half === '上' ? (team.lineups?.teamA || []) : (team.lineups?.teamB || []);
+                        const entry = (ord >= 0) ? (lineupSide[ord] || null) : null;
+                        if (entry) {
+                            if (entry.number) num  = String(entry.number).trim();
+                            if (entry.name)   name = (entry.name).trim();
+                        }
+                    }
+                    const nameKey = name || (num ? `#${num}` : '') || (pitch.batterOrder ? `棒次${pitch.batterOrder}` : '');
                     if (!nameKey) return;
                     // ★ 優先從打線查隊名，再 fallback pitch.batterTeam
                     const lineupTeam = num ? _lineupNumMap9[num]?.team : '';
@@ -10318,7 +10328,7 @@
                         const lineupName = num ? (_lineupNumMap9[num]?.name || '') : '';
                         const lineupHand = num ? (_lineupNumMap9[num]?.hand || '') : '';
                         batterMap.set(mapKey, {
-                            name: name || lineupName || `背號 ${num}`, nameKey, teamName: bTeam,
+                            name: name || lineupName || (num ? `背號 ${num}` : nameKey), nameKey, teamName: bTeam,
                             pitches: [], games: new Set(), hand: pitch.batterHand || lineupHand,
                         });
                     }
