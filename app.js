@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v361';
+﻿    const APP_VERSION = 'v362';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -6985,10 +6985,9 @@
 
     // 上傳前防呆：偵測到幾乎沒有資料時擋住，避免空資料蓋掉雲端
     function _hasUploadableData() {
-        const teamPitches = (allData.teams || []).reduce((sum, t) =>
-            sum + (t.pitchers || []).reduce((s, p) => s + (p.pitches || []).length, 0), 0);
-        const bmAtBats = (allData.bm && allData.bm.atBats) ? allData.bm.atBats.length : 0;
-        if (teamPitches === 0 && bmAtBats === 0) {
+        const hasGames  = (allData.teams || []).length > 0;
+        const bmAtBats  = (allData.bm && allData.bm.atBats) ? allData.bm.atBats.length : 0;
+        if (!hasGames && bmAtBats === 0) {
             alert('⚠️ 目前沒有任何記錄資料，已取消上傳。\n若要清空雲端請先到側欄手動操作。');
             return false;
         }
@@ -7028,7 +7027,15 @@
                 if (!t.gameId) t.gameId = _makeGameId();
                 gamesObj[t.gameId] = JSON.parse(JSON.stringify(t));
             });
-            getGamesRef().set(gamesObj)
+            const uploads = [ getGamesRef().set(gamesObj) ];
+            // 同時上傳打者模式資料（bm）
+            if (allData.bm && USER_TEAM_REF) {
+                uploads.push(
+                    USER_TEAM_REF.child('bm').set(JSON.parse(JSON.stringify(allData.bm)))
+                        .catch(e => console.warn('[Firebase] bm 上傳失敗:', e))
+                );
+            }
+            Promise.all(uploads)
                 .then(() => {
                     setSyncStatus(true);
                     if (btn) { btn.textContent = '✅ 同步成功'; setTimeout(() => { btn.textContent = '☁️ 上傳至雲端'; btn.disabled = false; }, 2000); }
