@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v349';
+﻿    const APP_VERSION = 'v350';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11856,6 +11856,7 @@
             if (!_loaded) _syncGameStateToBmLineup(allData.bm.attackingTeam || 'B');
         }
         _updateBmTeamBtns();
+        _renderBmBatterDisplay();
     }
 
     function selectBmTeam(t) {
@@ -11912,6 +11913,7 @@
         // 獨立模式：還原已儲存的賽事資訊
         if (mode === 'standalone') _renderBmSpInfo();
         _updateBmTeamBtns();
+        _renderBmBatterDisplay();
 
         // ★ 反向連動：切換模式按鈕時同步更新側欄下拉選單
         const sel = document.getElementById('bmGameSelect');
