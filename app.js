@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v359';
+﻿    const APP_VERSION = 'v360';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3614,7 +3614,7 @@
                 <div style="width:36px;height:36px;border-radius:50%;background:var(--ct-blue-dark);color:#ffd700;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;flex-shrink:0;">${i}</div>
                 <input type="text" inputmode="numeric" placeholder="#" value="${escapeHtml(p.number)}" data-order="${i}" data-field="number"
                     style="padding:7px 4px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;"
-                    onkeydown="if(event.key==='Enter')this.blur()">
+                    onblur="saveLineupCell(this)" onkeydown="if(event.key==='Enter')this.blur()">
                 <button type="button" data-order="${i}" data-field="hand" data-value="${escapeHtml(p.hand||'右打')}"
                     onclick="toggleLineupHand(this)"
                     style="padding:7px 4px;border:none;border-radius:7px;font-size:15px;font-weight:700;width:100%;box-sizing:border-box;cursor:pointer;background:${(p.hand||'右打')==='左打'?'#dc0000':'#003d79'};color:white;font-family:'Noto Sans TC',sans-serif;letter-spacing:1px;">
@@ -3622,7 +3622,7 @@
                 </button>
                 <input type="text" placeholder="姓名" value="${escapeHtml(p.name)}" data-order="${i}" data-field="name"
                     style="padding:7px 6px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;"
-                    onkeydown="if(event.key==='Enter')this.blur()">` ;
+                    onblur="saveLineupCell(this)" onkeydown="if(event.key==='Enter')this.blur()">` ;
             container.appendChild(row);
         }
         const modal = document.getElementById('lineupModal');
@@ -3638,6 +3638,27 @@
         btn.dataset.value = next;
         btn.textContent = next;
         btn.style.background = next === '左打' ? '#dc0000' : '#003d79';
+        const i = parseInt(btn.dataset.order);
+        lineup[i].hand = next;
+        _persistLineup();
+    }
+
+    function saveLineupCell(el) {
+        const i = parseInt(el.dataset.order);
+        lineup[i][el.dataset.field] = el.value;
+        _persistLineup();
+    }
+
+    function _persistLineup() {
+        _syncGameStateToBmLineup();
+        if (currentTeam !== null && allData.teams[currentTeam]) {
+            if (!allData.teams[currentTeam].lineups) allData.teams[currentTeam].lineups = {};
+            const side = (lineup === gameState.lineups.teamA) ? 'teamA' : 'teamB';
+            allData.teams[currentTeam].lineups[side] = lineup.slice(1).map(p => p ? {...p} : {number:'',name:'',hand:'右打'});
+            _syncBatterTeamFromLineup(currentTeam);
+            saveToLocalStorage();
+            saveToFirebase(currentTeam);
+        }
     }
 
     function saveLineup() {
@@ -3645,25 +3666,10 @@
             const i = parseInt(el.dataset.order);
             lineup[i][el.dataset.field] = el.tagName === 'BUTTON' ? el.dataset.value : el.value;
         });
+        _persistLineup();
         closeLineupModal();
-        // Auto-fill current batter if order is set
         const order = parseInt(document.getElementById('batterOrder').value);
         if (order >= 1 && order <= 9) applyLineupToUI(order);
-        // 無論任何模式，打序儲存後都同步到打者模組
-        _syncGameStateToBmLineup();
-        // ★ 將打序儲存到賽事資料（重開 app 後可還原）
-        if (currentTeam !== null && allData.teams[currentTeam]) {
-            if (!allData.teams[currentTeam].lineups) allData.teams[currentTeam].lineups = {};
-            const side = (lineup === gameState.lineups.teamA) ? 'teamA' : 'teamB';
-            // lineup 是 1-indexed；存成 0-indexed array 方便讀取
-            allData.teams[currentTeam].lineups[side] = lineup.slice(1).map(p => p ? {...p} : {number:'',name:'',hand:'右打'});
-
-            // ★ 自動分類：根據打線確認背號屬於哪隊，回寫既有球路的 batterTeam
-            _syncBatterTeamFromLineup(currentTeam);
-
-            saveToLocalStorage();
-            saveToFirebase(currentTeam);
-        }
     }
 
     // ★ 根據打線（lineupA/B）回寫該場次所有球路的 batterTeam，並同步 batterData.team
