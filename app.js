@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v353';
+﻿    const APP_VERSION = 'v354';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3233,18 +3233,20 @@
     // ====== 雙隊打序智慧連動 ======
     // 防止 activateSlot ↔ autoUpdateBatterInfoByInning 互相觸發的遞迴保護旗標
     let _syncingSlotAndBatter = false;
+    // recomputeGameState 期間設為 true，使三出局直接換局而不跳確認框
+    let _skipHalfSwitchDialog = false;
 
     /**
      * 依當前 gameState.half 自動切換 activeSlot，並從 gameState.lineups 填入打者資訊。
-     * 上半局：A 隊投（slot A）、A 隊打 → 讀 lineups.teamA[currentBatterIndex.teamA]（teamA = team.name 先攻）
-     * 下半局：B 隊投（slot B）、B 隊打 → 讀 lineups.teamB[currentBatterIndex.teamB]（teamB = team.opponent 後攻）
+     * 上半局：後攻投（slot B active）、先攻(teamA)打 → 讀 lineups.teamA
+     * 下半局：先攻投（slot A active）、後攻(teamB)打 → 讀 lineups.teamB
      */
     function autoUpdateBatterInfoByInning() {
         if (_syncingSlotAndBatter) return;
         _syncingSlotAndBatter = true;
 
         const half = gameState.half;
-        const targetSlot  = half === '上' ? 'A' : 'B';
+        const targetSlot  = half === '上' ? 'B' : 'A';
         const battingTeam = half === '上' ? 'teamA' : 'teamB';
 
         // 切換 slot（避免呼叫 activateSlot 造成遞迴，直接操作 DOM 與狀態）
@@ -3710,6 +3712,14 @@
         const _prePitchHalf = gameState.half; // 捕捉此球投出時的局半，供得分確認使用
         updateGameStateFromPitch(currentPitch);
 
+        // 三出局確認換局
+        if (window._pendingHalfSwitch) {
+            window._pendingHalfSwitch = false;
+            if (window.confirm('三出局！確定換局？')) {
+                toggleHalf(false);
+            }
+        }
+
         // 打席結束 → 推進打者、更新連動
         const hasEndingOutcome = currentPitch.outcomes.some(o => PA_ENDING.includes(o));
         if (hasEndingOutcome) {
@@ -4022,21 +4032,17 @@
             }
 
             if (gameState.outs >= 3) {
-                // 三出局換局：自動觸發，重置計數與壘包
-                if (currentTeam !== null) {
-                    const score = getTeamScore();
-                    score.half = score.half === '上' ? '下' : '上';
-                    if (score.half === '上') score.inning = Math.min(20, score.inning + 1);
-                    gameState.half = score.half;
-                }
                 gameState.outs = 0;
                 gameState.bases = [false, false, false];
                 gameState.runners = [null, null, null];
                 gameState.strikes = 0; gameState.balls = 0;
                 renderCountLights(); renderBases();
-                updateScoreboard();
-                // 換局後自動切換 slot 並更新打者資訊
-                autoUpdateBatterInfoByInning();
+                if (_skipHalfSwitchDialog) {
+                    toggleHalf(false);
+                } else {
+                    window._pendingHalfSwitch = true;
+                    updateScoreboard();
+                }
             }
         } else if (isPA) {
             gameState.strikes = 0; gameState.balls = 0;
@@ -4044,19 +4050,17 @@
             if (outcomes.includes('野選')) {
                 gameState.outs++;
                 if (gameState.outs >= 3) {
-                    if (currentTeam !== null) {
-                        const score = getTeamScore();
-                        score.half = score.half === '上' ? '下' : '上';
-                        if (score.half === '上') score.inning = Math.min(20, score.inning + 1);
-                        gameState.half = score.half;
-                    }
                     gameState.outs = 0;
                     gameState.bases = [false, false, false];
                     gameState.runners = [null, null, null];
                     gameState.strikes = 0; gameState.balls = 0;
                     renderCountLights(); renderBases();
-                    updateScoreboard();
-                    autoUpdateBatterInfoByInning();
+                    if (_skipHalfSwitchDialog) {
+                        toggleHalf(false);
+                    } else {
+                        window._pendingHalfSwitch = true;
+                        updateScoreboard();
+                    }
                     renderCountLights();
                     updateZoneCountDisplay();
                     return;
@@ -4118,6 +4122,7 @@
 
         if (currentTeam === null || currentPitcher === null) return;
         const pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
+        _skipHalfSwitchDialog = true;
         pitches.forEach(p => {
             const prePitchHalf = gameState.half;
             updateGameStateFromPitch(p);
@@ -4126,6 +4131,7 @@
                 gameState.currentBatterIndex[bt] = (gameState.currentBatterIndex[bt] + 1) % 9;
             }
         });
+        _skipHalfSwitchDialog = false;
 
         renderCountLights();
         renderBases();
@@ -4614,6 +4620,7 @@
         if (currentTeam === null) { alert('請先選擇投手！'); return; }
         const score = getTeamScore();
         score.half = score.half === '上' ? '下' : '上';
+        if (score.half === '上') score.inning = Math.min(20, score.inning + 1);
         gameState.half = score.half;
         if (!isManual) {
             // 自動換局（3出局觸發）：重置計數
