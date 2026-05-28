@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v348';
+﻿    const APP_VERSION = 'v349';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2787,6 +2787,7 @@
             }
             autoUpdateBatterInfoByInning();
         }
+        updateSlotDisplay();
         _saveLastPosition();
     }
 
