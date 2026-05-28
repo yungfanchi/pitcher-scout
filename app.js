@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v377';
+﻿    const APP_VERSION = 'v378';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10322,7 +10322,9 @@
                     if (!nameKey) return;
                     // ★ 優先從打線查隊名，再 fallback pitch.batterTeam
                     const lineupTeam = num ? _lineupNumMap9[num]?.team : '';
-                    const bTeam = lineupTeam || pitch.batterTeam || _inferBatterTeam(pitch, team) || '未分類';
+                    // 無背號時用上/下半局推算打擊隊伍：上=先攻(team.name)，下=後攻(team.opponent)
+                    const inferredTeam = pitch.half === '上' ? (team.name || '') : (team.opponent || '');
+                    const bTeam = lineupTeam || pitch.batterTeam || _inferBatterTeam(pitch, team) || inferredTeam || '未分類';
                     const mapKey = `${bTeam}||${nameKey}`;
                     if (!batterMap.has(mapKey)) {
                         const lineupName = num ? (_lineupNumMap9[num]?.name || '') : '';
