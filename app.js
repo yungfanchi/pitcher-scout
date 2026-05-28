@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v342';
+﻿    const APP_VERSION = 'v343';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -6860,20 +6860,42 @@
             );
             if (!ok) return;
         }
-        getGamesRef().once('value')
-            .then(snap => {
-                const raw = snap.val();
-                let teams = [];
-                if (raw && typeof raw === 'object') {
-                    teams = Object.entries(raw)
-                        .map(([id, data]) => { const g = _normalizeGameEntry(data); if (g && !g.gameId) g.gameId = id; return g; })
-                        .filter(Boolean);
+        // 同時讀新路徑（games/）與舊路徑（pitchers/），確保遺漏場次也能找回
+        Promise.all([
+            getGamesRef().once('value'),
+            getDataRef().once('value')
+        ]).then(([newSnap, oldSnap]) => {
+                const fpMap = new Map();
+                const addGame = g => {
+                    if (!g) return;
+                    const fp = [g.gameName||'', g.name||'', g.opponent||'', g.date||''].join('|');
+                    if (!fp.replace(/\|/g,'').trim()) return;
+                    if (!fpMap.has(fp)) {
+                        fpMap.set(fp, g);
+                    } else {
+                        const ec = (fpMap.get(fp).pitchers||[]).reduce((s,p)=>s+(p.pitches||[]).length,0);
+                        const nc = (g.pitchers||[]).reduce((s,p)=>s+(p.pitches||[]).length,0);
+                        if (nc > ec) fpMap.set(fp, g);
+                    }
+                };
+                // 讀新路徑
+                const newRaw = newSnap.val();
+                if (newRaw && typeof newRaw === 'object') {
+                    Object.entries(newRaw).forEach(([id, data]) => {
+                        const g = _normalizeGameEntry(data);
+                        if (g) { if (!g.gameId) g.gameId = id; addGame(g); }
+                    });
                 }
+                // 讀舊路徑（pitchers/），撈回可能遺漏的場次
+                const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
+                oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); addGame(t); });
+
+                const teams = [...fpMap.values()];
                 if (teams.length === 0) {
                     alert('雲端目前無資料，請先按「☁️ 上傳至雲端」把本機數據上傳。');
                     return;
                 }
-                if (!hasPending && !confirm(`雲端有 ${teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
+                if (!hasPending && !confirm(`雲端找到 ${teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
                 allData.teams = teams;
                 allData.pitcherDB = {};
                 rebuildPitcherDB();
