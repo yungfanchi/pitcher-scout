@@ -601,6 +601,7 @@
                 <button class="tab-btn" onclick="switchTab(event,'stats')">📊 統計</button>
                 <button class="tab-btn" onclick="switchTab(event,'analysis')">📈 分析</button>
                 <button class="tab-btn" onclick="switchTab(event,'compare')">⚔️ 對比</button>
+                <button class="tab-btn" onclick="switchTab(event,'roster')">🎽 名冊</button>
             </div>
         </div>
 
@@ -1173,6 +1174,11 @@
             </div>
         </div>
 
+        <!-- 名冊分頁 -->
+        <div id="rosterTab" class="tab-content">
+            <div id="rosterTabContent"></div>
+        </div>
+
     <!-- ════ 打者情蒐模式（與投手模式共用 mainContent 容器）════ -->
     <div id="batterModeWrapper" style="display:none;">
 
@@ -1300,6 +1306,7 @@
                 <button class="tab-btn bm-tab bm-tab-active" onclick="switchBatterTab(event,'record')">📝 記錄</button>
                 <button class="tab-btn bm-tab" onclick="switchBatterTab(event,'stats')">📊 統計</button>
                 <button class="tab-btn bm-tab" onclick="switchBatterTab(event,'batterdata');refreshBatterList()">🏏 打者資訊</button>
+                <button class="tab-btn bm-tab" onclick="switchBatterTab(event,'roster')">🎽 名冊</button>
             </div>
             <!-- 連動 / 獨立 切換（記錄 Tab 時顯示） -->
             <div id="bmModeToggleRow" style="display:flex;gap:5px;flex:1;align-items:flex-end;padding-bottom:3px;">
@@ -1487,6 +1494,11 @@
             <div class="container" id="bmBatterProfileContent" style="max-width:none;"></div>
         </div>
     </div><!-- /bmBatterDataTab -->
+
+    <!-- 名冊分頁（打者模式）-->
+    <div id="bmRosterTab" class="tab-content" style="display:none;">
+        <div id="bmRosterTabContent"></div>
+    </div>
 
     <!-- 數據管理（打者模式最底部）-->
     <div class="container" id="bmDataMgmt">

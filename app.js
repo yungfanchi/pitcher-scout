@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v356';
+﻿    const APP_VERSION = 'v357';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -21,7 +21,7 @@
     };
 
     // ====== DATA ======
-    let allData = { teams: [], pitcherDB: {} }; // pitcherDB: key="姓名#背號", value={pitches:[{...pitch, gameKey}]}
+    let allData = { teams: [], pitcherDB: {}, playerRegistry: [] }; // pitcherDB: key="姓名#背號"; playerRegistry: [{playerId,name,team,hand,numbers:[],note}]
     let currentTeam = null;
     let currentPitcher = null;
     let autoSave = false;
@@ -1860,7 +1860,7 @@
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'none';
         // 每次登入重置資料 + 清 localStorage 快取，防止舊資料污染新帳號
-        allData = { teams: [], pitcherDB: {} };
+        allData = { teams: [], pitcherDB: {}, playerRegistry: allData.playerRegistry || [] };
         if (currentTeamCode !== 'ADMIN') {
             try { localStorage.removeItem('chineseTaipeiPitcherData'); } catch(e) {}
             try { localStorage.removeItem('pitcherScoutSlotState'); } catch(e) {}
@@ -1953,7 +1953,7 @@
         // 重置 header 隊名
         loadTeamHeader(null);
         // 重置資料
-        allData = { teams: [], pitcherDB: {} };
+        allData = { teams: [], pitcherDB: {}, playerRegistry: allData.playerRegistry || [] };
         // If legacy admin was logged in (no Firebase Auth session), show authOverlay directly
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'flex';
@@ -2859,6 +2859,373 @@
         saveToLocalStorage();
         saveToFirebase();
     }
+
+    // ====== PLAYER REGISTRY (名冊) ======
+    let _rosterSearchTerm = '';
+
+    function renderRosterTab() {
+        const id = (userMode === 'batter') ? 'bmRosterTabContent' : 'rosterTabContent';
+        const container = document.getElementById(id);
+        if (!container) return;
+        if (!allData.playerRegistry) allData.playerRegistry = [];
+        const registry = allData.playerRegistry;
+        const q = _rosterSearchTerm.toLowerCase().trim();
+
+        const filtered = q ? registry.filter(p =>
+            (p.name||'').toLowerCase().includes(q) ||
+            (p.team||'').toLowerCase().includes(q) ||
+            (p.numbers||[]).some(n => n.includes(q))
+        ) : registry;
+
+        // Group by team, sort each group by first number
+        const byTeam = {};
+        filtered.forEach(p => {
+            const t = p.team || '未知隊伍';
+            if (!byTeam[t]) byTeam[t] = [];
+            byTeam[t].push(p);
+        });
+        Object.values(byTeam).forEach(arr => arr.sort((a,b) => (parseInt(a.numbers[0])||999) - (parseInt(b.numbers[0])||999)));
+
+        let html = `
+            <div class="container">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                    <h2 style="margin:0;border:none;padding:0;">🎽 球員名冊</h2>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button onclick="_autoDiscoverFromPitches()"
+                            style="padding:7px 12px;background:rgba(16,185,129,0.2);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                            🔄 自動掃描
+                        </button>
+                        <button onclick="_openAddPlayerModal()"
+                            style="padding:7px 12px;background:rgba(0,81,165,0.3);color:#93c5fd;border:1px solid rgba(0,81,165,0.4);border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                            ➕ 新增球員
+                        </button>
+                    </div>
+                </div>
+                <input id="_rosterSearchInput" type="text"
+                    placeholder="🔍 搜尋姓名、背號、隊伍..."
+                    value="${escapeHtml(_rosterSearchTerm)}"
+                    oninput="_rosterSearchTerm=this.value;renderRosterTab();"
+                    style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;font-family:inherit;background:rgba(255,255,255,0.08);color:white;margin-bottom:6px;">
+                <div style="font-size:11px;color:rgba(255,255,255,0.4);">
+                    共 ${registry.length} 位球員　·　點「🔄 自動掃描」從現有比賽記錄中匯入未登錄球員
+                </div>
+            </div>`;
+
+        if (filtered.length === 0) {
+            html += `<div class="container" style="text-align:center;color:rgba(255,255,255,0.5);padding:40px 20px;font-size:14px;">
+                ${q ? `找不到「${escapeHtml(q)}」相關球員` : '尚無球員資料。<br>點「🔄 自動掃描」從比賽記錄中匯入，或點「➕ 新增球員」手動新增。'}
+            </div>`;
+        } else {
+            Object.entries(byTeam).forEach(([team, players]) => {
+                const unnamed = players.filter(p => !p.name).length;
+                html += `<div class="container" style="margin-bottom:0;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                        <h3 style="margin:0;font-size:15px;color:white;font-family:'Oswald','Noto Sans TC',sans-serif;">${escapeHtml(team)}</h3>
+                        <span style="font-size:11px;color:rgba(255,255,255,0.5);">${players.length}人</span>
+                        ${unnamed > 0 ? `<span style="font-size:10px;color:#fbbf24;background:rgba(251,191,36,0.12);padding:1px 6px;border-radius:4px;">⚠️ ${unnamed} 人未命名</span>` : ''}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px;">`;
+                players.forEach(p => {
+                    const isUnnamed = !p.name;
+                    const numsHtml = (p.numbers||[]).length > 0
+                        ? (p.numbers).map(n => `<span style="font-size:11px;font-weight:700;color:var(--ct-gold);background:rgba(255,215,0,0.12);padding:2px 7px;border-radius:4px;white-space:nowrap;">#${escapeHtml(n)}</span>`).join('')
+                        : `<span style="font-size:11px;color:rgba(255,255,255,0.35);font-style:italic;">無背號</span>`;
+                    html += `
+                        <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
+                            background:${isUnnamed ? 'rgba(251,191,36,0.06)' : 'rgba(255,255,255,0.04)'};
+                            border:1px solid ${isUnnamed ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.08)'};
+                            border-radius:8px;">
+                            <div style="display:flex;gap:3px;flex-shrink:0;flex-wrap:wrap;max-width:96px;">${numsHtml}</div>
+                            <div style="flex:1;min-width:0;overflow:hidden;">
+                                <div style="font-size:14px;font-weight:700;color:${isUnnamed ? '#fbbf24' : 'white'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    ${isUnnamed ? '（未命名）' : escapeHtml(p.name)}
+                                </div>
+                                <div style="font-size:11px;color:rgba(255,255,255,0.45);">${escapeHtml(p.hand||'')}${p.note ? '　' + escapeHtml(p.note) : ''}</div>
+                            </div>
+                            <div style="display:flex;gap:3px;flex-shrink:0;">
+                                <button onclick="_openEditPlayerModal('${p.playerId}')"
+                                    style="padding:4px 8px;font-size:12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:5px;cursor:pointer;font-family:inherit;touch-action:manipulation;">✏️</button>
+                                <button onclick="_deletePlayerFromRegistry('${p.playerId}')"
+                                    style="padding:4px 8px;font-size:12px;background:rgba(220,0,0,0.12);color:rgba(255,100,100,0.8);border:1px solid rgba(220,0,0,0.2);border-radius:5px;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️</button>
+                            </div>
+                        </div>`;
+                });
+                html += `</div></div>`;
+            });
+        }
+
+        container.innerHTML = html;
+    }
+
+    function _openAddPlayerModal(prefill) {
+        prefill = prefill || {};
+        const existing = document.getElementById('_addPlayerModal');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = '_addPlayerModal';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:380px;border-top:4px solid var(--ct-blue);border-left:3px solid var(--ct-gold);box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                <h3 style="margin:0 0 18px;font-size:16px;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;">➕ 新增球員</h3>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">隊伍名稱 *</label>
+                            <input id="_apTeam" type="text" value="${escapeHtml(prefill.team||'')}" placeholder="例：日本"
+                                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">背號</label>
+                            <input id="_apNumber" type="text" value="${escapeHtml(prefill.number||'')}" placeholder="11"
+                                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">姓名（可留空，之後補）</label>
+                        <input id="_apName" type="text" value="${escapeHtml(prefill.name||'')}" placeholder="例：上島紗羽"
+                            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px;">慣用手</label>
+                        <div id="_apHandRow" style="display:flex;gap:5px;flex-wrap:wrap;">
+                            ${['右打','左打','兩打','右投','左投','兩投'].map(h =>
+                                `<button class="_apHBtn" data-h="${h}"
+                                    style="flex:1;min-width:48px;padding:7px 4px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid #d1d5db;background:#f9fafb;color:#374151;transition:all 0.15s;">${h}</button>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">備註（選填）</label>
+                        <input id="_apNote" type="text" value="" placeholder="例：2026友誼賽換號"
+                            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:18px;">
+                    <button id="_apCancel" style="flex:1;padding:11px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">取消</button>
+                    <button id="_apSave" style="flex:2;padding:11px;background:var(--ct-blue-dark);color:#ffd700;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 新增</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        let _apHand = prefill.hand || '';
+        const updateApHand = () => {
+            overlay.querySelectorAll('._apHBtn').forEach(btn => {
+                const active = btn.dataset.h === _apHand;
+                btn.style.background = active ? 'var(--ct-blue-dark)' : '#f9fafb';
+                btn.style.color = active ? '#ffd700' : '#374151';
+                btn.style.borderColor = active ? 'var(--ct-blue-dark)' : '#d1d5db';
+            });
+        };
+        overlay.querySelector('#_apHandRow').addEventListener('click', e => {
+            const btn = e.target.closest('._apHBtn');
+            if (!btn) return;
+            _apHand = _apHand === btn.dataset.h ? '' : btn.dataset.h;
+            updateApHand();
+        });
+        if (_apHand) updateApHand();
+        overlay.querySelector('#_apCancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        overlay.querySelector('#_apSave').addEventListener('click', () => {
+            const team   = document.getElementById('_apTeam').value.trim();
+            const number = document.getElementById('_apNumber').value.trim().replace(/^#/, '');
+            const name   = document.getElementById('_apName').value.trim();
+            const note   = document.getElementById('_apNote').value.trim();
+            if (!team) { alert('請輸入隊伍名稱！'); return; }
+            if (!allData.playerRegistry) allData.playerRegistry = [];
+            if (number) {
+                const dup = allData.playerRegistry.find(p => p.team === team && (p.numbers||[]).includes(number));
+                if (dup) { alert(`${team} #${number} 已存在（${dup.name||'未命名'}），可在編輯中調整。`); return; }
+            }
+            allData.playerRegistry.push({ playerId: _makePlayerId(), name, team, hand: _apHand, numbers: number ? [number] : [], note });
+            overlay.remove();
+            renderRosterTab();
+            saveToLocalStorage(); saveToFirebase();
+        });
+        setTimeout(() => document.getElementById('_apTeam')?.focus(), 50);
+    }
+
+    function _openEditPlayerModal(playerId) {
+        const player = (allData.playerRegistry||[]).find(p => p.playerId === playerId);
+        if (!player) return;
+        const existing = document.getElementById('_editPlayerModal');
+        if (existing) existing.remove();
+        let editNums = [...(player.numbers||[])];
+        let selHand = player.hand || '';
+
+        const overlay = document.createElement('div');
+        overlay.id = '_editPlayerModal';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;overflow-y:auto;';
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:400px;border-top:4px solid var(--ct-red);border-left:3px solid var(--ct-gold);box-shadow:0 8px 32px rgba(0,0,0,0.3);margin:auto;">
+                <h3 style="margin:0 0 18px;font-size:16px;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;">✏️ 編輯球員</h3>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">隊伍名稱 *</label>
+                            <input id="_epTeam" type="text" value="${escapeHtml(player.team||'')}" placeholder="例：日本"
+                                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">姓名</label>
+                            <input id="_epName" type="text" value="${escapeHtml(player.name||'')}" placeholder="例：上島紗羽"
+                                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px;">慣用手</label>
+                        <div id="_epHandRow" style="display:flex;gap:5px;flex-wrap:wrap;">
+                            ${['右打','左打','兩打','右投','左投','兩投'].map(h =>
+                                `<button class="_epHBtn" data-h="${h}"
+                                    style="flex:1;min-width:48px;padding:7px 4px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid #d1d5db;background:#f9fafb;color:#374151;transition:all 0.15s;">${h}</button>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px;">所有背號（可多個，換號也全部加入）</label>
+                        <div id="_epNumsList" style="display:flex;flex-wrap:wrap;gap:5px;min-height:36px;padding:6px;background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;margin-bottom:6px;align-items:center;"></div>
+                        <div style="display:flex;gap:6px;">
+                            <input id="_epNewNum" type="text" placeholder="輸入背號後按加入"
+                                style="flex:1;padding:8px 10px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;font-family:inherit;">
+                            <button id="_epAddNumBtn" style="padding:8px 14px;background:var(--ct-blue-dark);color:#ffd700;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">加入</button>
+                        </div>
+                        <div style="font-size:11px;color:#9ca3af;margin-top:4px;">所有背號的數據會自動合併計算。</div>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">備註（選填）</label>
+                        <input id="_epNote" type="text" value="${escapeHtml(player.note||'')}" placeholder="例：2026友誼賽換號"
+                            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:18px;">
+                    <button id="_epCancel" style="flex:1;padding:11px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">取消</button>
+                    <button id="_epSave" style="flex:2;padding:11px;background:var(--ct-blue-dark);color:#ffd700;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 儲存</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        const updateHandUI = () => {
+            overlay.querySelectorAll('._epHBtn').forEach(btn => {
+                const a = btn.dataset.h === selHand;
+                btn.style.background = a ? 'var(--ct-blue-dark)' : '#f9fafb';
+                btn.style.color = a ? '#ffd700' : '#374151';
+                btn.style.borderColor = a ? 'var(--ct-blue-dark)' : '#d1d5db';
+            });
+        };
+        const updateNumsUI = () => {
+            const el = document.getElementById('_epNumsList');
+            if (!el) return;
+            el.innerHTML = editNums.length > 0
+                ? editNums.map((n,i) => `
+                    <span style="display:inline-flex;align-items:center;gap:3px;background:#003d79;color:#ffd700;font-weight:700;font-size:13px;padding:3px 8px;border-radius:5px;">
+                        #${escapeHtml(n)}
+                        <button data-rmidx="${i}" style="background:none;border:none;color:rgba(255,215,0,0.7);cursor:pointer;font-size:16px;padding:0 2px;line-height:1;font-family:inherit;">×</button>
+                    </span>`).join('')
+                : '<span style="color:#9ca3af;font-size:12px;">（無背號）</span>';
+            el.querySelectorAll('[data-rmidx]').forEach(btn => {
+                btn.addEventListener('click', () => { editNums.splice(parseInt(btn.dataset.rmidx), 1); updateNumsUI(); });
+            });
+        };
+
+        updateHandUI();
+        updateNumsUI();
+
+        overlay.querySelector('#_epHandRow').addEventListener('click', e => {
+            const btn = e.target.closest('._epHBtn');
+            if (!btn) return;
+            selHand = selHand === btn.dataset.h ? '' : btn.dataset.h;
+            updateHandUI();
+        });
+        const addNum = () => {
+            const inp = document.getElementById('_epNewNum');
+            const val = (inp?.value || '').trim().replace(/^#/, '');
+            if (!val) return;
+            if (editNums.includes(val)) { alert(`背號 #${val} 已在列表中`); return; }
+            editNums.push(val);
+            if (inp) inp.value = '';
+            updateNumsUI();
+            inp?.focus();
+        };
+        document.getElementById('_epAddNumBtn').addEventListener('click', addNum);
+        document.getElementById('_epNewNum').addEventListener('keydown', e => { if (e.key === 'Enter') addNum(); });
+        overlay.querySelector('#_epCancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        overlay.querySelector('#_epSave').addEventListener('click', () => {
+            const newTeam = document.getElementById('_epTeam').value.trim();
+            const newName = document.getElementById('_epName').value.trim();
+            const newNote = document.getElementById('_epNote').value.trim();
+            if (!newTeam) { alert('請輸入隊伍名稱！'); return; }
+            player.team = newTeam; player.name = newName;
+            player.hand = selHand; player.numbers = [...editNums]; player.note = newNote;
+            overlay.remove();
+            renderRosterTab(); saveToLocalStorage(); saveToFirebase();
+        });
+        setTimeout(() => document.getElementById('_epName')?.focus(), 50);
+    }
+
+    function _deletePlayerFromRegistry(playerId) {
+        if (!allData.playerRegistry) return;
+        const idx = allData.playerRegistry.findIndex(p => p.playerId === playerId);
+        if (idx === -1) return;
+        const p = allData.playerRegistry[idx];
+        const numStr = (p.numbers||[]).map(n=>'#'+n).join('/') || '無背號';
+        if (!confirm(`確定要從名冊移除「${p.name||'未命名'} (${p.team} ${numStr})」嗎？\n比賽記錄不受影響。`)) return;
+        allData.playerRegistry.splice(idx, 1);
+        renderRosterTab(); saveToLocalStorage(); saveToFirebase();
+    }
+
+    function _autoDiscoverFromPitches() {
+        if (!allData.playerRegistry) allData.playerRegistry = [];
+        let added = 0;
+        const seen = new Set();
+        // Scan pitcher-mode pitches
+        (allData.teams||[]).forEach(team => {
+            (team.pitchers||[]).forEach(pitcher => {
+                (pitcher.pitches||[]).forEach(pitch => {
+                    const num = String(pitch.batterNumber||'').trim();
+                    const bt  = (pitch.batterTeam || team.name || '').trim();
+                    if (!num || !bt) return;
+                    const key = `${bt}||${num}`;
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    if (allData.playerRegistry.some(p => p.team === bt && (p.numbers||[]).includes(num))) return;
+                    allData.playerRegistry.push({
+                        playerId: _makePlayerId(),
+                        name: (pitch.batterName||'').trim(),
+                        team: bt, hand: pitch.batterHand||'',
+                        numbers: [num], note: ''
+                    });
+                    added++;
+                });
+            });
+        });
+        // Scan batter-mode records
+        (allData.batterData||[]).forEach(batter => {
+            const num = String(batter.number||'').trim();
+            const bt  = (batter.team||'').trim();
+            if (!num || !bt) return;
+            const key = `${bt}||${num}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            if (allData.playerRegistry.some(p => p.team === bt && (p.numbers||[]).includes(num))) return;
+            allData.playerRegistry.push({
+                playerId: _makePlayerId(),
+                name: (batter.name||'').trim(),
+                team: bt, hand: batter.hand||'',
+                numbers: [num], note: ''
+            });
+            added++;
+        });
+        if (added > 0) {
+            renderRosterTab(); saveToLocalStorage(); saveToFirebase();
+            alert(`✅ 已從比賽記錄中掃描到 ${added} 位新球員並加入名冊。\n請逐一補上姓名。`);
+        } else {
+            alert('所有球員已在名冊中，無需新增。');
+        }
+    }
+
+    window._openAddPlayerModal    = _openAddPlayerModal;
+    window._openEditPlayerModal   = _openEditPlayerModal;
+    window._deletePlayerFromRegistry = _deletePlayerFromRegistry;
+    window._autoDiscoverFromPitches  = _autoDiscoverFromPitches;
 
     function formatDateFull(dateStr) {
         if (!dateStr) return '';
@@ -6109,6 +6476,7 @@
         else if (tab==='stats') { document.getElementById('statsTab').classList.add('active'); updateStats(); }
         else if (tab==='analysis') { document.getElementById('analysisTab').classList.add('active'); updateStats(); }
         else if (tab==='compare') { document.getElementById('compareTab').classList.add('active'); updateCompare(); }
+        else if (tab==='roster') { document.getElementById('rosterTab').classList.add('active'); renderRosterTab(); }
         // 程式化切換時自動將對應 tab-btn 標為 active
         if (!e || !e.target) {
             document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -6749,12 +7117,14 @@
 
         const bmRef = USER_TEAM_REF ? USER_TEAM_REF.child('bm') : null;
         const bdRef = USER_TEAM_REF ? USER_TEAM_REF.child('batterData') : null;
+        const prRef = USER_TEAM_REF ? USER_TEAM_REF.child('playerRegistry') : null;
         Promise.all([
             gRef.once('value'),
             getDataRef().once('value'),   // 舊路徑 pitchers/
             bmRef ? bmRef.once('value') : Promise.resolve(null),
-            bdRef ? bdRef.once('value') : Promise.resolve(null)
-        ]).then(([newSnap, oldSnap, bmSnap, bdSnap]) => {
+            bdRef ? bdRef.once('value') : Promise.resolve(null),
+            prRef ? prRef.once('value') : Promise.resolve(null)
+        ]).then(([newSnap, oldSnap, bmSnap, bdSnap, prSnap]) => {
 
             // ── 收集所有候選賽事：永遠合併新舊兩條路徑 ──
             // 安全原則：寧可多讀，不可漏讀；舊路徑只在寫入新路徑成功後才刪除
@@ -6823,10 +7193,15 @@
                 const bdVal = bdSnap.val();
                 if (bdVal) {
                     const arr = Array.isArray(bdVal) ? bdVal : Object.values(bdVal);
-                    if (arr.length > 0) {
-                        allData.batterData = arr;
-                        saveToLocalStorage();
-                    }
+                    if (arr.length > 0) { allData.batterData = arr; saveToLocalStorage(); }
+                }
+            }
+            // ── 載入球員名冊 ──
+            if (prSnap) {
+                const prVal = prSnap.val();
+                if (prVal) {
+                    const arr = Array.isArray(prVal) ? prVal : Object.values(prVal);
+                    if (arr.length > 0) { allData.playerRegistry = arr; saveToLocalStorage(); }
                 }
             }
 
@@ -6933,11 +7308,17 @@
         lastSaveTime = Date.now();
         saveToLocalStorage();
 
-        // batterData 寫入獨立節點（不受 gameIdx 影響）
+        // batterData + playerRegistry 寫入獨立節點（不受 gameIdx 影響）
         if (USER_TEAM_REF && allData.batterData) {
             try {
                 USER_TEAM_REF.child('batterData').set(JSON.parse(JSON.stringify(allData.batterData)))
                     .catch(e => console.warn('[Firebase] batterData 寫入失敗:', e.code));
+            } catch(e) {}
+        }
+        if (USER_TEAM_REF && allData.playerRegistry) {
+            try {
+                USER_TEAM_REF.child('playerRegistry').set(JSON.parse(JSON.stringify(allData.playerRegistry)))
+                    .catch(e => console.warn('[Firebase] playerRegistry 寫入失敗:', e.code));
             } catch(e) {}
         }
 
@@ -7055,6 +7436,7 @@
                 allData = JSON.parse(saved);
                 if (!allData.pitcherDB) allData.pitcherDB = {};
                 if (!allData.batterData) allData.batterData = [];
+                if (!allData.playerRegistry) allData.playerRegistry = [];
                 if (Object.keys(allData.pitcherDB).length === 0 && allData.teams.some(t => t.pitchers.some(p => p.pitches.length > 0))) {
                     rebuildPitcherDB();
                 }
@@ -11339,7 +11721,7 @@
         ['bmRecordTab','bmStatsTab','bmBatterDataTab']
             .forEach(id => { const el=document.getElementById(id); if(el) { el.style.display='none'; el.classList.remove('active'); } });
         document.querySelectorAll('.bm-tab').forEach(b => b.classList.remove('bm-tab-active'));
-        const tabMap = { record:'bmRecordTab', stats:'bmStatsTab', batterdata:'bmBatterDataTab' };
+        const tabMap = { record:'bmRecordTab', stats:'bmStatsTab', batterdata:'bmBatterDataTab', roster:'bmRosterTab' };
         const target = document.getElementById(tabMap[tab]);
         if (target) { target.style.display=''; target.classList.add('active'); }
         if (e && e.target) e.target.classList.add('bm-tab-active');
@@ -11356,6 +11738,7 @@
             if (_bmState.recMode === 'standalone') _renderSpOutcomeButtons();
         }
         if (tab==='batterdata') { refreshBatterList(); }
+        if (tab==='roster')     { renderRosterTab(); }
     }
 
     // ── 從投手記錄推導打者打席（連動模式統計用）──
