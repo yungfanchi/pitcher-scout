@@ -1438,6 +1438,14 @@
                     <div class="bm-card bm-outcomes-card" style="padding:10px;">
                         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
                         <div id="spOutcomeBtns" style="display:flex;flex-direction:column;gap:5px;flex:1;"></div>
+                        <div id="spHitTypeRow" style="display:none;margin-top:6px;padding:6px 8px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;">
+                            <div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:5px;">打球型態</div>
+                            <div style="display:flex;gap:6px;">
+                                <button class="hit-type-btn" data-spht="滾地球" onclick="selectSpHitTypeInline(this)">🏃 滾地</button>
+                                <button class="hit-type-btn" data-spht="平飛球" onclick="selectSpHitTypeInline(this)">➡️ 平飛</button>
+                                <button class="hit-type-btn" data-spht="高飛球" onclick="selectSpHitTypeInline(this)">⬆️ 高飛</button>
+                            </div>
+                        </div>
                         <input type="text" id="spTraitPatch" placeholder="打者特性（選填）" autocomplete="off"
                             class="bm-slot-input bm-slot-input-trait"
                             style="width:100%;margin-top:8px;box-sizing:border-box;">

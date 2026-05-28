@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v360';
+﻿    const APP_VERSION = 'v361';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11562,6 +11562,7 @@
         spStrikes: 0,
         spPitches: [],
         spSelectedOutcome: null,  // 獨立模式打席結果
+        spHitType: null,          // 獨立模式打球型態（滾地球/平飛球/高飛球）
         spHitLoc: null,           // 獨立模式落點
         // 獨立模式比賽狀態
         spInning: 1,
@@ -12794,6 +12795,7 @@
     function selectSpOutcomeInline(outcome, btn) {
         _bmState.spSelectedOutcome = outcome;
         _bmState.spHitLoc = null;
+        _bmState.spHitType = null;
         document.querySelectorAll('#spOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
         if (btn) btn.classList.add('bm-on');
         // 清除落點高亮
@@ -12801,8 +12803,22 @@
         if (svg) _zoneHighlight(null, svg);
         const lbl = document.getElementById('spHitZoneLabel');
         if (lbl) lbl.textContent = '';
+        // 安打時顯示打球型態選擇
+        const HIT_NEED_TYPE = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const hitTypeRow = document.getElementById('spHitTypeRow');
+        if (hitTypeRow) {
+            const show = HIT_NEED_TYPE.includes(outcome);
+            hitTypeRow.style.display = show ? 'block' : 'none';
+            if (show) hitTypeRow.querySelectorAll('.hit-type-btn').forEach(b => b.classList.remove('selected'));
+        }
         const confirmBtn = document.getElementById('spConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+    }
+
+    function selectSpHitTypeInline(btn) {
+        document.querySelectorAll('#spHitTypeRow .hit-type-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        _bmState.spHitType = btn.dataset.spht;
     }
 
     // ── 獨立模式：確認打席（內嵌式） ──
@@ -12820,6 +12836,7 @@
             bases: [..._bmState.spBases],
             pitcherHand: _bmState.spPh,
             outcome,
+            hitType: _bmState.spHitType || null,
             tactics: [..._bmState.tactics],   // 戰術標籤（多選）
             hitLocation: _bmState.spHitLoc || null,
             mode: 'standalone',
@@ -12833,9 +12850,12 @@
         saveBmToFirebase();
         // Reset form
         _bmState.spSelectedOutcome = null;
+        _bmState.spHitType = null;
         _bmState.spHitLoc = null;
         _bmState.tactics = [];
         document.querySelectorAll('#spOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        const spHitTypeRow = document.getElementById('spHitTypeRow');
+        if (spHitTypeRow) spHitTypeRow.style.display = 'none';
         const svg = document.getElementById('fieldSVG_sp');
         if (svg) _zoneHighlight(null, svg);
         const lbl = document.getElementById('spHitZoneLabel');
@@ -13142,6 +13162,15 @@
                         ontouchend="event.preventDefault();selectSpAtBatOutcome('${o.label}',this)"
                         style="font-size:13px;">${o.label}</button>`).join('')}
                 </div>
+                <!-- 打球型態（安打時顯示） -->
+                <div id="spHitTypeSection" style="display:none;margin-bottom:10px;padding:8px 10px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;">
+                    <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:6px;">打球型態</div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="hit-type-btn" data-spht="滾地球" onclick="selectSpAtBatHitType(this)">🏃 滾地</button>
+                        <button class="hit-type-btn" data-spht="平飛球" onclick="selectSpAtBatHitType(this)">➡️ 平飛</button>
+                        <button class="hit-type-btn" data-spht="高飛球" onclick="selectSpAtBatHitType(this)">⬆️ 高飛</button>
+                    </div>
+                </div>
                 <!-- 球場落點圖（進場球才顯示） -->
                 <div id="spHitMapSection" style="display:none;margin-bottom:12px;">
                     <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">
@@ -13164,6 +13193,7 @@
     function selectSpAtBatOutcome(outcome, btn) {
         _bmState.spSelectedOutcome = outcome;
         _bmState.spHitLoc = null;
+        _bmState.spHitType = null;
         document.querySelectorAll('#spOutcomePicker .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
         if (btn) btn.classList.add('bm-on');
         const isBip = BM_BALL_IN_PLAY.includes(outcome);
@@ -13175,10 +13205,23 @@
                 if (wrap && !wrap.querySelector('svg')) wrap.innerHTML = buildFieldSVG('', 'sp');
             }
         }
+        // 安打時顯示打球型態
+        const HIT_NEED_TYPE = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const htSection = document.getElementById('spHitTypeSection');
+        if (htSection) {
+            htSection.style.display = HIT_NEED_TYPE.includes(outcome) ? 'block' : 'none';
+            htSection.querySelectorAll('.hit-type-btn').forEach(b => b.classList.remove('selected'));
+        }
         const lbl = document.getElementById('spHitZoneLabel');
         if (lbl) lbl.textContent = '';
         const confirmBtn = document.getElementById('spConfirmAtBatBtn');
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+    }
+
+    function selectSpAtBatHitType(btn) {
+        document.querySelectorAll('#spHitTypeSection .hit-type-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        _bmState.spHitType = btn.dataset.spht;
     }
 
     function confirmSpAtBat() {
@@ -13202,6 +13245,7 @@
             bases: [false,false,false],
             pitcherHand: _bmState.spPh,
             outcome,
+            hitType: _bmState.spHitType || null,
             hitLocation: _bmState.spHitLoc || null,
             mode: 'standalone',
             pitches: [..._bmState.spPitches],
@@ -13215,7 +13259,7 @@
         saveBmToFirebase();
         _bmState.spPitches = []; _bmState.spBalls = 0; _bmState.spStrikes = 0;
         _bmState.spType = null; _bmState.spZone = null; _bmState.spReact = null;
-        _bmState.spSelectedOutcome = null; _bmState.spHitLoc = null;
+        _bmState.spSelectedOutcome = null; _bmState.spHitType = null; _bmState.spHitLoc = null;
         const countEl = document.getElementById('spCountDisplay');
         if (countEl) countEl.textContent = '0B 0S';
         const pcEl = document.getElementById('spPitchCount');
@@ -13472,6 +13516,22 @@
             <div id="bmBatterDetailSection"></div>`;
     }
 
+    // 從打席記錄推算打球型態（滾地球/平飛球/高飛球）
+    function _getHitTypeFromAtBat(ab) {
+        if (ab.hitType) return ab.hitType;
+        const o = ab.outcome || '';
+        if (o === '滾地球出局' || o === '犧牲觸擊') return '滾地球';
+        if (o === '飛球出局' || o === '高飛犧牲打' || o === '全壘打') return '高飛球';
+        if (o === '平飛球出局') return '平飛球';
+        if (ab.hitLocation) {
+            const y = ab.hitLocation.y;
+            if (y >= 0.62) return '滾地球';
+            if (y >= 0.35) return '平飛球';
+            return '高飛球';
+        }
+        return null;
+    }
+
     function showBmBatterDetail(number) {
         _initBmData();
         const atBats = (allData.bm.atBats||[]).filter(a => String(a.number) === String(number));
@@ -13505,6 +13565,53 @@
                 ).join('') + '</tbody></table></div>';
         }
 
+        // ── 打球型態統計 ──
+        const BIP_OUTCOMES = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打',
+                              '滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','雙殺'];
+        const bipAbs = atBats.filter(a => BIP_OUTCOMES.includes(a.outcome) || a.hitType);
+        const typeGroups = { '滾地球':[], '平飛球':[], '高飛球':[] };
+        bipAbs.forEach(a => {
+            const t = _getHitTypeFromAtBat(a);
+            if (t && typeGroups[t]) typeGroups[t].push(a);
+        });
+        const bipTotal = bipAbs.filter(a => _getHitTypeFromAtBat(a)).length;
+        function _typePct(arr) { return bipTotal > 0 ? Math.round(arr.length / bipTotal * 100) : 0; }
+        function _typeAvg(arr) {
+            if (arr.length < 2) return null;
+            const h = arr.filter(a => HIT.includes(a.outcome)).length;
+            return h / arr.length;
+        }
+        const groundPct = _typePct(typeGroups['滾地球']);
+        const linePct   = _typePct(typeGroups['平飛球']);
+        const flyPct    = 100 - groundPct - linePct;
+        const groundAvg = _typeAvg(typeGroups['滾地球']);
+        const lineAvg   = _typeAvg(typeGroups['平飛球']);
+        const flyAvg    = _typeAvg(typeGroups['高飛球']);
+        function _fmtAvg(n) { return n === null ? null : '.' + String(Math.round(n * 1000)).padStart(3,'0'); }
+        function _aC(n) { return n >= 0.300 ? '#dc2626' : n >= 0.200 ? '#374151' : '#9ca3af'; }
+
+        const typeStatsHTML = bipTotal > 0 ? `
+            <div style="margin-top:14px;background:#f8fafc;border-radius:10px;padding:12px 14px;">
+              <div style="font-size:13px;font-weight:700;color:#6b7280;letter-spacing:0.05em;margin-bottom:8px;">打球型態</div>
+              <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;margin-bottom:6px;">
+                <span style="color:#f59e0b;">滾地 ${groundPct}%</span>
+                <span style="color:#3b82f6;">平飛 ${linePct}%</span>
+                <span style="color:#8b5cf6;">高飛 ${flyPct}%</span>
+              </div>
+              <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;margin-bottom:12px;">
+                <div style="flex:${groundPct||0.1};background:#f59e0b;"></div>
+                <div style="flex:${linePct||0.1};background:#3b82f6;"></div>
+                <div style="flex:${flyPct||0.1};background:#8b5cf6;"></div>
+              </div>
+              ${(groundAvg!==null||lineAvg!==null||flyAvg!==null) ? `
+              <div style="font-size:13px;font-weight:700;color:#6b7280;margin-bottom:6px;">型態安打率</div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                ${groundAvg!==null?`<div style="text-align:center;"><div style="font-size:11px;color:#6b7280;">滾地</div><div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(groundAvg)};">${_fmtAvg(groundAvg)}</div></div>`:''}
+                ${lineAvg!==null?`<div style="text-align:center;"><div style="font-size:11px;color:#6b7280;">平飛</div><div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(lineAvg)};">${_fmtAvg(lineAvg)}</div></div>`:''}
+                ${flyAvg!==null?`<div style="text-align:center;"><div style="font-size:11px;color:#6b7280;">高飛</div><div style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:${_aC(flyAvg)};">${_fmtAvg(flyAvg)}</div></div>`:''}
+              </div>` : ''}
+            </div>` : '';
+
         const detailEl = document.getElementById('bmBatterDetailSection');
         if (!detailEl) return;
         detailEl.innerHTML = `
@@ -13513,12 +13620,13 @@
             <h3>🗺️ 打擊落點圖</h3>
             <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
                 <div>${buildFieldSVG(dotsHTML)}</div>
-                <div style="flex:1;min-width:120px;font-size:12px;">
-                    <div style="display:flex;flex-direction:column;gap:6px;">
+                <div style="flex:1;min-width:140px;font-size:12px;">
+                    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
                       <span><svg width="20" height="12" style="vertical-align:middle;margin-right:4px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>安打</span>
                       <span><svg width="20" height="12" style="vertical-align:middle;margin-right:4px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>非安打</span>
                     </div>
-                    <div style="margin-top:8px;color:#6b7280;">共 ${locs.length} 筆落點記錄</div>
+                    <div style="color:#6b7280;">共 ${locs.length} 筆落點</div>
+                    ${typeStatsHTML}
                 </div>
             </div>
             ${pitchBreakdown}
@@ -13526,8 +13634,9 @@
             <div>${atBats.map((a,i)=>{
                 const cls = HIT.includes(a.outcome)?'bm-log-hit':BB.includes(a.outcome)?'bm-log-bb':'bm-log-out';
                 const zone = a.hitLocation ? ` → ${a.hitLocation.zone}` : '';
+                const ht = a.hitType ? ` · ${a.hitType}` : '';
                 return `<div class="bm-log-row"><span style="color:#6b7280;">${i+1}. ${a.mode==='linked'?'🔗':'📝'} ${a.pitcherHand||''}</span>
-                    <span class="bm-log-outcome ${cls}">${a.outcome}${zone}</span></div>`;
+                    <span class="bm-log-outcome ${cls}">${a.outcome}${zone}${ht}</span></div>`;
             }).join('')}</div>`;
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
