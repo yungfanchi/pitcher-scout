@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v350';
+﻿    const APP_VERSION = 'v351';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11495,6 +11495,7 @@
         saveToLocalStorage();
         saveToFirebase();
         if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
+        _renderBmBatterDisplay();
     }
 
     function toggleBmLineupHand(team, idx, btn) {
@@ -11509,6 +11510,7 @@
         saveToLocalStorage();
         saveToFirebase();
         if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
+        _renderBmBatterDisplay();
     }
 
     // ★ 聯動打線同步：打線模組 → gameState（雙隊）
