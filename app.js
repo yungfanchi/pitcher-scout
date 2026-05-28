@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v375';
+﻿    const APP_VERSION = 'v376';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -651,6 +651,8 @@
     function _deriveBattersFromPitches(teamName) {
         const map = {};
         allData.teams.forEach(team => {
+            // teamName 是對手（投手所屬隊），只處理對戰該隊的場次
+            if (team.opponent !== teamName) return;
             const battingTeam = team.name || '';
             // ★ 打線查詢表（最可靠的隊伍歸屬來源）
             const lineupNumMap = _buildNumToTeamFromLineups(team);
@@ -664,7 +666,6 @@
                     // 從打線查詢此背號的隊名
                     const lineupInfo = num ? lineupNumMap[num] : null;
                     const resolvedTeam = lineupInfo?.team || pitch.batterTeam || battingTeam;
-                    if (resolvedTeam !== teamName) return;
                     const key = `P|${resolvedTeam}|${num || 'ord' + ord}`;
                     if (!map[key]) {
                         let name = lineupInfo?.name || '';
@@ -711,6 +712,8 @@
         const pitches = [];
         allData.teams.forEach((team, ti) => {
             if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
+            // 只計算對戰該對手的場次，避免把其他對手的數據混入
+            if (teamName && team.opponent !== teamName) return;
             const lineupNumMap = battingTeamFilter ? _buildNumToTeamFromLineups(team) : null;
             (team.pitchers || []).forEach(p => {
                 (p.pitches || []).forEach(pitch => {
