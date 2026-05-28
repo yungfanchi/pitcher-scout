@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v352';
+﻿    const APP_VERSION = 'v353';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -9978,6 +9978,13 @@
         function fmtAvg(n) { return n > 0 ? '.' + String(Math.round(n * 1000)).padStart(3,'0') : '.000'; }
 
         // ── 1. 頂部 header ──
+        const TACTICS_SET = new Set(['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗']);
+        const tacticsSeen = [...new Set(pitches.flatMap(p => (p.outcomes||[]).filter(o => TACTICS_SET.has(o))))];
+        const tacticsHtml = tacticsSeen.length === 0 ? '' :
+            `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">${
+                tacticsSeen.map(t => `<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.4);letter-spacing:0.02em;">${t}</span>`).join('')
+            }</div>`;
+
         const avgColor = stats.avgNum >= 0.300 ? '#4ade80' : stats.avgNum >= 0.200 ? '#fbbf24' : '#f87171';
         const opsColor = stats.ops_n  >= 0.800 ? '#4ade80' : stats.ops_n  >= 0.600 ? '#fbbf24' : '#f87171';
         const tCfg = {
@@ -9997,6 +10004,7 @@
               <div style="font-size:11px;opacity:0.65;letter-spacing:0.05em;margin-bottom:4px;">${entry.teamName}</div>
               <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;">${entry.name}${numPart}</div>
               <div style="font-size:13px;opacity:0.75;margin-top:3px;">${entry.hand||''} · ${entry.games.size} 場出賽</div>
+              ${tacticsHtml}
             </div>
             <span style="display:inline-block;padding:5px 12px;border-radius:14px;font-size:13px;font-weight:800;background:${tCfg.bg};color:${tCfg.color};border:2px solid ${tCfg.border};">${tCfg.label}</span>
           </div>
