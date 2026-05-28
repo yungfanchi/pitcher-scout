@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v368';
+﻿    const APP_VERSION = 'v369';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5003,7 +5003,33 @@
     function deletePitch(index) {
         if (confirm('確定要刪除這筆記錄嗎？')) {
             allData.teams[currentTeam].pitchers[currentPitcher].pitches.splice(index, 1);
+
+            // 刪除單球不應重置記分板：先把比分/局數/slot 儲存起來
+            const _preDScore  = getTeamScore();
+            const _savedHome    = _preDScore.home;
+            const _savedAway    = _preDScore.away;
+            const _savedInning  = _preDScore.inning;
+            const _savedHalf    = _preDScore.half;
+            const _savedSlot    = activeSlot;
+            const _savedCT      = currentTeam;
+            const _savedCP      = currentPitcher;
+
             recomputeGameState();
+
+            // 強制還原 slot（recomputeGameState → autoUpdateBatterInfoByInning 可能切換）
+            activeSlot     = _savedSlot;
+            currentTeam    = _savedCT;
+            currentPitcher = _savedCP;
+
+            // 強制還原比分（recomputeGameState 會把 score 重置為 0 再重算）
+            const _postDScore  = getTeamScore();
+            _postDScore.home   = _savedHome;
+            _postDScore.away   = _savedAway;
+            _postDScore.inning = _savedInning;
+            _postDScore.half   = _savedHalf;
+            gameState.half     = _savedHalf;
+            updateScoreboard();
+
             updateSlotDisplay(); updatePitchLog(); updateStats(); saveToLocalStorage(); saveToFirebase(currentTeam);
         }
     }
