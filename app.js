@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v366';
+﻿    const APP_VERSION = 'v367';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2028,15 +2028,24 @@
     function refreshData(btn) {
         if (btn) { btn.textContent = '⏳ 更新中...'; btn.disabled = true; }
         const bdRefresh = USER_TEAM_REF ? USER_TEAM_REF.child('batterData') : null;
+        const prRefresh = USER_TEAM_REF ? USER_TEAM_REF.child('playerRegistry') : null;
         Promise.all([
-            getDataRef().once('value'),
-            bdRefresh ? bdRefresh.once('value') : Promise.resolve(null)
-        ]).then(([snap, bdSnap]) => {
-                const teams = normalizeTeamsData(snap.val());
-                if (teams) {
-                    allData.teams = teams;
-                    allData.pitcherDB = {};
-                    rebuildPitcherDB();
+            getGamesRef().once('value'),
+            bdRefresh ? bdRefresh.once('value') : Promise.resolve(null),
+            prRefresh ? prRefresh.once('value') : Promise.resolve(null)
+        ]).then(([snap, bdSnap, prSnap]) => {
+                const newRaw = snap.val();
+                if (newRaw && typeof newRaw === 'object') {
+                    const teams = [];
+                    Object.entries(newRaw).forEach(([id, data]) => {
+                        const g = _normalizeGameEntry(data);
+                        if (g) { if (!g.gameId) g.gameId = id; teams.push(g); }
+                    });
+                    if (teams.length > 0) {
+                        allData.teams = teams;
+                        allData.pitcherDB = {};
+                        rebuildPitcherDB();
+                    }
                 }
                 if (bdSnap) {
                     const bdVal = bdSnap.val();
@@ -2045,8 +2054,16 @@
                         if (arr.length > 0) allData.batterData = arr;
                     }
                 }
+                if (prSnap) {
+                    const prVal = prSnap.val();
+                    if (prVal) {
+                        const arr = Array.isArray(prVal) ? prVal : Object.values(prVal);
+                        if (arr.length > 0) allData.playerRegistry = arr;
+                    }
+                }
                 saveToLocalStorage();
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+                renderRosterTab();
                 if (btn) {
                     const origText = btn.id === 'viewerRefreshBtn' ? '🔄 重新整理' : '🔄 重整';
                     btn.textContent = '✅ 已更新';
@@ -6966,6 +6983,11 @@
         return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     }
 
+    // Generate a unique player ID
+    function _makePlayerId() {
+        return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
+
     // Normalise a single raw game entry (Firebase may return arrays as {0:…,1:…})
     function _normalizeGameEntry(raw) {
         if (!raw || typeof raw !== 'object') return null;
@@ -11776,7 +11798,7 @@
 
     // ── 打者模式 Tab 切換 ──
     function switchBatterTab(e, tab) {
-        ['bmRecordTab','bmStatsTab','bmBatterDataTab']
+        ['bmRecordTab','bmStatsTab','bmBatterDataTab','bmRosterTab']
             .forEach(id => { const el=document.getElementById(id); if(el) { el.style.display='none'; el.classList.remove('active'); } });
         document.querySelectorAll('.bm-tab').forEach(b => b.classList.remove('bm-tab-active'));
         const tabMap = { record:'bmRecordTab', stats:'bmStatsTab', batterdata:'bmBatterDataTab', roster:'bmRosterTab' };
