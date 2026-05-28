@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v354';
+﻿    const APP_VERSION = 'v355';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2559,26 +2559,58 @@
             const groupDiv = document.createElement('div');
             groupDiv.style.marginBottom = '6px';
 
-            // Game header - clickable to expand/collapse
+            // Series header: left area = expand/collapse, right area = action buttons
             const gameHeader = document.createElement('div');
             gameHeader.style.cssText = `
-                display:flex;align-items:center;gap:6px;cursor:pointer;
-                padding:7px 8px;border-radius:6px;
+                display:flex;align-items:center;gap:4px;
+                padding:6px 6px 6px 8px;border-radius:6px;
                 background:${isGameExpanded ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.08)'};
                 border:1px solid ${isGameExpanded ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'};
                 -webkit-user-select:none;user-select:none;
             `;
-            gameHeader.innerHTML = `
-                <span style="font-size:11px;color:var(--ct-gold);transition:transform 0.2s;display:inline-block;transform:${isGameExpanded ? 'rotate(90deg)' : 'rotate(0)'}">▶</span>
-                ${hasLive ? '<span class="live-badge">LIVE</span>' : ''}
-                <span style="font-size:13px;font-weight:700;color:white;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🏟️ ${escapeHtml(gameName)}</span>
-                <span style="font-size:10px;color:rgba(255,255,255,0.5);">${teams.length}隊</span>
+
+            // Left clickable area (expand/collapse)
+            const ghLeft = document.createElement('div');
+            ghLeft.style.cssText = 'display:flex;align-items:center;gap:5px;flex:1;overflow:hidden;cursor:pointer;min-width:0;';
+            ghLeft.innerHTML = `
+                <span style="font-size:11px;color:var(--ct-gold);transition:transform 0.2s;display:inline-block;flex-shrink:0;transform:${isGameExpanded ? 'rotate(90deg)' : 'rotate(0)'}">▶</span>
+                ${hasLive ? '<span class="live-badge" style="flex-shrink:0;">LIVE</span>' : ''}
+                <span style="font-size:13px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🏟️ ${escapeHtml(gameName)}</span>
+                <span style="font-size:10px;color:rgba(255,255,255,0.5);flex-shrink:0;">${teams.length}場</span>
             `;
-            gameHeader.onclick = () => {
+            ghLeft.onclick = () => {
                 if (expandedGames.has(gameName)) expandedGames.delete(gameName);
                 else expandedGames.add(gameName);
                 updateTeamList();
             };
+
+            // Right action buttons
+            const ghActions = document.createElement('div');
+            ghActions.style.cssText = 'display:flex;align-items:center;gap:2px;flex-shrink:0;';
+
+            const ghAddBtn = document.createElement('button');
+            ghAddBtn.textContent = '➕';
+            ghAddBtn.title = '新增一場比賽到此系列賽';
+            ghAddBtn.style.cssText = 'padding:3px 6px;font-size:12px;background:rgba(16,185,129,0.2);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);border-radius:4px;cursor:pointer;line-height:1;font-family:inherit;';
+            ghAddBtn.onclick = (e) => { e.stopPropagation(); addGameToSeries(gameName); };
+
+            const ghRenameBtn = document.createElement('button');
+            ghRenameBtn.textContent = '✏️';
+            ghRenameBtn.title = '重新命名此系列賽';
+            ghRenameBtn.style.cssText = 'padding:3px 5px;font-size:11px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:4px;cursor:pointer;line-height:1;font-family:inherit;';
+            ghRenameBtn.onclick = (e) => { e.stopPropagation(); renameSeriesModal(gameName); };
+
+            const ghDeleteSeriesBtn = document.createElement('button');
+            ghDeleteSeriesBtn.textContent = '🗑️';
+            ghDeleteSeriesBtn.title = '刪除整個系列賽（包含所有場次）';
+            ghDeleteSeriesBtn.style.cssText = 'padding:3px 5px;font-size:11px;background:rgba(220,0,0,0.12);color:rgba(255,100,100,0.8);border:1px solid rgba(220,0,0,0.25);border-radius:4px;cursor:pointer;line-height:1;font-family:inherit;';
+            ghDeleteSeriesBtn.onclick = (e) => { e.stopPropagation(); deleteSeriesConfirm(gameName); };
+
+            ghActions.appendChild(ghAddBtn);
+            ghActions.appendChild(ghRenameBtn);
+            ghActions.appendChild(ghDeleteSeriesBtn);
+            gameHeader.appendChild(ghLeft);
+            gameHeader.appendChild(ghActions);
             groupDiv.appendChild(gameHeader);
 
             // Teams inside game group
@@ -2586,7 +2618,7 @@
                 const teamsWrapper = document.createElement('div');
                 teamsWrapper.style.cssText = 'margin-left:8px;margin-top:4px;';
 
-                teams.forEach(({ team, teamIndex }) => {
+                teams.forEach(({ team, teamIndex }, gameIndex) => {
                     const isLive = slotA.team === teamIndex || slotB.team === teamIndex;
                     const isExpanded = expandedTeams.has(teamIndex);
 
@@ -2604,6 +2636,13 @@
                     toggleIcon.className = 'team-toggle-icon';
                     toggleIcon.textContent = '▶';
                     headerLeft.appendChild(toggleIcon);
+
+                    // 第X場 label
+                    const gameNumLabel = document.createElement('span');
+                    gameNumLabel.style.cssText = 'font-size:9px;font-weight:700;color:rgba(255,215,0,0.8);background:rgba(255,215,0,0.12);padding:1px 5px;border-radius:3px;flex-shrink:0;letter-spacing:0.5px;white-space:nowrap;';
+                    gameNumLabel.textContent = `第${gameIndex + 1}場`;
+                    headerLeft.appendChild(gameNumLabel);
+
                     if (isLive) {
                         const liveBadge = document.createElement('span');
                         liveBadge.className = 'live-badge';
@@ -2728,6 +2767,97 @@
         });
         // 同步更新打者模式場次列表（如果可見）
         if (typeof _renderBmSessionList === 'function') _renderBmSessionList();
+    }
+
+    // ====== SERIES MANAGEMENT ======
+    function addGameToSeries(seriesName) {
+        const content = document.getElementById('teamMgmtContent');
+        const btn = document.getElementById('teamMgmtToggleBtn');
+        if (content && content.style.display === 'none') {
+            content.style.display = 'block';
+            if (btn) btn.textContent = '▲ 收合';
+        }
+        const input = document.getElementById('newTeamGameName');
+        if (input) {
+            input.value = seriesName;
+            input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(() => document.getElementById('newTeamDate')?.focus(), 150);
+        }
+    }
+
+    function renameSeriesModal(oldName) {
+        const overlay = document.createElement('div');
+        overlay.id = '_renameSeriesModal';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:340px;border-top:4px solid var(--ct-red);border-left:3px solid var(--ct-gold);box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                <h3 style="margin:0 0 16px;font-size:16px;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;">✏️ 重新命名系列賽</h3>
+                <div>
+                    <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px;">🏟️ 系列賽名稱</label>
+                    <input id="_rsName" type="text" value="${escapeHtml(oldName)}"
+                        style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                </div>
+                <p style="font-size:11px;color:#9ca3af;margin:8px 0 0;">此修改將套用到此系列賽的所有場次。</p>
+                <div style="display:flex;gap:8px;margin-top:18px;">
+                    <button id="_rsCancel" style="flex:1;padding:11px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">取消</button>
+                    <button id="_rsSave" style="flex:2;padding:11px;background:var(--ct-blue-dark);color:#ffd700;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">✅ 儲存</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#_rsCancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        overlay.querySelector('#_rsSave').addEventListener('click', () => {
+            const newName = document.getElementById('_rsName').value.trim();
+            if (!newName) { alert('系列賽名稱不能為空！'); return; }
+            if (newName === oldName) { overlay.remove(); return; }
+            allData.teams.forEach(t => { if ((t.gameName || '未分類') === oldName) t.gameName = newName; });
+            expandedGames.delete(oldName);
+            expandedGames.add(newName);
+            overlay.remove();
+            updateTeamList();
+            saveToLocalStorage();
+            saveToFirebase();
+        });
+        setTimeout(() => { const i = document.getElementById('_rsName'); if (i) { i.focus(); i.select(); } }, 50);
+    }
+
+    function deleteSeriesConfirm(seriesName) {
+        const count = allData.teams.filter(t => (t.gameName || '未分類') === seriesName).length;
+        if (!confirm(`確定要刪除系列賽「${seriesName}」及其所有 ${count} 場比賽嗎？\n此操作無法復原。`)) return;
+
+        const toDeleteSet = new Set(
+            allData.teams.reduce((acc, t, i) => { if ((t.gameName || '未分類') === seriesName) acc.push(i); return acc; }, [])
+        );
+        // Build old→new index map for remaining teams
+        const indexMap = {};
+        let newIdx = 0;
+        allData.teams.forEach((_, oldIdx) => { if (!toDeleteSet.has(oldIdx)) indexMap[oldIdx] = newIdx++; });
+
+        allData.teams = allData.teams.filter((_, i) => !toDeleteSet.has(i));
+
+        // Remap expandedTeams
+        const newExpandedTeams = new Set();
+        expandedTeams.forEach(i => { if (indexMap[i] !== undefined) newExpandedTeams.add(indexMap[i]); });
+        expandedTeams = newExpandedTeams;
+
+        // Remap currentTeam, slotA, slotB
+        if (toDeleteSet.has(currentTeam)) { currentTeam = null; currentPitcher = null; }
+        else if (currentTeam !== null && indexMap[currentTeam] !== undefined) currentTeam = indexMap[currentTeam];
+
+        if (slotA.team !== null) {
+            if (toDeleteSet.has(slotA.team)) slotA = { team: null, pitcher: null };
+            else if (indexMap[slotA.team] !== undefined) slotA.team = indexMap[slotA.team];
+        }
+        if (slotB.team !== null) {
+            if (toDeleteSet.has(slotB.team)) slotB = { team: null, pitcher: null };
+            else if (indexMap[slotB.team] !== undefined) slotB.team = indexMap[slotB.team];
+        }
+
+        expandedGames.delete(seriesName);
+        updateTeamList();
+        updateSlotDisplay();
+        saveToLocalStorage();
+        saveToFirebase();
     }
 
     function formatDateFull(dateStr) {
