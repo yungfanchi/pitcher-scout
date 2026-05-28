@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v371';
+﻿    const APP_VERSION = 'v373';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2896,6 +2896,46 @@
         if (!container) return;
         if (!allData.playerRegistry) allData.playerRegistry = [];
         const registry = allData.playerRegistry;
+
+        // 標題 + 搜尋欄只建一次，避免每次打字 innerHTML 全部重建導致 focus 遺失
+        if (!document.getElementById('_rosterSearchInput')) {
+            container.innerHTML = `
+                <div class="container">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                        <h2 style="margin:0;border:none;padding:0;">🎽 球員名冊</h2>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button onclick="_autoDiscoverFromPitches()"
+                                style="padding:8px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;letter-spacing:0.3px;">
+                                🔄 自動掃描
+                            </button>
+                            <button onclick="_openAddPlayerModal()"
+                                style="padding:8px 14px;background:var(--ct-blue-dark);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;letter-spacing:0.3px;">
+                                ➕ 新增球員
+                            </button>
+                        </div>
+                    </div>
+                    <input id="_rosterSearchInput" type="text"
+                        placeholder="🔍 搜尋姓名、背號、隊伍..."
+                        oninput="window.updateRosterSearch(this.value);"
+                        style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:#111827;margin-bottom:6px;">
+                    <div id="_rosterCount" style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px;"></div>
+                </div>
+                <div id="_rosterListBody"></div>`;
+        }
+
+        // 更新人數統計
+        const countEl = document.getElementById('_rosterCount');
+        if (countEl) countEl.textContent = `共 ${registry.length} 位球員　·　點「🔄 自動掃描」從現有比賽記錄中匯入未登錄球員`;
+
+        // 每次只重建球員列表區塊
+        _renderRosterList();
+    }
+
+    function _renderRosterList() {
+        const listBody = document.getElementById('_rosterListBody');
+        if (!listBody) return;
+        if (!allData.playerRegistry) allData.playerRegistry = [];
+        const registry = allData.playerRegistry;
         const q = _rosterSearchTerm.toLowerCase().trim();
 
         const filtered = q ? registry.filter(p =>
@@ -2913,40 +2953,15 @@
         });
         Object.values(byTeam).forEach(arr => arr.sort((a,b) => (parseInt(a.numbers[0])||999) - (parseInt(b.numbers[0])||999)));
 
-        let html = `
-            <div class="container">
-                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-                    <h2 style="margin:0;border:none;padding:0;">🎽 球員名冊</h2>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                        <button onclick="_autoDiscoverFromPitches()"
-                            style="padding:7px 12px;background:rgba(16,185,129,0.2);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;touch-action:manipulation;">
-                            🔄 自動掃描
-                        </button>
-                        <button onclick="_openAddPlayerModal()"
-                            style="padding:7px 12px;background:rgba(0,81,165,0.3);color:#93c5fd;border:1px solid rgba(0,81,165,0.4);border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;touch-action:manipulation;">
-                            ➕ 新增球員
-                        </button>
-                    </div>
-                </div>
-                <input id="_rosterSearchInput" type="text"
-                    placeholder="🔍 搜尋姓名、背號、隊伍..."
-                    value="${escapeHtml(_rosterSearchTerm)}"
-                    oninput="window.updateRosterSearch(this.value);"
-                    style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;font-family:inherit;background:rgba(255,255,255,0.08);color:white;margin-bottom:6px;">
-                <div style="font-size:11px;color:rgba(255,255,255,0.4);">
-                    共 ${registry.length} 位球員　·　點「🔄 自動掃描」從現有比賽記錄中匯入未登錄球員
-                </div>
-            </div>`;
-
+        let html = '';
         if (filtered.length === 0) {
-            html += `<div class="container" style="text-align:center;color:rgba(255,255,255,0.5);padding:40px 20px;font-size:14px;">
+            html = `<div class="container" style="text-align:center;color:rgba(255,255,255,0.5);padding:40px 20px;font-size:14px;">
                 ${q ? `找不到「${escapeHtml(q)}」相關球員` : '尚無球員資料。<br>點「🔄 自動掃描」從比賽記錄中匯入，或點「➕ 新增球員」手動新增。'}
             </div>`;
         } else {
             Object.entries(byTeam).forEach(([team, players]) => {
                 const unnamed = players.filter(p => !p.name).length;
                 html += `<div class="container" style="margin-bottom:10px;padding:0;overflow:hidden;background:#fff;border:1.5px solid #d1d5db;border-radius:12px;">
-                    <!-- 隊伍標題列 -->
                     <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--ct-blue-dark);border-bottom:2px solid var(--ct-red);">
                         <span style="font-size:15px;font-weight:700;color:#fff;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:0.5px;">🏟️ ${escapeHtml(team)}</span>
                         <span style="font-size:11px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.12);padding:1px 7px;border-radius:10px;">${players.length} 人</span>
@@ -2980,8 +2995,7 @@
                 html += `</div></div>`;
             });
         }
-
-        container.innerHTML = html;
+        listBody.innerHTML = html;
     }
 
     function _openAddPlayerModal(prefill) {
@@ -3254,7 +3268,7 @@
     window._deletePlayerFromRegistry = _deletePlayerFromRegistry;
     window._autoDiscoverFromPitches  = _autoDiscoverFromPitches;
     window.renderRosterTab = renderRosterTab;
-    window.updateRosterSearch = function(val) { _rosterSearchTerm = val; renderRosterTab(); };
+    window.updateRosterSearch = function(val) { _rosterSearchTerm = val; _renderRosterList(); };
 
     function formatDateFull(dateStr) {
         if (!dateStr) return '';
