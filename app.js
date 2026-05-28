@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v351';
+﻿    const APP_VERSION = 'v352';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3162,14 +3162,8 @@
         // Auto-fill current batter if order is set
         const order = parseInt(document.getElementById('batterOrder').value);
         if (order >= 1 && order <= 9) applyLineupToUI(order);
-        // ★ 聯動模式：打擊順序 Modal 儲存後同步到打者側欄
-        if (_bmState.recMode === 'linked') {
-            const savedSide = (lineup === gameState.lineups.teamA) ? 'A' : 'B';
-            const bmTeam = (allData.bm && allData.bm.attackingTeam) || 'A';
-            if (savedSide === bmTeam) {
-                _syncGameStateToBmLineup(bmTeam);
-            }
-        }
+        // 無論任何模式，打序儲存後都同步到打者模組
+        _syncGameStateToBmLineup();
         // ★ 將打序儲存到賽事資料（重開 app 後可還原）
         if (currentTeam !== null && allData.teams[currentTeam]) {
             if (!allData.teams[currentTeam].lineups) allData.teams[currentTeam].lineups = {};
@@ -11494,7 +11488,7 @@
         _saveBmLineupToGame();
         saveToLocalStorage();
         saveToFirebase();
-        if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
+        _syncBmLineupToGameState();
         _renderBmBatterDisplay();
     }
 
@@ -11509,7 +11503,7 @@
         _saveBmLineupToGame();
         saveToLocalStorage();
         saveToFirebase();
-        if (_bmState.recMode === 'linked') _syncBmLineupToGameState();
+        _syncBmLineupToGameState();
         _renderBmBatterDisplay();
     }
 
