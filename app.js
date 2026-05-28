@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v362';
+﻿    const APP_VERSION = 'v363';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2421,11 +2421,11 @@
 
         if (!nameA) { alert('請輸入投手 A 姓名！'); return; }
 
-        const pitcherA = { name: nameA, number: numberA, hand: handA, role: roleA, style: styleA, pitches: [], steals: [], score: getDefaultScore() };
+        const pitcherA = { name: nameA, number: numberA, hand: handA, role: roleA, style: styleA, pitchingTeam: 'A', pitches: [], steals: [], score: getDefaultScore() };
         allData.teams[teamIndex].pitchers.push(pitcherA);
 
         if (nameB) {
-            const pitcherB = { name: nameB, number: numberB, hand: handB, role: roleB, style: styleB, pitches: [], steals: [], score: getDefaultScore() };
+            const pitcherB = { name: nameB, number: numberB, hand: handB, role: roleB, style: styleB, pitchingTeam: 'B', pitches: [], steals: [], score: getDefaultScore() };
             allData.teams[teamIndex].pitchers.push(pitcherB);
         }
 
@@ -2466,8 +2466,9 @@
         const hand = document.getElementById('singlePitchHand').value;
         const role = document.getElementById('singlePitcherRole').value;
         const style = document.getElementById('singlePitcherStyle').value.trim();
+        const pitchingTeam = document.getElementById('singlePitcherSide')?.value || 'A';
         if (!name) { alert('請輸入投手姓名！'); return; }
-        allData.teams[teamIndex].pitchers.push({ name, number, hand, role, style, pitches: [], score: getDefaultScore() });
+        allData.teams[teamIndex].pitchers.push({ name, number, hand, role, style, pitchingTeam, pitches: [], score: getDefaultScore() });
         expandedTeams.add(teamIndex);
         // 同時展開該球隊所屬的賽事群組
         const gameName = allData.teams[teamIndex].gameName || '未分類';
@@ -3300,8 +3301,10 @@
             activateSlot('B');
             return;
         }
-        // 放入目前 activeSlot
-        if (activeSlot === 'A') {
+        // 有 pitchingTeam 欄位的投手自動放到正確槽位，否則放入 activeSlot
+        const _pt = allData.teams[teamIndex]?.pitchers[pitcherIndex]?.pitchingTeam;
+        const _targetSlot = _pt === 'A' ? 'A' : _pt === 'B' ? 'B' : activeSlot;
+        if (_targetSlot === 'A') {
             slotA = { team: teamIndex, pitcher: pitcherIndex };
         } else {
             slotB = { team: teamIndex, pitcher: pitcherIndex };
@@ -3323,8 +3326,8 @@
             setTimeout(() => slotEl.classList.remove('auto-switch-highlight'), 1000);
         }
 
-        // 自動切換 activeSlot 到另一邊（只更新視覺，不改 currentTeam/currentPitcher）
-        activeSlot = activeSlot === 'A' ? 'B' : 'A';
+        // 自動切換 activeSlot 到另一邊（有 pitchingTeam 時切到對應側，否則切換到另一邊）
+        activeSlot = _pt === 'A' ? 'B' : _pt === 'B' ? 'A' : (activeSlot === 'A' ? 'B' : 'A');
         document.getElementById('slotA').classList.toggle('active-slot', activeSlot === 'A');
         document.getElementById('slotB').classList.toggle('active-slot', activeSlot === 'B');
 
@@ -3402,13 +3405,12 @@
                 const pitcher = team.pitchers[s.pitcher];
                 if (pitcher) {
                     const isActive = activeSlot === slot;
-                    // Slot A = 先攻隊 (name), Slot B = 後攻隊 (opponent)
-                    const _rawLabel = slot === 'A'
-                        ? team.name
-                        : (team.opponent || team.name);
-                    const teamLabel = _rawLabel
-                        ? _rawLabel + (slot === 'A' ? '（先攻）' : '（後攻）')
-                        : (slot === 'A' ? '先攻' : '後攻');
+                    // 優先用 pitcher.pitchingTeam（'A'=先攻, 'B'=後攻），無此欄位時 fallback 至 slot 位置
+                    const _side = pitcher.pitchingTeam || (slot === 'A' ? 'A' : 'B');
+                    const _rawLabel = _side === 'A'
+                        ? (team.name || '先攻')
+                        : (team.opponent || team.name || '後攻');
+                    const teamLabel = _rawLabel + (_side === 'A' ? '（先攻）' : '（後攻）');
 
                     const fatigue = checkFatigue(pitcher.pitches);
                     const fatigueHTML = fatigue
