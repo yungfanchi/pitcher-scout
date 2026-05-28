@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v373';
+﻿    const APP_VERSION = 'v374';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3221,8 +3221,28 @@
         (allData.teams||[]).forEach(team => {
             (team.pitchers||[]).forEach(pitcher => {
                 (pitcher.pitches||[]).forEach(pitch => {
-                    const num = String(pitch.batterNumber||'').trim();
-                    const bt  = (pitch.batterTeam || team.name || '').trim();
+                    let num  = String(pitch.batterNumber||'').trim();
+                    let name = (pitch.batterName||'').trim();
+                    let hand = pitch.batterHand||'';
+
+                    // 若無背號但有棒次 → 從打線補背號/姓名
+                    if (!num && pitch.batterOrder) {
+                        const side = pitch.half === '上' ? 'teamA' : 'teamB';
+                        const orderIdx = parseInt(pitch.batterOrder) - 1;
+                        const lineupArr = team.lineups?.[side];
+                        const entry = Array.isArray(lineupArr) ? lineupArr[orderIdx] : null;
+                        if (entry?.number) {
+                            num  = String(entry.number).trim();
+                            name = name || (entry.name||'').trim();
+                            hand = hand || entry.hand || '';
+                        }
+                    }
+
+                    // batterTeam fallback：依上下半局判斷哪隊在打擊
+                    const bt = (pitch.batterTeam ||
+                        (pitch.half === '上' ? team.name : (team.opponent || team.name)) ||
+                        team.name || '').trim();
+
                     if (!num || !bt) return;
                     const key = `${bt}||${num}`;
                     if (seen.has(key)) return;
@@ -3230,9 +3250,7 @@
                     if (allData.playerRegistry.some(p => p.team === bt && (p.numbers||[]).includes(num))) return;
                     allData.playerRegistry.push({
                         playerId: _makePlayerId(),
-                        name: (pitch.batterName||'').trim(),
-                        team: bt, hand: pitch.batterHand||'',
-                        numbers: [num], note: ''
+                        name, team: bt, hand, numbers: [num], note: ''
                     });
                     added++;
                 });
