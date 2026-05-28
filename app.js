@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v346';
+﻿    const APP_VERSION = 'v347';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -26,7 +26,7 @@
     let currentPitcher = null;
     let autoSave = false;
     let expandedTeams = new Set();
-    let activeSlot = 'A';
+    let activeSlot = 'B';
     let slotA = { team: null, pitcher: null };
     let slotB = { team: null, pitcher: null };
     let lastSelectedSlot = 'A'; // 記錄上次記錄投球的 slot，下次自動切換到另一個
@@ -1940,7 +1940,7 @@
         currentTeam = null; currentPitcher = null;
         slotA = { team: null, pitcher: null };
         slotB = { team: null, pitcher: null };
-        activeSlot = 'A';
+        activeSlot = 'B';
         // Hide view-only banner
         document.getElementById('viewOnlyBanner').style.display = 'none';
         document.body.style.paddingTop = '';
@@ -2684,6 +2684,11 @@
                                 const chip = document.createElement('span');
                                 chip.className = 'pitcher-pitching-chip';
                                 chip.textContent = '▶ 正在投球';
+                                chip.title = '點擊切換正在投球的投手';
+                                chip.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    activateSlot(activeSlot === 'A' ? 'B' : 'A');
+                                });
                                 tag.appendChild(chip);
                             }
 
@@ -2771,9 +2776,9 @@
             updateStats();
             updateScoreboard();
         }
-        // 反向連動：手動點 A 槽 → 上半局（A 投）；點 B 槽 → 下半局（B 投）
+        // 反向連動：手動點 A 槽 → 下半局（先攻投）；點 B 槽 → 上半局（後攻投）
         if (!_syncingSlotAndBatter) {
-            const newHalf = slot === 'A' ? '上' : '下';
+            const newHalf = slot === 'A' ? '下' : '上';
             gameState.half = newHalf;
             if (currentTeam !== null) {
                 const score = getTeamScore();
@@ -2823,8 +2828,8 @@
         document.getElementById('slotA').classList.toggle('active-slot', activeSlot === 'A');
         document.getElementById('slotB').classList.toggle('active-slot', activeSlot === 'B');
 
-        // 同步 half 與 batter info：slot A 投→上半局對手打，slot B 投→下半局對手打
-        gameState.half = activeSlot === 'A' ? '上' : '下';
+        // 同步 half 與 batter info：slot A 投→下半局（後攻打），slot B 投→上半局（先攻打）
+        gameState.half = activeSlot === 'A' ? '下' : '上';
         autoUpdateBatterInfoByInning();
 
         updateSlotDisplay();
@@ -2921,7 +2926,7 @@
                         : '';
 
                     contentEl.innerHTML = `
-                        ${isActive ? '<div class="active-indicator">▶ 正在投球</div>' : ''}
+                        ${isActive ? `<div class="active-indicator" onclick="activateSlot('${slot === 'A' ? 'B' : 'A'}')" title="點擊切換正在投球的投手">▶ 正在投球</div>` : ''}
                         <div>
                             <div class="pitcher-slot-team">${escapeHtml(teamLabel)}</div>
                             <div class="pitcher-slot-name">${escapeHtml(pitcher.name)}</div>
