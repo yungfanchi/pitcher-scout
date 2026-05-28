@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v357';
+﻿    const APP_VERSION = 'v358';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2904,7 +2904,7 @@
                 <input id="_rosterSearchInput" type="text"
                     placeholder="🔍 搜尋姓名、背號、隊伍..."
                     value="${escapeHtml(_rosterSearchTerm)}"
-                    oninput="_rosterSearchTerm=this.value;renderRosterTab();"
+                    oninput="window.updateRosterSearch(this.value);"
                     style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;font-family:inherit;background:rgba(255,255,255,0.08);color:white;margin-bottom:6px;">
                 <div style="font-size:11px;color:rgba(255,255,255,0.4);">
                     共 ${registry.length} 位球員　·　點「🔄 自動掃描」從現有比賽記錄中匯入未登錄球員
@@ -3226,6 +3226,8 @@
     window._openEditPlayerModal   = _openEditPlayerModal;
     window._deletePlayerFromRegistry = _deletePlayerFromRegistry;
     window._autoDiscoverFromPitches  = _autoDiscoverFromPitches;
+    window.renderRosterTab = renderRosterTab;
+    window.updateRosterSearch = function(val) { _rosterSearchTerm = val; renderRosterTab(); };
 
     function formatDateFull(dateStr) {
         if (!dateStr) return '';
