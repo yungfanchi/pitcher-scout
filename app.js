@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v374';
+﻿    const APP_VERSION = 'v375';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3213,11 +3213,51 @@
         renderRosterTab(); saveToLocalStorage(); saveToFirebase();
     }
 
+    // Firebase 回傳物件或陣列都能正確取值
+    function _lineupToArray(lineupVal) {
+        if (!lineupVal) return [];
+        if (Array.isArray(lineupVal)) return lineupVal;
+        // Firebase 將陣列轉成 {0:…,1:…,…} 物件
+        const maxIdx = Math.max(...Object.keys(lineupVal).map(Number).filter(n => !isNaN(n)));
+        const arr = [];
+        for (let i = 0; i <= maxIdx; i++) arr.push(lineupVal[i] || null);
+        return arr;
+    }
+
     function _autoDiscoverFromPitches() {
         if (!allData.playerRegistry) allData.playerRegistry = [];
         let added = 0;
         const seen = new Set();
-        // Scan pitcher-mode pitches
+
+        // 輔助：嘗試將一位打者加入名冊
+        function _tryAdd(num, bt, name, hand) {
+            num = String(num||'').trim(); bt = String(bt||'').trim();
+            if (!num || !bt) return;
+            const key = `${bt}||${num}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            if (allData.playerRegistry.some(p => p.team === bt && (p.numbers||[]).includes(num))) return;
+            allData.playerRegistry.push({
+                playerId: _makePlayerId(),
+                name: (name||'').trim(), team: bt,
+                hand: hand||'', numbers: [num], note: ''
+            });
+            added++;
+        }
+
+        // ① 直接掃描各場打線（最完整，不依賴球路記錄有無背號）
+        (allData.teams||[]).forEach(team => {
+            const scanSide = (sideKey, teamName) => {
+                if (!teamName) return;
+                _lineupToArray(team.lineups?.[sideKey]).forEach(entry => {
+                    if (entry?.number) _tryAdd(entry.number, teamName, entry.name, entry.hand);
+                });
+            };
+            scanSide('teamA', team.name);
+            scanSide('teamB', team.opponent);
+        });
+
+        // ② 掃描球路記錄（補抓打線以外出現的打者，或補姓名/慣用手）
         (allData.teams||[]).forEach(team => {
             (team.pitchers||[]).forEach(pitcher => {
                 (pitcher.pitches||[]).forEach(pitch => {
@@ -3225,12 +3265,10 @@
                     let name = (pitch.batterName||'').trim();
                     let hand = pitch.batterHand||'';
 
-                    // 若無背號但有棒次 → 從打線補背號/姓名
+                    // 無背號但有棒次 → 從打線查補
                     if (!num && pitch.batterOrder) {
                         const side = pitch.half === '上' ? 'teamA' : 'teamB';
-                        const orderIdx = parseInt(pitch.batterOrder) - 1;
-                        const lineupArr = team.lineups?.[side];
-                        const entry = Array.isArray(lineupArr) ? lineupArr[orderIdx] : null;
+                        const entry = _lineupToArray(team.lineups?.[side])[parseInt(pitch.batterOrder) - 1];
                         if (entry?.number) {
                             num  = String(entry.number).trim();
                             name = name || (entry.name||'').trim();
@@ -3243,16 +3281,7 @@
                         (pitch.half === '上' ? team.name : (team.opponent || team.name)) ||
                         team.name || '').trim();
 
-                    if (!num || !bt) return;
-                    const key = `${bt}||${num}`;
-                    if (seen.has(key)) return;
-                    seen.add(key);
-                    if (allData.playerRegistry.some(p => p.team === bt && (p.numbers||[]).includes(num))) return;
-                    allData.playerRegistry.push({
-                        playerId: _makePlayerId(),
-                        name, team: bt, hand, numbers: [num], note: ''
-                    });
-                    added++;
+                    _tryAdd(num, bt, name, hand);
                 });
             });
         });
