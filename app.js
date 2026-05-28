@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v365';
+﻿    const APP_VERSION = 'v366';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3465,16 +3465,25 @@
         const pA = team.pitchers[slotA.pitcher];
         const pB = team.pitchers[slotB.pitcher];
         if (!pA || !pB) return;
-        if (!confirm(`確定要互換「${pA.name}」和「${pB.name}」的全部球數記錄嗎？\n此操作無法復原。`)) return;
-        // 互換 pitches 與 score
-        [pA.pitches, pB.pitches] = [pB.pitches, pA.pitches];
+        const cntA = pA.pitches?.length ?? 0;
+        const cntB = pB.pitches?.length ?? 0;
+        if (!confirm(
+            `確定要互換「${pA.name}」（${cntA}球）和「${pB.name}」（${cntB}球）的全部球數記錄嗎？\n` +
+            `互換內容包含：投球記錄、比分、盜壘嘗試。\n此操作無法復原。`
+        )) return;
+        // 互換 pitches、score、steals（全部掛在投手下的比賽資料）
+        [pA.pitches, pB.pitches]   = [pB.pitches ?? [], pA.pitches ?? []];
+        [pA.steals, pB.steals]     = [pB.steals ?? [],  pA.steals ?? []];
         const tmpScore = pA.score; pA.score = pB.score; pB.score = tmpScore;
+        // 重建跨場次彙整資料
+        rebuildPitcherDB();
         saveToLocalStorage();
         saveToFirebase(slotA.team);
         updateSlotDisplay();
         updatePitchLog();
         updateStats();
         updateScoreboard();
+        alert(`✅ 互換完成！\n${pA.name}：${pA.pitches.length} 球　${pB.name}：${pB.pitches.length} 球`);
     }
 
     // ====== EDIT TEAM MODAL ======
