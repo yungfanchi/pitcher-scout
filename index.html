@@ -589,7 +589,13 @@
                     <div id="slotBContent"><span class="pitcher-slot-empty">點選左側投手選擇</span></div>
                 </div>
             </div>
-            <div style="text-align:center;margin-top:8px;font-size:11px;color:rgba(255,255,255,0.5);">
+            <div id="slotSwapWrap" style="display:none;justify-content:center;margin-top:6px;">
+                <button onclick="event.stopPropagation();swapSlotPitches()"
+                    style="padding:5px 14px;background:rgba(255,215,0,0.12);border:1.5px solid rgba(255,215,0,0.4);border-radius:8px;color:#ffd700;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                    ↔ 互換 A/B 球數記錄
+                </button>
+            </div>
+            <div style="text-align:center;margin-top:6px;font-size:11px;color:rgba(255,255,255,0.5);">
                 點擊卡片切換情蒐對象，切換時自動儲存
             </div>
         </div>

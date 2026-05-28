@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v364';
+﻿    const APP_VERSION = 'v365';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3447,6 +3447,34 @@
             }
             contentEl.innerHTML = '<span class="pitcher-slot-empty">點選左側投手選擇</span>';
         });
+
+        // 互換按鈕：兩槽都有資料且指向同一場賽事時顯示
+        const swapWrap = document.getElementById('slotSwapWrap');
+        if (swapWrap) {
+            const bothFilled = slotA.team !== null && slotA.pitcher !== null &&
+                               slotB.team !== null && slotB.pitcher !== null;
+            const sameGame   = bothFilled && slotA.team === slotB.team;
+            swapWrap.style.display = sameGame ? 'flex' : 'none';
+        }
+    }
+
+    function swapSlotPitches() {
+        if (slotA.team === null || slotB.team === null || slotA.team !== slotB.team) return;
+        const team = allData.teams[slotA.team];
+        if (!team) return;
+        const pA = team.pitchers[slotA.pitcher];
+        const pB = team.pitchers[slotB.pitcher];
+        if (!pA || !pB) return;
+        if (!confirm(`確定要互換「${pA.name}」和「${pB.name}」的全部球數記錄嗎？\n此操作無法復原。`)) return;
+        // 互換 pitches 與 score
+        [pA.pitches, pB.pitches] = [pB.pitches, pA.pitches];
+        const tmpScore = pA.score; pA.score = pB.score; pB.score = tmpScore;
+        saveToLocalStorage();
+        saveToFirebase(slotA.team);
+        updateSlotDisplay();
+        updatePitchLog();
+        updateStats();
+        updateScoreboard();
     }
 
     // ====== EDIT TEAM MODAL ======
