@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v367';
+﻿    const APP_VERSION = 'v368';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -165,6 +165,8 @@
     let currentTeamCode = null; // 當前球隊代碼
     let selectedLoginRole = 'scout';
     let fieldMapEnabled = localStorage.getItem('fieldMapEnabled') === '1';
+    let _liveStateSaveTimer = null;
+    let _liveStateListener  = null;
 
     function selectRole(role) {
         selectedLoginRole = role;
@@ -1933,6 +1935,9 @@
         if (!confirm('確定要登出嗎？')) return;
         userRole = null;
         userSession = null;
+        if (_liveStateListener && USER_TEAM_REF) { try { USER_TEAM_REF.child('liveState').off('value', _liveStateListener); } catch(e) {} }
+        _liveStateListener = null;
+        _hideLiveScoreboard();
         USER_TEAM_REF = null;
         if (activeFirebaseRef) { try { activeFirebaseRef.off(); } catch(e) {} activeFirebaseRef = null; }
         firebaseListening = false;
@@ -1997,6 +2002,7 @@
             if (scoutBar) scoutBar.style.display = 'none';
             const viewerBar = document.getElementById('viewerBottomBar');
             if (viewerBar) viewerBar.style.display = 'block';
+            listenLiveState();
         }, 100);
     }
 
@@ -4382,6 +4388,7 @@
         const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
         gameState.currentBatterIndex[battingTeam] = clamped - 1;
         autoFillBatterFromOrder(clamped);
+        saveLiveState();
     }
 
     function syncBatterOrderToState(val) {
@@ -4390,6 +4397,7 @@
         const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
         gameState.currentBatterIndex[battingTeam] = order - 1;
         autoFillBatterFromOrder(order);
+        saveLiveState();
     }
 
     function autoFillBatterFromOrder(order) {
@@ -4815,6 +4823,7 @@
             const el = document.getElementById('o' + i);
             if (el) el.classList.toggle('out-on', i < gameState.outs);
         }
+        saveLiveState();
     }
 
     function toggleBase(base) {
@@ -4844,6 +4853,7 @@
         document.getElementById('base1b').classList.toggle('on', gameState.bases[0]);
         document.getElementById('base2b').classList.toggle('on', gameState.bases[1]);
         document.getElementById('base3b').classList.toggle('on', gameState.bases[2]);
+        saveLiveState();
     }
 
     // ====== COUNT ======
@@ -5143,6 +5153,7 @@
         const diff = score.home - score.away;
         document.getElementById('scoreMeta').textContent =
             `${score.inning}局${score.half}半 ｜ ${diff>0?'領先 '+diff:diff<0?'落後 '+(-diff):'平手'}`;
+        saveLiveState();
     }
 
     function adjustScore(side, delta) {
@@ -6978,6 +6989,181 @@
     }
     function getGameRef(gameId) { return getGamesRef().child(String(gameId)); }
 
+    function getLiveStateRef(gameId) {
+        if (USER_TEAM_REF) return USER_TEAM_REF.child('liveState').child(String(gameId));
+        return db.ref(`teams/${currentTeamCode}/liveState/${gameId}`);
+    }
+
+    // 情蒐員：將當前比賽狀態寫入 Firebase liveState（500ms debounce）
+    function saveLiveState() {
+        if (!USER_TEAM_REF || currentTeam === null || currentTeamCode === 'ADMIN') return;
+        if (userRole !== 'scout') return;
+        const team = allData.teams[currentTeam];
+        if (!team || !team.gameId) return;
+        clearTimeout(_liveStateSaveTimer);
+        _liveStateSaveTimer = setTimeout(() => {
+            const score = getTeamScore();
+            const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
+            const bIdx = gameState.currentBatterIndex[battingTeam] || 0;
+            const lp = gameState.lineups[battingTeam];
+            const batter = lp ? lp[bIdx + 1] : null;
+            const state = {
+                gameId:       team.gameId,
+                teamName:     team.name     || '',
+                opponentName: team.opponent || '',
+                gameName:     team.gameName || '',
+                date:         team.date     || '',
+                inning:       score.inning,
+                half:         score.half,
+                scoreHome:    score.home  || 0,
+                scoreAway:    score.away  || 0,
+                balls:        gameState.balls,
+                strikes:      gameState.strikes,
+                outs:         gameState.outs,
+                bases:        [...gameState.bases],
+                batterOrder:  bIdx + 1,
+                batterNumber: batter ? (batter.number || '') : '',
+                batterName:   batter ? (batter.name   || '') : '',
+                batterHand:   batter ? (batter.hand   || '') : '',
+                updatedAt:    Date.now()
+            };
+            getLiveStateRef(team.gameId).set(state)
+                .catch(e => console.warn('[liveState] 寫入失敗:', e));
+        }, 500);
+    }
+
+    // 情蒐員：登入後從 liveState 還原最近一場比賽狀態
+    function loadLiveState() {
+        if (!USER_TEAM_REF || currentTeamCode === 'ADMIN' || userRole !== 'scout') return;
+        if (!allData.teams || allData.teams.length === 0) return;
+        USER_TEAM_REF.child('liveState').once('value').then(snap => {
+            const states = snap.val();
+            if (!states || typeof states !== 'object') return;
+            // 找最近更新（6 小時內）
+            let latest = null, latestTime = 0;
+            Object.values(states).forEach(s => {
+                if (s && s.updatedAt > latestTime) { latestTime = s.updatedAt; latest = s; }
+            });
+            if (!latest || Date.now() - latest.updatedAt > 6 * 60 * 60 * 1000) return;
+            // 對應到 allData.teams
+            const teamIdx = allData.teams.findIndex(t => t.gameId === latest.gameId);
+            if (teamIdx === -1) return;
+            // 還原比分
+            if (!allData.teams[teamIdx].score) allData.teams[teamIdx].score = getDefaultScore();
+            Object.assign(allData.teams[teamIdx].score, {
+                inning: latest.inning || 1,
+                half:   latest.half   || '上',
+                home:   latest.scoreHome || 0,
+                away:   latest.scoreAway || 0
+            });
+            // 還原 gameState
+            gameState.balls   = latest.balls   || 0;
+            gameState.strikes = latest.strikes || 0;
+            gameState.outs    = latest.outs    || 0;
+            gameState.bases   = Array.isArray(latest.bases) ? [...latest.bases] : [false, false, false];
+            gameState.half    = latest.half    || '上';
+            const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
+            if (latest.batterOrder > 0) {
+                gameState.currentBatterIndex[battingTeam] = latest.batterOrder - 1;
+            }
+            renderCountLights();
+            renderBases();
+            updateScoreboard();
+        }).catch(() => {});
+    }
+
+    // 觀看者：監聽 liveState，有比賽進行就顯示即時記分板
+    function listenLiveState() {
+        if (!USER_TEAM_REF || currentTeamCode === 'ADMIN') return;
+        if (_liveStateListener) {
+            USER_TEAM_REF.child('liveState').off('value', _liveStateListener);
+        }
+        _liveStateListener = USER_TEAM_REF.child('liveState').on('value', snap => {
+            const states = snap.val();
+            if (!states || typeof states !== 'object') { _hideLiveScoreboard(); return; }
+            const cutoff = Date.now() - 4 * 60 * 60 * 1000;
+            const active = Object.values(states).filter(s => s && s.updatedAt > cutoff);
+            if (active.length === 0) { _hideLiveScoreboard(); return; }
+            // 多場取最新；之後可擴充為選擇清單
+            const latest = active.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+            _showLiveScoreboard(latest);
+        });
+    }
+
+    function _showLiveScoreboard(s) {
+        let el = document.getElementById('liveScoreboardViewer');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'liveScoreboardViewer';
+            const banner = document.getElementById('viewOnlyBanner');
+            if (banner && banner.nextSibling) {
+                banner.parentNode.insertBefore(el, banner.nextSibling);
+            } else {
+                document.body.prepend(el);
+            }
+        }
+        const half  = s.half === '上' ? '▲ 上半' : '▼ 下半';
+        const diff  = (s.scoreHome || 0) - (s.scoreAway || 0);
+        const meta  = diff > 0 ? `領先 ${diff}` : diff < 0 ? `落後 ${-diff}` : '平手';
+        const bases = Array.isArray(s.bases) ? s.bases : [false, false, false];
+        const bc    = i => bases[i] ? '#ffd700' : 'rgba(255,255,255,0.15)';
+        const dotOn  = (n, color) => `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${color};margin:0 1px;vertical-align:middle;"></span>`.repeat(n);
+        el.innerHTML = `
+        <div style="
+            background:linear-gradient(135deg,#0a1628 0%,#1a2744 100%);
+            border-bottom:2px solid #ffd700;
+            padding:8px 16px;
+            font-family:'Oswald','Noto Sans TC',sans-serif;
+            display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+        ">
+            <div style="display:flex;align-items:center;gap:20px;">
+                <div style="text-align:center;min-width:52px;">
+                    <div style="font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:1px;">${s.teamName || '先攻'}</div>
+                    <div style="font-size:32px;font-weight:900;color:#fbbf24;line-height:1;">${s.scoreHome || 0}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:18px;font-weight:700;color:#fff;">${s.inning || 1}</div>
+                    <div style="font-size:11px;color:#ffd700;">${half}</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">${meta}</div>
+                </div>
+                <div style="text-align:center;min-width:52px;">
+                    <div style="font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:1px;">${s.opponentName || '後攻'}</div>
+                    <div style="font-size:32px;font-weight:900;color:#fbbf24;line-height:1;">${s.scoreAway || 0}</div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;">
+                <div style="text-align:center;font-size:12px;">
+                    <div>${dotOn(s.strikes||0,'#fbbf24')}${dotOn(2-(s.strikes||0),'rgba(255,255,255,0.15)')}<span style="color:rgba(255,255,255,0.4);font-size:10px;margin-left:3px;">好球</span></div>
+                    <div>${dotOn(s.balls||0,'#22c55e')}${dotOn(3-(s.balls||0),'rgba(255,255,255,0.15)')}<span style="color:rgba(255,255,255,0.4);font-size:10px;margin-left:3px;">壞球</span></div>
+                    <div>${dotOn(s.outs||0,'#ef4444')}${dotOn(2-(s.outs||0),'rgba(255,255,255,0.15)')}<span style="color:rgba(255,255,255,0.4);font-size:10px;margin-left:3px;">出局</span></div>
+                </div>
+                <svg width="40" height="40" viewBox="0 0 40 40" style="flex-shrink:0;">
+                    <polygon points="20,4 36,20 20,36 4,20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                    <polygon points="20,12 28,20 20,28 12,20" fill="${bc(1)}" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <polygon points="28,12 36,20 28,28 20,20" fill="${bc(0)}" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <polygon points="12,12 20,20 12,28 4,20"  fill="${bc(2)}" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                    <polygon points="20,28 28,36 20,44 12,36" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                </svg>
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.5;">
+                    <div>第 ${s.batterOrder || 1} 棒${s.batterNumber ? '　#' + s.batterNumber : ''}</div>
+                    ${s.batterName ? `<div style="color:rgba(255,255,255,0.85);">${s.batterName}</div>` : ''}
+                    ${s.batterHand ? `<div style="color:rgba(255,255,255,0.4);font-size:10px;">${s.batterHand}</div>` : ''}
+                </div>
+            </div>
+            <div style="font-size:10px;color:#ef4444;font-weight:700;letter-spacing:1px;">● LIVE</div>
+        </div>`;
+        // 調整主體 padding 避免被遮住
+        const bannerH = (document.getElementById('viewOnlyBanner')?.offsetHeight || 0);
+        document.body.style.paddingTop = (bannerH + el.offsetHeight + 2) + 'px';
+    }
+
+    function _hideLiveScoreboard() {
+        const el = document.getElementById('liveScoreboardViewer');
+        if (el) el.remove();
+        const bannerH = (document.getElementById('viewOnlyBanner')?.offsetHeight || 36);
+        document.body.style.paddingTop = bannerH + 'px';
+    }
+
     // Generate a unique game ID
     function _makeGameId() {
         return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -7291,6 +7477,7 @@
                 saveToLocalStorage();
                 _restoreLastPosition();
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+                loadLiveState();
             }
 
             if (needWrite) {
