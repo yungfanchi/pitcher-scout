@@ -11626,7 +11626,7 @@
     function _showBatterModeUI() {
         // 隱藏投手主內容專用元素
         ['dualPitcherSection','pitcherTabBar',
-         'recordTab','statsTab','analysisTab','compareTab','pitcherDataMgmt']
+         'recordTab','statsTab','analysisTab','compareTab','rosterTab','pitcherDataMgmt']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
         // 隱藏投手側欄專用區塊（adminPanel, teamList, team-management）
         ['adminPanel','teamList']
@@ -11656,7 +11656,7 @@
     function _hideBatterModeUI() {
         // 恢復投手主內容元素
         ['dualPitcherSection','pitcherTabBar',
-         'recordTab','statsTab','analysisTab','compareTab','pitcherDataMgmt']
+         'recordTab','statsTab','analysisTab','compareTab','rosterTab','pitcherDataMgmt']
             .forEach(id => { const el=document.getElementById(id); if(el) el.style.display=''; });
         // 隱藏打者側欄 / 主內容
         const bmSide = document.getElementById('bmSidebarContent');
