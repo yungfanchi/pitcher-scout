@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v378';
+﻿    const APP_VERSION = 'v379';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10308,11 +10308,15 @@
                 (pitcher.pitches || []).forEach(pitch => {
                     let name = (pitch.batterName || '').trim();
                     let num  = String(pitch.batterNumber || '').trim();
-                    // 背號和姓名都空白時，用棒次從打線補
+                    // 背號和姓名都空白時，用棒次從打線補（用 _lineupToArray 處理 Firebase 物件格式）
                     if (!name && !num && pitch.batterOrder) {
                         const ord = parseInt(pitch.batterOrder) - 1;
-                        const lineupSide = pitch.half === '上' ? (team.lineups?.teamA || []) : (team.lineups?.teamB || []);
-                        const entry = (ord >= 0) ? (lineupSide[ord] || null) : null;
+                        const arrA = _lineupToArray(team.lineups?.teamA);
+                        const arrB = _lineupToArray(team.lineups?.teamB);
+                        // 依上/下半局決定主要查詢側，找不到再試另一側
+                        const primary = pitch.half === '上' ? arrA : arrB;
+                        const alt     = pitch.half === '上' ? arrB : arrA;
+                        const entry = (ord >= 0) ? (primary[ord] || alt[ord] || null) : null;
                         if (entry) {
                             if (entry.number) num  = String(entry.number).trim();
                             if (entry.name)   name = (entry.name).trim();
