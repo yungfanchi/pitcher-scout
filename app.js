@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v347';
+﻿    const APP_VERSION = 'v348';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2926,7 +2926,7 @@
                         : '';
 
                     contentEl.innerHTML = `
-                        ${isActive ? `<div class="active-indicator" onclick="activateSlot('${slot === 'A' ? 'B' : 'A'}')" title="點擊切換正在投球的投手">▶ 正在投球</div>` : ''}
+                        ${isActive ? `<div class="active-indicator" onclick="event.stopPropagation();activateSlot('${slot === 'A' ? 'B' : 'A'}')" title="點擊切換正在投球的投手">▶ 正在投球</div>` : ''}
                         <div>
                             <div class="pitcher-slot-team">${escapeHtml(teamLabel)}</div>
                             <div class="pitcher-slot-name">${escapeHtml(pitcher.name)}</div>
