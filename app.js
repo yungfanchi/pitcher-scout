@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v343';
+﻿    const APP_VERSION = 'v344';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -7545,6 +7545,29 @@
     }
     window.toggleTeamManagement = toggleTeamManagement;
     window.injectDemoData = injectDemoData;
+
+    // 診斷用：在 console 執行 diagFirebase() 查看所有 Firebase 路徑的原始資料
+    window.diagFirebase = async function() {
+        const tc = currentTeamCode;
+        if (!tc) { console.error('請先登入'); return; }
+        console.log('=== Firebase 診斷 ===', '球隊代碼:', tc);
+        const paths = [
+            `teams/${tc}/games`,
+            `teams/${tc}/pitchers`,
+            `teams/${tc}/data`,
+        ];
+        for (const p of paths) {
+            const snap = await db.ref(p).once('value');
+            const val = snap.val();
+            if (val) {
+                const count = typeof val === 'object' ? Object.keys(val).length : '?';
+                console.log(`✅ ${p}  →  ${count} 筆`, val);
+            } else {
+                console.log(`❌ ${p}  →  空`);
+            }
+        }
+        console.log('=== 診斷結束 ===');
+    };
 
     // ── 管理後台：帳號列表 ──
     async function adminLoadTeams() {
