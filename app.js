@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v370';
+﻿    const APP_VERSION = 'v371';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4199,8 +4199,33 @@
         currentPitch.batterOrder = batterOrder || null;
         currentPitch.pinchHit = isPinch;
 
-        // 從打序表查詢打者姓名；若打序表無姓名，退而讀取 UI 輸入欄位
+        // 回寫打者資訊到打序表，讓下次同棒次自動帶入
         const _battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
+        {
+            const _bOrder = parseInt(batterOrder);
+            const _domName = (document.getElementById('batterName')?.value || '').trim();
+            if (_bOrder >= 1 && _bOrder <= 9 && (batterNumber || _domName)) {
+                const _ex = gameState.lineups[_battingTeam][_bOrder] || { number: '', name: '', hand: '右打' };
+                const _updated = {
+                    number: batterNumber || _ex.number,
+                    name:   _domName    || _ex.name,
+                    hand:   currentPitch.batterHand || _ex.hand || '右打'
+                };
+                gameState.lineups[_battingTeam][_bOrder] = _updated;
+                // 同步寫回 allData，由 recordPitch 結尾的 saveToFirebase 一起帶走
+                if (currentTeam !== null && allData.teams[currentTeam]) {
+                    if (!allData.teams[currentTeam].lineups) allData.teams[currentTeam].lineups = {};
+                    const _side = allData.teams[currentTeam].lineups[_battingTeam];
+                    if (Array.isArray(_side)) {
+                        _side[_bOrder - 1] = { ..._updated };
+                    } else {
+                        allData.teams[currentTeam].lineups[_battingTeam] = gameState.lineups[_battingTeam].slice(1).map(p => p ? { ...p } : { number: '', name: '', hand: '右打' });
+                    }
+                }
+            }
+        }
+
+        // 從打序表查詢打者姓名；若打序表無姓名，退而讀取 UI 輸入欄位
         const _bOrderIdx = (parseInt(batterOrder) || 1) - 1;
         const _lineupEntry = gameState.lineups[_battingTeam][Math.max(0, _bOrderIdx)];
         const _domBatterName = (document.getElementById('batterName')?.value || '').trim();
