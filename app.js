@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v380';
+﻿    const APP_VERSION = 'v381';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3945,7 +3945,73 @@
         }
 
         _syncingSlotAndBatter = false;
+        updateBatterNumWarning();
+        updateBatterTracker();
     }
+
+    // ② 背號空白橘色警示
+    function updateBatterNumWarning() {
+        const el = document.getElementById('batterNumber');
+        if (!el) return;
+        const isEmpty = !el.value;
+        el.style.borderColor  = isEmpty ? '#f97316' : '';
+        el.style.background   = isEmpty ? '#fff7ed' : '';
+    }
+    window.updateBatterNumWarning = updateBatterNumWarning;
+
+    // ③ 即時打者追蹤面板
+    function updateBatterTracker() {
+        const awayEl = document.getElementById('trackerAway');
+        const homeEl = document.getElementById('trackerHome');
+        const warnEl = document.getElementById('batterTrackerWarning');
+        if (!awayEl || !homeEl || currentTeam === null) return;
+
+        const team = allData.teams[currentTeam];
+        if (!team) return;
+
+        const seenAway = new Set();
+        const seenHome = new Set();
+
+        (team.pitchers || []).forEach(pitcher => {
+            (pitcher.pitches || []).forEach(pitch => {
+                const ord = parseInt(pitch.batterOrder);
+                if (!ord || ord < 1 || ord > 9) return;
+                if (pitch.half === '上') seenAway.add(ord);
+                else if (pitch.half === '下') seenHome.add(ord);
+            });
+        });
+
+        const fmt = set => set.size === 0 ? '─' : [...set].sort((a, b) => a - b).join(' ');
+        awayEl.textContent = fmt(seenAway);
+        homeEl.textContent = fmt(seenHome);
+
+        // 偵測棒次跳空（代表可能漏記）
+        const checkGaps = (set, label) => {
+            const arr = [...set].sort((a, b) => a - b);
+            if (arr.length < 2) return null;
+            const max = arr[arr.length - 1];
+            const missing = [];
+            for (let i = 1; i < max; i++) {
+                if (!set.has(i)) missing.push(i);
+            }
+            return missing.length > 0 ? `${label} 棒次 ${missing.join('、')} 未出現` : null;
+        };
+
+        const warnings = [
+            checkGaps(seenAway, team.name || '先攻'),
+            checkGaps(seenHome, team.opponent || '後攻'),
+        ].filter(Boolean);
+
+        if (warnEl) {
+            if (warnings.length > 0) {
+                warnEl.textContent = '⚠️ ' + warnings.join('　');
+                warnEl.style.display = 'block';
+            } else {
+                warnEl.style.display = 'none';
+            }
+        }
+    }
+    window.updateBatterTracker = updateBatterTracker;
 
     function togglePinchHitter() {
         const cb = document.getElementById('isPinchHitter');
@@ -4257,7 +4323,10 @@
         if (btn) { btn.classList.add('pressed'); setTimeout(() => btn.classList.remove('pressed'), 280); }
 
         const batterNumber = document.getElementById('batterNumber').value;
-        const batterOrder = document.getElementById('batterOrder').value;
+        // ① 棒次主要識別：欄位空白時從 gameState 補上，確保每球都有棒次
+        const _btForOrder = gameState.half === '上' ? 'teamA' : 'teamB';
+        const batterOrder = document.getElementById('batterOrder').value
+            || String((gameState.currentBatterIndex[_btForOrder] || 0) + 1);
         const isPinch = document.getElementById('isPinchHitter').checked;
         currentPitch.batterNumber = batterNumber || null;
         currentPitch.batterOrder = batterOrder || null;
@@ -4396,6 +4465,7 @@
         updateSlotDisplay();
         updatePitchLog();
         updateStats();
+        updateBatterTracker();
         saveToLocalStorage();
         saveToFirebase(_bipTeam);
         _saveLastPosition();
@@ -5143,7 +5213,7 @@
             lineup = gameState.lineups[_savedHalf === '上' ? 'teamA' : 'teamB'];
 
             updateScoreboard();
-            updateSlotDisplay(); updatePitchLog(); updateStats(); saveToLocalStorage(); saveToFirebase(currentTeam);
+            updateSlotDisplay(); updatePitchLog(); updateStats(); updateBatterTracker(); saveToLocalStorage(); saveToFirebase(currentTeam);
         }
     }
 
@@ -10347,7 +10417,9 @@
                     const lineupTeam = num ? _lineupNumMap9[num]?.team : '';
                     // 無背號時用上/下半局推算打擊隊伍：上=先攻(team.name)，下=後攻(team.opponent)
                     const inferredTeam = pitch.half === '上' ? (team.name || '') : (team.opponent || '');
-                    const bTeam = lineupTeam || pitch.batterTeam || _inferBatterTeam(pitch, team) || inferredTeam || '未分類';
+                    // pitch.batterTeam（記錄當下燒入）最可靠；inferredTeam 從上/下半局推算次之
+                    // lineupTeam 靠背號查打線，同背號跨隊時會歸錯，改為最後 fallback
+                    const bTeam = pitch.batterTeam || inferredTeam || lineupTeam || '未分類';
                     const mapKey = `${bTeam}||${nameKey}`;
                     if (!batterMap.has(mapKey)) {
                         const lineupName = num ? (_lineupNumMap9[num]?.name || '') : '';
