@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v395';
+﻿    const APP_VERSION = 'v396';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2940,7 +2940,12 @@
     }
 
     function _renderRosterList() {
-        const listBody = document.getElementById('_rosterListBody');
+        const _rosterContainer = document.getElementById(
+            userMode === 'batter' ? 'bmRosterTabContent' : 'rosterTabContent'
+        );
+        const listBody = _rosterContainer
+            ? _rosterContainer.querySelector('#_rosterListBody')
+            : document.getElementById('_rosterListBody');
         if (!listBody) return;
         if (!allData.playerRegistry) allData.playerRegistry = [];
         const registry = allData.playerRegistry;
