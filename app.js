@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v386';
+﻿    const APP_VERSION = 'v387';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11459,41 +11459,20 @@
         });
         const _bestKCombo = Object.entries(_kCombo).sort((a,b)=>b[1]-a[1])[0];
 
-        // 建議文字：依數據量決定信心度
+        // 建議文字：以「投什麼球容易出局」為核心，直接給一句話
         const _tsAdvice = (() => {
             if (!_tsTotal) return null;
-            const _enough = _tsTotal >= 4; // 足夠的樣本
-
-            if (_tsHitRate >= 0.30) {
-                // 高威脅：給具體突破方向
-                if (_bestOutCombo && _bestOutCombo[1] >= 2)
-                    return `⚠️ 兩好球仍具威脅，${_bestOutCombo[0]}出局效果最佳（${_bestOutCombo[1]}次）`;
-                if (_tsKTopType)
-                    return `⚠️ 兩好球仍具威脅，可試${_tsKTopType}製造三振，避免讓打者接觸球`;
-                return `⚠️ 兩好球仍具威脅，需更謹慎選球，避免落在打者甜蜜區`;
-            }
-            if (_tsKRate >= 0.40) {
-                if (_bestKCombo && _bestKCombo[1] >= 2)
-                    return `✅ 建議以${_bestKCombo[0]}製造三振（${_tsK}/${_tsTotal}打席三振）`;
-                if (_tsKTopType)
-                    return `✅ ${_tsKTopType}是主要三振球種（${_tsK}/${_tsTotal}打席三振）`;
-                return `✅ 兩好球三振率高（${Math.round(_tsKRate*100)}%），積極求三振有利`;
-            }
+            // 優先用三振組合（最強效）
+            if (_bestKCombo && _bestKCombo[1] >= 2)
+                return `${_bestKCombo[0]}（${_tsK}/${_tsTotal}打席三振）`;
+            if (_tsKTopType && _tsK >= 2)
+                return `${_tsKTopType}（${_tsK}/${_tsTotal}打席三振）`;
+            // 次用出局組合
             if (_bestOutCombo && _bestOutCombo[1] >= 2)
-                return `📌 ${_bestOutCombo[0]}出局效果最穩定（${_bestOutCombo[1]}/${_tsTotal}打席出局）`;
+                return `${_bestOutCombo[0]}（${_bestOutCombo[1]}/${_tsTotal}打席出局）`;
             if (_tsTopType && _tsOutTotal > 0)
-                return `📌 ${_tsTopType}出局率最高（${Math.round((_tsOutTypes[_tsTopType]||0)/_tsOutTotal*100)}%），搭配低球位置`;
-            return _enough ? '📌 出局球種無明顯傾向，建議以低球偏外角製造接觸球出局' : '📌 打席數不足，建議累積更多資料後再判斷';
-        })();
-
-        const _tsConclusion = (() => {
-            if (!_tsTotal) return null;
-            if (_tsHitRate >= 0.30) return { text:'兩好球仍具威脅', bg:'#fee2e2', color:'#b91c1c' };
-            if (_tsKRate >= 0.40)   return { text:`兩好球容易三振`, bg:'#dcfce7', color:'#15803d' };
-            if (_tsTopType && _tsOutTotal > 0 && (_tsOutTypes[_tsTopType]/_tsOutTotal) >= 0.50)
-                return { text:`兩好球可接觸球出局`, bg:'#dcfce7', color:'#15803d' };
-            if (_tsKRate >= 0.25)   return { text:'兩好球略有劣勢', bg:'#fef9c3', color:'#92400e' };
-            return { text:'兩好球尚可應對', bg:'#f3f4f6', color:'#374151' };
+                return `${_tsTopType}（出局率 ${Math.round((_tsOutTypes[_tsTopType]||0)/_tsOutTotal*100)}%）`;
+            return _tsTotal >= 4 ? '無明顯傾向' : '打席數不足';
         })();
 
         const secC = `<div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);break-inside:avoid;">
@@ -11504,7 +11483,7 @@
                     <div style="font-size:30px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${_tsTotal}</div>
                     <div style="font-size:11px;color:#9ca3af;">兩好球打席</div>
                 </div>
-                ${_tsConclusion ? `<div style="padding:7px 16px;border-radius:20px;font-size:13px;font-weight:800;background:${_tsConclusion.bg};color:${_tsConclusion.color};">${_tsConclusion.text}</div>` : ''}
+                ${_tsAdvice ? `<div style="padding:7px 16px;border-radius:10px;background:#f0f9ff;border-left:3px solid #0ea5e9;font-size:14px;font-weight:800;color:#0c4a6e;">建議投：${_tsAdvice}</div>` : ''}
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
                 <div style="text-align:center;padding:10px 6px;background:#f0fdf4;border-radius:8px;">
