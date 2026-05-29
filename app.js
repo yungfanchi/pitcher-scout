@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v394';
+﻿    const APP_VERSION = 'v395';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3352,9 +3352,9 @@
                 });
             });
         });
-        // ③ 掃描我方投手（從 team.pitchers 補入投手名冊）
+        // ③ 掃描被情蒐的對手投手（team.pitchers 儲存的是對手投手，隸屬 team.opponent）
         (allData.teams||[]).forEach(team => {
-            const ourTeam = (team.name||'').trim();
+            const ourTeam = (team.opponent||'').trim(); // 投手屬於對手球隊
             if (!ourTeam) return;
             (team.pitchers||[]).forEach(pitcher => {
                 const num  = String(pitcher.number||'').trim();
