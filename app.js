@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v396';
+﻿    const APP_VERSION = 'v397';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10727,7 +10727,13 @@
             const num  = String(ab.number || '').trim();
             const nameKey = name || (num ? `#${num}` : '');
             if (!nameKey) return;
-            const bTeam = ab.teamName || '未分類';
+            // 舊資料沒有 teamName 時，從 gameIdx + team side 補推
+            let bTeam = ab.teamName || '';
+            if (!bTeam && ab.mode === 'linked' && ab.gameIdx >= 0 && allData.teams[ab.gameIdx]) {
+                const _g = allData.teams[ab.gameIdx];
+                bTeam = ab.team === 'A' ? (_g.name || '') : (_g.opponent || '');
+            }
+            bTeam = bTeam || '未分類';
             const mapKey = `${bTeam}||${nameKey}`;
             if (!batterMap.has(mapKey)) {
                 batterMap.set(mapKey, {
@@ -13665,6 +13671,8 @@
         const rec = {
             number, name, order: 0,
             hand: _bmState.spHand,
+            teamName: allData.bm.spTeamName || '',
+            gameName: allData.bm.spGameName || '',
             inning, half: _bmState.spHalf,
             outs: _bmState.spOuts,
             bases: [..._bmState.spBases],
@@ -13792,11 +13800,16 @@
         if (traitEl && traitEl.value.trim()) {
             _getLineup(currentTeam)[order].trait = traitEl.value.trim();
         }
+        const _gi = allData.bm.gameIdx;
+        const _game = (_gi >= 0 && allData.teams[_gi]) ? allData.teams[_gi] : null;
+        const _tName = _game ? (currentTeam === 'A' ? (_game.name || '') : (_game.opponent || '')) : '';
         const rec = {
             number: batter.number || '',
             name:   batter.name   || '',
             trait:  _getLineup(currentTeam)[order].trait || '',
             team:   currentTeam,
+            teamName: _tName,
+            gameName: _game ? (_game.gameName || '') : '',
             order:  order + 1,
             hand:   batter.hand   || '右打',
             inning,
@@ -14073,6 +14086,8 @@
             number, name,
             order: 0,
             hand:  _bmState.spHand,
+            teamName: allData.bm.spTeamName || '',
+            gameName: allData.bm.spGameName || '',
             inning: 1,
             half: '上',
             outs: 0,
