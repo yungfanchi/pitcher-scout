@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v379';
+﻿    const APP_VERSION = 'v380';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5098,7 +5098,7 @@
         if (confirm('確定要刪除這筆記錄嗎？')) {
             allData.teams[currentTeam].pitchers[currentPitcher].pitches.splice(index, 1);
 
-            // 刪除單球不應重置記分板：先把比分/局數/slot 儲存起來
+            // 刪除單球不應重置記分板：先把比分/局數/slot/打序 儲存起來
             const _preDScore  = getTeamScore();
             const _savedHome    = _preDScore.home;
             const _savedAway    = _preDScore.away;
@@ -5107,6 +5107,11 @@
             const _savedSlot    = activeSlot;
             const _savedCT      = currentTeam;
             const _savedCP      = currentPitcher;
+            const _savedBatterIdx = { ...gameState.currentBatterIndex };
+            const _savedBatterOrder = document.getElementById('batterOrder')?.value;
+            const _savedBatterNum   = document.getElementById('batterNumber')?.value;
+            const _savedBatterName  = document.getElementById('batterName')?.value;
+            const _savedBatterHand  = currentPitch.batterHand;
 
             recomputeGameState();
 
@@ -5122,8 +5127,22 @@
             _postDScore.inning = _savedInning;
             _postDScore.half   = _savedHalf;
             gameState.half     = _savedHalf;
-            updateScoreboard();
+            gameState.inning   = _savedInning;
 
+            // 還原打序位置（recomputeGameState 會重算並覆蓋這些值）
+            gameState.currentBatterIndex = _savedBatterIdx;
+            if (_savedBatterOrder) document.getElementById('batterOrder').value  = _savedBatterOrder;
+            if (_savedBatterNum   !== undefined) document.getElementById('batterNumber').value = _savedBatterNum;
+            if (_savedBatterName  !== undefined) document.getElementById('batterName').value   = _savedBatterName;
+            currentPitch.batterHand = _savedBatterHand;
+            // 同步慣用手按鈕顯示
+            document.querySelectorAll('.hand-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.hand === _savedBatterHand));
+
+            // 還原 lineup 指向正確打擊隊
+            lineup = gameState.lineups[_savedHalf === '上' ? 'teamA' : 'teamB'];
+
+            updateScoreboard();
             updateSlotDisplay(); updatePitchLog(); updateStats(); saveToLocalStorage(); saveToFirebase(currentTeam);
         }
     }
