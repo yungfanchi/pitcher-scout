@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v385';
+﻿    const APP_VERSION = 'v386';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11439,15 +11439,60 @@
                 return { text: topKey + '解決' };
             return null;
         })();
-        // 結論標籤：球種＋角度合併一句
-        const _tsZoneSuffix = _tsZoneLabel ? `${_tsZoneLabel.text.replace('解決','')}` : '';
+        // ── 具體建議：球種 + 位置 ──
+        // 找出局打席中最常見的 球種×區域 組合
+        const _outCombo = {};
+        _tsOutPA.forEach(p => {
+            if (!p.type || !/^[1-9]$/.test(String(p.zone))) return;
+            const loc = _hSide(p.zone) + (_vSide(p.zone) ? _vSide(p.zone)+'球' : '球');
+            const key  = `${loc}${p.type}`;
+            _outCombo[key] = (_outCombo[key]||0)+1;
+        });
+        const _bestOutCombo = Object.entries(_outCombo).sort((a,b)=>b[1]-a[1])[0];
+        // 找三振打席中最常見的 球種×區域 組合
+        const _kCombo = {};
+        _tsKPitches.forEach(p => {
+            if (!p.type || !/^[1-9]$/.test(String(p.zone))) return;
+            const loc = _hSide(p.zone) + (_vSide(p.zone) ? _vSide(p.zone)+'球' : '球');
+            const key  = `${loc}${p.type}`;
+            _kCombo[key] = (_kCombo[key]||0)+1;
+        });
+        const _bestKCombo = Object.entries(_kCombo).sort((a,b)=>b[1]-a[1])[0];
+
+        // 建議文字：依數據量決定信心度
+        const _tsAdvice = (() => {
+            if (!_tsTotal) return null;
+            const _enough = _tsTotal >= 4; // 足夠的樣本
+
+            if (_tsHitRate >= 0.30) {
+                // 高威脅：給具體突破方向
+                if (_bestOutCombo && _bestOutCombo[1] >= 2)
+                    return `⚠️ 兩好球仍具威脅，${_bestOutCombo[0]}出局效果最佳（${_bestOutCombo[1]}次）`;
+                if (_tsKTopType)
+                    return `⚠️ 兩好球仍具威脅，可試${_tsKTopType}製造三振，避免讓打者接觸球`;
+                return `⚠️ 兩好球仍具威脅，需更謹慎選球，避免落在打者甜蜜區`;
+            }
+            if (_tsKRate >= 0.40) {
+                if (_bestKCombo && _bestKCombo[1] >= 2)
+                    return `✅ 建議以${_bestKCombo[0]}製造三振（${_tsK}/${_tsTotal}打席三振）`;
+                if (_tsKTopType)
+                    return `✅ ${_tsKTopType}是主要三振球種（${_tsK}/${_tsTotal}打席三振）`;
+                return `✅ 兩好球三振率高（${Math.round(_tsKRate*100)}%），積極求三振有利`;
+            }
+            if (_bestOutCombo && _bestOutCombo[1] >= 2)
+                return `📌 ${_bestOutCombo[0]}出局效果最穩定（${_bestOutCombo[1]}/${_tsTotal}打席出局）`;
+            if (_tsTopType && _tsOutTotal > 0)
+                return `📌 ${_tsTopType}出局率最高（${Math.round((_tsOutTypes[_tsTopType]||0)/_tsOutTotal*100)}%），搭配低球位置`;
+            return _enough ? '📌 出局球種無明顯傾向，建議以低球偏外角製造接觸球出局' : '📌 打席數不足，建議累積更多資料後再判斷';
+        })();
+
         const _tsConclusion = (() => {
             if (!_tsTotal) return null;
             if (_tsHitRate >= 0.30) return { text:'兩好球仍具威脅', bg:'#fee2e2', color:'#b91c1c' };
+            if (_tsKRate >= 0.40)   return { text:`兩好球容易三振`, bg:'#dcfce7', color:'#15803d' };
             if (_tsTopType && _tsOutTotal > 0 && (_tsOutTypes[_tsTopType]/_tsOutTotal) >= 0.50)
-                return { text:`兩好球易被${_tsZoneSuffix}${_tsTopType}解決`, bg:'#dcfce7', color:'#15803d' };
-            if (_tsKRate >= 0.40) return { text:`兩好球${_tsZoneSuffix ? _tsZoneSuffix + '容易被三振' : '容易被三振'}${_tsKTopType ? `（${_tsKTopType}）` : ''}`, bg:'#dcfce7', color:'#15803d' };
-            if (_tsKRate >= 0.25) return { text:'兩好球有所劣勢', bg:'#fef9c3', color:'#92400e' };
+                return { text:`兩好球可接觸球出局`, bg:'#dcfce7', color:'#15803d' };
+            if (_tsKRate >= 0.25)   return { text:'兩好球略有劣勢', bg:'#fef9c3', color:'#92400e' };
             return { text:'兩好球尚可應對', bg:'#f3f4f6', color:'#374151' };
         })();
 
@@ -11476,7 +11521,7 @@
                 </div>
             </div>
             ${_tsTop2.length > 0 ? `
-            <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;">🎯 終結球種（出局打席）</div>
+            <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;">🎯 出局球種分佈</div>
             <div style="display:flex;flex-direction:column;gap:5px;">
                 ${_tsTop2.map(([type, cnt], i) => {
                     const pct = _tsOutTotal > 0 ? Math.round(cnt/_tsOutTotal*100) : 0;
@@ -11489,7 +11534,10 @@
                         <span style="font-size:11px;color:#9ca3af;">(${cnt}次)</span>
                     </div>`;
                 }).join('')}
-                ${(_tsZoneBest && !_tsTop2.some(([t])=>t===_tsZoneBest)) ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">②建議：<span style="font-weight:700;color:#3b82f6;">${_tsZoneBest}</span></div>` : ''}
+            </div>` : ''}
+            ${_tsAdvice ? `
+            <div style="margin-top:10px;padding:10px 12px;background:#f0f9ff;border-left:3px solid #0ea5e9;border-radius:0 8px 8px 0;">
+                <div style="font-size:12px;font-weight:700;color:#0c4a6e;line-height:1.6;">${_tsAdvice}</div>
             </div>` : ''}
             `}
         </div>`;
