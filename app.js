@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v389';
+﻿    const APP_VERSION = 'v390';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3721,9 +3721,8 @@
     }
 
     function openLineupModal(side) {
-        // side: 'teamA' (先攻/team.name) or 'teamB' (後攻/team.opponent); default to current batting team
         const targetSide = side || (gameState.half === '上' ? 'teamA' : 'teamB');
-        _lineupModalSide = targetSide; // 記住這次 modal 是為哪一邊開的
+        _lineupModalSide = targetSide;
         lineup = gameState.lineups[targetSide];
 
         const ti = currentTeam !== null ? currentTeam : (slotA.team !== null ? slotA.team : (slotB.team !== null ? slotB.team : null));
@@ -3733,29 +3732,41 @@
             : (team?.opponent || '後攻');
 
         const title = document.getElementById('lineupModalTitle');
-        if (title) title.textContent = `📋 ${teamName} 打擊順序`;
+        if (title) title.textContent = `📋 ${teamName} 名冊`;
 
+        // 打者陣容（含守備位置）
         const container = document.getElementById('lineupRows');
         container.innerHTML = '';
+        const POSITIONS = ['','投','捕','一','二','三','遊','左','中','右','指'];
         for (let i = 1; i <= 9; i++) {
-            const p = lineup[i];
+            const p = lineup[i] || {number:'', name:'', hand:'右打', position:''};
+            const posOpts = POSITIONS.map(v => `<option value="${v}"${(p.position||'')=== v?'selected':''}>${v||'─'}</option>`).join('');
             const row = document.createElement('div');
-            row.style.cssText = 'display:grid;grid-template-columns:44px 2fr 3fr 4fr;gap:6px;margin-bottom:8px;align-items:center;';
+            row.style.cssText = 'display:grid;grid-template-columns:28px 40px 54px 44px 1fr;gap:4px;margin-bottom:7px;align-items:center;';
             row.innerHTML = `
-                <div style="width:36px;height:36px;border-radius:50%;background:var(--ct-blue-dark);color:#ffd700;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;flex-shrink:0;">${i}</div>
-                <input type="text" inputmode="numeric" placeholder="#" value="${escapeHtml(p.number)}" data-order="${i}" data-field="number"
-                    style="padding:7px 4px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;"
+                <div style="width:28px;height:28px;border-radius:50%;background:var(--ct-blue-dark);color:#ffd700;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;flex-shrink:0;">${i}</div>
+                <input type="text" inputmode="numeric" placeholder="#" value="${escapeHtml(p.number||'')}" data-order="${i}" data-field="number"
+                    style="padding:6px 2px;border:1.5px solid #d1d5db;border-radius:7px;font-size:16px;font-weight:900;width:100%;box-sizing:border-box;text-align:center;font-family:'Oswald',sans-serif;"
                     onblur="saveLineupCell(this)" onkeydown="if(event.key==='Enter')this.blur()">
+                <select data-order="${i}" data-field="position"
+                    style="padding:6px 2px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;text-align:center;cursor:pointer;background:#fff;"
+                    onchange="saveLineupCell(this)">
+                    ${posOpts}
+                </select>
                 <button type="button" data-order="${i}" data-field="hand" data-value="${escapeHtml(p.hand||'右打')}"
                     onclick="toggleLineupHand(this)"
-                    style="padding:7px 4px;border:none;border-radius:7px;font-size:15px;font-weight:700;width:100%;box-sizing:border-box;cursor:pointer;background:${(p.hand||'右打')==='左打'?'#dc0000':'#003d79'};color:white;font-family:'Noto Sans TC',sans-serif;letter-spacing:1px;">
+                    style="padding:6px 2px;border:none;border-radius:7px;font-size:12px;font-weight:700;width:100%;box-sizing:border-box;cursor:pointer;background:${(p.hand||'右打')==='左打'?'#dc0000':'#003d79'};color:white;font-family:'Noto Sans TC',sans-serif;touch-action:manipulation;">
                     ${escapeHtml(p.hand||'右打')}
                 </button>
-                <input type="text" placeholder="姓名" value="${escapeHtml(p.name)}" data-order="${i}" data-field="name"
-                    style="padding:7px 6px;border:1.5px solid #d1d5db;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;"
-                    onblur="saveLineupCell(this)" onkeydown="if(event.key==='Enter')this.blur()">` ;
+                <input type="text" placeholder="姓名" value="${escapeHtml(p.name||'')}" data-order="${i}" data-field="name"
+                    style="padding:6px 6px;border:1.5px solid #d1d5db;border-radius:7px;font-size:16px;font-weight:700;width:100%;box-sizing:border-box;"
+                    onblur="saveLineupCell(this)" onkeydown="if(event.key==='Enter')this.blur()">`;
             container.appendChild(row);
         }
+
+        // 投手陣容
+        _renderPitcherRosterRows(team, targetSide);
+
         const modal = document.getElementById('lineupModal');
         modal.style.display = 'flex';
     }
@@ -3788,7 +3799,7 @@
             const side = _lineupModalSide || ((lineup === gameState.lineups.teamA) ? 'teamA' : 'teamB');
             // 從 gameState.lineups[side] 讀取（與 lineup 相同，但即使 lineup 被外部改動也安全）
             const sourceLineup = gameState.lineups[side];
-            allData.teams[currentTeam].lineups[side] = sourceLineup.slice(1).map(p => p ? {...p} : {number:'',name:'',hand:'右打'});
+            allData.teams[currentTeam].lineups[side] = sourceLineup.slice(1).map(p => p ? {...p} : {number:'',name:'',hand:'右打',position:''});
             _syncBatterTeamFromLineup(currentTeam);
             saveToLocalStorage();
             saveToFirebase(currentTeam);
@@ -3798,6 +3809,7 @@
     function saveLineup() {
         document.querySelectorAll('#lineupRows [data-order]').forEach(el => {
             const i = parseInt(el.dataset.order);
+            if (!lineup[i]) lineup[i] = {number:'', name:'', hand:'右打', position:''};
             lineup[i][el.dataset.field] = el.tagName === 'BUTTON' ? el.dataset.value : el.value;
         });
         _persistLineup();
@@ -3805,6 +3817,113 @@
         const order = parseInt(document.getElementById('batterOrder').value);
         if (order >= 1 && order <= 9) applyLineupToUI(order);
     }
+
+    function toggleRosterSection(type) {
+        const bodyId = type === 'batter' ? 'batterSectionBody' : 'pitcherSectionBody';
+        const iconId = type === 'batter' ? 'batterToggleIcon' : 'pitcherToggleIcon';
+        const body = document.getElementById(bodyId);
+        const icon = document.getElementById(iconId);
+        if (!body) return;
+        const isCollapsed = body.style.display === 'none';
+        body.style.display = isCollapsed ? '' : 'none';
+        if (icon) icon.textContent = isCollapsed ? '▼' : '▶';
+    }
+
+    function _renderPitcherRosterRows(team, side) {
+        const container = document.getElementById('pitcherRosterRows');
+        if (!container) return;
+        container.innerHTML = '';
+        const roster = team?.pitcherRosters?.[side] || [];
+        const ROLES = ['先發','中繼','終結','長中'];
+        roster.forEach((p, idx) => {
+            const roleOpts = ROLES.map(r => `<option value="${r}"${(p.role||'先發')===r?'selected':''}>${r}</option>`).join('');
+            const row = document.createElement('div');
+            row.style.cssText = 'display:grid;grid-template-columns:40px 54px 44px 1fr 26px;gap:4px;margin-bottom:7px;align-items:center;';
+            row.innerHTML = `
+                <input type="text" inputmode="numeric" placeholder="#" value="${escapeHtml(p.number||'')}" data-idx="${idx}" data-pfield="number"
+                    style="padding:6px 2px;border:1.5px solid #fca5a5;border-radius:7px;font-size:16px;font-weight:900;width:100%;box-sizing:border-box;text-align:center;font-family:'Oswald',sans-serif;"
+                    onblur="saveRosterPitcherCell(this)" onkeydown="if(event.key==='Enter')this.blur()">
+                <select data-idx="${idx}" data-pfield="role"
+                    style="padding:6px 2px;border:1.5px solid #fca5a5;border-radius:7px;font-size:12px;width:100%;box-sizing:border-box;cursor:pointer;background:#fff;"
+                    onchange="saveRosterPitcherCell(this)">
+                    ${roleOpts}
+                </select>
+                <button type="button" data-idx="${idx}" data-pfield="hand" data-pvalue="${escapeHtml(p.hand||'右投')}"
+                    onclick="toggleRosterPitcherHand(this)"
+                    style="padding:6px 2px;border:none;border-radius:7px;font-size:11px;font-weight:700;width:100%;box-sizing:border-box;cursor:pointer;background:${(p.hand||'右投')==='左投'?'#dc0000':'#003d79'};color:white;font-family:'Noto Sans TC',sans-serif;touch-action:manipulation;">
+                    ${escapeHtml(p.hand||'右投')}
+                </button>
+                <input type="text" placeholder="姓名" value="${escapeHtml(p.name||'')}" data-idx="${idx}" data-pfield="name"
+                    style="padding:6px 6px;border:1.5px solid #fca5a5;border-radius:7px;font-size:16px;font-weight:700;width:100%;box-sizing:border-box;"
+                    onblur="saveRosterPitcherCell(this)" onkeydown="if(event.key==='Enter')this.blur()">
+                <button onclick="removeRosterPitcher(${idx})"
+                    style="width:26px;height:26px;border:none;border-radius:50%;background:#fee2e2;color:#dc0000;font-size:15px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;touch-action:manipulation;">×</button>`;
+            container.appendChild(row);
+        });
+    }
+
+    function addRosterPitcher() {
+        const ti = currentTeam !== null ? currentTeam : null;
+        if (ti === null) return;
+        const team = allData.teams[ti];
+        if (!team.pitcherRosters) team.pitcherRosters = {};
+        const side = _lineupModalSide || 'teamB';
+        if (!team.pitcherRosters[side]) team.pitcherRosters[side] = [];
+        team.pitcherRosters[side].push({number:'', name:'', hand:'右投', role:'先發'});
+        _renderPitcherRosterRows(team, side);
+        _persistRoster();
+    }
+
+    function removeRosterPitcher(idx) {
+        const ti = currentTeam !== null ? currentTeam : null;
+        if (ti === null) return;
+        const team = allData.teams[ti];
+        const side = _lineupModalSide || 'teamB';
+        if (!team.pitcherRosters?.[side]) return;
+        team.pitcherRosters[side].splice(idx, 1);
+        _renderPitcherRosterRows(team, side);
+        _persistRoster();
+    }
+
+    function saveRosterPitcherCell(el) {
+        const ti = currentTeam !== null ? currentTeam : null;
+        if (ti === null) return;
+        const team = allData.teams[ti];
+        const side = _lineupModalSide || 'teamB';
+        if (!team.pitcherRosters?.[side]) return;
+        const idx = parseInt(el.dataset.idx);
+        const field = el.dataset.pfield;
+        if (!team.pitcherRosters[side][idx]) return;
+        team.pitcherRosters[side][idx][field] = el.value;
+        _persistRoster();
+    }
+
+    function toggleRosterPitcherHand(btn) {
+        const next = btn.dataset.pvalue === '右投' ? '左投' : '右投';
+        btn.dataset.pvalue = next;
+        btn.textContent = next;
+        btn.style.background = next === '左投' ? '#dc0000' : '#003d79';
+        const ti = currentTeam !== null ? currentTeam : null;
+        if (ti === null) return;
+        const team = allData.teams[ti];
+        const side = _lineupModalSide || 'teamB';
+        if (!team.pitcherRosters?.[side]) return;
+        const idx = parseInt(btn.dataset.idx);
+        if (team.pitcherRosters[side][idx]) team.pitcherRosters[side][idx].hand = next;
+        _persistRoster();
+    }
+
+    function _persistRoster() {
+        if (currentTeam !== null && allData.teams[currentTeam]) {
+            saveToLocalStorage();
+            saveToFirebase(currentTeam);
+        }
+    }
+    window.toggleRosterSection = toggleRosterSection;
+    window.addRosterPitcher = addRosterPitcher;
+    window.removeRosterPitcher = removeRosterPitcher;
+    window.saveRosterPitcherCell = saveRosterPitcherCell;
+    window.toggleRosterPitcherHand = toggleRosterPitcherHand;
 
     // ★ 根據打線（lineupA/B）回寫該場次所有球路的 batterTeam，並同步 batterData.team
     function _syncBatterTeamFromLineup(teamIdx) {
