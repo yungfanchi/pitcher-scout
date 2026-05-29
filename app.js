@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v387';
+﻿    const APP_VERSION = 'v388';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11440,38 +11440,58 @@
             return null;
         })();
         // ── 具體建議：球種 + 位置 ──
-        // 找出局打席中最常見的 球種×區域 組合
+        // 位置描述：外角高/外角低/內角高/內角低/中間
+        const _descZone = z => {
+            const h = _hSide(z); // 內角/外角/中間
+            const v = _vSide(z); // 高/低/''
+            if (h === '中間' && !v) return '中間';
+            if (h === '中間') return v;
+            return h + (v || '');
+        };
+        // 找出局打席中最常見的 球種×位置 組合
         const _outCombo = {};
         _tsOutPA.forEach(p => {
             if (!p.type || !/^[1-9]$/.test(String(p.zone))) return;
-            const loc = _hSide(p.zone) + (_vSide(p.zone) ? _vSide(p.zone)+'球' : '球');
-            const key  = `${loc}${p.type}`;
+            const key = `${_descZone(p.zone)}${p.type}`;
             _outCombo[key] = (_outCombo[key]||0)+1;
         });
         const _bestOutCombo = Object.entries(_outCombo).sort((a,b)=>b[1]-a[1])[0];
-        // 找三振打席中最常見的 球種×區域 組合
+        // 找三振打席中最常見的 球種×位置 組合
         const _kCombo = {};
         _tsKPitches.forEach(p => {
             if (!p.type || !/^[1-9]$/.test(String(p.zone))) return;
-            const loc = _hSide(p.zone) + (_vSide(p.zone) ? _vSide(p.zone)+'球' : '球');
-            const key  = `${loc}${p.type}`;
+            const key = `${_descZone(p.zone)}${p.type}`;
             _kCombo[key] = (_kCombo[key]||0)+1;
         });
         const _bestKCombo = Object.entries(_kCombo).sort((a,b)=>b[1]-a[1])[0];
 
-        // 建議文字：以「投什麼球容易出局」為核心，直接給一句話
+        // 當球路記錄有球種但無區域時，從同球種出局打席找最常見位置補上
+        const _bestLocForType = (pitchArr, type) => {
+            const m = {};
+            pitchArr.forEach(p => {
+                if (p.type !== type || !/^[1-9]$/.test(String(p.zone))) return;
+                const loc = _descZone(p.zone);
+                if (loc) m[loc] = (m[loc]||0)+1;
+            });
+            return Object.entries(m).sort((a,b)=>b[1]-a[1])[0]?.[0] || null;
+        };
+
+        // 建議文字：位置＋球種 一句話
         const _tsAdvice = (() => {
             if (!_tsTotal) return null;
-            // 優先用三振組合（最強效）
-            if (_bestKCombo && _bestKCombo[1] >= 2)
-                return `${_bestKCombo[0]}（${_tsK}/${_tsTotal}打席三振）`;
-            if (_tsKTopType && _tsK >= 2)
-                return `${_tsKTopType}（${_tsK}/${_tsTotal}打席三振）`;
-            // 次用出局組合
-            if (_bestOutCombo && _bestOutCombo[1] >= 2)
-                return `${_bestOutCombo[0]}（${_bestOutCombo[1]}/${_tsTotal}打席出局）`;
-            if (_tsTopType && _tsOutTotal > 0)
-                return `${_tsTopType}（出局率 ${Math.round((_tsOutTypes[_tsTopType]||0)/_tsOutTotal*100)}%）`;
+            // 優先：三振位置＋球種組合
+            if (_bestKCombo) return `${_bestKCombo[0]}（${_tsK}/${_tsTotal}打席三振）`;
+            if (_tsKTopType && _tsK >= 1) {
+                const loc = _bestLocForType(_tsKPitches, _tsKTopType);
+                return `${loc ? loc : ''}${_tsKTopType}（${_tsK}/${_tsTotal}打席三振）`;
+            }
+            // 次：出局位置＋球種組合
+            if (_bestOutCombo) return `${_bestOutCombo[0]}（${_bestOutCombo[1]}/${_tsTotal}打席出局）`;
+            if (_tsTopType && _tsOutTotal > 0) {
+                const loc = _bestLocForType(_tsOutPA, _tsTopType);
+                const pct = Math.round((_tsOutTypes[_tsTopType]||0)/_tsOutTotal*100);
+                return `${loc ? loc : ''}${_tsTopType}（出局率 ${pct}%）`;
+            }
             return _tsTotal >= 4 ? '無明顯傾向' : '打席數不足';
         })();
 
