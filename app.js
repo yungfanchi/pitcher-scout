@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v398';
+﻿    const APP_VERSION = 'v399';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2447,11 +2447,13 @@
 
         if (!nameA) { alert('請輸入投手 A 姓名！'); return; }
 
-        const pitcherA = { name: nameA, number: numberA, hand: handA, role: roleA, style: styleA, pitchingTeam: 'A', pitches: [], steals: [], score: getDefaultScore() };
+        const _gameA = allData.teams[teamIndex];
+        // 先攻投手（A）屬於後攻隊（opponent），後攻投手（B）屬於先攻隊（name）
+        const pitcherA = { name: nameA, number: numberA, hand: handA, role: roleA, style: styleA, pitchingTeam: 'A', pitcherTeam: _gameA.opponent || '', pitches: [], steals: [], score: getDefaultScore() };
         allData.teams[teamIndex].pitchers.push(pitcherA);
 
         if (nameB) {
-            const pitcherB = { name: nameB, number: numberB, hand: handB, role: roleB, style: styleB, pitchingTeam: 'B', pitches: [], steals: [], score: getDefaultScore() };
+            const pitcherB = { name: nameB, number: numberB, hand: handB, role: roleB, style: styleB, pitchingTeam: 'B', pitcherTeam: _gameA.name || '', pitches: [], steals: [], score: getDefaultScore() };
             allData.teams[teamIndex].pitchers.push(pitcherB);
         }
 
@@ -2476,8 +2478,24 @@
             option.textContent = `${team.name}${team.opponent ? ' vs ' + team.opponent : ''} ${team.date || ''}`;
             select.appendChild(option);
         });
+        _updateSinglePitcherTeamOpts();
         document.getElementById('singlePitcherModal').style.display = 'block';
     }
+
+    function _updateSinglePitcherTeamOpts() {
+        const gameIdx = parseInt(document.getElementById('singleModalTeamSelect')?.value);
+        const teamSel = document.getElementById('singlePitcherTeamName');
+        if (!teamSel) return;
+        const game = allData.teams[gameIdx];
+        if (!game) { teamSel.innerHTML = ''; return; }
+        // 先攻投手屬於後攻隊（team.opponent），後攻投手屬於先攻隊（team.name）
+        const opts = [
+            { label: `${game.opponent || '後攻隊'} （後攻，先攻投手）`, value: game.opponent || '' },
+            { label: `${game.name || '先攻隊'} （先攻，後攻投手）`,     value: game.name     || '' },
+        ];
+        teamSel.innerHTML = opts.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+    }
+    window._updateSinglePitcherTeamOpts = _updateSinglePitcherTeamOpts;
 
     function closeSinglePitcherModal() {
         document.getElementById('singlePitcherModal').style.display = 'none';
@@ -2492,9 +2510,9 @@
         const hand = document.getElementById('singlePitchHand').value;
         const role = document.getElementById('singlePitcherRole').value;
         const style = document.getElementById('singlePitcherStyle').value.trim();
-        const pitchingTeam = document.getElementById('singlePitcherSide')?.value || 'A';
+        const pitcherTeam = (document.getElementById('singlePitcherTeamName')?.value || '').trim();
         if (!name) { alert('請輸入投手姓名！'); return; }
-        allData.teams[teamIndex].pitchers.push({ name, number, hand, role, style, pitchingTeam, pitches: [], score: getDefaultScore() });
+        allData.teams[teamIndex].pitchers.push({ name, number, hand, role, style, pitcherTeam, pitches: [], score: getDefaultScore() });
         expandedTeams.add(teamIndex);
         // 同時展開該球隊所屬的賽事群組
         const gameName = allData.teams[teamIndex].gameName || '未分類';
@@ -2524,8 +2542,14 @@
         document.getElementById('editPitcherHand').value = pitcher.hand || '';
         document.getElementById('editPitcherRole').value = pitcher.role || '先發';
         document.getElementById('editPitcherStyle').value = pitcher.style || '';
-        const sideEl = document.getElementById('editPitcherSide');
-        if (sideEl) sideEl.value = pitcher.pitchingTeam || 'A';
+        // 優先顯示明確隊名；若無則從 pitchingTeam 推算
+        const _game = allData.teams[teamIndex];
+        let _resolvedTeam = pitcher.pitcherTeam || '';
+        if (!_resolvedTeam && _game) {
+            _resolvedTeam = pitcher.pitchingTeam === 'B' ? (_game.name||'') : (_game.opponent||'');
+        }
+        const teamNameEl = document.getElementById('editPitcherTeamName');
+        if (teamNameEl) teamNameEl.value = _resolvedTeam;
         document.getElementById('editPitcherModal').style.display = 'block';
     }
 
@@ -2546,8 +2570,8 @@
         pitcher.number       = document.getElementById('editPitcherNumber').value.trim();
         pitcher.hand         = document.getElementById('editPitcherHand').value;
         pitcher.role         = document.getElementById('editPitcherRole').value;
-        pitcher.style        = document.getElementById('editPitcherStyle').value.trim();
-        pitcher.pitchingTeam = document.getElementById('editPitcherSide')?.value || pitcher.pitchingTeam || 'A';
+        pitcher.style      = document.getElementById('editPitcherStyle').value.trim();
+        pitcher.pitcherTeam = (document.getElementById('editPitcherTeamName')?.value || '').trim();
         rebuildPitcherDB();
         updateTeamList();
         updateSlotDisplay();
@@ -3361,11 +3385,17 @@
                 });
             });
         });
-        // ③ 掃描被情蒐的對手投手（team.pitchers 儲存的是對手投手，隸屬 team.opponent）
+        // ③ 掃描投手（優先用 pitcher.pitcherTeam；其次依 pitchingTeam A/B 推算；最後 fallback team.opponent）
         (allData.teams||[]).forEach(team => {
-            const ourTeam = (team.opponent||'').trim(); // 投手屬於對手球隊
-            if (!ourTeam) return;
             (team.pitchers||[]).forEach(pitcher => {
+                let ourTeam = (pitcher.pitcherTeam||'').trim();
+                if (!ourTeam) {
+                    // pitchingTeam 'A'=先攻投手→屬後攻隊(opponent)；'B'=後攻投手→屬先攻隊(name)
+                    ourTeam = pitcher.pitchingTeam === 'B'
+                        ? (team.name||'').trim()
+                        : (team.opponent||'').trim();
+                }
+                if (!ourTeam) return;
                 const num  = String(pitcher.number||'').trim();
                 const name = (pitcher.name||'').trim();
                 const hand = pitcher.hand || '右投';
