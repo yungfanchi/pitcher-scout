@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v407';
+﻿    const APP_VERSION = 'v408';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5527,7 +5527,12 @@
         const pitch = allData.teams[currentTeam].pitchers[currentPitcher].pitches[index];
         const pitchTypes = ['快速球','上飄球','下墜球','變速球','內曲','外曲'];
         const outcomes = pitch.outcomes && pitch.outcomes.length > 0 ? pitch.outcomes : (pitch.outcome ? [pitch.outcome] : []);
-        const allOutcomes = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','三振','不死三振','內野安打','一壘安打','二壘安打','三壘安打','全壘打','保送','野選','Push','趁傳出局','內野失誤','外野失誤','違規打擊'];
+        const outcomeCategories = [
+            { label: '出局', cls: 'out-btn', items: ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'] },
+            { label: '安打', cls: 'hit-btn', items: ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'] },
+            { label: '上壘', cls: 'reach-btn', items: ['保送','觸身球','故意四壞','野選','失誤'] },
+            { label: '戰術標籤', cls: 'modifier', items: ['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗'] }
+        ];
 
         document.getElementById('editPitchForm').innerHTML = `
             <div class="input-group"><label>球種</label>
@@ -5554,9 +5559,11 @@
                 <input type="number" id="editBatterOrder" value="${pitch.batterOrder||''}" min="1" max="9">
             </div>
             <div class="input-group"><label>打擊結果（可複選）</label>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
-                ${allOutcomes.map(o => `<button type="button" class="outcome-btn ${outcomes.includes(o)?'selected':''}" data-outcome="${o}" onclick="this.classList.toggle('selected')" style="font-size:12px;padding:8px 4px;">${o}</button>`).join('')}
-                </div>
+                ${outcomeCategories.map(cat => `
+                <span class="outcome-group-label ${cat.cls.replace('-btn','').replace('modifier','tag')}">${cat.label}</span>
+                <div class="at-bat-result" style="margin-bottom:4px;">
+                    ${cat.items.map(o => `<button type="button" class="outcome-btn ${cat.cls}${outcomes.includes(o)?' selected':''}" data-outcome="${o}" onclick="this.classList.toggle('selected')">${o}</button>`).join('')}
+                </div>`).join('')}
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;">
                 <button type="button" id="editFoulBtn"
