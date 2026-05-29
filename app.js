@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v401';
+﻿    const APP_VERSION = 'v402';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1864,12 +1864,10 @@
         if (msp) msp.style.display = 'none';
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'none';
-        // 每次登入重置資料 + 清 localStorage 快取，防止舊資料污染新帳號
-        allData = { teams: [], pitcherDB: {}, playerRegistry: allData.playerRegistry || [] };
-        if (currentTeamCode !== 'ADMIN') {
-            try { localStorage.removeItem('chineseTaipeiPitcherData'); } catch(e) {}
-            try { localStorage.removeItem('pitcherScoutSlotState'); } catch(e) {}
-        }
+        // 每次登入完整重置：名冊從 Firebase 各帳號自己的節點載入，不可跨帳號保留
+        allData = { teams: [], pitcherDB: {}, playerRegistry: [] };
+        try { localStorage.removeItem('chineseTaipeiPitcherData'); } catch(e) {}
+        try { localStorage.removeItem('pitcherScoutSlotState'); } catch(e) {}
         // 管理員：顯示後台面板；買家：確保隱藏
         const adminPanel = document.getElementById('adminPanel');
         const createBtn = document.getElementById('createTeamBtn');
