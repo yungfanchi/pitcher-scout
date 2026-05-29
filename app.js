@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v382';
+﻿    const APP_VERSION = 'v383';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4827,6 +4827,11 @@
     // ====== 從所有投球紀錄重新計算 gameState（用於刪除/編輯後回溯）======
     function recomputeGameState() {
         const score = getTeamScore();
+        // 比賽已結束時，保留人工確認的最終比分，僅重算局數/壘包/棒次
+        const _gameEnded  = !!score.gameEnded;
+        const _savedHome  = score.home;
+        const _savedAway  = score.away;
+
         // Reset all live state except inning (keep inning from score)
         gameState.strikes = 0;
         gameState.balls = 0;
@@ -4856,6 +4861,13 @@
             }
         });
         _skipHalfSwitchDialog = false;
+
+        // 比賽已結束：還原人工確認的最終比分（不讓 replay 蓋掉）
+        if (_gameEnded) {
+            score.home      = _savedHome;
+            score.away      = _savedAway;
+            score.gameEnded = true;
+        }
 
         renderCountLights();
         renderBases();
