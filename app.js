@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v390';
+﻿    const APP_VERSION = 'v391';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2892,6 +2892,11 @@
 
     // ====== PLAYER REGISTRY (名冊) ======
     let _rosterSearchTerm = '';
+    let _teamCollapsed = {};
+    window._toggleTeamCollapse = function(teamKey) {
+        _teamCollapsed[teamKey] = !_teamCollapsed[teamKey];
+        _renderRosterList();
+    };
 
     function renderRosterTab() {
         const id = (userMode === 'batter') ? 'bmRosterTabContent' : 'rosterTabContent';
@@ -2964,38 +2969,53 @@
         } else {
             Object.entries(byTeam).forEach(([team, players]) => {
                 const unnamed = players.filter(p => !p.name).length;
+                const collapsed = !!_teamCollapsed[team];
+                const safeTeamKey = team.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
                 html += `<div class="container" style="margin-bottom:10px;padding:0;overflow:hidden;background:#fff;border:1.5px solid #d1d5db;border-radius:12px;">
-                    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--ct-blue-dark);border-bottom:2px solid var(--ct-red);">
-                        <span style="font-size:15px;font-weight:700;color:#fff;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:0.5px;">🏟️ ${escapeHtml(team)}</span>
-                        <span style="font-size:11px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.12);padding:1px 7px;border-radius:10px;">${players.length} 人</span>
-                        ${unnamed > 0 ? `<span style="font-size:10px;color:#fbbf24;background:rgba(251,191,36,0.2);padding:1px 7px;border-radius:10px;border:1px solid rgba(251,191,36,0.4);">⚠️ ${unnamed} 人未命名</span>` : ''}
-                    </div>
-                    <div style="display:flex;flex-direction:column;">`;
-                players.forEach((p, idx) => {
-                    const isUnnamed = !p.name;
-                    const numsHtml = (p.numbers||[]).length > 0
-                        ? (p.numbers).map(n => `<span style="font-size:12px;font-weight:800;color:#fff;background:var(--ct-blue-dark);padding:2px 8px;border-radius:5px;white-space:nowrap;letter-spacing:0.3px;">#${escapeHtml(n)}</span>`).join('')
-                        : `<span style="font-size:11px;color:#9ca3af;font-style:italic;">無背號</span>`;
-                    const borderTop = idx > 0 ? 'border-top:1px solid #f3f4f6;' : '';
-                    html += `
-                        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
-                            background:${isUnnamed ? '#fffbeb' : '#fff'};${borderTop}">
-                            <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;min-width:52px;">${numsHtml}</div>
-                            <div style="flex:1;min-width:0;overflow:hidden;">
-                                <div style="font-size:14px;font-weight:700;color:${isUnnamed ? '#d97706' : '#111827'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                                    ${isUnnamed ? '（未命名）' : escapeHtml(p.name)}
+                    <div onclick="window._toggleTeamCollapse('${safeTeamKey}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--ct-blue-dark);border-bottom:${collapsed?'none':'2px solid var(--ct-red)'};touch-action:manipulation;user-select:none;">
+                        <span style="font-size:18px;font-weight:900;color:#fff;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:0.5px;">🏟️ ${escapeHtml(team)}</span>
+                        <span style="font-size:12px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.12);padding:1px 8px;border-radius:10px;">${players.length} 人</span>
+                        ${unnamed > 0 ? `<span style="font-size:11px;color:#fbbf24;background:rgba(251,191,36,0.2);padding:1px 7px;border-radius:10px;border:1px solid rgba(251,191,36,0.4);">⚠️ ${unnamed} 未命名</span>` : ''}
+                        <span style="margin-left:auto;font-size:16px;color:#ffd700;font-weight:700;">${collapsed ? '▶' : '▼'}</span>
+                    </div>`;
+                if (!collapsed) {
+                    html += `<div style="display:flex;flex-direction:column;">`;
+                    players.forEach((p, idx) => {
+                        const isUnnamed = !p.name;
+                        const numsHtml = (p.numbers||[]).length > 0
+                            ? (p.numbers).map(n => `<span style="font-size:18px;font-weight:900;color:#fff;background:var(--ct-blue-dark);padding:3px 10px;border-radius:6px;white-space:nowrap;font-family:'Oswald',sans-serif;">#${escapeHtml(n)}</span>`).join('')
+                            : `<span style="font-size:12px;color:#9ca3af;font-style:italic;">無背號</span>`;
+                        const isPitcher = (p.hand||'').includes('投');
+                        const handBadge = p.hand
+                            ? `<span style="font-size:11px;font-weight:700;background:${isPitcher?'#fef3c7':'#f0fdf4'};color:${isPitcher?'#92400e':'#166534'};padding:1px 8px;border-radius:10px;border:1px solid ${isPitcher?'#fde68a':'#bbf7d0'};">${escapeHtml(p.hand)}</span>`
+                            : '';
+                        const posBadge = p.position
+                            ? `<span style="font-size:11px;font-weight:700;background:#e0f2fe;color:#0369a1;padding:1px 8px;border-radius:10px;border:1px solid #bae6fd;">${escapeHtml(p.position)}</span>`
+                            : '';
+                        const borderTop = idx > 0 ? 'border-top:1px solid #f3f4f6;' : '';
+                        html += `
+                            <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:${isUnnamed ? '#fffbeb' : '#fff'};${borderTop}">
+                                <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;min-width:62px;">${numsHtml}</div>
+                                <div style="flex:1;min-width:0;overflow:hidden;">
+                                    <div style="font-size:17px;font-weight:800;color:${isUnnamed ? '#d97706' : '#111827'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Noto Sans TC',sans-serif;">
+                                        ${isUnnamed ? '（未命名）' : escapeHtml(p.name)}
+                                    </div>
+                                    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;align-items:center;">
+                                        ${handBadge}${posBadge}
+                                        ${p.note ? `<span style="font-size:11px;color:#6b7280;">${escapeHtml(p.note)}</span>` : ''}
+                                    </div>
                                 </div>
-                                ${(p.hand || p.note) ? `<div style="font-size:11px;color:#6b7280;margin-top:1px;">${escapeHtml(p.hand||'')}${p.note ? '　' + escapeHtml(p.note) : ''}</div>` : ''}
-                            </div>
-                            <div style="display:flex;gap:5px;flex-shrink:0;">
-                                <button onclick="_openEditPlayerModal('${p.playerId}')"
-                                    style="padding:5px 10px;font-size:13px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">✏️</button>
-                                <button onclick="_deletePlayerFromRegistry('${p.playerId}')"
-                                    style="padding:5px 10px;font-size:13px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️</button>
-                            </div>
-                        </div>`;
-                });
-                html += `</div></div>`;
+                                <div style="display:flex;gap:5px;flex-shrink:0;">
+                                    <button onclick="_openEditPlayerModal('${p.playerId}')"
+                                        style="padding:6px 12px;font-size:13px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">✏️</button>
+                                    <button onclick="_deletePlayerFromRegistry('${p.playerId}')"
+                                        style="padding:6px 12px;font-size:13px;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️</button>
+                                </div>
+                            </div>`;
+                    });
+                    html += `</div>`;
+                }
+                html += `</div>`;
             });
         }
         listBody.innerHTML = html;
@@ -3038,10 +3058,28 @@
                             ).join('')}
                         </div>
                     </div>
-                    <div>
-                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">備註（選填）</label>
-                        <input id="_apNote" type="text" value="" placeholder="例：2026友誼賽換號"
-                            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">守備位置（選填）</label>
+                            <select id="_apPosition" style="width:100%;box-sizing:border-box;padding:9px 8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;cursor:pointer;">
+                                <option value="">─ 未指定</option>
+                                <option value="投">投（P）</option>
+                                <option value="捕">捕（C）</option>
+                                <option value="一">一（1B）</option>
+                                <option value="二">二（2B）</option>
+                                <option value="三">三（3B）</option>
+                                <option value="遊">遊（SS）</option>
+                                <option value="左">左（LF）</option>
+                                <option value="中">中（CF）</option>
+                                <option value="右">右（RF）</option>
+                                <option value="指">指（DH）</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">備註（選填）</label>
+                            <input id="_apNote" type="text" value="" placeholder="例：2026友誼賽換號"
+                                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                        </div>
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:18px;">
@@ -3079,7 +3117,8 @@
                 const dup = allData.playerRegistry.find(p => p.team === team && (p.numbers||[]).includes(number));
                 if (dup) { alert(`${team} #${number} 已存在（${dup.name||'未命名'}），可在編輯中調整。`); return; }
             }
-            allData.playerRegistry.push({ playerId: _makePlayerId(), name, team, hand: _apHand, numbers: number ? [number] : [], note });
+            const position = document.getElementById('_apPosition')?.value || '';
+            allData.playerRegistry.push({ playerId: _makePlayerId(), name, team, hand: _apHand, numbers: number ? [number] : [], note, position });
             overlay.remove();
             renderRosterTab();
             saveToLocalStorage(); saveToFirebase();
@@ -3133,10 +3172,22 @@
                         </div>
                         <div style="font-size:11px;color:#9ca3af;margin-top:4px;">所有背號的數據會自動合併計算。</div>
                     </div>
-                    <div>
-                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">備註（選填）</label>
-                        <input id="_epNote" type="text" value="${escapeHtml(player.note||'')}" placeholder="例：2026友誼賽換號"
-                            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">守備位置（選填）</label>
+                            <select id="_epPosition" style="width:100%;box-sizing:border-box;padding:9px 8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;cursor:pointer;">
+                                <option value="">─ 未指定</option>
+                                ${['投（P）','捕（C）','一（1B）','二（2B）','三（3B）','遊（SS）','左（LF）','中（CF）','右（RF）','指（DH）'].map(s => {
+                                    const v = s[0];
+                                    return `<option value="${v}"${(player.position||'')===v?'selected':''}>${s}</option>`;
+                                }).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">備註（選填）</label>
+                            <input id="_epNote" type="text" value="${escapeHtml(player.note||'')}" placeholder="例：2026友誼賽換號"
+                                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;font-family:inherit;">
+                        </div>
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:18px;">
@@ -3199,6 +3250,7 @@
             if (!newTeam) { alert('請輸入隊伍名稱！'); return; }
             player.team = newTeam; player.name = newName;
             player.hand = selHand; player.numbers = [...editNums]; player.note = newNote;
+            player.position = document.getElementById('_epPosition')?.value || '';
             overlay.remove();
             renderRosterTab(); saveToLocalStorage(); saveToFirebase();
         });
@@ -3288,7 +3340,30 @@
                 });
             });
         });
-        // Scan batter-mode records
+        // ③ 掃描我方投手（從 team.pitchers 補入投手名冊）
+        (allData.teams||[]).forEach(team => {
+            const ourTeam = (team.name||'').trim();
+            if (!ourTeam) return;
+            (team.pitchers||[]).forEach(pitcher => {
+                const num  = String(pitcher.number||'').trim();
+                const name = (pitcher.name||'').trim();
+                const hand = pitcher.hand || '右投';
+                if (!num && !name) return;
+                if (!num) return; // 無背號跳過
+                const key = `${ourTeam}||${num}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                if (allData.playerRegistry.some(p => p.team === ourTeam && (p.numbers||[]).includes(num))) return;
+                allData.playerRegistry.push({
+                    playerId: _makePlayerId(),
+                    name, team: ourTeam, hand,
+                    position: '投', numbers: [num], note: ''
+                });
+                added++;
+            });
+        });
+
+        // ④ 掃描打者模式記錄
         (allData.batterData||[]).forEach(batter => {
             const num = String(batter.number||'').trim();
             const bt  = (batter.team||'').trim();
