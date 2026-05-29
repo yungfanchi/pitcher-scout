@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v400';
+﻿    const APP_VERSION = 'v401';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5734,7 +5734,10 @@
         }
         updateScoreboard(); saveToLocalStorage();
         // 換局後自動切換 slot 並更新打者資訊
-        autoUpdateBatterInfoByInning();
+        // 復原重算期間跳過：避免 currentTeam/currentPitcher 被切換到另一槽，導致後續比分/打序寫入錯誤的 score 物件
+        if (!_skipHalfSwitchDialog) {
+            autoUpdateBatterInfoByInning();
+        }
     }
 
     // ====== STATS FILTER ======
