@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v397';
+﻿    const APP_VERSION = 'v398';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2916,6 +2916,10 @@
                                 style="padding:8px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;letter-spacing:0.3px;">
                                 🔄 自動掃描
                             </button>
+                            <button onclick="_rebuildRosterFromScratch()"
+                                style="padding:8px 14px;background:#b45309;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;letter-spacing:0.3px;">
+                                🗑️ 重建名冊
+                            </button>
                             <button onclick="_openAddPlayerModal()"
                                 style="padding:8px 14px;background:var(--ct-blue-dark);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;letter-spacing:0.3px;">
                                 ➕ 新增球員
@@ -3405,10 +3409,21 @@
         }
     }
 
+    function _rebuildRosterFromScratch() {
+        if (!confirm('確定清空名冊並重新掃描？\n所有手動修改的姓名、備註、位置都會消失，無法還原。')) return;
+        allData.playerRegistry = [];
+        _autoDiscoverFromPitches();
+        if ((allData.playerRegistry || []).length === 0) {
+            renderRosterTab(); saveToLocalStorage(); saveToFirebase();
+            alert('名冊已清空。尚無可掃描的比賽記錄。');
+        }
+    }
+
     window._openAddPlayerModal    = _openAddPlayerModal;
     window._openEditPlayerModal   = _openEditPlayerModal;
     window._deletePlayerFromRegistry = _deletePlayerFromRegistry;
     window._autoDiscoverFromPitches  = _autoDiscoverFromPitches;
+    window._rebuildRosterFromScratch = _rebuildRosterFromScratch;
     window.renderRosterTab = renderRosterTab;
     window.updateRosterSearch = function(val) { _rosterSearchTerm = val; _renderRosterList(); };
 
