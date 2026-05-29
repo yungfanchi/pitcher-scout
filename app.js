@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v399';
+﻿    const APP_VERSION = 'v400';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4532,7 +4532,7 @@
         }
     }
 
-    const OUT_OUTCOMES = ['滾地球出局','飛球出局','平飛球出局','三振','趁傳出局','雙殺','出局','高飛犧牲打','犧牲觸擊'];
+    const OUT_OUTCOMES = ['滾地球出局','飛球出局','平飛球出局','三振','不死三振','趁傳出局','雙殺','出局','高飛犧牲打','犧牲觸擊'];
     // 打席結束（進入下一打者）的結果清單
     const PA_ENDING = ['滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','三振','不死三振',
         '內野安打','一壘安打','二壘安打','三壘安打','全壘打','保送','觸身球','野選','趁傳出局','失誤','違規打擊','Push'];
@@ -4695,13 +4695,9 @@
         const _prePitchHalf = gameState.half; // 捕捉此球投出時的局半，供得分確認使用
         updateGameStateFromPitch(currentPitch);
 
-        // 三出局確認換局
-        if (window._pendingHalfSwitch) {
-            window._pendingHalfSwitch = false;
-            if (window.confirm('三出局！確定換局？')) {
-                toggleHalf(false);
-            }
-        }
+        // 捕捉三出局旗標（換局確認將延後到落點圖之後執行）
+        const _shouldConfirmHalfSwitch = !!window._pendingHalfSwitch;
+        if (_shouldConfirmHalfSwitch) window._pendingHalfSwitch = false;
 
         // 打席結束 → 推進打者、更新連動
         const hasEndingOutcome = currentPitch.outcomes.some(o => PA_ENDING.includes(o));
@@ -4798,9 +4794,21 @@
                     updateStats();
                 }
                 _maybeShowRunsChip(); // 球場圖 → 得分確認
+                // 落點圖結束後再跳換局提醒
+                if (_shouldConfirmHalfSwitch) {
+                    if (window.confirm('三出局！確定換局？')) {
+                        toggleHalf(false);
+                    }
+                }
             });
         } else {
             _maybeShowRunsChip(); // 直接進得分確認
+            // 無落點圖時直接跳換局提醒
+            if (_shouldConfirmHalfSwitch) {
+                if (window.confirm('三出局！確定換局？')) {
+                    toggleHalf(false);
+                }
+            }
         }
     }
 
@@ -4893,7 +4901,7 @@
         if (outcomes.includes('犧牲觸擊')) {
             gameState.runners = [null, has1b ? r[0] : null, has2b ? r[1] : null]; return;
         }
-        if (outcomes.some(o => ['不死三振','野選','失誤'].includes(o))) {
+        if (outcomes.some(o => ['野選','失誤'].includes(o))) {
             gameState.runners = [batter, r[1], r[2]]; return;
         }
         // 出局類：runners 不動，三出局時由外層清空
@@ -4951,11 +4959,6 @@
             return { newBases: [false, has1b, has2b], runsScored: runs };
         }
 
-        if (outcomes.includes('不死三振')) {
-            // 打者跑向一壘（接捕手未接好），壘上跑者不強迫推進
-            return { newBases: [true, has2b, has3b], runsScored: 0 };
-        }
-
         if (outcomes.some(o => ['野選','失誤'].includes(o))) {
             // 打者上一壘；一壘跑者在野選時出局（已由外層加出局數）或失誤時推進
             // 保守預設：二三壘跑者留在原位，壘況確認 modal 供使用者手動修正
@@ -4981,7 +4984,7 @@
         const isOut = outcomes.some(o => OUT_OUTCOMES.includes(o));
         const isDoublePlay = outcomes.includes('雙殺');
         const isPA  = outcomes.some(o => ['一壘安打','二壘安打','三壘安打','全壘打','內野安打',
-            '保送','觸身球','野選','失誤','不死三振','Push'].includes(o));
+            '保送','觸身球','野選','失誤','Push'].includes(o));
 
         if (isOut) {
             gameState.outs += isDoublePlay ? 2 : 1;
