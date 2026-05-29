@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v402';
+﻿    const APP_VERSION = 'v403';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8076,21 +8076,18 @@
 
             if (remoteGames.length === 0) return;
 
-            // 目前正在情蒐的賽事 gameId（不允許被遠端資料覆蓋）
-            const editingId = (currentTeam !== null && allData.teams[currentTeam])
-                ? allData.teams[currentTeam].gameId
-                : null;
-
             // 以本機陣列為基礎做 in-place 合併，保持索引穩定
             const remoteById = Object.fromEntries(remoteGames.map(g => [g.gameId, g]));
 
-            // 更新已有的賽事（跳過正在編輯的那場）
+            const _pitchCount = pitchers => (pitchers || []).reduce((s, p) => s + (p.pitches || []).length, 0);
+
+            // 合併原則：本機球數 ≥ 遠端球數時，本機版本較新，跳過（不被覆蓋）
             allData.teams.forEach((local, idx) => {
                 if (!local.gameId) return;
-                if (local.gameId === editingId) return; // 保護
-                if (remoteById[local.gameId]) {
-                    allData.teams[idx] = remoteById[local.gameId];
-                }
+                const remote = remoteById[local.gameId];
+                if (!remote) return;
+                if (_pitchCount(local.pitchers) >= _pitchCount(remote.pitchers)) return;
+                allData.teams[idx] = remote;
             });
 
             // 把遠端有、本機沒有的新賽事附加到尾端
