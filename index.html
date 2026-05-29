@@ -744,14 +744,10 @@
                             <button class="hand-btn" data-hand="左打" onclick="selectBatterHand(this)" style="flex:1;padding:8px;font-size:13px;">👈 左打</button>
                             <button class="hand-btn" data-hand="右打" onclick="selectBatterHand(this)" style="flex:1;padding:8px;font-size:13px;">👉 右打</button>
                         </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
-                            <button id="pinchHitterBtn" onclick="togglePinchHitter()" style="padding:9px;border:2px solid var(--ct-gold);border-radius:6px;background:#fff3cd;color:var(--ct-blue-dark);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;">代打上場</button>
-                            <button id="buntBtn" onclick="toggleBunt()" style="padding:9px;border:2px solid #d1d5db;border-radius:6px;background:#f9fafb;color:var(--ct-blue-dark);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;">短打</button>
-                            <button id="runAndHitBtn" onclick="toggleRunAndHit()" style="padding:9px;border:2px solid #d1d5db;border-radius:6px;background:#f9fafb;color:var(--ct-blue-dark);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;">跑打</button>
-                        </div>
+                        <button id="pinchHitterBtn" onclick="togglePinchHitter()" style="width:100%;padding:9px;border:2px solid var(--ct-gold);border-radius:6px;background:#fff3cd;color:var(--ct-blue-dark);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;">
+                            代打上場
+                        </button>
                         <input type="checkbox" id="isPinchHitter" style="display:none;">
-                        <input type="checkbox" id="isBuntPitch" style="display:none;">
-                        <input type="checkbox" id="isRunAndHitPitch" style="display:none;">
                         <!-- 打者追蹤面板（直列式） -->
                         <div id="batterTrackerPanel" style="background:#fffbeb;border:1px solid #f97316;border-radius:6px;padding:8px 6px;">
                             <div style="display:flex;gap:6px;">

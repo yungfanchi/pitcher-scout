@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v406';
+﻿    const APP_VERSION = 'v407';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4290,38 +4290,11 @@
         }
     }
 
-    function toggleBunt() {
-        const cb = document.getElementById('isBuntPitch');
-        const btn = document.getElementById('buntBtn');
-        cb.checked = !cb.checked;
-        if (cb.checked) {
-            btn.style.background = '#d1fae5'; btn.style.borderColor = '#10b981'; btn.textContent = '✅ 短打';
-        } else {
-            btn.style.background = '#f9fafb'; btn.style.borderColor = '#d1d5db'; btn.textContent = '短打';
-        }
-    }
-
-    function toggleRunAndHit() {
-        const cb = document.getElementById('isRunAndHitPitch');
-        const btn = document.getElementById('runAndHitBtn');
-        cb.checked = !cb.checked;
-        if (cb.checked) {
-            btn.style.background = '#dbeafe'; btn.style.borderColor = '#3b82f6'; btn.textContent = '✅ 跑打';
-        } else {
-            btn.style.background = '#f9fafb'; btn.style.borderColor = '#d1d5db'; btn.textContent = '跑打';
-        }
-    }
-
     function resetTacticalFlags() {
-        ['isPinchHitter','isBuntPitch','isRunAndHitPitch'].forEach(id => {
-            const el = document.getElementById(id); if (el) el.checked = false;
-        });
+        const cb = document.getElementById('isPinchHitter');
+        if (cb) cb.checked = false;
         const ph = document.getElementById('pinchHitterBtn');
         if (ph) { ph.style.background='#fff3cd'; ph.style.color='var(--ct-blue-dark)'; ph.style.borderColor='var(--ct-gold)'; ph.textContent='代打上場'; }
-        const bb = document.getElementById('buntBtn');
-        if (bb) { bb.style.background='#f9fafb'; bb.style.borderColor='#d1d5db'; bb.textContent='短打'; }
-        const rb = document.getElementById('runAndHitBtn');
-        if (rb) { rb.style.background='#f9fafb'; rb.style.borderColor='#d1d5db'; rb.textContent='跑打'; }
     }
 
     // ====== PITCH RECORDING ======
@@ -4626,8 +4599,9 @@
         currentPitch.batterOrder = batterOrder || null;
         currentPitch.pinchHit = isPinch;
         currentPitch.isPinch = isPinch;
-        currentPitch.isBunt = document.getElementById('isBuntPitch')?.checked || false;
-        currentPitch.isRunAndHit = document.getElementById('isRunAndHitPitch')?.checked || false;
+        // 從打擊結果 outcomes 自動對應戰術旗標（不需額外 UI 按鈕）
+        currentPitch.isBunt = currentPitch.outcomes.includes('犧牲觸擊') || currentPitch.outcomes.includes('收打');
+        currentPitch.isRunAndHit = currentPitch.outcomes.includes('跑打') || currentPitch.outcomes.includes('打帶跑');
 
         // 回寫打者資訊到打序表，讓下次同棒次自動帶入
         const _battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
