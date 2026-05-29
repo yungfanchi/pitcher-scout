@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v405';
+﻿    const APP_VERSION = 'v406';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4290,6 +4290,40 @@
         }
     }
 
+    function toggleBunt() {
+        const cb = document.getElementById('isBuntPitch');
+        const btn = document.getElementById('buntBtn');
+        cb.checked = !cb.checked;
+        if (cb.checked) {
+            btn.style.background = '#d1fae5'; btn.style.borderColor = '#10b981'; btn.textContent = '✅ 短打';
+        } else {
+            btn.style.background = '#f9fafb'; btn.style.borderColor = '#d1d5db'; btn.textContent = '短打';
+        }
+    }
+
+    function toggleRunAndHit() {
+        const cb = document.getElementById('isRunAndHitPitch');
+        const btn = document.getElementById('runAndHitBtn');
+        cb.checked = !cb.checked;
+        if (cb.checked) {
+            btn.style.background = '#dbeafe'; btn.style.borderColor = '#3b82f6'; btn.textContent = '✅ 跑打';
+        } else {
+            btn.style.background = '#f9fafb'; btn.style.borderColor = '#d1d5db'; btn.textContent = '跑打';
+        }
+    }
+
+    function resetTacticalFlags() {
+        ['isPinchHitter','isBuntPitch','isRunAndHitPitch'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.checked = false;
+        });
+        const ph = document.getElementById('pinchHitterBtn');
+        if (ph) { ph.style.background='#fff3cd'; ph.style.color='var(--ct-blue-dark)'; ph.style.borderColor='var(--ct-gold)'; ph.textContent='代打上場'; }
+        const bb = document.getElementById('buntBtn');
+        if (bb) { bb.style.background='#f9fafb'; bb.style.borderColor='#d1d5db'; bb.textContent='短打'; }
+        const rb = document.getElementById('runAndHitBtn');
+        if (rb) { rb.style.background='#f9fafb'; rb.style.borderColor='#d1d5db'; rb.textContent='跑打'; }
+    }
+
     // ====== PITCH RECORDING ======
     function selectBatterHand(btn) {
         document.querySelectorAll('.hand-btn').forEach(b => b.classList.remove('active'));
@@ -4591,6 +4625,9 @@
         currentPitch.batterNumber = batterNumber || null;
         currentPitch.batterOrder = batterOrder || null;
         currentPitch.pinchHit = isPinch;
+        currentPitch.isPinch = isPinch;
+        currentPitch.isBunt = document.getElementById('isBuntPitch')?.checked || false;
+        currentPitch.isRunAndHit = document.getElementById('isRunAndHitPitch')?.checked || false;
 
         // 回寫打者資訊到打序表，讓下次同棒次自動帶入
         const _battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
@@ -4716,6 +4753,7 @@
         // 打席結束 → 推進打者、更新連動
         const hasEndingOutcome = currentPitch.outcomes.some(o => PA_ENDING.includes(o));
         if (hasEndingOutcome) {
+            resetTacticalFlags(); // 打席結束→清除短打/跑打/代打旗標，避免帶入下一棒
             // 推進「投球前」那半局的打擊隊棒次（換局時 gameState.half 已翻面，要用 _prePitchHalf）
             const battingTeam = _prePitchHalf === '上' ? 'teamA' : 'teamB';
             gameState.currentBatterIndex[battingTeam] =
@@ -12376,6 +12414,13 @@
         const outcomeEl = document.querySelectorAll('.atbat-outcome-btn.selected')[0];
         const outcome = outcomeEl ? outcomeEl.dataset.outcome : '';
         if (!outcome) { alert('請選擇打席結果'); return; }
+        // 從當前比賽情境推算對手隊名
+        const _abBatter = allData.batterData[_editingAtBatBatterIdx];
+        const _abGame = currentTeam !== null ? allData.teams[currentTeam] : null;
+        let _abOpponent = '';
+        if (_abGame) {
+            _abOpponent = _abBatter?.team === _abGame.name ? (_abGame.opponent || '') : (_abGame.name || '');
+        }
         const atBat = {
             inning: parseInt(document.getElementById('atBatInning').value)||1,
             half: document.getElementById('atBatHalf').value,
@@ -12386,6 +12431,7 @@
             isRunAndHit: document.getElementById('atBatIsRunAndHit').checked,
             isPinch: document.getElementById('atBatIsPinch').checked,
             outcome, hitLocation: _atBatHitLocation,
+            opponent: _abOpponent,
             note: (document.getElementById('atBatNote').value||'').trim()||null,
             timestamp: new Date().toISOString()
         };
