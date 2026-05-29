@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v393';
+﻿    const APP_VERSION = 'v394';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2946,10 +2946,10 @@
         const registry = allData.playerRegistry;
         const q = _rosterSearchTerm.toLowerCase().trim();
 
-        // 依模式過濾：投手模式顯示「投」、打者模式顯示「打」、兩刀流或無慣用手兩邊都顯示
+        // 依模式過濾：投手模式顯示「投」、打者模式顯示「打」、二刀流或無慣用手兩邊都顯示
         const _handFilter = p => {
             const h = p.hand || '';
-            if (!h || h === '兩刀流') return true; // 無手別或明確標記兩刀流 → 兩邊都顯示
+            if (!h || h === '二刀流') return true; // 無手別或明確標記二刀流 → 兩邊都顯示
             const hasPitch = h.includes('投');
             const hasBat   = h.includes('打');
             if (hasPitch && hasBat) return true;   // 手別同時含投打字元 → 兩邊都顯示
@@ -3064,7 +3064,7 @@
                     <div>
                         <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px;">慣用手</label>
                         <div id="_apHandRow" style="display:flex;gap:5px;flex-wrap:wrap;">
-                            ${['右打','左打','兩打','右投','左投','兩投','兩刀流'].map(h =>
+                            ${['右打','左打','兩打','右投','左投','兩投','二刀流'].map(h =>
                                 `<button class="_apHBtn" data-h="${h}"
                                     style="flex:1;min-width:48px;padding:7px 4px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid #d1d5db;background:#f9fafb;color:#374151;transition:all 0.15s;">${h}</button>`
                             ).join('')}
@@ -3168,7 +3168,7 @@
                     <div>
                         <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px;">慣用手</label>
                         <div id="_epHandRow" style="display:flex;gap:5px;flex-wrap:wrap;">
-                            ${['右打','左打','兩打','右投','左投','兩投','兩刀流'].map(h =>
+                            ${['右打','左打','兩打','右投','左投','兩投','二刀流'].map(h =>
                                 `<button class="_epHBtn" data-h="${h}"
                                     style="flex:1;min-width:48px;padding:7px 4px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid #d1d5db;background:#f9fafb;color:#374151;transition:all 0.15s;">${h}</button>`
                             ).join('')}
