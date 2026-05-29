@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v408';
+﻿    const APP_VERSION = 'v409';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2689,10 +2689,12 @@
                     toggleIcon.textContent = '▶';
                     headerLeft.appendChild(toggleIcon);
 
-                    // 第X場 label
+                    // 第X場 label（可自訂）
                     const gameNumLabel = document.createElement('span');
-                    gameNumLabel.style.cssText = 'font-size:9px;font-weight:700;color:rgba(255,215,0,0.8);background:rgba(255,215,0,0.12);padding:1px 5px;border-radius:3px;flex-shrink:0;letter-spacing:0.5px;white-space:nowrap;';
-                    gameNumLabel.textContent = `第${gameIndex + 1}場`;
+                    gameNumLabel.style.cssText = 'font-size:9px;font-weight:700;color:rgba(255,215,0,0.8);background:rgba(255,215,0,0.12);padding:1px 5px;border-radius:3px;flex-shrink:0;letter-spacing:0.5px;white-space:nowrap;cursor:pointer;';
+                    gameNumLabel.textContent = team.gameLabel || `第${gameIndex + 1}場`;
+                    gameNumLabel.title = '點擊編輯場次資訊';
+                    gameNumLabel.addEventListener('click', (e) => { e.stopPropagation(); editTeam(teamIndex); });
                     headerLeft.appendChild(gameNumLabel);
 
                     if (isLive) {
@@ -3722,6 +3724,11 @@
                 <h3 style="margin:0 0 4px;font-size:16px;color:var(--ct-blue-dark);font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;">✏️ 編輯場次資訊</h3>
                 <div style="font-size:11px;color:#9ca3af;margin-bottom:14px;">🏟️ 所屬系列賽：<strong style="color:#6b7280;">${escapeHtml(team.gameName||'未分類')}</strong>　（改名請按系列賽右側 ✏️）</div>
                 <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">🏷️ 場次名稱（選填，顯示在側邊欄標籤）</label>
+                        <input id="_etGameLabel" type="text" value="${escapeHtml(team.gameLabel||'')}" placeholder="例：預賽G1、準決賽…（空白則自動顯示第X場）"
+                            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #ffd700;border-radius:8px;font-size:14px;font-family:inherit;background:#fffbeb;">
+                    </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                         <div>
                             <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">先攻隊名</label>
@@ -3750,15 +3757,17 @@
         overlay.querySelector('#_etCancel').addEventListener('click', () => overlay.remove());
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
         overlay.querySelector('#_etSave').addEventListener('click', () => {
-            const newName     = document.getElementById('_etName').value.trim();
-            const newOpponent = document.getElementById('_etOpponent').value.trim();
-            const newDate     = document.getElementById('_etDate').value;
+            const newName      = document.getElementById('_etName').value.trim();
+            const newOpponent  = document.getElementById('_etOpponent').value.trim();
+            const newDate      = document.getElementById('_etDate').value;
+            const newGameLabel = document.getElementById('_etGameLabel').value.trim();
             if (!newName) { alert('先攻隊名不能為空！'); return; }
             const oldName     = allData.teams[teamIndex].name     || '';
             const oldOpponent = allData.teams[teamIndex].opponent || '';
             allData.teams[teamIndex].name      = newName;
             allData.teams[teamIndex].opponent  = newOpponent;
             allData.teams[teamIndex].date      = newDate;
+            allData.teams[teamIndex].gameLabel = newGameLabel || '';
             // 若先攻/後攻隊名有改變，同步更新該場次所有球路的 batterTeam
             if (oldName !== newName || oldOpponent !== newOpponent) {
                 (allData.teams[teamIndex].pitchers || []).forEach(p => {
@@ -3776,7 +3785,7 @@
         });
 
         // 自動聚焦第一個欄位
-        setTimeout(() => document.getElementById('_etGameName').focus(), 50);
+        setTimeout(() => { const el = document.getElementById('_etGameLabel'); if (el) el.focus(); }, 50);
     }
 
     // ====== PITCHER MANAGEMENT ======
