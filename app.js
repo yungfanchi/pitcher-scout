@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v404';
+﻿    const APP_VERSION = 'v405';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1864,10 +1864,10 @@
         if (msp) msp.style.display = 'none';
         const ao = document.getElementById('authOverlay');
         if (ao) ao.style.display = 'none';
-        // 每次登入完整重置：名冊從 Firebase 各帳號自己的節點載入，不可跨帳號保留
+        // 重置後載入本帳號的本機快取（帳號標記不符時 loadFromLocalStorage 會跳過資料段）
+        // 不清除 localStorage：各帳號資料由 _teamCode 標記隔離，Firebase 為最終依據
         allData = { teams: [], pitcherDB: {}, playerRegistry: [] };
-        try { localStorage.removeItem('chineseTaipeiPitcherData'); } catch(e) {}
-        try { localStorage.removeItem('pitcherScoutSlotState'); } catch(e) {}
+        loadFromLocalStorage();
         // 管理員：顯示後台面板；買家：確保隱藏
         const adminPanel = document.getElementById('adminPanel');
         const createBtn = document.getElementById('createTeamBtn');
@@ -8243,7 +8243,9 @@
 
     function saveToLocalStorage() {
         try {
-            localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(allData));
+            const payload = JSON.parse(JSON.stringify(allData));
+            payload._teamCode = currentTeamCode || '';
+            localStorage.setItem('chineseTaipeiPitcherData', JSON.stringify(payload));
         } catch(e) {
             const w = document.getElementById('lsWarning');
             if (w) { w.style.display = 'block'; w.textContent = '⚠️ 自動儲存失敗，請手動備份數據'; }
@@ -8254,12 +8256,19 @@
         const saved = localStorage.getItem('chineseTaipeiPitcherData');
         if (saved) {
             try {
-                allData = JSON.parse(saved);
-                if (!allData.pitcherDB) allData.pitcherDB = {};
-                if (!allData.batterData) allData.batterData = [];
-                if (!allData.playerRegistry) allData.playerRegistry = [];
-                if (Object.keys(allData.pitcherDB).length === 0 && allData.teams.some(t => t.pitchers.some(p => p.pitches.length > 0))) {
-                    rebuildPitcherDB();
+                const parsed = JSON.parse(saved);
+                // 帳號隔離：已登入時只載入同帳號的快取；帳號不符（含舊格式無標記）一律跳過
+                if (currentTeamCode && parsed._teamCode !== currentTeamCode) {
+                    // 不載入資料，但繼續讀設定值
+                } else {
+                    allData = parsed;
+                    delete allData._teamCode;
+                    if (!allData.pitcherDB) allData.pitcherDB = {};
+                    if (!allData.batterData) allData.batterData = [];
+                    if (!allData.playerRegistry) allData.playerRegistry = [];
+                    if (Object.keys(allData.pitcherDB).length === 0 && allData.teams.some(t => t.pitchers.some(p => p.pitches.length > 0))) {
+                        rebuildPitcherDB();
+                    }
                 }
             } catch(e) {}
         }

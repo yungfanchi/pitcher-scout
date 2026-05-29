@@ -1,6 +1,6 @@
 // 投手情蒐系統 - Service Worker
 // 更新版本號可強制所有裝置重新快取
-const CACHE_NAME = 'pitcher-scout-v404';
+const CACHE_NAME = 'pitcher-scout-v405';
 
 // 需要離線快取的資源
 const ASSETS_TO_CACHE = [
