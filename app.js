@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v388';
+﻿    const APP_VERSION = 'v389';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3981,9 +3981,18 @@
             });
         });
 
-        const fmt = set => set.size === 0 ? '─' : [...set].sort((a, b) => a - b).join(' ');
-        awayEl.textContent = fmt(seenAway);
-        homeEl.textContent = fmt(seenHome);
+        const renderList = (set, el) => {
+            el.innerHTML = '';
+            for (let i = 1; i <= 9; i++) {
+                const on = set.has(i);
+                const d = document.createElement('div');
+                d.style.cssText = `width:100%;padding:2px 0;border-radius:4px;text-align:center;font-size:12px;font-weight:${on?'900':'400'};background:${on?'#d1fae5':'#f3f4f6'};color:${on?'#065f46':'#9ca3af'};`;
+                d.textContent = i;
+                el.appendChild(d);
+            }
+        };
+        renderList(seenAway, awayEl);
+        renderList(seenHome, homeEl);
 
         // 偵測棒次跳空（代表可能漏記）
         const checkGaps = (set, label) => {
