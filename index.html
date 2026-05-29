@@ -716,6 +716,18 @@
                                 <button id="lineupBtnHome" onclick="openLineupModal('teamB')" style="padding:10px 18px;background:var(--ct-red);color:white;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap;letter-spacing:0.5px;">📋 後攻</button>
                             </div>
                         </div>
+                        <!-- 打者追蹤面板（打序下方） -->
+                        <div id="batterTrackerPanel" style="background:#fffbeb;border:1px solid #f97316;border-radius:6px;padding:5px 8px;">
+                            <div style="display:flex;gap:6px;font-size:11px;line-height:1.6;">
+                                <div style="flex:1;">
+                                    <span style="font-weight:700;color:#1565c0;">先攻</span> 棒次：<span id="trackerAway" style="font-weight:900;color:#1565c0;letter-spacing:1px;">─</span>
+                                </div>
+                                <div style="flex:1;">
+                                    <span style="font-weight:700;color:#dc0000;">後攻</span> 棒次：<span id="trackerHome" style="font-weight:900;color:#dc0000;letter-spacing:1px;">─</span>
+                                </div>
+                            </div>
+                            <div id="batterTrackerWarning" style="display:none;font-size:10px;font-weight:700;color:#92400e;margin-top:2px;"></div>
+                        </div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">棒次</span>
                             <button class="order-adj-btn" onclick="adjustBatterOrder(-1)">◀</button>
@@ -740,27 +752,6 @@
                         </button>
                         <input type="checkbox" id="isPinchHitter" style="display:none;">
                     </div>
-                </div>
-            </div>
-
-            <!-- 打者追蹤面板 -->
-            <div class="container" id="batterTrackerPanel" style="padding:8px 12px;background:#fffbeb;border:1.5px solid #f97316;border-radius:8px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="document.getElementById('batterTrackerBody').style.display=document.getElementById('batterTrackerBody').style.display==='none'?'block':'none'">
-                    <span style="font-size:12px;font-weight:700;color:#92400e;">📊 本場打者追蹤</span>
-                    <span style="font-size:11px;color:#92400e;">點擊展開/收折</span>
-                </div>
-                <div id="batterTrackerBody" style="margin-top:6px;display:block;">
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;">
-                        <div style="flex:1;min-width:120px;">
-                            <span style="font-weight:700;color:#1565c0;">先攻</span> 已出現棒次：<br>
-                            <span id="trackerAway" style="font-weight:900;color:#1565c0;font-size:14px;letter-spacing:2px;">─</span>
-                        </div>
-                        <div style="flex:1;min-width:120px;">
-                            <span style="font-weight:700;color:#dc0000;">後攻</span> 已出現棒次：<br>
-                            <span id="trackerHome" style="font-weight:900;color:#dc0000;font-size:14px;letter-spacing:2px;">─</span>
-                        </div>
-                    </div>
-                    <div id="batterTrackerWarning" style="display:none;margin-top:4px;padding:4px 6px;background:#fef3c7;border-radius:4px;font-size:11px;font-weight:700;color:#92400e;"></div>
                 </div>
             </div>
 
