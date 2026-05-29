@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v391';
+﻿    const APP_VERSION = 'v392';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3838,9 +3838,6 @@
                     onblur="saveLineupCell(this)" onkeydown="if(event.key==='Enter')this.blur()">`;
             container.appendChild(row);
         }
-
-        // 投手陣容
-        _renderPitcherRosterRows(team, targetSide);
 
         const modal = document.getElementById('lineupModal');
         modal.style.display = 'flex';
@@ -12624,8 +12621,8 @@
             allData.bm.lineupA = allData.bm.lineup.map(b => ({...b, trait: b.trait||''}));
             delete allData.bm.lineup;
         }
-        if (!allData.bm.lineupA) allData.bm.lineupA = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''}));
-        if (!allData.bm.lineupB) allData.bm.lineupB = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',trait:''}));
+        if (!allData.bm.lineupA) allData.bm.lineupA = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',position:'',trait:''}));
+        if (!allData.bm.lineupB) allData.bm.lineupB = Array.from({length:9}, () => ({number:'',name:'',hand:'右打',position:'',trait:''}));
         // 補 trait 欄位（舊資料相容）
         allData.bm.lineupA.forEach(b => { if (!('trait' in b)) b.trait = ''; });
         allData.bm.lineupB.forEach(b => { if (!('trait' in b)) b.trait = ''; });
@@ -12659,13 +12656,20 @@
         const container = document.getElementById('bmLineupRows' + team);
         if (!container) return;
         const lineup = _getLineup(team);
-        container.innerHTML = lineup.map((b,i) => `
+        const POSITIONS = ['','投','捕','一','二','三','遊','左','中','右','指'];
+        container.innerHTML = lineup.map((b,i) => {
+            const posOpts = POSITIONS.map(v => `<option value="${v}"${(b.position||'')===v?'selected':''}>${v||'─'}</option>`).join('');
+            return `
             <div class="bm-lineup-row">
                 <span class="bm-lineup-order">${i+1}</span>
                 <input type="text" inputmode="numeric" class="bm-lineup-num" placeholder="#"
                     value="${b.number||''}"
                     onblur="saveBmLineupCell('${team}',${i},'number',this.value)"
                     onkeydown="if(event.key==='Enter')this.blur()">
+                <select class="bm-lineup-pos"
+                    onchange="saveBmLineupCell('${team}',${i},'position',this.value)">
+                    ${posOpts}
+                </select>
                 <button class="bm-lineup-hand${b.hand==='右打'?' bm-on':''}" onclick="toggleBmLineupHand('${team}',${i},this)">
                     ${b.hand==='右打'?'右打':'左打'}
                 </button>
@@ -12673,7 +12677,8 @@
                     value="${b.name||''}" autocomplete="off"
                     onblur="saveBmLineupCell('${team}',${i},'name',this.value)"
                     onkeydown="if(event.key==='Enter')this.blur()">
-            </div>`).join('');
+            </div>`;
+        }).join('');
     }
 
     function _updateBmLineupTitles() {
@@ -12849,9 +12854,10 @@
             const gsKey = team === 'B' ? 'teamB' : 'teamA';
             _getLineup(team).forEach((p, i) => {
                 if (!gameState.lineups[gsKey][i + 1]) gameState.lineups[gsKey][i + 1] = {};
-                gameState.lineups[gsKey][i + 1].number = p.number || '';
-                gameState.lineups[gsKey][i + 1].name   = p.name   || '';
-                gameState.lineups[gsKey][i + 1].hand   = p.hand   || '右打';
+                gameState.lineups[gsKey][i + 1].number   = p.number   || '';
+                gameState.lineups[gsKey][i + 1].name     = p.name     || '';
+                gameState.lineups[gsKey][i + 1].hand     = p.hand     || '右打';
+                gameState.lineups[gsKey][i + 1].position = p.position || '';
             });
         });
     }
@@ -12871,10 +12877,11 @@
             for (let i = 1; i <= 9; i++) {
                 const p = gsLineup[i] || {};
                 _getLineup(team)[i - 1] = {
-                    number: p.number || '',
-                    name:   p.name   || '',
-                    hand:   p.hand   || '右打',
-                    trait:  _getLineup(team)[i-1]?.trait || ''
+                    number:   p.number   || '',
+                    name:     p.name     || '',
+                    hand:     p.hand     || '右打',
+                    position: p.position || '',
+                    trait:    _getLineup(team)[i-1]?.trait || ''
                 };
             }
             synced = true;

@@ -1034,11 +1034,24 @@
 }
 .bm-lineup-row {
     display: grid;
-    grid-template-columns: 28px 2fr 3fr 4fr;
+    grid-template-columns: 28px 2fr 2fr 3fr 4fr;
     align-items: center;
     gap: 4px;
     padding: 5px 0;
     border-bottom: 1px solid #f3f4f6;
+}
+.bm-lineup-pos {
+    padding: 5px 2px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    cursor: pointer;
+    background: white;
+    min-width: 0;
 }
 .bm-lineup-order {
     width: 26px;
@@ -1180,6 +1193,7 @@
 .bm-lineup-module .bm-lineup-row { padding:2px 6px; gap:3px; }
 .bm-lineup-module .bm-lineup-order { width:20px; height:20px; font-size:11px; }
 .bm-lineup-module .bm-lineup-num { font-size:10px; padding:3px 3px; }
+.bm-lineup-module .bm-lineup-pos { font-size:10px; padding:3px 2px; }
 .bm-lineup-module .bm-lineup-name { font-size:11px; padding:3px 4px; }
 .bm-lineup-module .bm-lineup-hand { font-size:18px; padding:5px 4px; }
 /* 落點圖＋打席結果 55/45 格線 */
@@ -1299,6 +1313,13 @@
     color: white;
 }
 #bmSidebarContent .bm-lineup-num::placeholder { color: rgba(255,255,255,0.35); }
+#bmSidebarContent .bm-lineup-pos {
+    padding: 4px 2px;
+    font-size: 13px;
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    color: white;
+}
 #bmSidebarContent .bm-lineup-name {
     padding: 4px 5px;
     font-size: 15px;
