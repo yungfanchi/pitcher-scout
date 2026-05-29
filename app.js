@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v403';
+﻿    const APP_VERSION = 'v404';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4656,6 +4656,22 @@
         // For legacy compatibility, set outcome as primary outcome
         currentPitch.outcome = currentPitch.outcomes.length > 0 ? currentPitch.outcomes[0] : null;
 
+        // 第一球前儲存進場狀態快照，供復原時從正確起點重算（中繼投手不再從第1局0比0開始）
+        if (!pitcher.entryState && pitcher.pitches.length === 0) {
+            const _es = getTeamScore();
+            pitcher.entryState = {
+                inning:  gameState.inning,
+                half:    gameState.half,
+                outs:    gameState.outs,
+                balls:   gameState.balls,
+                strikes: gameState.strikes,
+                bases:   [...gameState.bases],
+                runners: gameState.runners.map(r => r ? { ...r } : null),
+                currentBatterIndex: { ...gameState.currentBatterIndex },
+                scoreHome: _es.home || 0,
+                scoreAway: _es.away || 0
+            };
+        }
         allData.teams[currentTeam].pitchers[currentPitcher].pitches.push({...currentPitch});
 
         // 接近 localStorage 容量時提醒備份（10MB 上限，超過 7MB 時警告）
@@ -5089,31 +5105,32 @@
 
     // ====== 從所有投球紀錄重新計算 gameState（用於刪除/編輯後回溯）======
     function recomputeGameState() {
-        const score = getTeamScore();
-        // 比賽已結束時，保留人工確認的最終比分，僅重算局數/壘包/棒次
-        const _gameEnded  = !!score.gameEnded;
-        const _savedHome  = score.home;
-        const _savedAway  = score.away;
-
-        // Reset all live state except inning (keep inning from score)
-        gameState.strikes = 0;
-        gameState.balls = 0;
-        gameState.outs = 0;
-        gameState.bases   = [false, false, false];
-        gameState.runners = [null, null, null];
-        gameState.half = score.half || '上';
-        gameState.inning = score.inning || 1;
-        // Also reset score runs to 0 then recount
-        score.home = 0;
-        score.away = 0;
-        score.inning = 1;
-        score.half = '上';
-        gameState.inning = 1;
-        gameState.half = '上';
-        gameState.currentBatterIndex = { teamA: 0, teamB: 0 };
-
         if (currentTeam === null || currentPitcher === null) return;
-        const pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
+
+        const score   = getTeamScore();
+        const pitcher = allData.teams[currentTeam].pitchers[currentPitcher];
+        const entry   = pitcher.entryState; // 進場快照（中繼無快照則 undefined，退回第1局）
+
+        // 比賽已結束時，保留人工確認的最終比分，僅重算局數/壘包/棒次
+        const _gameEnded = !!score.gameEnded;
+        const _savedHome = score.home;
+        const _savedAway = score.away;
+
+        // 從進場快照起算；無快照（先發或舊資料）退回第 1 局 0 比 0
+        gameState.strikes = entry ? (entry.strikes ?? 0) : 0;
+        gameState.balls   = entry ? (entry.balls   ?? 0) : 0;
+        gameState.outs    = entry ? (entry.outs    ?? 0) : 0;
+        gameState.bases   = entry ? [...entry.bases] : [false, false, false];
+        gameState.runners = entry ? (entry.runners || [null, null, null]).map(r => r ? { ...r } : null) : [null, null, null];
+        gameState.half    = entry ? entry.half   : '上';
+        gameState.inning  = entry ? entry.inning : 1;
+        gameState.currentBatterIndex = entry ? { ...entry.currentBatterIndex } : { teamA: 0, teamB: 0 };
+        score.home   = entry ? (entry.scoreHome ?? 0) : 0;
+        score.away   = entry ? (entry.scoreAway ?? 0) : 0;
+        score.inning = entry ? entry.inning : 1;
+        score.half   = entry ? entry.half   : '上';
+
+        const pitches = pitcher.pitches;
         _skipHalfSwitchDialog = true;
         pitches.forEach(p => {
             const prePitchHalf = gameState.half;
