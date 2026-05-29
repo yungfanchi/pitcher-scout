@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v384';
+﻿    const APP_VERSION = 'v385';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11047,10 +11047,16 @@
         // ── 1. 頂部 header ──
         const TACTICS_SET = new Set(['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗']);
         const tacticsSeen = [...new Set(pitches.flatMap(p => (p.outcomes||[]).filter(o => TACTICS_SET.has(o))))];
-        const tacticsHtml = tacticsSeen.length === 0 ? '' :
-            `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">${
-                tacticsSeen.map(t => `<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.4);letter-spacing:0.02em;">${t}</span>`).join('')
-            }</div>`;
+        // 戰術標籤：放大、置於名字右側
+        const tacticsInline = tacticsSeen.length === 0 ? '' :
+            tacticsSeen.map(t => `<span style="padding:4px 13px;border-radius:12px;font-size:15px;font-weight:700;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.55);letter-spacing:0.03em;">${t}</span>`).join('');
+
+        // 棒次：從所有球路取最常出現的棒次
+        const _orderNums = pitches.map(p => parseInt(p.batterOrder)).filter(n => n >= 1 && n <= 9);
+        const _orderNum = _orderNums.length > 0
+            ? [..._orderNums.reduce((m,n) => m.set(n,(m.get(n)||0)+1), new Map())].sort((a,b)=>b[1]-a[1])[0][0]
+            : null;
+        const orderPrefix = _orderNum ? `${_orderNum}棒・` : '';
 
         const avgColor = stats.avgNum >= 0.300 ? '#4ade80' : stats.avgNum >= 0.200 ? '#fbbf24' : '#f87171';
         const opsColor = stats.ops_n  >= 0.800 ? '#4ade80' : stats.ops_n  >= 0.600 ? '#fbbf24' : '#f87171';
@@ -11067,11 +11073,13 @@
         const sec0 = `
         <div style="background:linear-gradient(135deg,#003d79,#0051a5);padding:18px;border-radius:12px;color:white;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-            <div>
-              <div style="font-size:11px;opacity:0.65;letter-spacing:0.05em;margin-bottom:4px;">${entry.teamName}</div>
-              <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;">${entry.name}${numPart}</div>
-              <div style="font-size:13px;opacity:0.75;margin-top:3px;">${entry.hand||''} · ${entry.games.size} 場出賽</div>
-              ${tacticsHtml}
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:15px;font-weight:700;letter-spacing:0.05em;margin-bottom:6px;opacity:0.9;">${entry.teamName}</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <div style="font-size:26px;font-weight:900;font-family:'Oswald',sans-serif;white-space:nowrap;">${orderPrefix}${entry.name}${numPart}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:5px;">${tacticsInline}</div>
+              </div>
+              <div style="font-size:13px;opacity:0.75;margin-top:5px;">${entry.hand||''} · ${entry.games.size} 場出賽</div>
             </div>
             <span style="display:inline-block;padding:5px 12px;border-radius:14px;font-size:13px;font-weight:800;background:${tCfg.bg};color:${tCfg.color};border:2px solid ${tCfg.border};">${tCfg.label}</span>
           </div>
