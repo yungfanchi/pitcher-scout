@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v392';
+﻿    const APP_VERSION = 'v393';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2905,8 +2905,8 @@
         if (!allData.playerRegistry) allData.playerRegistry = [];
         const registry = allData.playerRegistry;
 
-        // 標題 + 搜尋欄只建一次，避免每次打字 innerHTML 全部重建導致 focus 遺失
-        if (!document.getElementById('_rosterSearchInput')) {
+        // 標題 + 搜尋欄只建一次（per 容器），避免每次打字全部重建導致 focus 遺失
+        if (!container.querySelector('#_rosterSearchInput')) {
             container.innerHTML = `
                 <div class="container">
                     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
@@ -2931,9 +2931,9 @@
                 <div id="_rosterListBody"></div>`;
         }
 
-        // 更新人數統計
-        const countEl = document.getElementById('_rosterCount');
-        if (countEl) countEl.textContent = `共 ${registry.length} 位球員　·　點「🔄 自動掃描」從現有比賽記錄中匯入未登錄球員`;
+        // 更新人數統計（用 container.querySelector 確保找到正確容器內的元素）
+        const countEl = container.querySelector('#_rosterCount');
+        if (countEl) countEl.textContent = `點「🔄 自動掃描」從現有比賽記錄中匯入未登錄球員`;
 
         // 每次只重建球員列表區塊
         _renderRosterList();
@@ -2946,11 +2946,23 @@
         const registry = allData.playerRegistry;
         const q = _rosterSearchTerm.toLowerCase().trim();
 
-        const filtered = q ? registry.filter(p =>
-            (p.name||'').toLowerCase().includes(q) ||
-            (p.team||'').toLowerCase().includes(q) ||
-            (p.numbers||[]).some(n => n.includes(q))
-        ) : registry;
+        // 依模式過濾：投手模式顯示「投」、打者模式顯示「打」、兩刀流或無慣用手兩邊都顯示
+        const _handFilter = p => {
+            const h = p.hand || '';
+            if (!h || h === '兩刀流') return true; // 無手別或明確標記兩刀流 → 兩邊都顯示
+            const hasPitch = h.includes('投');
+            const hasBat   = h.includes('打');
+            if (hasPitch && hasBat) return true;   // 手別同時含投打字元 → 兩邊都顯示
+            return userMode === 'batter' ? hasBat : hasPitch;
+        };
+
+        const filtered = registry.filter(p => {
+            if (!_handFilter(p)) return false;
+            if (!q) return true;
+            return (p.name||'').toLowerCase().includes(q) ||
+                   (p.team||'').toLowerCase().includes(q) ||
+                   (p.numbers||[]).some(n => n.includes(q));
+        });
 
         // Group by team, sort each group by first number
         const byTeam = {};
@@ -3052,7 +3064,7 @@
                     <div>
                         <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px;">慣用手</label>
                         <div id="_apHandRow" style="display:flex;gap:5px;flex-wrap:wrap;">
-                            ${['右打','左打','兩打','右投','左投','兩投'].map(h =>
+                            ${['右打','左打','兩打','右投','左投','兩投','兩刀流'].map(h =>
                                 `<button class="_apHBtn" data-h="${h}"
                                     style="flex:1;min-width:48px;padding:7px 4px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid #d1d5db;background:#f9fafb;color:#374151;transition:all 0.15s;">${h}</button>`
                             ).join('')}
@@ -3156,7 +3168,7 @@
                     <div>
                         <label style="font-size:12px;font-weight:700;color:#6b7280;display:block;margin-bottom:6px;">慣用手</label>
                         <div id="_epHandRow" style="display:flex;gap:5px;flex-wrap:wrap;">
-                            ${['右打','左打','兩打','右投','左投','兩投'].map(h =>
+                            ${['右打','左打','兩打','右投','左投','兩投','兩刀流'].map(h =>
                                 `<button class="_epHBtn" data-h="${h}"
                                     style="flex:1;min-width:48px;padding:7px 4px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid #d1d5db;background:#f9fafb;color:#374151;transition:all 0.15s;">${h}</button>`
                             ).join('')}
