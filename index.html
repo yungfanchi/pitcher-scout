@@ -695,6 +695,16 @@
                             </div>
                         </div>
                         <div class="score-meta" id="scoreMeta">選擇投手後記錄即時比分</div>
+                        <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:8px;">
+                            <button id="endGameBtn" onclick="endGame()"
+                                style="padding:8px 20px;background:#dc0000;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px;touch-action:manipulation;">
+                                🏁 結束比賽
+                            </button>
+                            <button id="unlockGameBtn" onclick="unlockGame()"
+                                style="display:none;padding:6px 12px;background:#374151;color:#d1d5db;border:1px solid #6b7280;border-radius:6px;font-size:12px;cursor:pointer;touch-action:manipulation;">
+                                🔓 解除鎖定
+                            </button>
+                        </div>
                     </div>
 
                     <!-- 打者資訊 直列式 -->

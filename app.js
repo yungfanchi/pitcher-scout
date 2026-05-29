@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v381';
+﻿    const APP_VERSION = 'v382';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5349,6 +5349,7 @@
             document.getElementById('scoreHomeLabel').textContent = '先攻';
             document.getElementById('scoreAwayLabel').textContent = '後攻';
             document.getElementById('scoreMeta').textContent = '選擇投手後記錄即時比分';
+            _applyGameEndedUI(false);
             return;
         }
         const team = allData.teams[currentTeam];
@@ -5360,10 +5361,63 @@
         document.getElementById('scoreHomeLabel').textContent = team.name || '先攻';
         document.getElementById('scoreAwayLabel').textContent = team.opponent ? team.opponent.split(' ')[0] : '後攻';
         const diff = score.home - score.away;
-        document.getElementById('scoreMeta').textContent =
-            `${score.inning}局${score.half}半 ｜ ${diff>0?'領先 '+diff:diff<0?'落後 '+(-diff):'平手'}`;
+        if (score.gameEnded) {
+            document.getElementById('scoreMeta').textContent =
+                `最終比分 ｜ ${diff>0?'領先 '+diff:diff<0?'落後 '+(-diff):'平手'}`;
+            _applyGameEndedUI(true);
+        } else {
+            document.getElementById('scoreMeta').textContent =
+                `${score.inning}局${score.half}半 ｜ ${diff>0?'領先 '+diff:diff<0?'落後 '+(-diff):'平手'}`;
+            _applyGameEndedUI(false);
+        }
         saveLiveState();
     }
+
+    function _applyGameEndedUI(ended) {
+        const lockBtns = [
+            ...document.querySelectorAll('.score-btn'),
+            ...document.querySelectorAll('.inning-control button'),
+            document.querySelector('.half-btn'),
+        ].filter(Boolean);
+        lockBtns.forEach(btn => {
+            btn.disabled = ended;
+            btn.style.opacity = ended ? '0.35' : '';
+            btn.style.cursor  = ended ? 'not-allowed' : '';
+        });
+        const scoreboardEl = document.querySelector('.scoreboard');
+        if (scoreboardEl) scoreboardEl.style.borderColor = ended ? '#6b7280' : '';
+
+        const endBtn    = document.getElementById('endGameBtn');
+        const unlockBtn = document.getElementById('unlockGameBtn');
+        if (endBtn)    endBtn.style.display    = ended ? 'none'         : 'inline-block';
+        if (unlockBtn) unlockBtn.style.display = ended ? 'inline-block' : 'none';
+    }
+
+    function endGame() {
+        if (currentTeam === null) { alert('請先選擇投手！'); return; }
+        const score = getTeamScore();
+        const team  = allData.teams[currentTeam];
+        const diff  = score.home - score.away;
+        const resultText = diff > 0 ? `${team.name} 勝` : diff < 0 ? `${team.opponent || '後攻'} 勝` : '平手';
+        if (!confirm(`確定結束比賽？\n最終比分：${team.name} ${score.home} : ${score.away} ${team.opponent||'後攻'}\n${resultText}`)) return;
+        score.gameEnded = true;
+        updateScoreboard();
+        saveToLocalStorage();
+        saveToFirebase(currentTeam);
+    }
+
+    function unlockGame() {
+        if (currentTeam === null) return;
+        if (!confirm('解除鎖定後可繼續修改比分，確定嗎？')) return;
+        const score = getTeamScore();
+        score.gameEnded = false;
+        updateScoreboard();
+        saveToLocalStorage();
+        saveToFirebase(currentTeam);
+    }
+
+    window.endGame    = endGame;
+    window.unlockGame = unlockGame;
 
     function adjustScore(side, delta) {
         if (currentTeam === null) { alert('請先選擇投手！'); return; }
