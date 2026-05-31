@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v437';
+﻿    const APP_VERSION = 'v438';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15065,7 +15065,18 @@
                       </div>
                       <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">點選落點位置：</div>
                       <div id="dhlSvgWrap"></div>
-                      <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;">尚未選取區域</div>
+                      <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;min-height:20px;">尚未選取區域</div>
+                      <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button id="dhlSaveBtn" onclick="_saveDirectHitLoc('${String(number)}')" disabled
+                          style="flex:1;padding:12px;border-radius:9px;border:none;background:#003d79;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;opacity:0.4;transition:opacity 0.2s;">
+                          ✅ 儲存此落點
+                        </button>
+                        <button onclick="_clearDirectHitLocSelection()"
+                          style="padding:12px 16px;border-radius:9px;border:1.5px solid #d1d5db;background:#fff;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">
+                          ✕ 重選
+                        </button>
+                      </div>
+                      <div id="dhlLog" style="margin-top:10px;font-size:12px;color:#6b7280;"></div>
                     </div>`;
                     // 放球場 SVG（setTimeout 確保 innerHTML 已渲染）
                     setTimeout(() => {
@@ -15078,7 +15089,7 @@
                             svg.querySelectorAll('[data-zone]').forEach(el => {
                                 el.style.cursor = 'pointer';
                                 el.onclick = function() {
-                                    _saveDirectHitLoc(String(number), this.dataset.zone);
+                                    _selectDirectHitLocZone(this.dataset.zone, svg);
                                 };
                             });
                         }
@@ -15226,23 +15237,47 @@
     }
 
     // ── 直接補錄落點（不依附 atBat，存入 bm.hitLocations）──
-    function _saveDirectHitLoc(number, zone) {
+    let _dhlPendingZone = null; // 暫存選取的區域，等按儲存才真正寫入
+
+    function _selectDirectHitLocZone(zone, svg) {
+        _dhlPendingZone = zone;
+        // 高亮選取的區域
+        if (svg) _zoneHighlight(svg.querySelector(`[data-zone="${zone}"]`), svg);
+        const lbl = document.getElementById('dhlSelected');
+        if (lbl) { lbl.textContent = `已選：${zone}　← 確認後按「儲存此落點」`; lbl.style.color = '#b45309'; lbl.style.fontWeight = '700'; }
+        // 啟用儲存按鈕
+        const btn = document.getElementById('dhlSaveBtn');
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    }
+    window._selectDirectHitLocZone = _selectDirectHitLocZone;
+
+    function _clearDirectHitLocSelection() {
+        _dhlPendingZone = null;
+        const lbl = document.getElementById('dhlSelected');
+        if (lbl) { lbl.textContent = '尚未選取區域'; lbl.style.color = '#6b7280'; lbl.style.fontWeight = '400'; }
+        const btn = document.getElementById('dhlSaveBtn');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+        const svg = document.getElementById('dhlSvgWrap')?.querySelector('svg');
+        if (svg) _zoneHighlight(null, svg);
+    }
+    window._clearDirectHitLocSelection = _clearDirectHitLocSelection;
+
+    function _saveDirectHitLoc(number) {
+        const zone = _dhlPendingZone;
+        if (!zone) return;
         _initBmData();
         const c = ZONE_SVG_COORDS[zone] || { x:150, y:200 };
-        const team  = document.getElementById('dhlTeam')?.value  || '';
+        const team    = document.getElementById('dhlTeam')?.value    || '';
         const outcome = document.getElementById('dhlOutcome')?.value || '';
-        allData.bm.hitLocations.push({
-            number, team, zone, outcome,
-            x: c.x/300, y: c.y/280,
-            ts: Date.now()
-        });
+        allData.bm.hitLocations.push({ number: String(number), team, zone, outcome, x: c.x/300, y: c.y/280, ts: Date.now() });
         saveToLocalStorage();
         saveBmToFirebase();
-        const lbl = document.getElementById('dhlSelected');
-        if (lbl) lbl.textContent = `✅ 已記錄：${zone}${outcome?' / '+outcome:''}　（可繼續點選下一筆）`;
-        // 高亮顯示選取的區域
-        const svg = document.getElementById('dhlSvgWrap')?.querySelector('svg');
-        if (svg) _zoneHighlight(svg.querySelector(`[data-zone="${zone}"]`), svg);
+        // 顯示記錄清單
+        const log = document.getElementById('dhlLog');
+        const saved = (allData.bm.hitLocations||[]).filter(l => String(l.number) === String(number));
+        if (log) log.innerHTML = saved.map((l,i) => `<div>✅ ${i+1}. ${l.zone}${l.outcome?' / '+l.outcome:''}</div>`).join('');
+        // 重置選取
+        _clearDirectHitLocSelection();
     }
     window._saveDirectHitLoc = _saveDirectHitLoc;
 
