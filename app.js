@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v436';
+﻿    const APP_VERSION = 'v437';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15071,7 +15071,7 @@
                     setTimeout(() => {
                         const wrap = document.getElementById('dhlSvgWrap');
                         if (!wrap) return;
-                        wrap.innerHTML = buildFieldSVG('', false, true, '');
+                        wrap.innerHTML = buildFieldSVG('', true, false, '');
                         const svg = wrap.querySelector('svg');
                         if (svg) {
                             svg.style.cursor = 'crosshair';
