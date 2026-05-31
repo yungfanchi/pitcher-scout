@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v457';
+﻿    const APP_VERSION = 'v458';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15432,32 +15432,52 @@
                                background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
                                cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除落點">🗑️</button>`
                     : '';
-                const modeIcon = isDirect ? '📍' : (a.mode==='linked'?'🔗':'📝');
+                const modeIcon = isDirect ? '📍' : (a.mode==='pitch'?'⚾':(a.mode==='linked'?'🔗':'📝'));
+                const teamEsc  = teamStr.replace(/'/g,"\\'");
+                // 🗑️ 刪除按鈕（有落點時顯示，對所有來源都有效）
+                const delBtn2 = hasloc
+                    ? `<button onclick="deleteHitLoc(${a.ts||'null'},${isDirect},'${numEsc}','${teamEsc}','${a.mode||''}')"
+                        style="margin-left:2px;padding:2px 7px;border-radius:6px;border:1px solid #fecaca;
+                               background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
+                               cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除落點">🗑️</button>`
+                    : '';
                 return `<div class="bm-log-row" style="display:flex;align-items:center;gap:4px;">
                     <span style="color:#6b7280;flex-shrink:0;">${i+1}. ${modeIcon} ${a.pitcherHand||''}</span>
                     <span class="bm-log-outcome ${cls}">${a.outcome||'-'}${zone}${ht}</span>
-                    ${patchBtn}${delBtn}
+                    ${patchBtn}${delBtn2}
                 </div>`;
             }).join('')}</div>`;
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     // ── 刪除落點 ──
-    function deleteHitLoc(ts, isDirect, number) {
+    function deleteHitLoc(ts, isDirect, number, teamStr, mode) {
         if (!confirm('確定刪除這筆落點？')) return;
         _initBmData();
         if (isDirect) {
             // 直接補錄記錄 → 從 bm.hitLocations 移除
             allData.bm.hitLocations = allData.bm.hitLocations.filter(l => l.ts !== ts);
+            saveBmToFirebase();
+        } else if (mode === 'pitch') {
+            // 投球記錄 → 清除對應 pitch 的 hitLocation
+            let found = false;
+            allData.teams.forEach(team => {
+                if (found) return;
+                (team.pitchers || []).forEach(pitcher => {
+                    (pitcher.pitches || []).forEach(pitch => {
+                        if (pitch.timestamp === ts) { delete pitch.hitLocation; found = true; }
+                    });
+                });
+            });
+            if (found) saveToFirebase();
         } else {
-            // 原始 bm.atBats → 只清除 hitLocation 欄位，保留打席其他數據
-            const idx = allData.bm.atBats.findIndex(a => a.ts === ts);
+            // bm.atBats → 只清除 hitLocation，保留打席其他數據
+            const idx = (allData.bm.atBats || []).findIndex(a => a.ts === ts);
             if (idx >= 0) delete allData.bm.atBats[idx].hitLocation;
+            saveBmToFirebase();
         }
         saveToLocalStorage();
-        saveBmToFirebase();
-        // 立即重繪
-        showBmBatterDetail(number);
+        showBmBatterDetail(number, teamStr);
     }
     window.deleteHitLoc = deleteHitLoc;
 
