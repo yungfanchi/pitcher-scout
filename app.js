@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v454';
+﻿    const APP_VERSION = 'v455';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15192,7 +15192,7 @@
                         if (t.name)     _teamSet.add(t.name);
                         if (t.opponent) _teamSet.add(t.opponent);
                     });
-                    const _teamOpts = [..._teamSet].map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+                    const _teamOpts = [..._teamSet].map(t=>`<option value="${escapeHtml(t)}"${t===teamStr?' selected':''}>${escapeHtml(t)}</option>`).join('');
                     detailEl0.innerHTML = `
                     <div id="directHitLocBox" style="margin-top:16px;padding:16px;background:#fff;border:1.5px solid #fde68a;border-radius:12px;">
                       <div style="font-size:14px;font-weight:800;color:#b45309;margin-bottom:10px;">📍 直接補錄 #${number} 落點</div>
@@ -15215,7 +15215,7 @@
                       <div id="dhlSvgWrap"></div>
                       <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;min-height:20px;">尚未選取區域</div>
                       <div style="display:flex;gap:8px;margin-top:12px;">
-                        <button id="dhlSaveBtn" onclick="_saveDirectHitLoc('${String(number)}')" disabled
+                        <button id="dhlSaveBtn" onclick="_saveDirectHitLoc('${String(number).replace(/'/g,"\\'")}','${teamStr.replace(/'/g,"\\'")}' )" disabled
                           style="flex:1;padding:12px;border-radius:9px;border:none;background:#003d79;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;opacity:0.4;transition:opacity 0.2s;">
                           ✅ 儲存此落點
                         </button>
@@ -15433,10 +15433,11 @@
         if (btn) btn.textContent = '▲ 收起';
         const _teamSet = new Set();
         (allData.teams||[]).forEach(t => { if (t.name) _teamSet.add(t.name); if (t.opponent) _teamSet.add(t.opponent); });
-        const _teamOpts = [..._teamSet].map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+        const _tn = String(teamName || '');
+        const _teamOpts = [..._teamSet].map(t=>`<option value="${escapeHtml(t)}"${t===_tn?' selected':''}>${escapeHtml(t)}</option>`).join('');
         box.innerHTML = `
         <div style="padding:14px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;margin-bottom:12px;">
-          <div style="font-size:13px;font-weight:800;color:#b45309;margin-bottom:10px;">📍 新增落點 #${number}</div>
+          <div style="font-size:13px;font-weight:800;color:#b45309;margin-bottom:10px;">📍 新增落點 #${number}${_tn ? ' · ' + escapeHtml(_tn) : ''}</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center;">
             <select id="dhlTeam" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
               <option value="">選球隊（選填）</option>${_teamOpts}
