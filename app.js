@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v423';
+﻿    const APP_VERSION = 'v424';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10814,24 +10814,17 @@
                     // ★ 背號優先做 key（與統計頁一致），避免同打者有無姓名造成分裂
                     const nameKey = (num ? `#${num}` : name) || (pitch.batterOrder ? `棒次${pitch.batterOrder}` : '');
                     if (!nameKey) return;
-                    // ★ 優先從打線查隊名，再 fallback pitch.batterTeam
+                    // ★ 上/下半局推算隊名（與統計頁 _deriveBmAtBatsFromPitches 邏輯一致）
+                    // half 比 batterTeam 更可靠（batterTeam 可能因跨場記錄設錯）
                     const lineupTeam = num ? _lineupNumMap9[num]?.team : '';
-                    // 無背號時用上/下半局推算打擊隊伍（與統計頁 _deriveBmAtBatsFromPitches 一致）
-                    // 舊資料若無 half，補查打線推斷隊名，避免歸到錯誤球隊
                     let inferredTeam = '';
                     if (pitch.half === '上') {
                         inferredTeam = team.name || '';
                     } else if (pitch.half === '下') {
                         inferredTeam = team.opponent || '';
-                    } else if (num) {
-                        // 舊資料無 half：背號查打線（先攻=teamA=team.name，後攻=teamB=team.opponent）
-                        const _lA = _lineupToArray(team.lineups?.teamA);
-                        const _lB = _lineupToArray(team.lineups?.teamB);
-                        if (_lA.some(p => String(p?.number || '') === num)) inferredTeam = team.name || '';
-                        else if (_lB.some(p => String(p?.number || '') === num)) inferredTeam = team.opponent || '';
                     }
-                    // pitch.batterTeam（記錄當下燒入）最可靠；inferredTeam 次之；lineupTeam 最後
-                    const bTeam = pitch.batterTeam || inferredTeam || lineupTeam || '未分類';
+                    // half-based inferredTeam 最可靠（與統計頁一致）；未設 half 才用 batterTeam
+                    const bTeam = inferredTeam || pitch.batterTeam || lineupTeam || '未分類';
                     const mapKey = `${bTeam}||${nameKey}`;
                     if (!batterMap.has(mapKey)) {
                         const lineupName = num ? (_lineupNumMap9[num]?.name || '') : '';
@@ -10853,7 +10846,15 @@
         (allData.bm?.atBats || []).forEach(ab => {
             if (!ab.outcome) return;
             const name = (ab.name || '').trim();
-            const num  = String(ab.number || '').trim();
+            let num  = String(ab.number || '').trim();
+            // ★ 背號補回：若 bm.atBat 無背號但有棒次，從連動賽事打線補（修正打線未存時背號遺失問題）
+            if (!num && ab.order && ab.mode === 'linked' && ab.gameIdx >= 0 && allData.teams[ab.gameIdx]) {
+                const _g = allData.teams[ab.gameIdx];
+                const _side = ab.team === 'A' ? 'teamA' : 'teamB';
+                const _lineup = _lineupToArray(_g.lineups?.[_side]);
+                const _entry = _lineup[parseInt(ab.order) - 1];
+                if (_entry?.number) num = String(_entry.number).trim();
+            }
             // 背號優先做 key（與投手記錄段、統計頁一致），避免同打者分裂
             const nameKey = (num ? `#${num}` : name) || (ab.order ? `${ab.order}棒` : '');
             if (!nameKey) return;
