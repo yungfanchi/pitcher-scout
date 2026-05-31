@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v434';
+﻿    const APP_VERSION = 'v435';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12870,6 +12870,7 @@
         allData.bm.lineupB.forEach(b => { if (!('trait' in b)) b.trait = ''; });
         if (!allData.bm.atBats) allData.bm.atBats = [];
         if (!allData.bm.steals) allData.bm.steals = []; // 獨立盜壘記錄（不依附投手記錄）
+        if (!allData.bm.hitLocations) allData.bm.hitLocations = []; // 直接補錄落點（不影響打席統計）
         if (!('gameIdx' in allData.bm)) allData.bm.gameIdx = -1;
         if (!allData.bm.attackingTeam) allData.bm.attackingTeam = 'A';
         // 獨立模式賽事資訊欄位
@@ -15028,11 +15029,48 @@
                     </div>`;
                 detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
             } else {
-                if (detailEl0) detailEl0.innerHTML = `
-                    <div style="margin-top:16px;padding:16px;background:#fff3cd;border-radius:10px;color:#856404;font-size:14px;">
-                      ⚠️ 找不到 #${number} 的打者模式打席記錄，亦無未標背號的打席可供補錄。
+                // 顯示直接補落點 UI
+                if (detailEl0) {
+                    const _teamList = [...new Set((allData.bm?.atBats||[]).map(a=>a.teamName||'').filter(Boolean))];
+                    const _teamOpts = _teamList.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+                    detailEl0.innerHTML = `
+                    <div id="directHitLocBox" style="margin-top:16px;padding:16px;background:#fff;border:1.5px solid #fde68a;border-radius:12px;">
+                      <div style="font-size:14px;font-weight:800;color:#b45309;margin-bottom:10px;">📍 直接補錄 #${number} 落點</div>
+                      <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">不更動任何現有打席數據，只新增落點記錄</div>
+                      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center;">
+                        <select id="dhlTeam" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
+                          <option value="">選球隊（選填）</option>${_teamOpts}
+                        </select>
+                        <select id="dhlOutcome" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
+                          <option value="">打席結果（選填）</option>
+                          <option value="一壘安打">一壘安打</option><option value="二壘安打">二壘安打</option>
+                          <option value="三壘安打">三壘安打</option><option value="全壘打">全壘打</option>
+                          <option value="內野安打">內野安打</option><option value="滾地球出局">滾地球出局</option>
+                          <option value="飛球出局">飛球出局</option><option value="平飛球出局">平飛球出局</option>
+                          <option value="高飛犧牲打">高飛犧牲打</option><option value="犧牲觸擊">犧牲觸擊</option>
+                          <option value="雙殺">雙殺</option>
+                        </select>
+                      </div>
+                      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">點選落點位置：</div>
+                      <div id="dhlSvgWrap"></div>
+                      <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;">尚未選取區域</div>
                     </div>`;
-                if (detailEl0) detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
+                    // 放球場 SVG
+                    const wrap = document.getElementById('dhlSvgWrap');
+                    if (wrap) {
+                        wrap.innerHTML = buildFieldSVG('', true, true, '');
+                        const svg = wrap.querySelector('svg');
+                        if (svg) {
+                            svg.querySelectorAll('[data-zone]').forEach(el => {
+                                el.style.cursor = 'pointer';
+                                el.onclick = function() {
+                                    _saveDirectHitLoc(String(number), this.dataset.zone);
+                                };
+                            });
+                        }
+                    }
+                    detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
+                }
             }
             return;
         }
@@ -15040,7 +15078,12 @@
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
         const BB  = ['保送','觸身球','故意四壞','捕逸'];
 
-        const locs = atBats.filter(a=>a.hitLocation);
+        // ★ 直接補錄的落點（bm.hitLocations）也一起顯示
+        const _directLocs = (allData.bm?.hitLocations||[])
+            .filter(l => String(l.number) === numStr)
+            .map(l => ({ hitLocation:{zone:l.zone, x:l.x, y:l.y}, outcomes:[l.outcome||''], _directPatch:true }));
+
+        const locs = [...atBats.filter(a=>a.hitLocation), ..._directLocs];
         // 線條：從本壘板 (150,272) 畫到落點，紅=安打，藍=非安打
         const dotsHTML = locs.map(a => {
             const sx = (a.hitLocation.x * 300).toFixed(1), sy = (a.hitLocation.y * 280).toFixed(1);
@@ -15167,6 +15210,27 @@
             }).join('')}</div>`;
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
+    // ── 直接補錄落點（不依附 atBat，存入 bm.hitLocations）──
+    function _saveDirectHitLoc(number, zone) {
+        _initBmData();
+        const c = ZONE_SVG_COORDS[zone] || { x:150, y:200 };
+        const team  = document.getElementById('dhlTeam')?.value  || '';
+        const outcome = document.getElementById('dhlOutcome')?.value || '';
+        allData.bm.hitLocations.push({
+            number, team, zone, outcome,
+            x: c.x/300, y: c.y/280,
+            ts: Date.now()
+        });
+        saveToLocalStorage();
+        saveBmToFirebase();
+        const lbl = document.getElementById('dhlSelected');
+        if (lbl) lbl.textContent = `✅ 已記錄：${zone}${outcome?' / '+outcome:''}　（可繼續點選下一筆）`;
+        // 高亮顯示選取的區域
+        const svg = document.getElementById('dhlSvgWrap')?.querySelector('svg');
+        if (svg) _zoneHighlight(svg.querySelector(`[data-zone="${zone}"]`), svg);
+    }
+    window._saveDirectHitLoc = _saveDirectHitLoc;
 
     // ── 補錄落點：全域狀態 ──
     let _hitLocPatchTs = null;
