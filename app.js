@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v449';
+﻿    const APP_VERSION = 'v450';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1889,6 +1889,11 @@
             if (injectWrap) injectWrap.style.display = 'none';
         }
         loadTeamHeader(currentTeamCode);
+        // 若 USER_TEAM_REF 尚未由 Firebase Auth 設定（一般球隊代碼登入），用 currentTeamCode 補上
+        // 必須在 listenFirebase() 之前設定，否則 bmRef 會是 null，bm 監聽器不會建立
+        if (!USER_TEAM_REF && currentTeamCode && currentTeamCode !== 'ADMIN' && typeof db !== 'undefined' && db) {
+            USER_TEAM_REF = db.ref('teams/' + currentTeamCode);
+        }
         // 登入後顯示一鍵切換模式列
         const msBar = document.getElementById('modeSwitchBar');
         if (msBar) msBar.style.display = '';
