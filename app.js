@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v420';
+﻿    const APP_VERSION = 'v421';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12564,6 +12564,13 @@
         setTimeout(() => {
             _showBatterModeUI();
             _initBmData();
+            // 若 bm 打線是空的但有連動賽事，從賽事打線還原（解決登出後打線消失問題）
+            const _gi = allData.bm?.gameIdx;
+            if (_gi >= 0 && allData.teams[_gi]) {
+                const _hasLineup = (allData.bm.lineupA || []).some(p => p?.number || p?.name)
+                                || (allData.bm.lineupB || []).some(p => p?.number || p?.name);
+                if (!_hasLineup) _loadBmLineupFromGame(_gi);
+            }
             _restoreBmGameStateToUI();
             _syncPitcherToBmLinked(); // 進入打者模式時從記分板同步當前局數/出局/壘上
             _renderBmLineup();
@@ -12976,6 +12983,7 @@
         _saveBmLineupToGame();
         saveToLocalStorage();
         saveToFirebase();
+        saveBmToFirebase();
         if (btn) {
             const orig = btn.textContent;
             btn.textContent = '✓';
@@ -12989,6 +12997,7 @@
         _saveBmLineupToGame();
         saveToLocalStorage();
         saveToFirebase();
+        saveBmToFirebase();
         _syncBmLineupToGameState();
         _renderBmBatterDisplay();
     }
@@ -13004,6 +13013,7 @@
         _saveBmLineupToGame();
         saveToLocalStorage();
         saveToFirebase();
+        saveBmToFirebase();
         _syncBmLineupToGameState();
         _renderBmBatterDisplay();
     }
@@ -13047,7 +13057,7 @@
             }
             synced = true;
         });
-        if (synced) { _renderBmLineup(); saveToLocalStorage(); }
+        if (synced) { _renderBmLineup(); saveToLocalStorage(); saveBmToFirebase(); }
         return synced;
     }
 
