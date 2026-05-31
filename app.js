@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v443';
+﻿    const APP_VERSION = 'v444';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8004,6 +8004,32 @@
         const bmRef = USER_TEAM_REF ? USER_TEAM_REF.child('bm') : null;
         const bdRef = USER_TEAM_REF ? USER_TEAM_REF.child('batterData') : null;
         const prRef = USER_TEAM_REF ? USER_TEAM_REF.child('playerRegistry') : null;
+
+        // ★ bm 即時監聽：其他裝置儲存後，此裝置自動更新落點圖等資料
+        let _bmListenerActive = false;
+        if (bmRef) {
+            bmRef.on('value', snap => {
+                if (!_bmListenerActive) return; // 初次讀取由 Promise.all 處理，之後才啟動即時更新
+                const val = snap.val();
+                if (!val || typeof val !== 'object') return;
+                if (!allData.bm) allData.bm = {};
+                const prevHitLocs = JSON.stringify(allData.bm.hitLocations || []);
+                Object.assign(allData.bm, val);
+                if (!Array.isArray(allData.bm.hitLocations)) allData.bm.hitLocations = Object.values(allData.bm.hitLocations || {});
+                if (!Array.isArray(allData.bm.atBats))        allData.bm.atBats        = Object.values(allData.bm.atBats        || {});
+                const newHitLocs = JSON.stringify(allData.bm.hitLocations || []);
+                // 落點有變化才重繪
+                if (prevHitLocs !== newHitLocs) {
+                    saveToLocalStorage();
+                    if (userMode === 'batter') {
+                        const t = _bmState?.tab || '';
+                        if (t === 'stats'       && typeof _renderBmStats    === 'function') _renderBmStats();
+                        else if (t === 'batterdata' && typeof refreshBatterList === 'function') refreshBatterList();
+                    }
+                }
+            });
+        }
+
         Promise.all([
             gRef.once('value'),
             getDataRef().once('value'),   // 舊路徑 pitchers/
@@ -8115,6 +8141,8 @@
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
                 loadLiveState();
             }
+            // ★ 初次讀取完成後才啟動即時監聽（避免重複處理初次快照）
+            setTimeout(() => { _bmListenerActive = true; }, 500);
 
             if (needWrite) {
                 const writeObj = {};
