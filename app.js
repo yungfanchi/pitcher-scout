@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v452';
+﻿    const APP_VERSION = 'v453';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14997,7 +14997,7 @@
                             return `<span style="font-weight:800;color:${col};">${v.toFixed(3)}</span>`;
                           })()
                         : `<span style="color:#d1d5db;font-size:11px;">樣本不足</span>`;
-                    return `<tr onclick="showBmBatterDetail('${r.number}')"
+                    return `<tr onclick="showBmBatterDetail(${JSON.stringify(String(r.number))},${JSON.stringify(tname)})"
                         onmouseenter="this.style.background='#f0f7ff'" onmouseleave="this.style.background=''"
                         style="cursor:pointer;font-size:13px;transition:background 0.15s;">
                       <td style="padding:8px 8px;white-space:nowrap;">
@@ -15059,9 +15059,10 @@
         return null;
     }
 
-    function showBmBatterDetail(number) {
+    function showBmBatterDetail(number, teamName) {
         _initBmData();
         const numStr = String(number);
+        const teamStr = teamName ? String(teamName) : '';
 
         // ── Step 1：直接比對 ab.number ──
         const _resolveAbNum = ab => {
@@ -15076,7 +15077,9 @@
             }
             return '';
         };
-        let atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr);
+        // ★ 依隊名隔離：同背號不同球隊的打者資料不混用
+        const _matchTeam = a => !teamStr || !a.teamName || a.teamName === teamStr;
+        let atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr && _matchTeam(a));
 
         // ── Step 2：掃所有賽事打線找棒次，比對 bm.atBats（不強求 gameIdx 吻合）──
         if (atBats.length === 0) {
@@ -15118,8 +15121,9 @@
         }
 
         const detailEl0 = document.getElementById('bmBatterDetailSection');
-        // ★ 即使 atBats 空，若 bm.hitLocations 已有直接補錄落點，繼續渲染圖表
-        const _existingDirect = (allData.bm?.hitLocations||[]).filter(l => String(l.number) === numStr);
+        // ★ 即使 atBats 空，若 bm.hitLocations 已有直接補錄落點，繼續渲染圖表（依隊名隔離）
+        const _existingDirect = (allData.bm?.hitLocations||[]).filter(l =>
+            String(l.number) === numStr && (!teamStr || !l.team || l.team === teamStr));
         if (atBats.length === 0 && _existingDirect.length > 0) {
             // 把直接補錄的落點轉成虛擬打席，讓後面的圖表邏輯可以使用
             atBats = _existingDirect.map(l => ({
@@ -15254,8 +15258,8 @@
 
         // ★ 直接補錄的落點（bm.hitLocations）也一起顯示
         const _directLocs = (allData.bm?.hitLocations||[])
-            .filter(l => String(l.number) === numStr)
-            .map(l => ({ hitLocation:{zone:l.zone, x:l.x, y:l.y}, outcomes:[l.outcome||''], _directPatch:true }));
+            .filter(l => String(l.number) === numStr && (!teamStr || !l.team || l.team === teamStr))
+            .map(l => ({ hitLocation:{zone:l.zone, x:l.x, y:l.y}, outcomes:[l.outcome||''], _directPatch:true, ts:l.ts }));
 
         const locs = [...atBats.filter(a=>a.hitLocation), ..._directLocs];
         // 線條：從本壘板 (150,272) 畫到落點，紅=安打，藍=非安打
@@ -15362,7 +15366,7 @@
             </div>
             ${pitchBreakdown}
             <h3 style="margin-top:16px;">📋 打席記錄</h3>
-            <button onclick="_showAddHitLocInline('${String(number).replace(/'/g,"\\'")}',this)"
+            <button onclick="_showAddHitLocInline(${JSON.stringify(String(number))},${JSON.stringify(teamStr)},this)"
               style="margin-bottom:10px;padding:6px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
               📍 新增落點
             </button>
@@ -15422,7 +15426,7 @@
     // ── 直接補錄落點（不依附 atBat，存入 bm.hitLocations）──
     let _dhlPendingZone = null; // 暫存選取的區域，等按儲存才真正寫入
 
-    function _showAddHitLocInline(number, btn) {
+    function _showAddHitLocInline(number, teamName, btn) {
         const box = document.getElementById('addHitLocInlineBox');
         if (!box) return;
         if (box.innerHTML) { box.innerHTML = ''; if (btn) btn.textContent = '📍 新增落點'; return; }
@@ -15451,7 +15455,7 @@
           <div id="dhlSvgWrap"></div>
           <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;min-height:20px;">尚未選取區域</div>
           <div style="display:flex;gap:8px;margin-top:12px;">
-            <button id="dhlSaveBtn" onclick="_saveDirectHitLoc('${String(number).replace(/'/g,"\\'")}')" disabled
+            <button id="dhlSaveBtn" onclick="_saveDirectHitLoc(${JSON.stringify(String(number))},${JSON.stringify(String(teamName||''))})" disabled
               style="flex:1;padding:12px;border-radius:9px;border:none;background:#003d79;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;opacity:0.4;">
               ✅ 儲存此落點
             </button>
@@ -15504,27 +15508,29 @@
     }
     window._clearDirectHitLocSelection = _clearDirectHitLocSelection;
 
-    function _saveDirectHitLoc(number) {
+    function _saveDirectHitLoc(number, contextTeam) {
         const zone = _dhlPendingZone;
         if (!zone) return;
         _initBmData();
         const c = ZONE_SVG_COORDS[zone] || { x:150, y:200 };
-        const team    = document.getElementById('dhlTeam')?.value    || '';
+        // 優先用 dhlTeam 選單的值，沒選時用呼叫端傳入的 contextTeam
+        const team    = document.getElementById('dhlTeam')?.value    || contextTeam || '';
         const outcome = document.getElementById('dhlOutcome')?.value || '';
         allData.bm.hitLocations.push({ number: String(number), team, zone, outcome, x: c.x/300, y: c.y/280, ts: Date.now() });
         saveToLocalStorage();
         saveBmToFirebase();
         _dhlPendingZone = null;
-        // ★ 重新渲染整個打者詳情（落點圖立即更新），渲染完後在底部加回補錄入口
-        showBmBatterDetail(number);
-        // 稍後再補上「繼續補錄」提示
+        // ★ 重新渲染整個打者詳情（落點圖立即更新），保持隊名篩選
+        showBmBatterDetail(number, contextTeam || team);
+        // 稍後顯示「已儲存」提示
         setTimeout(() => {
             const detailEl = document.getElementById('bmBatterDetailSection');
             if (!detailEl) return;
-            const saved = (allData.bm.hitLocations||[]).filter(l => String(l.number) === String(number));
+            const saved = (allData.bm.hitLocations||[]).filter(l =>
+                String(l.number) === String(number) && (!team || !l.team || l.team === team));
             const appendDiv = document.createElement('div');
             appendDiv.style.cssText = 'margin-top:12px;padding:12px 16px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;font-size:13px;color:#15803d;';
-            appendDiv.innerHTML = `✅ 已儲存 ${saved.length} 筆落點。<button onclick="showBmBatterDetail('${String(number)}')" style="margin-left:12px;padding:4px 12px;border-radius:6px;border:1px solid #16a34a;background:white;color:#16a34a;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">繼續補錄</button>`;
+            appendDiv.innerHTML = `✅ 已儲存 ${saved.length} 筆落點。`;
             detailEl.appendChild(appendDiv);
         }, 100);
     }
