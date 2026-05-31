@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v435';
+﻿    const APP_VERSION = 'v436';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15031,8 +15031,20 @@
             } else {
                 // 顯示直接補落點 UI
                 if (detailEl0) {
-                    const _teamList = [...new Set((allData.bm?.atBats||[]).map(a=>a.teamName||'').filter(Boolean))];
-                    const _teamOpts = _teamList.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+                    // 球隊清單：優先從連動賽事取，再從 bm lineups，再從 bm.atBats
+                    const _teamSet = new Set();
+                    const _gi = allData.bm?.gameIdx;
+                    if (_gi >= 0 && allData.teams[_gi]) {
+                        const _g = allData.teams[_gi];
+                        if (_g.name)     _teamSet.add(_g.name);
+                        if (_g.opponent) _teamSet.add(_g.opponent);
+                    }
+                    // fallback：從所有賽事取
+                    (allData.teams||[]).forEach(t => {
+                        if (t.name)     _teamSet.add(t.name);
+                        if (t.opponent) _teamSet.add(t.opponent);
+                    });
+                    const _teamOpts = [..._teamSet].map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
                     detailEl0.innerHTML = `
                     <div id="directHitLocBox" style="margin-top:16px;padding:16px;background:#fff;border:1.5px solid #fde68a;border-radius:12px;">
                       <div style="font-size:14px;font-weight:800;color:#b45309;margin-bottom:10px;">📍 直接補錄 #${number} 落點</div>
@@ -15055,12 +15067,14 @@
                       <div id="dhlSvgWrap"></div>
                       <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;">尚未選取區域</div>
                     </div>`;
-                    // 放球場 SVG
-                    const wrap = document.getElementById('dhlSvgWrap');
-                    if (wrap) {
-                        wrap.innerHTML = buildFieldSVG('', true, true, '');
+                    // 放球場 SVG（setTimeout 確保 innerHTML 已渲染）
+                    setTimeout(() => {
+                        const wrap = document.getElementById('dhlSvgWrap');
+                        if (!wrap) return;
+                        wrap.innerHTML = buildFieldSVG('', false, true, '');
                         const svg = wrap.querySelector('svg');
                         if (svg) {
+                            svg.style.cursor = 'crosshair';
                             svg.querySelectorAll('[data-zone]').forEach(el => {
                                 el.style.cursor = 'pointer';
                                 el.onclick = function() {
@@ -15068,7 +15082,7 @@
                                 };
                             });
                         }
-                    }
+                    }, 50);
                     detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
                 }
             }
