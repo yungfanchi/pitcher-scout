@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v442';
+﻿    const APP_VERSION = 'v443';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8078,6 +8078,14 @@
                         allData.bm.steals = Object.values(allData.bm.steals);
                     if (allData.bm.hitLocations && !Array.isArray(allData.bm.hitLocations))
                         allData.bm.hitLocations = Object.values(allData.bm.hitLocations);
+                    // ★ 若目前在打者模式，bm 資料載入後立即重繪目前分頁（修正手機/平板非同步延遲問題）
+                    if (userMode === 'batter') {
+                        setTimeout(() => {
+                            const t = _bmState?.tab || 'stats';
+                            if (t === 'stats' && typeof _renderBmStats === 'function') _renderBmStats();
+                            else if (t === 'batterdata' && typeof refreshBatterList === 'function') refreshBatterList();
+                        }, 200);
+                    }
                 }
             }
 
@@ -12654,6 +12662,21 @@
         controlUserRolePermissions(userRole);
         const legacyRole = (userRole === 'viewer') ? 'view' : 'scout';
         enterSystem(legacyRole);
+        // ★ 進入打者模式時主動從 Firebase 拉最新 bm（確保 hitLocations 等欄位已載入）
+        if (USER_TEAM_REF) {
+            USER_TEAM_REF.child('bm').once('value').then(snap => {
+                const val = snap.val();
+                if (val && typeof val === 'object') {
+                    if (!allData.bm) allData.bm = {};
+                    Object.assign(allData.bm, val);
+                    if (allData.bm.hitLocations && !Array.isArray(allData.bm.hitLocations))
+                        allData.bm.hitLocations = Object.values(allData.bm.hitLocations);
+                    if (allData.bm.atBats && !Array.isArray(allData.bm.atBats))
+                        allData.bm.atBats = Object.values(allData.bm.atBats);
+                    saveToLocalStorage();
+                }
+            }).catch(() => {});
+        }
         setTimeout(() => {
             _showBatterModeUI();
             _initBmData();
