@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v409';
+﻿    const APP_VERSION = 'v410';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4676,6 +4676,8 @@
         // For legacy compatibility, set outcome as primary outcome
         currentPitch.outcome = currentPitch.outcomes.length > 0 ? currentPitch.outcomes[0] : null;
 
+        const pitcher = allData.teams[currentTeam].pitchers[currentPitcher];
+
         // 第一球前儲存進場狀態快照，供復原時從正確起點重算（中繼投手不再從第1局0比0開始）
         if (!pitcher.entryState && pitcher.pitches.length === 0) {
             const _es = getTeamScore();
@@ -4706,7 +4708,6 @@
         }
 
         // Sync to pitcherDB (cumulative across games)
-        const pitcher = allData.teams[currentTeam].pitchers[currentPitcher];
         syncPitchToDB({...currentPitch}, currentTeam, pitcher.name, pitcher.number);
 
         // 捕捉此球資訊（須在 updateGameStateFromPitch 前，避免三出局換局時 currentTeam/currentPitcher 被切換）
