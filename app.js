@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v424';
+﻿    const APP_VERSION = 'v425';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2927,6 +2927,8 @@
         const container = document.getElementById(id);
         if (!container) return;
         if (!allData.playerRegistry) allData.playerRegistry = [];
+        // ★ 開啟名冊時自動補入遺漏投手（靜默，不彈對話框）
+        _autoSyncPitchersToRegistry();
         const registry = allData.playerRegistry;
 
         // 標題 + 搜尋欄只建一次（per 容器），避免每次打字全部重建導致 focus 遺失
@@ -3322,6 +3324,37 @@
         const arr = [];
         for (let i = 0; i <= maxIdx; i++) arr.push(lineupVal[i] || null);
         return arr;
+    }
+
+    // ★ 靜默補入遺漏投手（每次開名冊頁自動執行，不彈提示）
+    function _autoSyncPitchersToRegistry() {
+        if (!allData.playerRegistry) allData.playerRegistry = [];
+        let added = 0;
+        (allData.teams||[]).forEach(team => {
+            (team.pitchers||[]).forEach(pitcher => {
+                const num = String(pitcher.number||'').trim();
+                if (!num) return;
+                let ourTeam = (pitcher.pitcherTeam||'').trim();
+                if (!ourTeam) {
+                    ourTeam = pitcher.pitchingTeam === 'B'
+                        ? (team.name||'').trim()
+                        : (team.opponent||'').trim();
+                }
+                if (!ourTeam) return;
+                if (allData.playerRegistry.some(p => p.team === ourTeam && (p.numbers||[]).includes(num))) return;
+                allData.playerRegistry.push({
+                    playerId: _makePlayerId(),
+                    name: (pitcher.name||'').trim(),
+                    team: ourTeam,
+                    hand: pitcher.hand || '右投',
+                    position: '投',
+                    numbers: [num],
+                    note: ''
+                });
+                added++;
+            });
+        });
+        if (added > 0) { saveToLocalStorage(); saveToFirebase(); }
     }
 
     function _autoDiscoverFromPitches() {
