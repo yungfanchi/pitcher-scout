@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v439';
+﻿    const APP_VERSION = 'v440';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8071,6 +8071,13 @@
                 if (bmVal && typeof bmVal === 'object') {
                     if (!allData.bm) allData.bm = {};
                     Object.assign(allData.bm, bmVal);
+                    // Firebase 陣列→物件轉換修正
+                    if (allData.bm.atBats && !Array.isArray(allData.bm.atBats))
+                        allData.bm.atBats = Object.values(allData.bm.atBats);
+                    if (allData.bm.steals && !Array.isArray(allData.bm.steals))
+                        allData.bm.steals = Object.values(allData.bm.steals);
+                    if (allData.bm.hitLocations && !Array.isArray(allData.bm.hitLocations))
+                        allData.bm.hitLocations = Object.values(allData.bm.hitLocations);
                 }
             }
 
@@ -12869,8 +12876,12 @@
         allData.bm.lineupA.forEach(b => { if (!('trait' in b)) b.trait = ''; });
         allData.bm.lineupB.forEach(b => { if (!('trait' in b)) b.trait = ''; });
         if (!allData.bm.atBats) allData.bm.atBats = [];
-        if (!allData.bm.steals) allData.bm.steals = []; // 獨立盜壘記錄（不依附投手記錄）
-        if (!allData.bm.hitLocations) allData.bm.hitLocations = []; // 直接補錄落點（不影響打席統計）
+        else if (!Array.isArray(allData.bm.atBats)) allData.bm.atBats = Object.values(allData.bm.atBats);
+        if (!allData.bm.steals) allData.bm.steals = [];
+        else if (!Array.isArray(allData.bm.steals)) allData.bm.steals = Object.values(allData.bm.steals);
+        // 直接補錄落點（不影響打席統計）；Firebase 回傳物件格式需轉陣列
+        if (!allData.bm.hitLocations) allData.bm.hitLocations = [];
+        else if (!Array.isArray(allData.bm.hitLocations)) allData.bm.hitLocations = Object.values(allData.bm.hitLocations);
         if (!('gameIdx' in allData.bm)) allData.bm.gameIdx = -1;
         if (!allData.bm.attackingTeam) allData.bm.attackingTeam = 'A';
         // 獨立模式賽事資訊欄位
