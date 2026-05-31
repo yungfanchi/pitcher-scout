@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v412';
+﻿    const APP_VERSION = 'v413';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4316,6 +4316,7 @@
         if (order >= 1 && order <= 9 && lineup[order]) {
             lineup[order].hand = btn.dataset.hand;
         }
+        _checkBatterHandMismatch();
     }
 
     function selectPitch(btn) {
@@ -13039,6 +13040,55 @@
 
     // ── 跨模式狀態同步（投手模式 ↔ 打者連動模式） ──
     let _crossModeSyncing = false;
+    let _handMismatchTimer = null;
+
+    // 比對打者模式與投手模式的打者手別，不一致時彈出 toast
+    function _checkBatterHandMismatch() {
+        if (_crossModeSyncing) return;
+        if (!allData.bm || _bmState.recMode !== 'linked') return;
+        const pitcherHand = currentPitch.batterHand;
+        if (!pitcherHand) return;
+        const order = _bmState.currentOrder;
+        const attackingTeam = allData.bm.attackingTeam || 'A';
+        const bmLineup = _getLineup(attackingTeam);
+        const bmHand = bmLineup && bmLineup[order] && bmLineup[order].hand;
+        if (!bmHand) return;
+        if (pitcherHand !== bmHand) {
+            _showHandMismatchToast(pitcherHand, bmHand);
+        } else {
+            // 一致時隱藏現有 toast
+            const t = document.getElementById('handMismatchToast');
+            if (t) t.style.display = 'none';
+        }
+    }
+
+    function _showHandMismatchToast(pitcherHand, bmHand) {
+        let toast = document.getElementById('handMismatchToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'handMismatchToast';
+            toast.style.cssText = 'position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:5000;background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:10px 14px 10px 12px;max-width:320px;width:90%;box-shadow:0 4px 16px rgba(0,0,0,0.18);display:none;box-sizing:border-box;';
+            document.body.appendChild(toast);
+        }
+        toast.innerHTML = `
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+                <span style="font-size:18px;line-height:1.2;">⚠️</span>
+                <div style="flex:1;">
+                    <div style="font-size:13px;font-weight:900;color:#92400e;">打者慣用手不一致</div>
+                    <div style="font-size:12px;color:#78350f;margin-top:2px;">
+                        投手模式：<strong>${pitcherHand}</strong>　打者模式：<strong>${bmHand}</strong>
+                    </div>
+                </div>
+                <button onclick="(function(){var t=document.getElementById('handMismatchToast');if(t)t.style.display='none';})()" style="background:none;border:none;cursor:pointer;font-size:16px;color:#92400e;padding:0;line-height:1;flex-shrink:0;">✕</button>
+            </div>`;
+        toast.style.display = 'block';
+        if (_handMismatchTimer) clearTimeout(_handMismatchTimer);
+        _handMismatchTimer = setTimeout(() => {
+            const t = document.getElementById('handMismatchToast');
+            if (t) t.style.display = 'none';
+            _handMismatchTimer = null;
+        }, 6000);
+    }
 
     // 投手模式 → 打者連動模式（出局、局半、局數、壘上、當前打者棒次）
     function _syncPitcherToBmLinked() {
@@ -13669,6 +13719,8 @@
 
         // ── 更新打線模組標題 ──
         _updateBmLineupTitles();
+
+        _checkBatterHandMismatch();
     }
 
     function prevBmBatter() {
