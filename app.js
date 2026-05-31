@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v432';
+﻿    const APP_VERSION = 'v433';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14984,12 +14984,54 @@
 
         const detailEl0 = document.getElementById('bmBatterDetailSection');
         if (atBats.length === 0) {
-            if (detailEl0) detailEl0.innerHTML = `
-                <div style="margin-top:16px;padding:16px;background:#fff3cd;border-radius:10px;color:#856404;font-size:14px;">
-                  ⚠️ 找不到 #${number} 的打者模式打席記錄。<br>
-                  <span style="font-size:12px;">請確認打者打線（名冊）裡背號 ${number} 已正確填入，或此打者的落點由打者模式另行補錄。</span>
-                </div>`;
-            if (detailEl0) detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
+            // 最後 fallback：顯示同隊所有無背號打席，讓使用者自行辨認補落點
+            const BIP_FB = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打',
+                            '滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','雙殺','野選','失誤'];
+            // 嘗試推算此號碼屬於哪個 team（A/B）
+            let _sideGuess = null;
+            ['A','B'].forEach(side => {
+                const lu = side === 'A' ? (allData.bm?.lineupA||[]) : (allData.bm?.lineupB||[]);
+                if ((Array.isArray(lu) ? lu : []).some(p => String(p?.number||'') === numStr)) _sideGuess = side;
+            });
+            // 若打線裡也找不到，拿全部無背號打席
+            const _unmatched = (allData.bm.atBats||[]).filter(a =>
+                !a.number && (!_sideGuess || a.team === _sideGuess)
+            );
+            if (_unmatched.length > 0 && detailEl0) {
+                const HIT_FB = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+                const rows = _unmatched.map((a, i) => {
+                    const isBIP = BIP_FB.includes(a.outcome);
+                    const cls   = HIT_FB.includes(a.outcome) ? 'color:#16a34a;font-weight:800;' :
+                                  ['保送','觸身球','故意四壞'].includes(a.outcome) ? 'color:#0051a5;font-weight:700;' : 'color:#dc2626;font-weight:700;';
+                    const locTxt = a.hitLocation ? ` ✅${a.hitLocation.zone}` : '';
+                    const patchBtn = isBIP
+                        ? `<button onclick="openHitLocPatch(${a.ts||i},'${numStr}')"
+                            style="margin-left:8px;padding:2px 8px;border-radius:6px;border:1px solid ${a.hitLocation?'#d1d5db':'#f59e0b'};
+                                   background:${a.hitLocation?'#f9fafb':'#fffbeb'};color:${a.hitLocation?'#9ca3af':'#b45309'};
+                                   font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">${a.hitLocation?'✏️':'📍'}</button>`
+                        : '';
+                    const inningTxt = a.inning ? `${a.inning}局${a.half||''}` : '';
+                    const outsTxt   = a.outs !== undefined ? `${a.outs}out` : '';
+                    return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #f3f4f6;">
+                        <span style="color:#9ca3af;font-size:12px;min-width:60px;">${inningTxt} ${outsTxt}</span>
+                        <span style="${cls}">${a.outcome||'-'}${locTxt}</span>
+                        ${patchBtn}
+                    </div>`;
+                }).join('');
+                detailEl0.innerHTML = `
+                    <div style="margin-top:16px;padding:16px;background:#fff;border:1.5px solid #fde68a;border-radius:10px;">
+                      <div style="font-size:14px;font-weight:800;color:#b45309;margin-bottom:4px;">⚠️ 找不到 #${number} 的精確打席紀錄</div>
+                      <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">以下是本場未標背號的打席，請自行依局數/結果辨認，點 📍 補落點：</div>
+                      ${rows}
+                    </div>`;
+                detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
+            } else {
+                if (detailEl0) detailEl0.innerHTML = `
+                    <div style="margin-top:16px;padding:16px;background:#fff3cd;border-radius:10px;color:#856404;font-size:14px;">
+                      ⚠️ 找不到 #${number} 的打者模式打席記錄，亦無未標背號的打席可供補錄。
+                    </div>`;
+                if (detailEl0) detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
+            }
             return;
         }
         const b = { number, name: atBats.find(a=>a.name)?.name||'', hand: atBats[0].hand||'右打' };
