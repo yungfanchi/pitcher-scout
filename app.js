@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v422';
+﻿    const APP_VERSION = 'v423';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10816,10 +10816,21 @@
                     if (!nameKey) return;
                     // ★ 優先從打線查隊名，再 fallback pitch.batterTeam
                     const lineupTeam = num ? _lineupNumMap9[num]?.team : '';
-                    // 無背號時用上/下半局推算打擊隊伍：上=先攻(team.name)，下=後攻(team.opponent)
-                    const inferredTeam = pitch.half === '上' ? (team.name || '') : (team.opponent || '');
-                    // pitch.batterTeam（記錄當下燒入）最可靠；inferredTeam 從上/下半局推算次之
-                    // lineupTeam 靠背號查打線，同背號跨隊時會歸錯，改為最後 fallback
+                    // 無背號時用上/下半局推算打擊隊伍（與統計頁 _deriveBmAtBatsFromPitches 一致）
+                    // 舊資料若無 half，補查打線推斷隊名，避免歸到錯誤球隊
+                    let inferredTeam = '';
+                    if (pitch.half === '上') {
+                        inferredTeam = team.name || '';
+                    } else if (pitch.half === '下') {
+                        inferredTeam = team.opponent || '';
+                    } else if (num) {
+                        // 舊資料無 half：背號查打線（先攻=teamA=team.name，後攻=teamB=team.opponent）
+                        const _lA = _lineupToArray(team.lineups?.teamA);
+                        const _lB = _lineupToArray(team.lineups?.teamB);
+                        if (_lA.some(p => String(p?.number || '') === num)) inferredTeam = team.name || '';
+                        else if (_lB.some(p => String(p?.number || '') === num)) inferredTeam = team.opponent || '';
+                    }
+                    // pitch.batterTeam（記錄當下燒入）最可靠；inferredTeam 次之；lineupTeam 最後
                     const bTeam = pitch.batterTeam || inferredTeam || lineupTeam || '未分類';
                     const mapKey = `${bTeam}||${nameKey}`;
                     if (!batterMap.has(mapKey)) {
