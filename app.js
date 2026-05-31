@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v425';
+﻿    const APP_VERSION = 'v426';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14891,7 +14891,19 @@
 
     function showBmBatterDetail(number) {
         _initBmData();
-        const atBats = (allData.bm.atBats||[]).filter(a => String(a.number) === String(number));
+        // ★ 若 ab.number 空白，從連動賽事打線補號後再比對（修正打線未存時落點資料查不到的問題）
+        const _resolveAbNum = ab => {
+            if (ab.number) return String(ab.number);
+            if (ab.order && ab.mode === 'linked' && ab.gameIdx >= 0 && allData.teams[ab.gameIdx]) {
+                const _g = allData.teams[ab.gameIdx];
+                const _side = ab.team === 'A' ? 'teamA' : 'teamB';
+                const _lineup = _lineupToArray(_g.lineups?.[_side]);
+                const _entry = _lineup[parseInt(ab.order) - 1];
+                if (_entry?.number) return String(_entry.number);
+            }
+            return '';
+        };
+        const atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === String(number));
         if (atBats.length === 0) return;
         const b = { number, name: atBats.find(a=>a.name)?.name||'', hand: atBats[0].hand||'右打' };
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
