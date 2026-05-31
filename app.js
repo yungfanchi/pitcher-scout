@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v450';
+﻿    const APP_VERSION = 'v451';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8155,6 +8155,14 @@
                             else if (t === 'batterdata' && typeof refreshBatterList === 'function') refreshBatterList();
                         }, 200);
                     }
+                } else {
+                    // ★ Firebase bm 為空（舊版寫錯路徑），但 localStorage 有資料 → 自動搬移到正確路徑
+                    const _localHits = (allData.bm?.hitLocations || []).length;
+                    const _localAbs  = (allData.bm?.atBats || []).length;
+                    if ((_localHits > 0 || _localAbs > 0) && USER_TEAM_REF) {
+                        console.log(`[bm 搬移] 本機有 ${_localHits} 筆落點、${_localAbs} 筆打席，自動推送到正確 Firebase 路徑`);
+                        saveBmToFirebase();
+                    }
                 }
             }
 
@@ -15024,6 +15032,10 @@
                 style="padding:5px 14px;border-radius:8px;border:1.5px solid #0051a5;background:#fff;color:#0051a5;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
                 🔄 同步落點
               </button>
+              <button onclick="uploadBmToFirebase(this)"
+                style="padding:5px 14px;border-radius:8px;border:1.5px solid #dc0000;background:#fff;color:#dc0000;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                ☁️ 上傳落點資料
+              </button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start;margin-bottom:16px;">
               ${groupsHTML}
@@ -16012,6 +16024,26 @@
         });
     }
     window.pullBmFromFirebase = pullBmFromFirebase;
+
+    // ★ 手動把本機 bm 資料推送到 Firebase（舊版路徑錯誤的一次性搬家，或強制覆蓋雲端）
+    function uploadBmToFirebase(btn) {
+        if (!allData.bm) { alert('本機無 bm 資料可上傳'); return; }
+        const hits = (allData.bm.hitLocations || []).length;
+        const abs  = (allData.bm.atBats || []).length;
+        if (hits === 0 && abs === 0) { alert('本機無落點或打席資料可上傳'); return; }
+        if (!USER_TEAM_REF) { alert('尚未連線 Firebase，請登出後重新登入'); return; }
+        if (!confirm(`確定上傳本機落點資料至雲端？\n落點：${hits} 筆　打席：${abs} 筆\n\n⚠️ 這會覆蓋雲端現有的 bm 資料`)) return;
+        if (btn) { btn.textContent = '⏳ 上傳中...'; btn.disabled = true; }
+        USER_TEAM_REF.child('bm').set(JSON.parse(JSON.stringify(allData.bm)))
+            .then(() => {
+                if (btn) { btn.textContent = '✅ 上傳成功'; setTimeout(() => { btn.textContent = '☁️ 上傳落點資料'; btn.disabled = false; }, 2000); }
+            })
+            .catch(e => {
+                if (btn) { btn.textContent = '❌ 失敗'; setTimeout(() => { btn.textContent = '☁️ 上傳落點資料'; btn.disabled = false; }, 2000); }
+                console.warn('[bm upload]', e);
+            });
+    }
+    window.uploadBmToFirebase = uploadBmToFirebase;
 
     // 頁面初始化（不依賴 Auth，僅載入本機資料與 UI）
     init();
