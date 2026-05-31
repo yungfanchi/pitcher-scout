@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v441';
+﻿    const APP_VERSION = 'v442';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15249,24 +15249,53 @@
                 const cls = HIT.includes(a.outcome)?'bm-log-hit':BB.includes(a.outcome)?'bm-log-bb':'bm-log-out';
                 const zone = a.hitLocation ? ` → ${a.hitLocation.zone}` : '';
                 const ht = a.hitType ? ` · ${a.hitType}` : '';
-                const isBIP = BIP_PATCH.includes(a.outcome);
+                const isBIP = BIP_PATCH.includes(a.outcome || '');
                 const hasloc = !!a.hitLocation;
-                // 📍 按鈕：BIP 且無落點顯示，已有落點顯示灰色編輯鉛筆
-                const patchBtn = isBIP
-                    ? `<button onclick="openHitLocPatch(${a.ts||i},'${String(number).replace(/'/g,"\\'")}')"
-                        style="margin-left:8px;padding:2px 8px;border-radius:6px;border:1px solid ${hasloc?'#d1d5db':'#f59e0b'};
+                const numEsc = String(number).replace(/'/g,"\\'");
+                const isDirect = a.mode === 'direct';
+                // 📍/✏️ 補錄/修改按鈕
+                const patchBtn = (isBIP || isDirect)
+                    ? `<button onclick="openHitLocPatch(${a.ts||i},'${numEsc}')"
+                        style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid ${hasloc?'#d1d5db':'#f59e0b'};
                                background:${hasloc?'#f9fafb':'#fffbeb'};color:${hasloc?'#9ca3af':'#b45309'};
                                font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;"
                         title="${hasloc?'修改落點':'補錄落點'}">${hasloc?'✏️':'📍'}</button>`
                     : '';
+                // 🗑️ 刪除按鈕：有落點才顯示
+                const delBtn = hasloc
+                    ? `<button onclick="deleteHitLoc(${a.ts||'null'},${isDirect},'${numEsc}')"
+                        style="margin-left:2px;padding:2px 7px;border-radius:6px;border:1px solid #fecaca;
+                               background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
+                               cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除落點">🗑️</button>`
+                    : '';
+                const modeIcon = isDirect ? '📍' : (a.mode==='linked'?'🔗':'📝');
                 return `<div class="bm-log-row" style="display:flex;align-items:center;gap:4px;">
-                    <span style="color:#6b7280;flex-shrink:0;">${i+1}. ${a.mode==='linked'?'🔗':'📝'} ${a.pitcherHand||''}</span>
-                    <span class="bm-log-outcome ${cls}">${a.outcome}${zone}${ht}</span>
-                    ${patchBtn}
+                    <span style="color:#6b7280;flex-shrink:0;">${i+1}. ${modeIcon} ${a.pitcherHand||''}</span>
+                    <span class="bm-log-outcome ${cls}">${a.outcome||'-'}${zone}${ht}</span>
+                    ${patchBtn}${delBtn}
                 </div>`;
             }).join('')}</div>`;
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
+    // ── 刪除落點 ──
+    function deleteHitLoc(ts, isDirect, number) {
+        if (!confirm('確定刪除這筆落點？')) return;
+        _initBmData();
+        if (isDirect) {
+            // 直接補錄記錄 → 從 bm.hitLocations 移除
+            allData.bm.hitLocations = allData.bm.hitLocations.filter(l => l.ts !== ts);
+        } else {
+            // 原始 bm.atBats → 只清除 hitLocation 欄位，保留打席其他數據
+            const idx = allData.bm.atBats.findIndex(a => a.ts === ts);
+            if (idx >= 0) delete allData.bm.atBats[idx].hitLocation;
+        }
+        saveToLocalStorage();
+        saveBmToFirebase();
+        // 立即重繪
+        showBmBatterDetail(number);
+    }
+    window.deleteHitLoc = deleteHitLoc;
 
     // ── 直接補錄落點（不依附 atBat，存入 bm.hitLocations）──
     let _dhlPendingZone = null; // 暫存選取的區域，等按儲存才真正寫入
