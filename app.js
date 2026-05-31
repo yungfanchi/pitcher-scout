@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v446';
+﻿    const APP_VERSION = 'v447';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15177,9 +15177,14 @@
                             svg.style.cursor = 'crosshair';
                             svg.querySelectorAll('[data-zone]').forEach(el => {
                                 el.style.cursor = 'pointer';
-                                el.onclick = function() {
+                                el.style.touchAction = 'manipulation';
+                                // 同時支援滑鼠和觸控
+                                const _zoneHandler = function(e) {
+                                    e.preventDefault();
                                     _selectDirectHitLocZone(this.dataset.zone, svg);
                                 };
+                                el.addEventListener('click', _zoneHandler);
+                                el.addEventListener('touchend', _zoneHandler);
                             });
                         }
                     }, 50);
@@ -15422,9 +15427,10 @@
         if (svg) {
             svg.querySelectorAll('[data-zone]').forEach(el => {
                 el.style.cursor = 'pointer';
-                el.onclick = function() {
-                    _onHitLocPatchZone(this.dataset.zone);
-                };
+                el.style.touchAction = 'manipulation';
+                const _h = function(e) { e.preventDefault(); _onHitLocPatchZone(el.dataset.zone); };
+                el.addEventListener('click', _h);
+                el.addEventListener('touchend', _h);
             });
         }
         const modal = document.getElementById('hitLocPatchModal');
@@ -15934,8 +15940,11 @@
                 return;
             }
         }
-        const _bmRef = USER_TEAM_REF ? USER_TEAM_REF.child('bm')
-            : db.ref('teams/' + (currentTeamCode || JSON.parse(localStorage.getItem('chineseTaipeiPitcherData')||'{}')._teamCode) + '/bm');
+        // 讀路徑與 saveBmToFirebase 一致：有 USER_TEAM_REF 走 team 路徑，否則走管理員路徑
+        const _bmRef = USER_TEAM_REF
+            ? USER_TEAM_REF.child('bm')
+            : (typeof db !== 'undefined' && db ? db.ref('pitcherScoutData/bm') : null);
+        if (!_bmRef) { alert('無法連線 Firebase，請先登出再重新登入。'); return; }
         if (btn) { btn.textContent = '⏳ 讀取中...'; btn.disabled = true; }
         _bmRef.once('value').then(snap => {
             const val = snap.val();
