@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v438';
+﻿    const APP_VERSION = 'v439';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14985,6 +14985,17 @@
         }
 
         const detailEl0 = document.getElementById('bmBatterDetailSection');
+        // ★ 即使 atBats 空，若 bm.hitLocations 已有直接補錄落點，繼續渲染圖表
+        const _existingDirect = (allData.bm?.hitLocations||[]).filter(l => String(l.number) === numStr);
+        if (atBats.length === 0 && _existingDirect.length > 0) {
+            // 把直接補錄的落點轉成虛擬打席，讓後面的圖表邏輯可以使用
+            atBats = _existingDirect.map(l => ({
+                hitLocation: { zone: l.zone, x: l.x, y: l.y },
+                outcome: l.outcome || '',
+                hand: '', mode: 'direct', ts: l.ts
+            }));
+        }
+
         if (atBats.length === 0) {
             // 最後 fallback：顯示同隊所有無背號打席，讓使用者自行辨認補落點
             const BIP_FB = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打',
@@ -15272,12 +15283,19 @@
         allData.bm.hitLocations.push({ number: String(number), team, zone, outcome, x: c.x/300, y: c.y/280, ts: Date.now() });
         saveToLocalStorage();
         saveBmToFirebase();
-        // 顯示記錄清單
-        const log = document.getElementById('dhlLog');
-        const saved = (allData.bm.hitLocations||[]).filter(l => String(l.number) === String(number));
-        if (log) log.innerHTML = saved.map((l,i) => `<div>✅ ${i+1}. ${l.zone}${l.outcome?' / '+l.outcome:''}</div>`).join('');
-        // 重置選取
-        _clearDirectHitLocSelection();
+        _dhlPendingZone = null;
+        // ★ 重新渲染整個打者詳情（落點圖立即更新），渲染完後在底部加回補錄入口
+        showBmBatterDetail(number);
+        // 稍後再補上「繼續補錄」提示
+        setTimeout(() => {
+            const detailEl = document.getElementById('bmBatterDetailSection');
+            if (!detailEl) return;
+            const saved = (allData.bm.hitLocations||[]).filter(l => String(l.number) === String(number));
+            const appendDiv = document.createElement('div');
+            appendDiv.style.cssText = 'margin-top:12px;padding:12px 16px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;font-size:13px;color:#15803d;';
+            appendDiv.innerHTML = `✅ 已儲存 ${saved.length} 筆落點。<button onclick="showBmBatterDetail('${String(number)}')" style="margin-left:12px;padding:4px 12px;border-radius:6px;border:1px solid #16a34a;background:white;color:#16a34a;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">繼續補錄</button>`;
+            detailEl.appendChild(appendDiv);
+        }, 100);
     }
     window._saveDirectHitLoc = _saveDirectHitLoc;
 
