@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v415';
+﻿    const APP_VERSION = 'v416';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -13603,21 +13603,30 @@
 
     function _renderBmOutcomeButtons() {
         _renderGroupedOutcomes('bmOutcomeBtns', _bmState.selectedOutcome, 'selectBmOutcome');
-        // 動態插入安打型態列（只建一次）
-        if (!document.getElementById('bmHitTypeRow')) {
-            const htDiv = document.createElement('div');
-            htDiv.id = 'bmHitTypeRow';
-            htDiv.style.cssText = 'display:none;margin-top:6px;padding:6px 8px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;';
-            htDiv.innerHTML = `<div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:5px;">打球型態</div>
-                <div id="bmHitTypeBtns" style="display:flex;gap:6px;">
-                    <button class="hit-type-btn" data-bmht="滾地球" onclick="selectBmHitType(this)" ontouchend="event.preventDefault();selectBmHitType(this)">🏃 滾地</button>
-                    <button class="hit-type-btn" data-bmht="平飛球" onclick="selectBmHitType(this)" ontouchend="event.preventDefault();selectBmHitType(this)">➡️ 平飛</button>
-                    <button class="hit-type-btn" data-bmht="高飛球" onclick="selectBmHitType(this)" ontouchend="event.preventDefault();selectBmHitType(this)">⬆️ 高飛</button>
-                </div>`;
-            const outcomeEl = document.getElementById('bmOutcomeBtns');
-            if (outcomeEl && outcomeEl.parentNode) {
-                outcomeEl.parentNode.insertBefore(htDiv, outcomeEl.nextSibling);
-            }
+        // 安打群組下方直接嵌入打球型態按鈕（每次重新渲染時插入）
+        const container = document.getElementById('bmOutcomeBtns');
+        if (container) {
+            const groups = container.querySelectorAll('.bm-outcome-group');
+            groups.forEach(g => {
+                const label = g.querySelector('.bm-outcome-group-label');
+                if (label && label.textContent.trim() === '安打' && !g.querySelector('#bmHitTypeBtns')) {
+                    const htDiv = document.createElement('div');
+                    htDiv.id = 'bmHitTypeBtns';
+                    htDiv.style.cssText = 'display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;';
+                    ['滾地球','平飛球','高飛球'].forEach((t, i) => {
+                        const icons = ['🏃','➡️','⬆️'];
+                        const btn = document.createElement('button');
+                        btn.className = 'hit-type-btn';
+                        btn.dataset.bmht = t;
+                        btn.textContent = icons[i] + ' ' + t.replace('球','');
+                        btn.onclick = () => selectBmHitType(btn);
+                        btn.ontouchend = (e) => { e.preventDefault(); selectBmHitType(btn); };
+                        if (_bmState.hitType === t) btn.classList.add('selected');
+                        htDiv.appendChild(btn);
+                    });
+                    g.appendChild(htDiv);
+                }
+            });
         }
         // 同步渲染內嵌球場圖（只在第一次，避免重複建立）
         const wrap = document.getElementById('bmHitMapWrap');
@@ -13642,13 +13651,8 @@
         _bmState.hitType = null;
         document.querySelectorAll('#bmOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
         if (btn) btn.classList.add('bm-on');
-        // 顯示/隱藏打球型態列
-        const htRow = document.getElementById('bmHitTypeRow');
-        if (htRow) {
-            const show = _BM_BIP_OUTCOMES.includes(outcome);
-            htRow.style.display = show ? 'block' : 'none';
-            if (!show) document.querySelectorAll('#bmHitTypeBtns .hit-type-btn').forEach(b => b.classList.remove('selected'));
-        }
+        // 切換結果時清除型態選取
+        document.querySelectorAll('#bmHitTypeBtns .hit-type-btn').forEach(b => b.classList.remove('selected'));
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
     }
@@ -13784,8 +13788,6 @@
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
         document.querySelectorAll('#bmOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
         document.querySelectorAll('#bmHitTypeBtns .hit-type-btn').forEach(b => b.classList.remove('selected'));
-        const htRow = document.getElementById('bmHitTypeRow');
-        if (htRow) htRow.style.display = 'none';
         // 清除球場圖高亮
         const svg = document.getElementById('fieldSVG_bm');
         if (svg) _zoneHighlight(null, svg);
