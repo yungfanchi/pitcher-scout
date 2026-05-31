@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v451';
+﻿    const APP_VERSION = 'v452';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15362,6 +15362,11 @@
             </div>
             ${pitchBreakdown}
             <h3 style="margin-top:16px;">📋 打席記錄</h3>
+            <button onclick="_showAddHitLocInline('${String(number).replace(/'/g,"\\'")}',this)"
+              style="margin-bottom:10px;padding:6px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+              📍 新增落點
+            </button>
+            <div id="addHitLocInlineBox"></div>
             <div>${atBats.map((a,i)=>{
                 const cls = HIT.includes(a.outcome)?'bm-log-hit':BB.includes(a.outcome)?'bm-log-bb':'bm-log-out';
                 const zone = a.hitLocation ? ` → ${a.hitLocation.zone}` : '';
@@ -15416,6 +15421,65 @@
 
     // ── 直接補錄落點（不依附 atBat，存入 bm.hitLocations）──
     let _dhlPendingZone = null; // 暫存選取的區域，等按儲存才真正寫入
+
+    function _showAddHitLocInline(number, btn) {
+        const box = document.getElementById('addHitLocInlineBox');
+        if (!box) return;
+        if (box.innerHTML) { box.innerHTML = ''; if (btn) btn.textContent = '📍 新增落點'; return; }
+        if (btn) btn.textContent = '▲ 收起';
+        const _teamSet = new Set();
+        (allData.teams||[]).forEach(t => { if (t.name) _teamSet.add(t.name); if (t.opponent) _teamSet.add(t.opponent); });
+        const _teamOpts = [..._teamSet].map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+        box.innerHTML = `
+        <div style="padding:14px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:800;color:#b45309;margin-bottom:10px;">📍 新增落點 #${number}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center;">
+            <select id="dhlTeam" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
+              <option value="">選球隊（選填）</option>${_teamOpts}
+            </select>
+            <select id="dhlOutcome" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
+              <option value="">打席結果（選填）</option>
+              <option value="一壘安打">一壘安打</option><option value="二壘安打">二壘安打</option>
+              <option value="三壘安打">三壘安打</option><option value="全壘打">全壘打</option>
+              <option value="內野安打">內野安打</option><option value="滾地球出局">滾地球出局</option>
+              <option value="飛球出局">飛球出局</option><option value="平飛球出局">平飛球出局</option>
+              <option value="高飛犧牲打">高飛犧牲打</option><option value="犧牲觸擊">犧牲觸擊</option>
+              <option value="雙殺">雙殺</option>
+            </select>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">點選落點位置：</div>
+          <div id="dhlSvgWrap"></div>
+          <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;min-height:20px;">尚未選取區域</div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button id="dhlSaveBtn" onclick="_saveDirectHitLoc('${String(number).replace(/'/g,"\\'")}')" disabled
+              style="flex:1;padding:12px;border-radius:9px;border:none;background:#003d79;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;opacity:0.4;">
+              ✅ 儲存此落點
+            </button>
+            <button onclick="_clearDirectHitLocSelection()"
+              style="padding:12px 16px;border-radius:9px;border:1.5px solid #d1d5db;background:#fff;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">
+              ✕ 重選
+            </button>
+          </div>
+        </div>`;
+        setTimeout(() => {
+            const wrap = document.getElementById('dhlSvgWrap');
+            if (!wrap) return;
+            wrap.innerHTML = buildFieldSVG('', true, false, '');
+            const svg = wrap.querySelector('svg');
+            if (svg) {
+                svg.style.cursor = 'crosshair';
+                svg.querySelectorAll('[data-zone]').forEach(el => {
+                    el.style.cursor = 'pointer';
+                    el.style.touchAction = 'manipulation';
+                    const handler = function(e) { e.preventDefault(); _selectDirectHitLocZone(this.dataset.zone, svg); };
+                    el.addEventListener('click', handler);
+                    el.addEventListener('touchend', handler);
+                });
+            }
+            box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+    }
+    window._showAddHitLocInline = _showAddHitLocInline;
 
     function _selectDirectHitLocZone(zone, svg) {
         _dhlPendingZone = zone;
