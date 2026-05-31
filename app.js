@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v418';
+﻿    const APP_VERSION = 'v419';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -13121,7 +13121,8 @@
             });
             // 上半局 A 隊攻、下半局 B 隊攻
             const newAttacker = gameState.half === '上' ? 'A' : 'B';
-            if (allData.bm && allData.bm.attackingTeam !== newAttacker) {
+            const attackerChanged = allData.bm && allData.bm.attackingTeam !== newAttacker;
+            if (attackerChanged) {
                 allData.bm.attackingTeam = newAttacker;
                 const ta = document.getElementById('bmTeamABtn');
                 const tb = document.getElementById('bmTeamBBtn');
@@ -13130,8 +13131,12 @@
             }
             const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
             const newOrder = gameState.currentBatterIndex[battingTeam];
-            if (_bmState.currentOrder !== newOrder) {
+            const orderChanged = _bmState.currentOrder !== newOrder;
+            if (orderChanged) {
                 _bmState.currentOrder = newOrder;
+            }
+            // 換隊或換棒次都要重繪（A/B 槽資訊跟著更新）
+            if (attackerChanged || orderChanged) {
                 _renderBmBatterDisplay();
             }
         } finally {
@@ -13967,7 +13972,9 @@
         const botBtn = document.getElementById('bmHalfBotBtn');
         if (topBtn) topBtn.classList.toggle('bm-on', half==='上');
         if (botBtn) botBtn.classList.toggle('bm-on', half==='下');
-        if (userMode === 'batter') _saveBmGameState();
+        if (userMode === 'batter') _saveBmGameState(); // → _syncBmLinkedToPitcher → gameState.half 更新
+        // 手動切換後同步新隊的棒次到顯示（不重設棒次，從各隊上次位置繼續）
+        _syncPitcherToBmLinked();
     }
 
     function setBmOuts(n) {
@@ -14119,7 +14126,17 @@
                 score.half   = newHalf;
                 score.inning = newInning;
             }
-            // 三出局換隊：切到新進攻隊，從該隊上次的棒次繼續
+            // 三出局換隊：立刻更新 allData.bm.attackingTeam + UI，再設定新棒次
+            const newAttacker = newHalf === '上' ? 'A' : 'B';
+            if (allData.bm) allData.bm.attackingTeam = newAttacker;
+            const ta = document.getElementById('bmTeamABtn');
+            const tb = document.getElementById('bmTeamBBtn');
+            if (ta) ta.classList.toggle('bm-on', newAttacker === 'A');
+            if (tb) tb.classList.toggle('bm-on', newAttacker === 'B');
+            const topBtn2 = document.getElementById('bmHalfTopBtn');
+            const botBtn2 = document.getElementById('bmHalfBotBtn');
+            if (topBtn2) topBtn2.classList.toggle('bm-on', newHalf === '上');
+            if (botBtn2) botBtn2.classList.toggle('bm-on', newHalf === '下');
             const newGsKey = newHalf === '上' ? 'teamA' : 'teamB';
             _bmState.currentOrder = gameState.currentBatterIndex[newGsKey] || 0;
             gameState.currentBatterIndex[newGsKey] = _bmState.currentOrder;

@@ -1281,14 +1281,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 10px;
-    border-radius: 8px;
-    margin-bottom: 5px;
-    font-size: 14px;
+    padding: 9px 12px;
+    border-radius: 9px;
+    margin-bottom: 6px;
+    font-size: 16px;
     background: #f9fafb;
     border: 1px solid #f3f4f6;
 }
-.bm-log-outcome { font-weight: 700; font-size: 14px; }
+.bm-log-outcome { font-weight: 700; font-size: 16px; }
 .bm-log-hit { color: #16a34a; }
 .bm-log-out { color: #dc2626; }
 .bm-log-bb  { color: #9333ea; }
