@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v453';
+﻿    const APP_VERSION = 'v454';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14997,7 +14997,7 @@
                             return `<span style="font-weight:800;color:${col};">${v.toFixed(3)}</span>`;
                           })()
                         : `<span style="color:#d1d5db;font-size:11px;">樣本不足</span>`;
-                    return `<tr onclick="showBmBatterDetail(${JSON.stringify(String(r.number))},${JSON.stringify(tname)})"
+                    return `<tr onclick="showBmBatterDetail('${String(r.number).replace(/'/g,"\\'")}','${tname.replace(/'/g,"\\'")}')"
                         onmouseenter="this.style.background='#f0f7ff'" onmouseleave="this.style.background=''"
                         style="cursor:pointer;font-size:13px;transition:background 0.15s;">
                       <td style="padding:8px 8px;white-space:nowrap;">
@@ -15366,7 +15366,7 @@
             </div>
             ${pitchBreakdown}
             <h3 style="margin-top:16px;">📋 打席記錄</h3>
-            <button onclick="_showAddHitLocInline(${JSON.stringify(String(number))},${JSON.stringify(teamStr)},this)"
+            <button onclick="_showAddHitLocInline('${String(number).replace(/'/g,"\\'")}','${teamStr.replace(/'/g,"\\'")}',this)"
               style="margin-bottom:10px;padding:6px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
               📍 新增落點
             </button>
@@ -15455,7 +15455,7 @@
           <div id="dhlSvgWrap"></div>
           <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;min-height:20px;">尚未選取區域</div>
           <div style="display:flex;gap:8px;margin-top:12px;">
-            <button id="dhlSaveBtn" onclick="_saveDirectHitLoc(${JSON.stringify(String(number))},${JSON.stringify(String(teamName||''))})" disabled
+            <button id="dhlSaveBtn" onclick="_saveDirectHitLoc('${String(number).replace(/'/g,"\\'")}','${String(teamName||'').replace(/'/g,"\\'")}' )" disabled
               style="flex:1;padding:12px;border-radius:9px;border:none;background:#003d79;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;opacity:0.4;">
               ✅ 儲存此落點
             </button>
