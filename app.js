@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v421';
+﻿    const APP_VERSION = 'v422';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10811,7 +10811,8 @@
                             if (entry.name)   name = (entry.name).trim();
                         }
                     }
-                    const nameKey = name || (num ? `#${num}` : '') || (pitch.batterOrder ? `棒次${pitch.batterOrder}` : '');
+                    // ★ 背號優先做 key（與統計頁一致），避免同打者有無姓名造成分裂
+                    const nameKey = (num ? `#${num}` : name) || (pitch.batterOrder ? `棒次${pitch.batterOrder}` : '');
                     if (!nameKey) return;
                     // ★ 優先從打線查隊名，再 fallback pitch.batterTeam
                     const lineupTeam = num ? _lineupNumMap9[num]?.team : '';
@@ -10842,8 +10843,8 @@
             if (!ab.outcome) return;
             const name = (ab.name || '').trim();
             const num  = String(ab.number || '').trim();
-            // 無姓名/背號時用棒次作 fallback（與投手模式一致）
-            const nameKey = name || (num ? `#${num}` : '') || (ab.order ? `${ab.order}棒` : '');
+            // 背號優先做 key（與投手記錄段、統計頁一致），避免同打者分裂
+            const nameKey = (num ? `#${num}` : name) || (ab.order ? `${ab.order}棒` : '');
             if (!nameKey) return;
             // 舊資料沒有 teamName 時，從 gameIdx + team side 補推
             let bTeam = ab.teamName || '';
