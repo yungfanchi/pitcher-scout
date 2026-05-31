@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v410';
+﻿    const APP_VERSION = 'v411';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10454,21 +10454,35 @@
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
     }
 
-    // 聯動模式內嵌球場圖落點選擇
+    // 聯動模式內嵌球場圖落點選擇（再點同一區取消）
     function selectBmHitZone(zone, el) {
-        _zoneHighlight(el, el ? el.closest('svg') : document.getElementById('fieldSVG_bm'));
+        const svg = el ? el.closest('svg') : document.getElementById('fieldSVG_bm');
+        const lbl = document.getElementById('bmHitZoneLabel');
+        if (_bmState.hitLoc && _bmState.hitLoc.zone === zone) {
+            _bmState.hitLoc = null;
+            _zoneHighlight(null, svg);
+            if (lbl) lbl.textContent = '';
+            return;
+        }
+        _zoneHighlight(el, svg);
         const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
         _bmState.hitLoc = { zone, x: c.x / 300, y: c.y / 280 };
-        const lbl = document.getElementById('bmHitZoneLabel');
         if (lbl) lbl.textContent = zone;
     }
 
-    // 獨立模式打席結果選擇器中的落點選擇
+    // 獨立模式打席結果選擇器中的落點選擇（再點同一區取消）
     function selectSpHitZone(zone, el) {
-        _zoneHighlight(el, el ? el.closest('svg') : document.getElementById('fieldSVG_sp'));
+        const svg = el ? el.closest('svg') : document.getElementById('fieldSVG_sp');
+        const lbl = document.getElementById('spHitZoneLabel');
+        if (_bmState.spHitLoc && _bmState.spHitLoc.zone === zone) {
+            _bmState.spHitLoc = null;
+            _zoneHighlight(null, svg);
+            if (lbl) lbl.textContent = '';
+            return;
+        }
+        _zoneHighlight(el, svg);
         const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
         _bmState.spHitLoc = { zone, x: c.x / 300, y: c.y / 280 };
-        const lbl = document.getElementById('spHitZoneLabel');
         if (lbl) lbl.textContent = zone;
     }
 
@@ -10488,14 +10502,15 @@
 
     // ── 建立球場 SVG（真實扇形球場，本壘板在底部） ──
     // viewBox 300x280，本壘板 (150,272)
-    // interactive: false=靜態  true=彈窗  'bm'=聯動內嵌  'sp'=獨立內嵌
+    // interactive: false=靜態  true=彈窗  'bm'=聯動內嵌  'sp'=獨立內嵌  'edit'=打席編輯modal
     function buildFieldSVG(dotsHTML = '', interactive = false, cleanFan = false, hrDotsHTML = '') {
         const isBm   = interactive === 'bm';
         const isSp   = interactive === 'sp';
+        const isEdit = interactive === 'edit';
         const isAny  = interactive !== false;
-        const id     = isBm ? 'fieldSVG_bm' : isSp ? 'fieldSVG_sp' :
+        const id     = isBm ? 'fieldSVG_bm' : isSp ? 'fieldSVG_sp' : isEdit ? 'fieldSVG_edit' :
                        (interactive === true) ? 'fieldSVGInteractive' : `fieldSVGStatic_${Date.now()}`;
-        const fn     = isBm ? 'selectBmHitZone' : isSp ? 'selectSpHitZone' : 'selectHitZone';
+        const fn     = isBm ? 'selectBmHitZone' : isSp ? 'selectSpHitZone' : isEdit ? 'selectBmEditHitZone' : 'selectHitZone';
 
         // 靜態模式（落點圖）：單色扇形，無區域色彩區分
         // 互動模式（選區）：保留完整色彩方便識別
@@ -13982,9 +13997,14 @@
             recent.map(r => {
                 const cls = HIT.includes(r.outcome) ? 'bm-log-hit' : BB.includes(r.outcome) ? 'bm-log-bb' : 'bm-log-out';
                 const zone = r.hitLocation ? ` → ${r.hitLocation.zone}` : '';
+                const ts = r.ts;
                 return `<div class="bm-log-row">
                     <span>#${r.number||'?'} ${r.name||''} <span style="font-size:11px;color:#9ca3af;">${r.inning}局${r.half}</span></span>
-                    <span class="bm-log-outcome ${cls}">${r.outcome}${zone}</span>
+                    <span style="display:flex;align-items:center;gap:4px;">
+                        <span class="bm-log-outcome ${cls}">${r.outcome}${zone}</span>
+                        <button onclick="openBmAtBatEdit(${ts})" ontouchend="event.preventDefault();openBmAtBatEdit(${ts})" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;color:#6b7280;" title="編輯">✏️</button>
+                        <button onclick="deleteBmAtBat(${ts})" ontouchend="event.preventDefault();deleteBmAtBat(${ts})" style="background:none;border:none;cursor:pointer;font-size:12px;padding:2px 4px;color:#dc2626;" title="刪除">✕</button>
+                    </span>
                 </div>`;
             }).join('');
     }
@@ -14240,12 +14260,160 @@
             standaloneABs.map(r => {
                 const cls = HIT.includes(r.outcome) ? 'bm-log-hit' : BB.includes(r.outcome) ? 'bm-log-bb' : 'bm-log-out';
                 const zone = r.hitLocation ? ` → ${r.hitLocation.zone}` : '';
+                const ts = r.ts;
                 return `<div class="bm-log-row">
-                    <span>#${r.number||'?'} ${r.name||''} <span style="font-size:11px;color:#9ca3af;">${r.pitches.length}球</span></span>
-                    <span class="bm-log-outcome ${cls}">${r.outcome}${zone}</span>
+                    <span>#${r.number||'?'} ${r.name||''} <span style="font-size:11px;color:#9ca3af;">${(r.pitches||[]).length}球</span></span>
+                    <span style="display:flex;align-items:center;gap:4px;">
+                        <span class="bm-log-outcome ${cls}">${r.outcome}${zone}</span>
+                        <button onclick="openBmAtBatEdit(${ts})" ontouchend="event.preventDefault();openBmAtBatEdit(${ts})" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;color:#6b7280;" title="編輯">✏️</button>
+                        <button onclick="deleteBmAtBat(${ts})" ontouchend="event.preventDefault();deleteBmAtBat(${ts})" style="background:none;border:none;cursor:pointer;font-size:12px;padding:2px 4px;color:#dc2626;" title="刪除">✕</button>
+                    </span>
                 </div>`;
             }).join('');
     }
+
+    // ── 打者最近記錄：刪除 ──
+    function deleteBmAtBat(ts) {
+        if (!confirm('確定刪除這筆打席記錄？')) return;
+        const idx = (allData.bm && allData.bm.atBats || []).findIndex(a => a.ts === ts);
+        if (idx < 0) return;
+        allData.bm.atBats.splice(idx, 1);
+        saveToLocalStorage();
+        saveBmToFirebase();
+        _renderBmRecentLog();
+        _renderSpRecentLog();
+    }
+    window.deleteBmAtBat = deleteBmAtBat;
+
+    // ── 打者最近記錄：編輯 ──
+    let _bmAtBatEditState = { ts: null, outcome: null, hitLoc: null };
+
+    function openBmAtBatEdit(ts) {
+        _initBmData();
+        const rec = (allData.bm.atBats || []).find(a => a.ts === ts);
+        if (!rec) return;
+        _bmAtBatEditState = {
+            ts,
+            outcome: rec.outcome || null,
+            hitLoc: rec.hitLocation ? { ...rec.hitLocation } : null
+        };
+
+        let modal = document.getElementById('bmAtBatEditModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'bmAtBatEditModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:3000;display:flex;align-items:flex-end;justify-content:center;';
+            modal.addEventListener('click', function(e) { if (e.target === modal) closeBmAtBatEdit(); });
+            document.body.appendChild(modal);
+        }
+
+        const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const BB  = ['保送','觸身球','故意四壞','捕逸'];
+        const titleCls = HIT.includes(rec.outcome) ? '#16a34a' : BB.includes(rec.outcome) ? '#7c3aed' : '#dc2626';
+        const zone = rec.hitLocation ? ` → ${rec.hitLocation.zone}` : '';
+        const inningInfo = rec.inning ? `${rec.inning}局${rec.half||''}` : '';
+
+        modal.innerHTML = `
+            <div style="background:white;border-radius:16px 16px 0 0;padding:16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-sizing:border-box;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+                    <div>
+                        <div style="font-size:14px;font-weight:900;color:#111;">✏️ 編輯打席記錄</div>
+                        <div style="font-size:12px;color:#6b7280;margin-top:2px;">
+                            #${rec.number||'?'} ${escapeHtml(rec.name||'')}${inningInfo?' · '+inningInfo:''} · <span style="color:${titleCls};font-weight:700;">${escapeHtml(rec.outcome||'--')}${zone}</span>
+                        </div>
+                    </div>
+                    <button onclick="closeBmAtBatEdit()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;padding:4px;line-height:1;">✕</button>
+                </div>
+                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">打席結果 *</div>
+                <div id="bmEditOutcomeBtns" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;"></div>
+                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px;">
+                    落點 <span style="font-weight:400;color:#9ca3af;">（可選，再點一次取消）</span>
+                    <span id="bmEditHitZoneLabel" style="color:#003d79;font-weight:900;margin-left:6px;">${rec.hitLocation ? escapeHtml(rec.hitLocation.zone) : ''}</span>
+                </div>
+                <div id="bmEditHitMapWrap" style="max-width:260px;"></div>
+                <div style="display:flex;gap:8px;margin-top:16px;">
+                    <button onclick="closeBmAtBatEdit()" style="flex:1;padding:13px;background:#f3f4f6;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;color:#374151;touch-action:manipulation;">取消</button>
+                    <button onclick="confirmBmAtBatEdit()" style="flex:2;padding:13px;background:#003d79;color:white;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;touch-action:manipulation;">確認修改</button>
+                </div>
+            </div>`;
+        modal.style.display = 'flex';
+
+        // 渲染打席結果按鈕（不含戰術標籤）
+        const outcomeCont = document.getElementById('bmEditOutcomeBtns');
+        if (outcomeCont) {
+            outcomeCont.innerHTML = BM_OUTCOME_GROUPS.filter(g => g.type !== 'modifier').map(g => {
+                const btns = g.outcomes.map(label => {
+                    const cls    = BM_OUTCOME_CLS[label] || '';
+                    const active = _bmAtBatEditState.outcome === label ? ' bm-on' : '';
+                    return `<button class="bm-outcome-btn ${cls}${active}"
+                        onclick="_selectBmEditOutcome('${label}',this)"
+                        ontouchend="event.preventDefault();_selectBmEditOutcome('${label}',this)">${label}</button>`;
+                }).join('');
+                return `<div class="bm-outcome-group">
+                    <span class="bm-outcome-group-label" style="color:${g.color};font-size:11px;font-weight:800;display:block;margin-bottom:4px;">${g.label}</span>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;">${btns}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // 渲染球場落點圖
+        const mapWrap = document.getElementById('bmEditHitMapWrap');
+        if (mapWrap) {
+            mapWrap.innerHTML = buildFieldSVG('', 'edit');
+            if (_bmAtBatEditState.hitLoc) {
+                const svg = mapWrap.querySelector('svg');
+                if (svg) {
+                    const el = svg.querySelector(`[data-zone="${_bmAtBatEditState.hitLoc.zone}"]`);
+                    if (el) _zoneHighlight(el, svg);
+                }
+            }
+        }
+    }
+    window.openBmAtBatEdit = openBmAtBatEdit;
+
+    function _selectBmEditOutcome(outcome, btn) {
+        _bmAtBatEditState.outcome = outcome;
+        document.querySelectorAll('#bmEditOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        if (btn) btn.classList.add('bm-on');
+    }
+    window._selectBmEditOutcome = _selectBmEditOutcome;
+
+    function selectBmEditHitZone(zone, el) {
+        const svg = el ? el.closest('svg') : document.getElementById('fieldSVG_edit');
+        const lbl = document.getElementById('bmEditHitZoneLabel');
+        if (_bmAtBatEditState.hitLoc && _bmAtBatEditState.hitLoc.zone === zone) {
+            _bmAtBatEditState.hitLoc = null;
+            _zoneHighlight(null, svg);
+            if (lbl) lbl.textContent = '';
+            return;
+        }
+        _zoneHighlight(el, svg);
+        const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
+        _bmAtBatEditState.hitLoc = { zone, x: c.x / 300, y: c.y / 280 };
+        if (lbl) lbl.textContent = zone;
+    }
+    window.selectBmEditHitZone = selectBmEditHitZone;
+
+    function closeBmAtBatEdit() {
+        const modal = document.getElementById('bmAtBatEditModal');
+        if (modal) modal.style.display = 'none';
+    }
+    window.closeBmAtBatEdit = closeBmAtBatEdit;
+
+    function confirmBmAtBatEdit() {
+        if (!_bmAtBatEditState.outcome) { alert('請選擇打席結果'); return; }
+        _initBmData();
+        const idx = (allData.bm.atBats || []).findIndex(a => a.ts === _bmAtBatEditState.ts);
+        if (idx < 0) { closeBmAtBatEdit(); return; }
+        allData.bm.atBats[idx].outcome    = _bmAtBatEditState.outcome;
+        allData.bm.atBats[idx].hitLocation = _bmAtBatEditState.hitLoc || null;
+        saveToLocalStorage();
+        saveBmToFirebase();
+        closeBmAtBatEdit();
+        _renderBmRecentLog();
+        _renderSpRecentLog();
+    }
+    window.confirmBmAtBatEdit = confirmBmAtBatEdit;
 
     // ── 統計 Tab ──
     function _renderBmStats() {
