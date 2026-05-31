@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v430';
+﻿    const APP_VERSION = 'v431';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14944,26 +14944,25 @@
         };
         let atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr);
 
-        // ── Step 2：fallback — 用打線棒次反查（歷史資料 number 空白時）──
-        if (atBats.length === 0 && allData.bm.gameIdx >= 0) {
-            const gi = allData.bm.gameIdx;
-            const _g = allData.teams[gi];
-            if (_g) {
-                let targetOrder = -1, targetTeam = null;
+        // ── Step 2：掃所有賽事打線找棒次，比對 bm.atBats（歷史資料 number 空白時）──
+        if (atBats.length === 0) {
+            // 建立 { gameIdx, order, team } 候選清單（所有含此背號的打線位置）
+            const candidates = [];
+            (allData.teams||[]).forEach((_g, gi) => {
                 ['teamA','teamB'].forEach(side => {
                     const lineup = _lineupToArray(_g.lineups?.[side]);
                     const idx = lineup.findIndex(p => String(p?.number||'') === numStr);
-                    if (idx >= 0 && targetOrder === -1) {
-                        targetOrder = idx + 1;
-                        targetTeam = side === 'teamA' ? 'A' : 'B';
-                    }
+                    if (idx >= 0) candidates.push({ gi, order: idx + 1, team: side === 'teamA' ? 'A' : 'B' });
                 });
-                if (targetOrder > 0) {
-                    atBats = (allData.bm.atBats||[]).filter(a =>
-                        a.order === targetOrder && a.gameIdx === gi &&
-                        (!a.team || a.team === targetTeam)
+            });
+            if (candidates.length > 0) {
+                atBats = (allData.bm.atBats||[]).filter(a => {
+                    if (a.number) return false; // 有號碼但不符才到這裡，跳過
+                    return candidates.some(c =>
+                        c.gi === a.gameIdx && c.order === a.order &&
+                        (!a.team || a.team === c.team)
                     );
-                }
+                });
             }
         }
 
@@ -14973,7 +14972,7 @@
             if (detailEl0) detailEl0.innerHTML = `
                 <div style="margin-top:16px;padding:16px;background:#fff3cd;border-radius:10px;color:#856404;font-size:14px;">
                   ⚠️ 找不到 #${number} 的打者模式打席記錄。<br>
-                  <span style="font-size:12px;">此打者的資料來自投手記錄，若要補錄落點請確認打者模式已有記錄此打席。</span>
+                  <span style="font-size:12px;">請確認打者打線（名冊）裡背號 ${number} 已正確填入，或此打者的落點由打者模式另行補錄。</span>
                 </div>`;
             if (detailEl0) detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
             return;
