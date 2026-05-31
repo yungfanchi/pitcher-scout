@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v444';
+﻿    const APP_VERSION = 'v445';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14975,7 +14975,13 @@
         }).join('');
 
         container.innerHTML = `
-            <h2>📊 打者成績一覽</h2>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px;">
+              <h2 style="margin:0;">📊 打者成績一覽</h2>
+              <button onclick="pullBmFromFirebase(this)"
+                style="padding:5px 14px;border-radius:8px;border:1.5px solid #0051a5;background:#fff;color:#0051a5;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                🔄 同步落點
+              </button>
+            </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start;margin-bottom:16px;">
               ${groupsHTML}
             </div>
@@ -15906,10 +15912,40 @@
     }
 
     function syncBmData(btn) {
-        if (btn) btn.textContent = '⏳ 同步中...';
+        if (btn) { btn.textContent = '⏳ 同步中...'; btn.disabled = true; }
         saveBmToFirebase();
-        setTimeout(() => { if (btn) btn.textContent = '☁️ 同步'; }, 1500);
+        setTimeout(() => {
+            if (btn) { btn.textContent = '☁️ 同步'; btn.disabled = false; }
+        }, 1500);
     }
+
+    // ★ 從 Firebase 拉最新 bm（包含落點圖），然後重繪目前分頁
+    function pullBmFromFirebase(btn) {
+        if (!USER_TEAM_REF) { alert('尚未登入或無網路連線'); return; }
+        if (btn) { btn.textContent = '⏳ 讀取中...'; btn.disabled = true; }
+        USER_TEAM_REF.child('bm').once('value').then(snap => {
+            const val = snap.val();
+            if (val && typeof val === 'object') {
+                if (!allData.bm) allData.bm = {};
+                Object.assign(allData.bm, val);
+                if (!Array.isArray(allData.bm.hitLocations))
+                    allData.bm.hitLocations = Object.values(allData.bm.hitLocations || {});
+                if (!Array.isArray(allData.bm.atBats))
+                    allData.bm.atBats = Object.values(allData.bm.atBats || {});
+                saveToLocalStorage();
+                // 重繪目前分頁
+                const t = _bmState?.tab || '';
+                if (t === 'stats'       && typeof _renderBmStats    === 'function') _renderBmStats();
+                else if (t === 'batterdata' && typeof refreshBatterList === 'function') refreshBatterList();
+                if (btn) { btn.textContent = '✅ 已更新'; setTimeout(()=>{btn.textContent='🔄 同步落點'; btn.disabled=false;}, 1500); }
+            } else {
+                if (btn) { btn.textContent = '⚠️ 無資料'; setTimeout(()=>{btn.textContent='🔄 同步落點'; btn.disabled=false;}, 2000); }
+            }
+        }).catch(e => {
+            if (btn) { btn.textContent = '❌ 失敗'; setTimeout(()=>{btn.textContent='🔄 同步落點'; btn.disabled=false;}, 2000); }
+        });
+    }
+    window.pullBmFromFirebase = pullBmFromFirebase;
 
     // 頁面初始化（不依賴 Auth，僅載入本機資料與 UI）
     init();
