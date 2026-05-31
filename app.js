@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v411';
+﻿    const APP_VERSION = 'v412';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -13849,6 +13849,7 @@
             btn.textContent = i < n ? '●' : '○';
         }
         if (userMode === 'batter') _saveBmGameState();
+        _syncBmLinkedToPitcher();
     }
 
     function toggleBmBase(idx) {
@@ -13861,6 +13862,7 @@
             btn.textContent = (_bmState.bases[idx] ? '●' : '') + labels[idx];
         }
         _saveBmGameState();
+        _syncBmLinkedToPitcher();
     }
 
     function selectBmPh(hand, side) {
@@ -13999,7 +14001,7 @@
                 const zone = r.hitLocation ? ` → ${r.hitLocation.zone}` : '';
                 const ts = r.ts;
                 return `<div class="bm-log-row">
-                    <span>#${r.number||'?'} ${r.name||''} <span style="font-size:11px;color:#9ca3af;">${r.inning}局${r.half}</span></span>
+                    <span>#${r.number||'?'} ${r.name||''} <span style="font-size:12px;color:#9ca3af;">${r.inning}局${r.half}</span></span>
                     <span style="display:flex;align-items:center;gap:4px;">
                         <span class="bm-log-outcome ${cls}">${r.outcome}${zone}</span>
                         <button onclick="openBmAtBatEdit(${ts})" ontouchend="event.preventDefault();openBmAtBatEdit(${ts})" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;color:#6b7280;" title="編輯">✏️</button>
@@ -14262,7 +14264,7 @@
                 const zone = r.hitLocation ? ` → ${r.hitLocation.zone}` : '';
                 const ts = r.ts;
                 return `<div class="bm-log-row">
-                    <span>#${r.number||'?'} ${r.name||''} <span style="font-size:11px;color:#9ca3af;">${(r.pitches||[]).length}球</span></span>
+                    <span>#${r.number||'?'} ${r.name||''} <span style="font-size:12px;color:#9ca3af;">${(r.pitches||[]).length}球</span></span>
                     <span style="display:flex;align-items:center;gap:4px;">
                         <span class="bm-log-outcome ${cls}">${r.outcome}${zone}</span>
                         <button onclick="openBmAtBatEdit(${ts})" ontouchend="event.preventDefault();openBmAtBatEdit(${ts})" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;color:#6b7280;" title="編輯">✏️</button>
