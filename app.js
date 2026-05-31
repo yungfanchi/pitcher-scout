@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v440';
+﻿    const APP_VERSION = 'v441';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11556,7 +11556,17 @@
         </div>`;
 
         // ── 3. 打擊落點圖 + 方向/型態分析 ──
-        const locs = pitches.filter(p => p.hitLocation && (p.outcomes||[]).some(o => BIP.includes(o)));
+        // ★ 合併 bm.hitLocations 直接補錄的落點（與統計頁同步）
+        const _profileNum = entry._bmNum || (entry.nameKey?.startsWith('#') ? entry.nameKey.slice(1) : '');
+        const _profileDirect = _profileNum
+            ? (allData.bm?.hitLocations||[])
+                .filter(l => String(l.number) === String(_profileNum))
+                .map(l => ({ hitLocation:{zone:l.zone, x:l.x, y:l.y}, outcomes:[l.outcome||''], _directPatch:true }))
+            : [];
+        const locs = [
+            ...pitches.filter(p => p.hitLocation && (p.outcomes||[]).some(o => BIP.includes(o))),
+            ..._profileDirect.filter(p => p.hitLocation)
+        ];
         const _isHR = p => (p.outcomes||[]).includes('全壘打');
         function _makeLine(p) {
             const sx = (p.hitLocation.x * 300).toFixed(1), sy = (p.hitLocation.y * 280).toFixed(1);
