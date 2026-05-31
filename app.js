@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v419';
+﻿    const APP_VERSION = 'v420';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10842,7 +10842,8 @@
             if (!ab.outcome) return;
             const name = (ab.name || '').trim();
             const num  = String(ab.number || '').trim();
-            const nameKey = name || (num ? `#${num}` : '');
+            // 無姓名/背號時用棒次作 fallback（與投手模式一致）
+            const nameKey = name || (num ? `#${num}` : '') || (ab.order ? `${ab.order}棒` : '');
             if (!nameKey) return;
             // 舊資料沒有 teamName 時，從 gameIdx + team side 補推
             let bTeam = ab.teamName || '';
@@ -11535,7 +11536,12 @@
         <div style="background:#fffdf5;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
           <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ 打擊落點圖</div>
           ${locs.length === 0
-            ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;"><div style="text-align:center;padding:20px 0;font-size:12px;color:#9ca3af;">尚無落點資料</div>${secNotes}</div>`
+            ? `<div style="display:grid;grid-template-columns:55% 1fr;gap:16px;align-items:stretch;">
+            <div style="min-width:0;">
+              ${buildFieldSVG('', false, true, '')}
+              <div style="text-align:center;margin-top:6px;font-size:12px;color:#9ca3af;">尚無落點資料<br>記錄打席時點選球場圖即可建立</div>
+            </div>
+            <div style="min-width:0;">${secNotes}</div></div>`
             : `<div style="display:grid;grid-template-columns:55% 1fr 1fr;gap:16px;align-items:stretch;">
             <!-- 落點圖 左側 -->
             <div style="min-width:0;">
