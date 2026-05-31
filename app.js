@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v447';
+﻿    const APP_VERSION = 'v448';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8014,12 +8014,14 @@
                 if (!val || typeof val !== 'object') return;
                 if (!allData.bm) allData.bm = {};
                 const prevHitLocs = JSON.stringify(allData.bm.hitLocations || []);
+                const prevAtBats  = JSON.stringify(allData.bm.atBats || []);
                 Object.assign(allData.bm, val);
                 if (!Array.isArray(allData.bm.hitLocations)) allData.bm.hitLocations = Object.values(allData.bm.hitLocations || {});
                 if (!Array.isArray(allData.bm.atBats))        allData.bm.atBats        = Object.values(allData.bm.atBats        || {});
                 const newHitLocs = JSON.stringify(allData.bm.hitLocations || []);
-                // 落點有變化才重繪
-                if (prevHitLocs !== newHitLocs) {
+                const newAtBats  = JSON.stringify(allData.bm.atBats || []);
+                // 落點或打席有變化才重繪（atBats 也含落點資料，不可遺漏）
+                if (prevHitLocs !== newHitLocs || prevAtBats !== newAtBats) {
                     saveToLocalStorage();
                     if (userMode === 'batter') {
                         const t = _bmState?.tab || '';
