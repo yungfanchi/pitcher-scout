@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v427';
+﻿    const APP_VERSION = 'v428';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14842,8 +14842,13 @@
                             return `<span style="font-weight:800;color:${col};">${v.toFixed(3)}</span>`;
                           })()
                         : `<span style="color:#d1d5db;font-size:11px;">樣本不足</span>`;
-                    return `<tr onclick="showBmBatterDetail('${r.number}')" style="cursor:pointer;font-size:13px;">
-                      <td style="padding:8px 8px;white-space:nowrap;"><span style="font-weight:900;font-size:14px;">#${r.number} ${r.name||''}</span><br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
+                    return `<tr onclick="showBmBatterDetail('${r.number}')"
+                        onmouseenter="this.style.background='#f0f7ff'" onmouseleave="this.style.background=''"
+                        style="cursor:pointer;font-size:13px;transition:background 0.15s;">
+                      <td style="padding:8px 8px;white-space:nowrap;">
+                        <span style="font-weight:900;font-size:14px;">#${r.number} ${r.name||''}</span>
+                        <span style="font-size:10px;color:#0051a5;margin-left:4px;">▶ 詳情</span>
+                        <br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
                       <td style="padding:8px 5px;text-align:center;font-weight:700;">${r.pa}</td>
                       <td style="padding:8px 5px;text-align:center;font-weight:700;">${r.hits}</td>
                       <td style="padding:8px 6px;white-space:nowrap;">${_bmAvgBar(r.avgNum)}</td>
