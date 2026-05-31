@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v456';
+﻿    const APP_VERSION = 'v457';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15064,10 +15064,45 @@
         const numStr = String(number);
         const teamStr = teamName ? String(teamName) : '';
 
-        // ── Step 1：直接比對 ab.number ──
+        const PA_END_D = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局',
+            '內野安打','一壘安打','二壘安打','三壘安打','全壘打',
+            '保送','觸身球','故意四壞','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤','捕逸'];
+
+        // ── Step 0：從投球記錄撈打席（與統計頁資料一致）──
+        // 依上/下半局判斷打者所屬球隊，用隊名嚴格過濾
+        let atBats = [];
+        allData.teams.forEach(team => {
+            (team.pitchers || []).forEach(pitcher => {
+                (pitcher.pitches || []).forEach(pitch => {
+                    if (String(pitch.batterNumber || '') !== numStr) return;
+                    let bTeam = '';
+                    if (pitch.half === '上') bTeam = team.name || '';
+                    else if (pitch.half === '下') bTeam = team.opponent || '';
+                    if (teamStr && bTeam !== teamStr) return; // 隊名不符略過
+                    const paOutcome = (pitch.outcomes || []).find(o => PA_END_D.includes(o));
+                    if (!paOutcome) return;
+                    atBats.push({
+                        number: numStr,
+                        name: pitch.batterName || '',
+                        hand: pitch.batterHand || '右打',
+                        teamName: bTeam,
+                        outcome: paOutcome,
+                        hitLocation: pitch.hitLocation || null,
+                        pitcherHand: pitcher.hand || '右投',
+                        balls: pitch.balls || 0,
+                        strikes: pitch.strikes || 0,
+                        inning: pitch.inning,
+                        half: pitch.half,
+                        ts: pitch.timestamp || 0,
+                        mode: 'pitch'
+                    });
+                });
+            });
+        });
+
+        // ── Step 1：直接比對 bm.atBats 的 ab.number（補充 bm 獨立記錄）──
         const _resolveAbNum = ab => {
             if (ab.number) return String(ab.number);
-            // 從連動賽事打線補號
             if (ab.order && ab.mode === 'linked' && ab.gameIdx >= 0 && allData.teams[ab.gameIdx]) {
                 const _g = allData.teams[ab.gameIdx];
                 const _side = ab.team === 'A' ? 'teamA' : 'teamB';
@@ -15077,9 +15112,11 @@
             }
             return '';
         };
-        // ★ 依隊名嚴格隔離：teamStr 有值時只顯示完全相符的隊名，防止同號跨隊混用
+        // ★ 依隊名嚴格隔離
         const _matchTeam = a => teamStr ? a.teamName === teamStr : true;
-        let atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr && _matchTeam(a));
+        const _bmAbs = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr && _matchTeam(a));
+        // 合併，避免重複（pitch 記錄已有的不再加）
+        _bmAbs.forEach(a => { if (a.mode !== 'pitch') atBats.push(a); });
 
         // ── Step 2：掃所有賽事打線找棒次，比對 bm.atBats（不強求 gameIdx 吻合）──
         if (atBats.length === 0) {
