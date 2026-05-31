@@ -1426,6 +1426,10 @@
                             class="bm-slot-input bm-slot-input-trait"
                             style="width:100%;margin-top:8px;box-sizing:border-box;"
                             onblur="patchBmBatterTrait()" onkeydown="if(event.key==='Enter')this.blur()">
+                        <button id="bmPinchBtn" onclick="toggleBmPinch()" ontouchend="event.preventDefault();toggleBmPinch()"
+                            style="width:100%;margin-top:6px;padding:9px;border:2px solid var(--ct-gold);border-radius:8px;background:#fff3cd;color:var(--ct-blue-dark);font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;">
+                            代打
+                        </button>
                         <button id="bmConfirmBtn" onclick="confirmBmLinkedAtBat()" disabled
                             style="width:100%;margin-top:8px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
                             ✅ 確認記錄
@@ -1489,6 +1493,10 @@
                         <input type="text" id="spTraitPatch" placeholder="打者特性（選填）" autocomplete="off"
                             class="bm-slot-input bm-slot-input-trait"
                             style="width:100%;margin-top:8px;box-sizing:border-box;">
+                        <button id="spPinchBtn" onclick="toggleSpPinch()" ontouchend="event.preventDefault();toggleSpPinch()"
+                            style="width:100%;margin-top:6px;padding:9px;border:2px solid var(--ct-gold);border-radius:8px;background:#fff3cd;color:var(--ct-blue-dark);font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;">
+                            代打
+                        </button>
                         <button id="spConfirmBtn" onclick="confirmSpAtBatInline()" disabled
                             style="width:100%;margin-top:8px;padding:16px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:17px;font-weight:900;cursor:pointer;opacity:0.4;font-family:'Oswald','Noto Sans TC',sans-serif;letter-spacing:1px;touch-action:manipulation;">
                             ✅ 確認記錄

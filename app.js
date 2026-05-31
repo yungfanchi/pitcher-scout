@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v417';
+﻿    const APP_VERSION = 'v418';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12502,6 +12502,7 @@
         currentOrder: 0,       // 0-based index (0=打序1)
         selectedOutcome: null,
         hitType: null,         // 聯動模式打球型態（滾地球/平飛球/高飛球）
+        isPinch: false,        // 聯動模式代打旗標
         tactics: [],           // 多選戰術標籤：['打帶跑','戰術失敗']
         hitLoc: null,          // 聯動模式落點（內嵌球場圖選取）
         pitcherHand: '右投',
@@ -12511,6 +12512,7 @@
         // standalone
         spHand: '右打',
         spPh: '右投',
+        spIsPinch: false,      // 獨立模式代打旗標
         spType: null,
         spZone: null,
         spReact: null,
@@ -13782,8 +13784,11 @@
     function resetBmLinkedForm() {
         _bmState.selectedOutcome = null;
         _bmState.hitType = null;
+        _bmState.isPinch = false;
         _bmState.hitLoc = null;
         _bmState.tactics = [];
+        const bmPinchBtn = document.getElementById('bmPinchBtn');
+        if (bmPinchBtn) { bmPinchBtn.style.background='#fff3cd'; bmPinchBtn.style.color='var(--ct-blue-dark)'; bmPinchBtn.textContent='代打'; }
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
         document.querySelectorAll('#bmOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
@@ -13900,6 +13905,7 @@
             pitcherHand: _bmState.spPh,
             outcome,
             hitType: _bmState.spHitType || null,
+            isPinch: _bmState.spIsPinch || false,
             tactics: [..._bmState.tactics],   // 戰術標籤（多選）
             hitLocation: _bmState.spHitLoc || null,
             mode: 'standalone',
@@ -13915,6 +13921,7 @@
         _bmState.spSelectedOutcome = null;
         _bmState.spHitType = null;
         _bmState.spHitLoc = null;
+        _bmState.spIsPinch = false;
         _bmState.tactics = [];
         document.querySelectorAll('#spOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
         const spHitTypeRow = document.getElementById('spHitTypeRow');
@@ -13923,10 +13930,36 @@
         if (svg) _zoneHighlight(null, svg);
         const lbl = document.getElementById('spHitZoneLabel');
         if (lbl) lbl.textContent = '';
+        const spPinchBtn = document.getElementById('spPinchBtn');
+        if (spPinchBtn) { spPinchBtn.style.background='#fff3cd'; spPinchBtn.style.color='var(--ct-blue-dark)'; spPinchBtn.textContent='代打'; }
         const confirmBtn = document.getElementById('spConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
         _renderSpRecentLog();
     }
+
+    function toggleBmPinch() {
+        _bmState.isPinch = !_bmState.isPinch;
+        const btn = document.getElementById('bmPinchBtn');
+        if (btn) {
+            btn.style.background    = _bmState.isPinch ? 'var(--ct-gold)' : '#fff3cd';
+            btn.style.color         = _bmState.isPinch ? '#000' : 'var(--ct-blue-dark)';
+            btn.style.borderColor   = 'var(--ct-gold)';
+            btn.textContent         = _bmState.isPinch ? '✅ 代打' : '代打';
+        }
+    }
+    window.toggleBmPinch = toggleBmPinch;
+
+    function toggleSpPinch() {
+        _bmState.spIsPinch = !_bmState.spIsPinch;
+        const btn = document.getElementById('spPinchBtn');
+        if (btn) {
+            btn.style.background    = _bmState.spIsPinch ? 'var(--ct-gold)' : '#fff3cd';
+            btn.style.color         = _bmState.spIsPinch ? '#000' : 'var(--ct-blue-dark)';
+            btn.style.borderColor   = 'var(--ct-gold)';
+            btn.textContent         = _bmState.spIsPinch ? '✅ 代打' : '代打';
+        }
+    }
+    window.toggleSpPinch = toggleSpPinch;
 
     function selectBmHalf(half) {
         _bmState.half = half;
@@ -14047,6 +14080,7 @@
             pitcherHand: _bmState.pitcherHand,
             outcome:  _bmState.selectedOutcome,
             hitType:  _bmState.hitType || null,
+            isPinch:  _bmState.isPinch || false,
             tactics:  [..._bmState.tactics],
             hitLocation: _bmState.hitLoc || null,
             mode: 'linked',
