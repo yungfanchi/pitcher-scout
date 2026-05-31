@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v448';
+﻿    const APP_VERSION = 'v449';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8032,6 +8032,42 @@
             });
         }
 
+        // ★ games 即時監聽：其他裝置記錄新投球（含打者結果/落點）後，此裝置自動同步 allData.teams
+        let _gamesListenerActive = false;
+        gRef.on('value', snap => {
+            if (!_gamesListenerActive) return; // 初次讀取由 Promise.all 處理
+            const raw = snap.val();
+            if (!raw || typeof raw !== 'object') return;
+            // 把 Firebase 物件轉回陣列，只新增/更新有變化的賽事
+            const incoming = [];
+            Object.entries(raw).forEach(([id, data]) => {
+                const g = _normalizeGameEntry(data);
+                if (g) { if (!g.gameId) g.gameId = id; incoming.push(g); }
+            });
+            if (incoming.length === 0) return;
+            // 以 gameId 合併，Firebase 版本優先
+            const prev = JSON.stringify(allData.teams || []);
+            const mergedMap = {};
+            (allData.teams || []).forEach(t => { if (t.gameId) mergedMap[t.gameId] = t; });
+            incoming.forEach(t => { if (t.gameId) mergedMap[t.gameId] = t; });
+            allData.teams = Object.values(mergedMap);
+            if (JSON.stringify(allData.teams) === prev) return; // 無變化不重繪
+            rebuildPitcherDB();
+            saveToLocalStorage();
+            // 打者模式：重繪目前分頁（打者統計/落點圖會即時更新）
+            if (userMode === 'batter') {
+                const t = _bmState?.tab || '';
+                if (t === 'stats'       && typeof _renderBmStats    === 'function') _renderBmStats();
+                else if (t === 'batterdata' && typeof refreshBatterList === 'function') refreshBatterList();
+            }
+            // 投手模式：更新側欄/統計（不打擾正在輸入的使用者，僅更新非焦點區域）
+            else {
+                updateTeamList();
+                rebuildPitcherDB();
+                if (typeof updateStats === 'function') updateStats();
+            }
+        });
+
         Promise.all([
             gRef.once('value'),
             getDataRef().once('value'),   // 舊路徑 pitchers/
@@ -8144,7 +8180,7 @@
                 loadLiveState();
             }
             // ★ 初次讀取完成後才啟動即時監聽（避免重複處理初次快照）
-            setTimeout(() => { _bmListenerActive = true; }, 500);
+            setTimeout(() => { _bmListenerActive = true; _gamesListenerActive = true; }, 500);
 
             if (needWrite) {
                 const writeObj = {};
