@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v445';
+﻿    const APP_VERSION = 'v446';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15921,9 +15921,23 @@
 
     // ★ 從 Firebase 拉最新 bm（包含落點圖），然後重繪目前分頁
     function pullBmFromFirebase(btn) {
-        if (!USER_TEAM_REF) { alert('尚未登入或無網路連線'); return; }
+        // USER_TEAM_REF 可能因為 auth 時機未設，用 currentTeamCode fallback
+        const _ref = USER_TEAM_REF
+            || (currentTeamCode && typeof db !== 'undefined' && db
+                ? db.ref('teams/' + currentTeamCode) : null);
+        if (!_ref) {
+            // 最後嘗試從 localStorage 讀 teamCode
+            const _cached = localStorage.getItem('chineseTaipeiPitcherData');
+            const _tc = _cached ? JSON.parse(_cached)?._teamCode : null;
+            if (!_tc || typeof db === 'undefined' || !db) {
+                alert('無法連線 Firebase，請先登出再重新登入。');
+                return;
+            }
+        }
+        const _bmRef = USER_TEAM_REF ? USER_TEAM_REF.child('bm')
+            : db.ref('teams/' + (currentTeamCode || JSON.parse(localStorage.getItem('chineseTaipeiPitcherData')||'{}')._teamCode) + '/bm');
         if (btn) { btn.textContent = '⏳ 讀取中...'; btn.disabled = true; }
-        USER_TEAM_REF.child('bm').once('value').then(snap => {
+        _bmRef.once('value').then(snap => {
             const val = snap.val();
             if (val && typeof val === 'object') {
                 if (!allData.bm) allData.bm = {};
