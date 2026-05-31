@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v426';
+﻿    const APP_VERSION = 'v427';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14981,13 +14981,17 @@
               </div>` : ''}
             </div>` : '';
 
+        // BIP（有進場）才需要落點，三振/保送等不顯示 📍
+        const BIP_PATCH = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打',
+                           '滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','雙殺','野選','失誤'];
+
         const detailEl = document.getElementById('bmBatterDetailSection');
         if (!detailEl) return;
         detailEl.innerHTML = `
             <hr style="margin:20px 0;">
             <h2>#${b.number} ${b.name||'（未填姓名）'} · ${b.hand}</h2>
             <h3>🗺️ 打擊落點圖</h3>
-            <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
+            <div id="bmDetailFieldWrap" style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
                 <div>${buildFieldSVG(dotsHTML)}</div>
                 <div style="flex:1;min-width:140px;font-size:12px;">
                     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
@@ -14998,17 +15002,88 @@
                     ${typeStatsHTML}
                 </div>
             </div>
+            <!-- 補落點用球場 Modal -->
+            <div id="hitLocPatchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+              <div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
+                <div style="font-size:15px;font-weight:800;color:#003d79;margin-bottom:12px;">📍 點選落點位置</div>
+                <div id="hitLocPatchSVGWrap"></div>
+                <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+                  <button onclick="cancelHitLocPatch()" style="padding:8px 18px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;color:#374151;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">取消</button>
+                </div>
+              </div>
+            </div>
             ${pitchBreakdown}
             <h3 style="margin-top:16px;">📋 打席記錄</h3>
             <div>${atBats.map((a,i)=>{
                 const cls = HIT.includes(a.outcome)?'bm-log-hit':BB.includes(a.outcome)?'bm-log-bb':'bm-log-out';
                 const zone = a.hitLocation ? ` → ${a.hitLocation.zone}` : '';
                 const ht = a.hitType ? ` · ${a.hitType}` : '';
-                return `<div class="bm-log-row"><span style="color:#6b7280;">${i+1}. ${a.mode==='linked'?'🔗':'📝'} ${a.pitcherHand||''}</span>
-                    <span class="bm-log-outcome ${cls}">${a.outcome}${zone}${ht}</span></div>`;
+                const isBIP = BIP_PATCH.includes(a.outcome);
+                const hasloc = !!a.hitLocation;
+                // 📍 按鈕：BIP 且無落點顯示，已有落點顯示灰色編輯鉛筆
+                const patchBtn = isBIP
+                    ? `<button onclick="openHitLocPatch(${a.ts||i},'${String(number).replace(/'/g,"\\'")}')"
+                        style="margin-left:8px;padding:2px 8px;border-radius:6px;border:1px solid ${hasloc?'#d1d5db':'#f59e0b'};
+                               background:${hasloc?'#f9fafb':'#fffbeb'};color:${hasloc?'#9ca3af':'#b45309'};
+                               font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;"
+                        title="${hasloc?'修改落點':'補錄落點'}">${hasloc?'✏️':'📍'}</button>`
+                    : '';
+                return `<div class="bm-log-row" style="display:flex;align-items:center;gap:4px;">
+                    <span style="color:#6b7280;flex-shrink:0;">${i+1}. ${a.mode==='linked'?'🔗':'📝'} ${a.pitcherHand||''}</span>
+                    <span class="bm-log-outcome ${cls}">${a.outcome}${zone}${ht}</span>
+                    ${patchBtn}
+                </div>`;
             }).join('')}</div>`;
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
+    // ── 補錄落點：全域狀態 ──
+    let _hitLocPatchTs = null;
+    let _hitLocPatchNum = null;
+
+    function openHitLocPatch(ts, number) {
+        _hitLocPatchTs  = ts;
+        _hitLocPatchNum = number;
+        const wrap = document.getElementById('hitLocPatchSVGWrap');
+        if (!wrap) return;
+        // 建互動式球場 SVG（點擊區域後呼叫 _onHitLocPatchZone）
+        wrap.innerHTML = buildFieldSVG('', true, true, '');
+        // 覆蓋球場 SVG 上的 zone onclick，讓它呼叫補錄函式
+        const svg = wrap.querySelector('svg');
+        if (svg) {
+            svg.querySelectorAll('[data-zone]').forEach(el => {
+                el.style.cursor = 'pointer';
+                el.onclick = function() {
+                    _onHitLocPatchZone(this.dataset.zone);
+                };
+            });
+        }
+        const modal = document.getElementById('hitLocPatchModal');
+        if (modal) modal.style.display = 'flex';
+    }
+    window.openHitLocPatch = openHitLocPatch;
+
+    function _onHitLocPatchZone(zone) {
+        if (_hitLocPatchTs === null) return;
+        const idx = allData.bm.atBats.findIndex(a => a.ts === _hitLocPatchTs);
+        if (idx === -1) return;
+        const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
+        // ★ 只寫 hitLocation，完全不動其他欄位
+        allData.bm.atBats[idx].hitLocation = { zone, x: c.x / 300, y: c.y / 280 };
+        saveToLocalStorage();
+        saveBmToFirebase();
+        const num = _hitLocPatchNum;
+        cancelHitLocPatch();
+        // 立即重繪
+        showBmBatterDetail(num);
+    }
+
+    function cancelHitLocPatch() {
+        const modal = document.getElementById('hitLocPatchModal');
+        if (modal) modal.style.display = 'none';
+        _hitLocPatchTs = null;
+    }
+    window.cancelHitLocPatch = cancelHitLocPatch;
 
     function setBmSort(key) {
         if (_bmSortKey === key) {
