@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v416';
+﻿    const APP_VERSION = 'v417';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14058,15 +14058,17 @@
         allData.bm.atBats.push(rec);
         saveToLocalStorage();
         saveBmToFirebase();
-        _bmState.currentOrder = (_bmState.currentOrder + 1) % 9;
-        resetBmLinkedForm();
-        _renderBmBatterDisplay();
-        _renderBmRecentLog();
 
-        // ② 以 gameState 為基礎更新出局/換局（不再用 _bmState 獨立計算）
+        // ② 出局/換局計算（以 gameState 為唯一來源）
         const outLabels = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'];
-        const outsAdded = rec.outcome === '雙殺' ? 2 : outLabels.includes(rec.outcome) ? 1 : 0;
-        const totalOuts = gameState.outs + outsAdded;
+        const outsAdded  = rec.outcome === '雙殺' ? 2 : outLabels.includes(rec.outcome) ? 1 : 0;
+        const totalOuts  = gameState.outs + outsAdded;
+        // 記錄換局前的進攻隊鍵（用於寫回 currentBatterIndex）
+        const _preSwitchGsKey = gameState.half === '上' ? 'teamA' : 'teamB';
+
+        // ③ 棒次前進：+1 後立刻寫進 gameState，避免 _syncPitcherToBmLinked 用舊值蓋掉
+        _bmState.currentOrder = (_bmState.currentOrder + 1) % 9;
+        gameState.currentBatterIndex[_preSwitchGsKey] = _bmState.currentOrder;
 
         if (totalOuts >= 3) {
             const newHalf   = gameState.half === '上' ? '下' : '上';
@@ -14083,11 +14085,20 @@
                 score.half   = newHalf;
                 score.inning = newInning;
             }
+            // 三出局換隊：切到新進攻隊，從該隊上次的棒次繼續
+            const newGsKey = newHalf === '上' ? 'teamA' : 'teamB';
+            _bmState.currentOrder = gameState.currentBatterIndex[newGsKey] || 0;
+            gameState.currentBatterIndex[newGsKey] = _bmState.currentOrder;
         } else {
             gameState.outs = totalOuts;
         }
 
-        // ③ gameState → 記分板 + bm 顯示同步
+        // ④ 更新畫面（含已確定的新棒次/新隊）
+        resetBmLinkedForm();
+        _renderBmBatterDisplay();
+        _renderBmRecentLog();
+
+        // ⑤ gameState → 記分板 + bm 顯示同步（_syncPitcherToBmLinked 讀到的 currentBatterIndex 已和 _bmState.currentOrder 一致，不會再蓋掉）
         renderCountLights();
         renderBases();
         if (currentTeam !== null) updateScoreboard();
