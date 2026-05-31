@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v413';
+﻿    const APP_VERSION = 'v414';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12501,6 +12501,7 @@
         recMode: 'linked',     // 'linked'|'standalone'
         currentOrder: 0,       // 0-based index (0=打序1)
         selectedOutcome: null,
+        hitType: null,         // 聯動模式打球型態（滾地球/平飛球/高飛球）
         tactics: [],           // 多選戰術標籤：['打帶跑','戰術失敗']
         hitLoc: null,          // 聯動模式落點（內嵌球場圖選取）
         pitcherHand: '右投',
@@ -13598,6 +13599,22 @@
 
     function _renderBmOutcomeButtons() {
         _renderGroupedOutcomes('bmOutcomeBtns', _bmState.selectedOutcome, 'selectBmOutcome');
+        // 動態插入安打型態列（只建一次）
+        if (!document.getElementById('bmHitTypeRow')) {
+            const htDiv = document.createElement('div');
+            htDiv.id = 'bmHitTypeRow';
+            htDiv.style.cssText = 'display:none;margin-top:6px;padding:6px 8px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;';
+            htDiv.innerHTML = `<div style="font-size:11px;font-weight:700;color:#15803d;margin-bottom:5px;">打球型態</div>
+                <div id="bmHitTypeBtns" style="display:flex;gap:6px;">
+                    <button class="hit-type-btn" data-bmht="滾地球" onclick="selectBmHitType(this)" ontouchend="event.preventDefault();selectBmHitType(this)">🏃 滾地</button>
+                    <button class="hit-type-btn" data-bmht="平飛球" onclick="selectBmHitType(this)" ontouchend="event.preventDefault();selectBmHitType(this)">➡️ 平飛</button>
+                    <button class="hit-type-btn" data-bmht="高飛球" onclick="selectBmHitType(this)" ontouchend="event.preventDefault();selectBmHitType(this)">⬆️ 高飛</button>
+                </div>`;
+            const outcomeEl = document.getElementById('bmOutcomeBtns');
+            if (outcomeEl && outcomeEl.parentNode) {
+                outcomeEl.parentNode.insertBefore(htDiv, outcomeEl.nextSibling);
+            }
+        }
         // 同步渲染內嵌球場圖（只在第一次，避免重複建立）
         const wrap = document.getElementById('bmHitMapWrap');
         if (wrap && !wrap.querySelector('svg')) {
@@ -13614,13 +13631,31 @@
         }
     }
 
+    const _BM_BIP_OUTCOMES = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'];
+
     function selectBmOutcome(outcome, btn) {
         _bmState.selectedOutcome = outcome;
-        document.querySelectorAll('.bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        _bmState.hitType = null;
+        document.querySelectorAll('#bmOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
         if (btn) btn.classList.add('bm-on');
+        // 顯示/隱藏打球型態列
+        const htRow = document.getElementById('bmHitTypeRow');
+        if (htRow) {
+            const show = _BM_BIP_OUTCOMES.includes(outcome);
+            htRow.style.display = show ? 'block' : 'none';
+            if (!show) document.querySelectorAll('#bmHitTypeBtns .hit-type-btn').forEach(b => b.classList.remove('selected'));
+        }
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
     }
+    window.selectBmOutcome = selectBmOutcome;
+
+    function selectBmHitType(btn) {
+        document.querySelectorAll('#bmHitTypeBtns .hit-type-btn').forEach(b => b.classList.remove('selected'));
+        if (btn) btn.classList.add('selected');
+        _bmState.hitType = btn ? btn.dataset.bmht : null;
+    }
+    window.selectBmHitType = selectBmHitType;
 
     // ── 取得打者模式的球隊名稱（A=先攻/name, B=後攻/opponent）──
     function _getBmTeamNames() {
@@ -13738,11 +13773,15 @@
 
     function resetBmLinkedForm() {
         _bmState.selectedOutcome = null;
+        _bmState.hitType = null;
         _bmState.hitLoc = null;
         _bmState.tactics = [];
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
-        document.querySelectorAll('.bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        document.querySelectorAll('#bmOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
+        document.querySelectorAll('#bmHitTypeBtns .hit-type-btn').forEach(b => b.classList.remove('selected'));
+        const htRow = document.getElementById('bmHitTypeRow');
+        if (htRow) htRow.style.display = 'none';
         // 清除球場圖高亮
         const svg = document.getElementById('fieldSVG_bm');
         if (svg) _zoneHighlight(null, svg);
@@ -13968,45 +14007,48 @@
         if (!_bmState.selectedOutcome) return;
         _initBmData();
         const order = _bmState.currentOrder;
-        const currentTeam = allData.bm.attackingTeam || 'B';
-        const batter = _getLineup(currentTeam)[order] || {number:'',name:'',hand:'右打',trait:''};
-        const inningEl = document.getElementById('bmInning');
-        const inning = parseInt((inningEl && inningEl.value) || '1') || 1;
+        const bmAttackingTeam = allData.bm.attackingTeam || 'B';
+        const batter = _getLineup(bmAttackingTeam)[order] || {number:'',name:'',hand:'右打',trait:''};
 
         // 讀取打者特性輸入框（可能有即時修改）
         const traitEl = document.getElementById('bmTraitPatch');
         if (traitEl && traitEl.value.trim()) {
-            _getLineup(currentTeam)[order].trait = traitEl.value.trim();
+            _getLineup(bmAttackingTeam)[order].trait = traitEl.value.trim();
         }
         const _gi = allData.bm.gameIdx;
         const _game = (_gi >= 0 && allData.teams[_gi]) ? allData.teams[_gi] : null;
-        const _tName = _game ? (currentTeam === 'A' ? (_game.name || '') : (_game.opponent || '')) : '';
+        const _tName = _game ? (bmAttackingTeam === 'A' ? (_game.name || '') : (_game.opponent || '')) : '';
+
+        // ① 局數/出局/壘上：以 gameState 為唯一來源（連動模式不重複計算）
+        const recInning = gameState.inning || 1;
+        const recHalf   = gameState.half   || '上';
+        const recOuts   = gameState.outs;
+        const recBases  = [...gameState.bases];
+
         const rec = {
-            number: batter.number || '',
-            name:   batter.name   || '',
-            trait:  _getLineup(currentTeam)[order].trait || '',
-            team:   currentTeam,
+            number:   batter.number || '',
+            name:     batter.name   || '',
+            trait:    _getLineup(bmAttackingTeam)[order].trait || '',
+            team:     bmAttackingTeam,
             teamName: _tName,
             gameName: _game ? (_game.gameName || '') : '',
-            order:  order + 1,
-            hand:   batter.hand   || '右打',
-            inning,
-            half:   _bmState.half,
-            outs:   _bmState.outs,
-            bases:  [..._bmState.bases],
+            order:    order + 1,
+            hand:     batter.hand || '右打',
+            inning:   recInning,
+            half:     recHalf,
+            outs:     recOuts,
+            bases:    recBases,
             pitcherHand: _bmState.pitcherHand,
-            outcome: _bmState.selectedOutcome,
-            tactics: [..._bmState.tactics],   // 戰術標籤（多選）
-            hitLocation: null,
+            outcome:  _bmState.selectedOutcome,
+            hitType:  _bmState.hitType || null,
+            tactics:  [..._bmState.tactics],
+            hitLocation: _bmState.hitLoc || null,
             mode: 'linked',
             pitches: [],
             gameIdx: allData.bm.gameIdx,
             ts: Date.now()
         };
 
-        const outLabels = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'];
-        // 直接使用內嵌球場圖選取的落點（不再跳 modal）
-        if (_bmState.hitLoc) rec.hitLocation = _bmState.hitLoc;
         allData.bm.atBats.push(rec);
         saveToLocalStorage();
         saveBmToFirebase();
@@ -14015,30 +14057,35 @@
         _renderBmBatterDisplay();
         _renderBmRecentLog();
 
-        // 出局數計算（雙殺 +2）+ 三出局換局邏輯
+        // ② 以 gameState 為基礎更新出局/換局（不再用 _bmState 獨立計算）
+        const outLabels = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'];
         const outsAdded = rec.outcome === '雙殺' ? 2 : outLabels.includes(rec.outcome) ? 1 : 0;
-        const totalOuts = _bmState.outs + outsAdded;
+        const totalOuts = gameState.outs + outsAdded;
+
         if (totalOuts >= 3) {
-            const inningEl = document.getElementById('bmInning');
-            let inning = parseInt((inningEl && inningEl.value) || '1') || 1;
-            const newHalf = _bmState.half === '上' ? '下' : '上';
-            if (newHalf === '上') inning = Math.min(20, inning + 1);
-            _bmState.half = newHalf;
-            if (inningEl) inningEl.value = inning;
-            const topBtn = document.getElementById('bmHalfTopBtn');
-            const botBtn = document.getElementById('bmHalfBotBtn');
-            if (topBtn) topBtn.classList.toggle('bm-on', newHalf === '上');
-            if (botBtn) botBtn.classList.toggle('bm-on', newHalf === '下');
-            _bmState.bases = [false, false, false];
-            ['bmBase1','bmBase2','bmBase3'].forEach((id, i) => {
-                const btn = document.getElementById(id);
-                if (btn) { btn.classList.remove('bm-on'); btn.textContent = ['一壘','二壘','三壘'][i]; }
-            });
-            setBmOuts(0);
+            const newHalf   = gameState.half === '上' ? '下' : '上';
+            const newInning = newHalf === '上' ? Math.min(20, gameState.inning + 1) : gameState.inning;
+            gameState.outs    = 0;
+            gameState.half    = newHalf;
+            gameState.inning  = newInning;
+            gameState.bases   = [false, false, false];
+            gameState.runners = [null, null, null];
+            gameState.strikes = 0;
+            gameState.balls   = 0;
+            if (currentTeam !== null && allData.teams[currentTeam]) {
+                const score = getTeamScore();
+                score.half   = newHalf;
+                score.inning = newInning;
+            }
         } else {
-            setBmOuts(totalOuts);
+            gameState.outs = totalOuts;
         }
-        _syncBmLinkedToPitcher();
+
+        // ③ gameState → 記分板 + bm 顯示同步
+        renderCountLights();
+        renderBases();
+        if (currentTeam !== null) updateScoreboard();
+        _syncPitcherToBmLinked();
     }
 
     function _renderBmRecentLog() {
