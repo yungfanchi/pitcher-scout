@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v414';
+﻿    const APP_VERSION = 'v415';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12535,6 +12535,7 @@
             _showBatterModeUI();
             _initBmData();
             _restoreBmGameStateToUI();
+            _syncPitcherToBmLinked(); // 進入打者模式時從記分板同步當前局數/出局/壘上
             _renderBmLineup();
             _populateBmGameSelect();
             _renderBmSessionList();
@@ -12556,6 +12557,7 @@
             _showBatterModeUI();
             _initBmData();
             _restoreBmGameStateToUI();
+            _syncPitcherToBmLinked(); // 進入打者模式時從記分板同步當前局數/出局/壘上
             _renderBmLineup();
             _populateBmGameSelect();
             _renderBmSessionList();
@@ -12876,6 +12878,8 @@
         const spInningEl = document.getElementById('spInning');
         if (spInningEl) allData.bm.spInning = parseInt(spInningEl.value) || 1;
         saveToLocalStorage();
+        // 連動模式：手動編輯也同步回 gameState，讓後續計算以手動值為準
+        _syncBmLinkedToPitcher();
     }
 
     // ★ 進入打者模式時，從 allData.bm 還原 _bmState 並同步更新 UI
