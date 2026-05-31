@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v431';
+﻿    const APP_VERSION = 'v432';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14966,7 +14966,22 @@
             }
         }
 
-        // ── Step 3：仍找不到 → 顯示提示而非靜默 return ──
+        // ── Step 3：用當前 bm.lineupA/B 對棒次（忽略 gameIdx，最寬鬆比對）──
+        if (atBats.length === 0) {
+            const _bmCandidates = [];
+            ['A','B'].forEach(side => {
+                const lineup = side === 'A' ? (allData.bm?.lineupA||[]) : (allData.bm?.lineupB||[]);
+                const idx = (Array.isArray(lineup) ? lineup : []).findIndex(p => String(p?.number||'') === numStr);
+                if (idx >= 0) _bmCandidates.push({ order: idx + 1, team: side });
+            });
+            if (_bmCandidates.length > 0) {
+                atBats = (allData.bm.atBats||[]).filter(a => {
+                    if (a.number) return false;
+                    return _bmCandidates.some(c => c.order === a.order && a.team === c.team);
+                });
+            }
+        }
+
         const detailEl0 = document.getElementById('bmBatterDetailSection');
         if (atBats.length === 0) {
             if (detailEl0) detailEl0.innerHTML = `
