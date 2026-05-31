@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v433';
+﻿    const APP_VERSION = 'v434';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14944,9 +14944,8 @@
         };
         let atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr);
 
-        // ── Step 2：掃所有賽事打線找棒次，比對 bm.atBats（歷史資料 number 空白時）──
+        // ── Step 2：掃所有賽事打線找棒次，比對 bm.atBats（不強求 gameIdx 吻合）──
         if (atBats.length === 0) {
-            // 建立 { gameIdx, order, team } 候選清單（所有含此背號的打線位置）
             const candidates = [];
             (allData.teams||[]).forEach((_g, gi) => {
                 ['teamA','teamB'].forEach(side => {
@@ -14957,10 +14956,10 @@
             });
             if (candidates.length > 0) {
                 atBats = (allData.bm.atBats||[]).filter(a => {
-                    if (a.number) return false; // 有號碼但不符才到這裡，跳過
+                    if (a.number) return false;
                     return candidates.some(c =>
-                        c.gi === a.gameIdx && c.order === a.order &&
-                        (!a.team || a.team === c.team)
+                        c.order === a.order && (!a.team || a.team === c.team)
+                        // ★ 移除 c.gi === a.gameIdx 要求，避免 Firebase 重載後 index 漂移
                     );
                 });
             }
@@ -14977,7 +14976,9 @@
             if (_bmCandidates.length > 0) {
                 atBats = (allData.bm.atBats||[]).filter(a => {
                     if (a.number) return false;
-                    return _bmCandidates.some(c => c.order === a.order && a.team === c.team);
+                    return _bmCandidates.some(c =>
+                        c.order === a.order && (!a.team || a.team === c.team)
+                    );
                 });
             }
         }
@@ -14987,12 +14988,13 @@
             // 最後 fallback：顯示同隊所有無背號打席，讓使用者自行辨認補落點
             const BIP_FB = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打',
                             '滾地球出局','飛球出局','平飛球出局','高飛犧牲打','犧牲觸擊','雙殺','野選','失誤'];
-            // 嘗試推算此號碼屬於哪個 team（A/B）
+            // 嘗試推算此號碼屬於哪個 team（A/B）；兩隊都有相同號碼時不限制
             let _sideGuess = null;
-            ['A','B'].forEach(side => {
-                const lu = side === 'A' ? (allData.bm?.lineupA||[]) : (allData.bm?.lineupB||[]);
-                if ((Array.isArray(lu) ? lu : []).some(p => String(p?.number||'') === numStr)) _sideGuess = side;
-            });
+            let _inA = (allData.bm?.lineupA||[]).some(p => String(p?.number||'') === numStr);
+            let _inB = (allData.bm?.lineupB||[]).some(p => String(p?.number||'') === numStr);
+            if (_inA && !_inB) _sideGuess = 'A';
+            else if (_inB && !_inA) _sideGuess = 'B';
+            // 兩隊都有 or 都沒有 → _sideGuess 維持 null（顯示全部）
             // 若打線裡也找不到，拿全部無背號打席
             const _unmatched = (allData.bm.atBats||[]).filter(a =>
                 !a.number && (!_sideGuess || a.team === _sideGuess)
