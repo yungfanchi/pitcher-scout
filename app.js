@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v429';
+﻿    const APP_VERSION = 'v430';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10211,6 +10211,30 @@
     let _bmBatterCardMap = {};     // mapKey → { entry, stats } — 供 showBmBatterCard() 使用
     let _batterSortKey = 'threat'; // default sort by threat
     let _batterSortDir = 'desc';   // 'asc' | 'desc'
+
+    // ★ 查詢打者在打線中的棒次（1-9，找不到回傳 99）
+    function _getBatterLineupOrder(number) {
+        const n = String(number || '');
+        if (!n) return 99;
+        // 先查 bm 當前打線
+        const _searchArr = arr => {
+            const list = Array.isArray(arr) ? arr : [];
+            const idx = list.findIndex(p => String(p?.number || '') === n);
+            return idx >= 0 ? idx + 1 : 99;
+        };
+        const oA = _searchArr(allData.bm?.lineupA);
+        const oB = _searchArr(allData.bm?.lineupB);
+        const bmOrder = Math.min(oA, oB);
+        if (bmOrder < 99) return bmOrder;
+        // fallback：查連動賽事打線
+        if (allData.bm?.gameIdx >= 0 && allData.teams[allData.bm.gameIdx]) {
+            const _g = allData.teams[allData.bm.gameIdx];
+            const rA = _searchArr(_lineupToArray(_g.lineups?.teamA));
+            const rB = _searchArr(_lineupToArray(_g.lineups?.teamB));
+            return Math.min(rA, rB);
+        }
+        return 99;
+    }
     let _editingAtBatBatterIdx = null;
     let _atBatHitLocation = null;
     let _newBatterHand = '右打';
@@ -10992,7 +11016,13 @@
         }
 
         const enriched = filtered.map(([mapKey, entry]) => ({ mapKey, entry, stats: _calcStats(entry) }));
-        enriched.sort((a, b) => b.stats.threatScore - a.stats.threatScore);
+        // 預設按棒次升冪（1→9），找不到棒次的排最後
+        enriched.sort((a, b) => {
+            const oA = _getBatterLineupOrder(a.entry._bmNum || a.entry.nameKey?.replace('#',''));
+            const oB = _getBatterLineupOrder(b.entry._bmNum || b.entry.nameKey?.replace('#',''));
+            if (oA !== oB) return oA - oB;
+            return b.stats.threatScore - a.stats.threatScore; // 同棒次再依威脅度
+        });
 
         // 存入全域 map 供點擊時取用
         _bmBatterCardMap = {};
@@ -12546,8 +12576,8 @@
 
     let _bmAnalysisTeamFilter   = null; // null = 全部；string = 隊伍名
     let _bmAnalysisBatterFilter = null; // null = 整隊；string = 打者 key
-    let _bmSortKey = 'threat'; // default sort: threat index
-    let _bmSortDir = 'desc';   // 'asc' | 'desc'
+    let _bmSortKey = 'order'; // default sort: batting order
+    let _bmSortDir = 'asc';   // 'asc' | 'desc'
 
     let _bmState = {
         recMode: 'linked',     // 'linked'|'standalone'
@@ -14707,6 +14737,7 @@
             return [...rows].sort((a, b) => {
                 let va, vb;
                 switch (_bmSortKey) {
+                    case 'order':  va = _getBatterLineupOrder(a.number); vb = _getBatterLineupOrder(b.number); break;
                     case 'number': va = String(a.number||''); vb = String(b.number||''); break;
                     case 'pa':     va = a.pa;    vb = b.pa;    break;
                     case 'hits':   va = a.hits;  vb = b.hits;  break;
