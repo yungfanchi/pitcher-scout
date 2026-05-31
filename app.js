@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v455';
+﻿    const APP_VERSION = 'v456';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15077,8 +15077,8 @@
             }
             return '';
         };
-        // ★ 依隊名隔離：同背號不同球隊的打者資料不混用
-        const _matchTeam = a => !teamStr || !a.teamName || a.teamName === teamStr;
+        // ★ 依隊名嚴格隔離：teamStr 有值時只顯示完全相符的隊名，防止同號跨隊混用
+        const _matchTeam = a => teamStr ? a.teamName === teamStr : true;
         let atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr && _matchTeam(a));
 
         // ── Step 2：掃所有賽事打線找棒次，比對 bm.atBats（不強求 gameIdx 吻合）──
@@ -15121,9 +15121,10 @@
         }
 
         const detailEl0 = document.getElementById('bmBatterDetailSection');
-        // ★ 即使 atBats 空，若 bm.hitLocations 已有直接補錄落點，繼續渲染圖表（依隊名隔離）
+        // ★ 即使 atBats 空，若 bm.hitLocations 已有直接補錄落點，繼續渲染圖表（依隊名嚴格隔離）
+        // teamStr 有值時：只顯示 l.team 完全相符的記錄（空 team 不跨隊顯示）
         const _existingDirect = (allData.bm?.hitLocations||[]).filter(l =>
-            String(l.number) === numStr && (!teamStr || !l.team || l.team === teamStr));
+            String(l.number) === numStr && (teamStr ? l.team === teamStr : true));
         if (atBats.length === 0 && _existingDirect.length > 0) {
             // 把直接補錄的落點轉成虛擬打席，讓後面的圖表邏輯可以使用
             atBats = _existingDirect.map(l => ({
@@ -15258,7 +15259,7 @@
 
         // ★ 直接補錄的落點（bm.hitLocations）也一起顯示
         const _directLocs = (allData.bm?.hitLocations||[])
-            .filter(l => String(l.number) === numStr && (!teamStr || !l.team || l.team === teamStr))
+            .filter(l => String(l.number) === numStr && (teamStr ? l.team === teamStr : true))
             .map(l => ({ hitLocation:{zone:l.zone, x:l.x, y:l.y}, outcomes:[l.outcome||''], _directPatch:true, ts:l.ts }));
 
         const locs = [...atBats.filter(a=>a.hitLocation), ..._directLocs];
