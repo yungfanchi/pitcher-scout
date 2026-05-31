@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v428';
+﻿    const APP_VERSION = 'v429';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14896,9 +14896,12 @@
 
     function showBmBatterDetail(number) {
         _initBmData();
-        // ★ 若 ab.number 空白，從連動賽事打線補號後再比對（修正打線未存時落點資料查不到的問題）
+        const numStr = String(number);
+
+        // ── Step 1：直接比對 ab.number ──
         const _resolveAbNum = ab => {
             if (ab.number) return String(ab.number);
+            // 從連動賽事打線補號
             if (ab.order && ab.mode === 'linked' && ab.gameIdx >= 0 && allData.teams[ab.gameIdx]) {
                 const _g = allData.teams[ab.gameIdx];
                 const _side = ab.team === 'A' ? 'teamA' : 'teamB';
@@ -14908,8 +14911,42 @@
             }
             return '';
         };
-        const atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === String(number));
-        if (atBats.length === 0) return;
+        let atBats = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr);
+
+        // ── Step 2：fallback — 用打線棒次反查（歷史資料 number 空白時）──
+        if (atBats.length === 0 && allData.bm.gameIdx >= 0) {
+            const gi = allData.bm.gameIdx;
+            const _g = allData.teams[gi];
+            if (_g) {
+                let targetOrder = -1, targetTeam = null;
+                ['teamA','teamB'].forEach(side => {
+                    const lineup = _lineupToArray(_g.lineups?.[side]);
+                    const idx = lineup.findIndex(p => String(p?.number||'') === numStr);
+                    if (idx >= 0 && targetOrder === -1) {
+                        targetOrder = idx + 1;
+                        targetTeam = side === 'teamA' ? 'A' : 'B';
+                    }
+                });
+                if (targetOrder > 0) {
+                    atBats = (allData.bm.atBats||[]).filter(a =>
+                        a.order === targetOrder && a.gameIdx === gi &&
+                        (!a.team || a.team === targetTeam)
+                    );
+                }
+            }
+        }
+
+        // ── Step 3：仍找不到 → 顯示提示而非靜默 return ──
+        const detailEl0 = document.getElementById('bmBatterDetailSection');
+        if (atBats.length === 0) {
+            if (detailEl0) detailEl0.innerHTML = `
+                <div style="margin-top:16px;padding:16px;background:#fff3cd;border-radius:10px;color:#856404;font-size:14px;">
+                  ⚠️ 找不到 #${number} 的打者模式打席記錄。<br>
+                  <span style="font-size:12px;">此打者的資料來自投手記錄，若要補錄落點請確認打者模式已有記錄此打席。</span>
+                </div>`;
+            if (detailEl0) detailEl0.scrollIntoView({ behavior:'smooth', block:'start' });
+            return;
+        }
         const b = { number, name: atBats.find(a=>a.name)?.name||'', hand: atBats[0].hand||'右打' };
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
         const BB  = ['保送','觸身球','故意四壞','捕逸'];
