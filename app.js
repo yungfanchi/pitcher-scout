@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v479';
+﻿    const APP_VERSION = 'v480';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15677,10 +15677,11 @@
         const container = document.getElementById('bmStatsContent');
         if (!container) return;
         _initBmData();
-        // 連動模式且已選賽事：從投手記錄推導打席；否則用獨立打席資料
-        const atBats = (currentTeam !== null)
-            ? _deriveBmAtBatsFromPitches(currentTeam)
-            : allData.bm.atBats || [];
+        // 掃全部場次累積打席（不限於目前選的場次），再合入獨立打席資料
+        const _allPitchAbs = [];
+        allData.teams.forEach((_, ti) => _allPitchAbs.push(..._deriveBmAtBatsFromPitches(ti)));
+        const _bmOnlyAbs = (allData.bm?.atBats || []).filter(ab => ab.mode !== 'pitch');
+        const atBats = [..._allPitchAbs, ..._bmOnlyAbs];
         if (atBats.length === 0) {
             container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無打席記錄<br><span style="font-size:12px;">請先在側欄選取一場賽事</span><br><br><button onclick="injectDemoData();switchBmTab(\'stats\')" style="margin-top:8px;padding:8px 20px;background:#003d79;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">注入測試資料</button></div>';
             return;
