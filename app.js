@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v495';
+﻿    const APP_VERSION = 'v496';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16746,21 +16746,21 @@
         const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
         const loc = { zone, x: c.x / 300, y: c.y / 280 };
         if (_hitLocPatchMode === 'pitch') {
-            // 投球記錄：找到對應 pitch 寫入 hitLocation
+            // 投球記錄：找到對應 pitch 寫入 hitLocation（用 Number 轉型避免 string/number 不符）
             let found = false;
             allData.teams.forEach(team => {
                 (team.pitchers || []).forEach(pitcher => {
                     (pitcher.pitches || []).forEach(pitch => {
-                        if (pitch.timestamp === _hitLocPatchTs) { pitch.hitLocation = loc; found = true; }
+                        if (Number(pitch.timestamp) === _hitLocPatchTs) { pitch.hitLocation = loc; found = true; }
                     });
                 });
             });
             if (found) saveToFirebase();
         } else {
-            // bm.atBats：優先用真實索引（data-bmidx），再降回 ts 比對
+            // bm.atBats：優先用真實索引（data-bmidx），再降回 ts 比對（Number 轉型防型別不符）
             let idx = (_hitLocPatchBmIdx >= 0 && _hitLocPatchBmIdx < (allData.bm.atBats||[]).length)
                 ? _hitLocPatchBmIdx
-                : (allData.bm.atBats||[]).findIndex(a => a.ts === _hitLocPatchTs);
+                : (allData.bm.atBats||[]).findIndex(a => Number(a.ts) === _hitLocPatchTs);
             if (idx < 0) { cancelHitLocPatch(); return; }
             allData.bm.atBats[idx].hitLocation = loc;
             saveBmToFirebase();
@@ -16770,6 +16770,15 @@
         const team = _hitLocPatchTeam;
         cancelHitLocPatch();
         showBmBatterDetail(num, team);
+        // 打者分析頁正在顯示時，同步刷新落點圖（renderBmBatterProfile 用的 entry.pitches 是舊快照）
+        const _profileView = document.getElementById('batterDetailView');
+        if (_profileView && _profileView.style.display !== 'none') {
+            const _currKey = (_bmTeamRoster && _bmRosterIdx >= 0) ? _bmTeamRoster[_bmRosterIdx] : null;
+            if (_currKey) {
+                refreshBatterList();
+                showBmBatterCard(_currKey);
+            }
+        }
         // 儲存後捲到落點圖（showBmBatterDetail 重繪後稍等）
         setTimeout(() => {
             const chartEl = document.getElementById('bmDetailFieldWrap');
