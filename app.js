@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v492';
+﻿    const APP_VERSION = 'v493';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8765,10 +8765,14 @@
             const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
             oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); candidates.push(t); });
 
-            (allData.teams || []).forEach(t => {
-                if (!t.gameId) t.gameId = _makeGameId();
-                candidates.push(JSON.parse(JSON.stringify(t)));
-            });
+            // 只有在「有離線待補傳」或「Firebase 完全無資料」時，才把本機資料加入候選
+            // 否則 Firebase 是唯一權威，已刪除的場次不應被本機備份復原
+            if (hasPendingSync || !hasNewData) {
+                (allData.teams || []).forEach(t => {
+                    if (!t.gameId) t.gameId = _makeGameId();
+                    candidates.push(JSON.parse(JSON.stringify(t)));
+                });
+            }
 
             // ── 以內容指紋去重：保留球數最多的版本 ──
             const fpMap = new Map();
