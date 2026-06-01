@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v482';
+﻿    const APP_VERSION = 'v483';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4349,6 +4349,18 @@
     // ====== PITCHER MANAGEMENT ======
     function deleteTeam(teamIndex) {
         if (!confirm('確定要刪除此球隊及所有投手資料嗎？')) return;
+
+        // 清除 bm.atBats 中屬於此場次的打席記錄，並修正後續場次的 gameIdx
+        if (allData.bm && Array.isArray(allData.bm.atBats)) {
+            allData.bm.atBats = allData.bm.atBats.filter(ab => ab.gameIdx !== teamIndex);
+            allData.bm.atBats.forEach(ab => { if (ab.gameIdx > teamIndex) ab.gameIdx--; });
+        }
+        // bm.gameIdx 若指向被刪除或之後的場次也一併修正
+        if (allData.bm) {
+            if (allData.bm.gameIdx === teamIndex) allData.bm.gameIdx = -1;
+            else if (allData.bm.gameIdx > teamIndex) allData.bm.gameIdx--;
+        }
+
         allData.teams.splice(teamIndex, 1);
         expandedTeams.delete(teamIndex);
         const newExpanded = new Set();
@@ -4364,6 +4376,7 @@
         updateSlotDisplay();
         saveToLocalStorage();
         saveToFirebase();
+        if (typeof saveBmToFirebase === 'function') saveBmToFirebase();
     }
 
     function deletePitcher(teamIndex, pitcherIndex) {
