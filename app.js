@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v489';
+﻿    const APP_VERSION = 'v490';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15600,6 +15600,48 @@
     }
     window.cleanupInvalidAtBats = cleanupInvalidAtBats;
 
+    // 把 linked bm.atBats 的落點合併回對應球路記錄，再刪除那筆 linked 打席
+    function mergeLinkedHitLocs() {
+        if (!allData.bm || !Array.isArray(allData.bm.atBats)) { alert('沒有打席記錄'); return; }
+        const PA_ENDS = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','內野安打',
+            '一壘安打','二壘安打','三壘安打','全壘打','保送','觸身球','故意四壞',
+            '犧牲觸擊','高飛犧牲打','雙殺','野選','失誤','捕逸'];
+        let merged = 0;
+        const toRemove = new Set();
+
+        allData.bm.atBats.forEach(ab => {
+            if (ab.mode !== 'linked') return;
+            const gi = ab.gameIdx;
+            if (gi < 0 || gi >= allData.teams.length) { toRemove.add(ab.ts); return; }
+            const game = allData.teams[gi];
+            const numStr = String(ab.number || '');
+            let matched = false;
+            (game.pitchers || []).forEach(pitcher => {
+                if (matched) return;
+                (pitcher.pitches || []).forEach(pitch => {
+                    if (matched) return;
+                    if (String(pitch.batterNumber || '') !== numStr) return;
+                    if (pitch.inning !== ab.inning || pitch.half !== ab.half) return;
+                    const paO = (pitch.outcomes || []).find(o => PA_ENDS.includes(o));
+                    if (paO !== ab.outcome) return;
+                    // 匹配到：若球路記錄無落點才複製
+                    if (!pitch.hitLocation && ab.hitLocation) { pitch.hitLocation = ab.hitLocation; merged++; }
+                    matched = true;
+                    toRemove.add(ab.ts);
+                });
+            });
+        });
+
+        if (toRemove.size === 0) { alert('✅ 沒有找到可合併的 linked 打席'); return; }
+        allData.bm.atBats = allData.bm.atBats.filter(ab => !toRemove.has(ab.ts));
+        saveToLocalStorage();
+        saveToFirebase();
+        saveBmToFirebase();
+        alert(`✅ 已合併 ${merged} 筆落點，移除 ${toRemove.size} 筆重複打席`);
+        _renderBmStats();
+    }
+    window.mergeLinkedHitLocs = mergeLinkedHitLocs;
+
     // ── 打者最近記錄：編輯 ──
     let _bmAtBatEditState = { ts: null, outcome: null, hitLoc: null };
 
@@ -15973,6 +16015,10 @@
               <button onclick="cleanupInvalidAtBats()"
                 style="padding:5px 14px;border-radius:8px;border:1.5px solid #6b7280;background:#fff;color:#6b7280;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
                 🧹 清除無效打席
+              </button>
+              <button onclick="mergeLinkedHitLocs()"
+                style="padding:5px 14px;border-radius:8px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                🔀 合併落點到球路記錄
               </button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start;margin-bottom:16px;">
