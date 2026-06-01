@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v488';
+﻿    const APP_VERSION = 'v489';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16355,8 +16355,9 @@
                 const modeIcon = isDirect ? '📍' : (a.mode==='pitch'?'⚾':(a.mode==='linked'?'🔗':'📝'));
                 const pinchTag = a.isPinch ? `<span style="font-size:10px;font-weight:800;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:3px;padding:1px 4px;margin-left:3px;">代打</span>` : '';
                 // 📍/✏️ 補錄/修改落點按鈕（BIP 結果才顯示）
+                const _patchCall = `openHitLocPatch(${a.ts||i},'${numEsc}','${teamEsc}','${a.mode||''}')`;
                 const patchBtn = isBIP
-                    ? `<button onclick="openHitLocPatch(${a.ts||i},'${numEsc}','${teamEsc}','${a.mode||''}')"
+                    ? `<button onclick="${_patchCall}" ontouchend="event.preventDefault();${_patchCall}"
                         style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid ${hasloc?'#d1d5db':'#f59e0b'};
                                background:${hasloc?'#f9fafb':'#fffbeb'};color:${hasloc?'#9ca3af':'#b45309'};
                                font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;"
