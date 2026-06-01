@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v469';
+﻿    const APP_VERSION = 'v470';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -912,6 +912,49 @@
             const stratList=[1,2,3,4,5,6,7,8,9].filter(z=>pzSt[z].n>0).sort((a,b)=>(pzSt[a].avg||1)-(pzSt[b].avg||1));
             const bestComboZ=stratList.find(z=>pzSt[z].n>=5&&pzSt[z].best)||null;
 
+            // ── ③ 兩好球應對 ──
+            const tsPA      = paPitches.filter(p=>(p.strikes||0)===2);
+            const tsTotal   = tsPA.length;
+            const tsK       = tsPA.filter(p=>oc(p).some(o=>['三振','不死三振'].includes(o))).length;
+            const tsHit     = tsPA.filter(p=>oc(p).some(o=>HIT.includes(o))).length;
+            const tsOther   = tsTotal - tsK - tsHit;
+            const tsKRate   = tsTotal>0?tsK/tsTotal:0;
+            const tsHitRate = tsTotal>0?tsHit/tsTotal:0;
+            const tsOthRate = tsTotal>0?tsOther/tsTotal:0;
+            const tsOutPA   = tsPA.filter(p=>!oc(p).some(o=>HIT.includes(o)));
+            const tsOutTypes = {};
+            tsOutPA.forEach(p=>{if(p.type)tsOutTypes[p.type]=(tsOutTypes[p.type]||0)+1;});
+            const tsOutTotal = Object.values(tsOutTypes).reduce((s,n)=>s+n,0);
+            const tsTop2    = Object.entries(tsOutTypes).sort((a,b)=>b[1]-a[1]).slice(0,2);
+            const tsKPitches= tsPA.filter(p=>oc(p).some(o=>['三振','不死三振'].includes(o)));
+            const tsKTypes  = {};
+            tsKPitches.forEach(p=>{if(p.type)tsKTypes[p.type]=(tsKTypes[p.type]||0)+1;});
+            const tsKTopType = Object.entries(tsKTypes).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
+            const bHand2 = (()=>{const m={};tsPA.forEach(p=>{const h=p.batterHand||'右打';m[h]=(m[h]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1])[0]?.[0]||'右打';})();
+            const hSide2 = z=>{const s=String(z);const inn=bHand2==='右打'?['1','4','7']:['3','6','9'];const out=bHand2==='右打'?['3','6','9']:['1','4','7'];return inn.includes(s)?'內角':out.includes(s)?'外角':'中間';};
+            const vSide2 = z=>{const s=String(z);return ['1','2','3'].includes(s)?'高':['7','8','9'].includes(s)?'低':'';};
+            const descZ  = z=>{const h=hSide2(z);const v=vSide2(z);if(h==='中間'&&!v)return '中間';if(h==='中間')return v;return h+(v||'');};
+            const kCombo={};
+            tsKPitches.forEach(p=>{if(!p.type||!/^[1-9]$/.test(String(p.zone)))return;const k=`${descZ(p.zone)}${p.type}`;kCombo[k]=(kCombo[k]||0)+1;});
+            const bestKCombo=Object.entries(kCombo).sort((a,b)=>b[1]-a[1])[0];
+            const outCombo={};
+            tsOutPA.forEach(p=>{if(!p.type||!/^[1-9]$/.test(String(p.zone)))return;const k=`${descZ(p.zone)}${p.type}`;outCombo[k]=(outCombo[k]||0)+1;});
+            const bestOutCombo=Object.entries(outCombo).sort((a,b)=>b[1]-a[1])[0];
+            const tsAdvice=(()=>{
+                if(!tsTotal)return null;
+                if(bestKCombo)return `${bestKCombo[0]}（${tsK}/${tsTotal}打席三振）`;
+                if(tsKTopType&&tsK>=1)return `${tsKTopType}（${tsK}/${tsTotal}打席三振）`;
+                if(bestOutCombo)return `${bestOutCombo[0]}（${bestOutCombo[1]}/${tsTotal}打席出局）`;
+                return tsTotal>=4?'無明顯傾向':'打席數不足';
+            })();
+
+            // ── ④ 戰術時機 ──
+            const tBunt    = paPitches.filter(p=>oc(p).some(o=>o==='犧牲觸擊'));
+            const tHR      = paPitches.filter(p=>oc(p).some(o=>o==='打帶跑'));
+            const tTopCnt  = arr=>{const m={};arr.forEach(p=>{const k=`${p.balls||0}B ${p.strikes||0}S`;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}（${t[1]}次）`:'—';};
+            const tTopBase = arr=>{const m={};arr.forEach(p=>{const r=p.runnersOn?'有跑者':'空壘';m[r]=(m[r]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:'—';};
+            const tHasAny  = tBunt.length+tHR.length>0;
+
             // ── 組合 HTML ──
             const displayName = b.name||(b.number?`#${b.number}`:`打序${b.order||''}`);
             const numPart = b.number?` #${b.number}`:'';
@@ -1008,8 +1051,8 @@
     <div style="font-size:12px;color:#374151;line-height:1.7;white-space:pre-wrap;">${trait||'（尚無備註）'}</div>
   </div>`}
 
-  <!-- ① ② 兩欄 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+  <!-- ①②③④ 四欄 2×2 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
 
     <!-- ① 首球攻擊傾向 -->
     <div style="background:white;border-radius:12px;padding:14px;border:1px solid #e5e7eb;">
@@ -1082,22 +1125,82 @@
       </div>`}
     </div>
 
+    <!-- ③ 兩好球應對 -->
+    <div style="background:white;border-radius:12px;padding:14px;border:1px solid #e5e7eb;">
+      <div style="font-size:13px;font-weight:900;color:#003d79;margin-bottom:10px;border-left:4px solid #003d79;padding-left:8px;">③ 兩好球應對</div>
+      ${tsTotal===0?`<div style="color:#9ca3af;font-size:12px;text-align:center;padding:16px 0;">資料不足</div>`:`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+        <div style="text-align:center;padding:6px 14px;background:#f8fafc;border-radius:10px;">
+          <div style="font-size:28px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${tsTotal}</div>
+          <div style="font-size:10px;color:#9ca3af;">兩好球打席</div>
+        </div>
+        ${tsAdvice?`<div style="padding:6px 12px;border-radius:10px;background:#f0f9ff;border-left:3px solid #0ea5e9;font-size:12px;font-weight:800;color:#0c4a6e;flex:1;">建議投：${tsAdvice}</div>`:''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+        <div style="text-align:center;padding:8px 4px;background:#f0fdf4;border-radius:8px;">
+          <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#10b981;">${Math.round(tsKRate*100)}%</div>
+          <div style="font-size:10px;color:#6b7280;">被三振率</div>
+        </div>
+        <div style="text-align:center;padding:8px 4px;background:#fef2f2;border-radius:8px;">
+          <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#ef4444;">${fmtAvg(tsHitRate)}</div>
+          <div style="font-size:10px;color:#6b7280;">安打率</div>
+        </div>
+        <div style="text-align:center;padding:8px 4px;background:#f9fafb;border-radius:8px;">
+          <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#6b7280;">${Math.round(tsOthRate*100)}%</div>
+          <div style="font-size:10px;color:#6b7280;">其他出局率</div>
+        </div>
+      </div>
+      ${tsTop2.length>0?`
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:5px;">🎯 出局球種分佈</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${tsTop2.map(([type,cnt],i)=>{const pct=tsOutTotal>0?Math.round(cnt/tsOutTotal*100):0;const col=i===0?'#10b981':'#6b7280';const bg=i===0?'#f0fdf4':'#f9fafb';return `<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:${bg};border-radius:6px;"><span style="font-size:12px;font-weight:800;color:${col};min-width:50px;">${type}</span><div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:3px;"></div></div><span style="font-size:11px;font-weight:700;color:${col};min-width:30px;text-align:right;">${pct}%</span><span style="font-size:10px;color:#9ca3af;">(${cnt}次)</span></div>`;}).join('')}
+      </div>`:''}`}
+    </div>
+
+    <!-- ④ 戰術時機 -->
+    <div style="background:white;border-radius:12px;padding:14px;border:1px solid #e5e7eb;">
+      <div style="font-size:13px;font-weight:900;color:#003d79;margin-bottom:10px;border-left:4px solid #003d79;padding-left:8px;">④ 戰術時機</div>
+      ${!tHasAny?`<div style="color:#9ca3af;font-size:12px;text-align:center;padding:16px 0;">尚無戰術記錄<br><span style="font-size:10px;">（犧牲觸擊、打帶跑出現時顯示）</span></div>`:`
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${tBunt.length>0?`<div style="padding:10px;background:#fdf4ff;border-radius:8px;border-left:3px solid #ec4899;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+            <span style="font-size:12px;font-weight:800;color:#ec4899;">📦 犧牲觸擊</span>
+            <span style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#ec4899;">${tBunt.length}次</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:#374151;">
+            <div>球數：${tTopCnt(tBunt)}</div><div>壘況：${tTopBase(tBunt)}</div>
+          </div>
+        </div>`:''}
+        ${tHR.length>0?`<div style="padding:10px;background:#f5f3ff;border-radius:8px;border-left:3px solid #7c3aed;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+            <span style="font-size:12px;font-weight:800;color:#7c3aed;">🏃 打帶跑</span>
+            <span style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#7c3aed;">${tHR.length}次</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:#374151;">
+            <div>球數：${tTopCnt(tHR)}</div><div>壘況：${tTopBase(tHR)}</div>
+          </div>
+        </div>`:''}
+      </div>`}
+    </div>
+
   </div>
 </div>`;
 
-            // 渲染成 canvas（等待字體載入後截圖）
-            const div = document.createElement('div');
-            div.style.cssText = 'position:fixed;top:-99999px;left:0;width:908px;background:white;';
-            div.innerHTML = html;
-            document.body.appendChild(div);
-            await new Promise(r => setTimeout(r, 500));
+            // 渲染成 canvas（用 absolute 定位確保完整高度截圖）
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:absolute;left:-9999px;top:0;width:908px;background:white;overflow:visible;';
+            wrapper.innerHTML = html;
+            document.body.appendChild(wrapper);
+            await new Promise(r => setTimeout(r, 600));
+            const fullH = Math.max(wrapper.scrollHeight, wrapper.offsetHeight, wrapper.getBoundingClientRect().height);
 
-            const canvas = await html2canvas(div, {
+            const canvas = await html2canvas(wrapper, {
                 scale: 2, useCORS: true, backgroundColor: 'white',
-                width: 908, height: div.scrollHeight,
-                windowWidth: 908, windowHeight: div.scrollHeight + 200, logging: false
+                width: 908, height: fullH,
+                windowWidth: 1200, windowHeight: fullH + 400, logging: false,
+                x: 0, y: 0
             });
-            document.body.removeChild(div);
+            document.body.removeChild(wrapper);
 
             const pageW = 210;
             const pxPerMm = canvas.width / pageW;
