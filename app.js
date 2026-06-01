@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v473';
+﻿    const APP_VERSION = 'v474';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -501,7 +501,15 @@
               show: (el) => { el.style.display = ''; document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
             { id: 'bmStatsTab',      label: '打者統計', upd: () => { if (typeof _renderBmStats === 'function') _renderBmStats(); },
               show: (el) => { const bw=document.getElementById('batterModeWrapper'); if(bw) bw.style.display=''; el.style.display = ''; el.classList.add('active'); } },
-            { id: 'bmBatterDataTab', label: '打者分析', upd: () => { if (typeof refreshBatterList === 'function') refreshBatterList(); },
+            { id: 'bmBatterDataTab', label: '打者分析',
+              upd: () => {
+                  // 截圖前強制切回列表視圖（避免截到全寬的詳細頁）
+                  const lv=document.getElementById('batterListView');
+                  const dv=document.getElementById('batterDetailView');
+                  if(lv) lv.style.display='';
+                  if(dv) dv.style.display='none';
+                  if (typeof refreshBatterList === 'function') refreshBatterList();
+              },
               show: (el) => { const bw=document.getElementById('batterModeWrapper'); if(bw) bw.style.display=''; el.style.display = ''; el.classList.add('active'); } },
         ];
         const tabs = allTabs.filter(t => tabIds.includes(t.id));
@@ -549,6 +557,16 @@
                         clonedMain.style.setProperty('overflow', 'visible', 'important');
                         clonedMain.style.setProperty('height', 'auto', 'important');
                     }
+                    // 打者資訊頁：強制列表視圖 / 隱藏詳細頁，並限制內層寬度對齊其他頁
+                    const clonedLv = _doc.getElementById('batterListView');
+                    const clonedDv = _doc.getElementById('batterDetailView');
+                    if (clonedLv) {
+                        clonedLv.style.setProperty('display', 'block', 'important');
+                        clonedLv.style.setProperty('width', REPORT_W + 'px', 'important');
+                        clonedLv.style.setProperty('max-width', 'none', 'important');
+                        clonedLv.style.setProperty('overflow', 'visible', 'important');
+                    }
+                    if (clonedDv) clonedDv.style.setProperty('display', 'none', 'important');
                     const filterRow = _doc.getElementById('statsHeaderRow');
                     if (filterRow) filterRow.style.setProperty('display', 'none', 'important');
                 }
