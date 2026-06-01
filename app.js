@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v493';
+﻿    const APP_VERSION = 'v494';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16665,16 +16665,18 @@
     window._saveDirectHitLoc = _saveDirectHitLoc;
 
     // ── 補錄落點：全域狀態 ──
-    let _hitLocPatchTs   = null;
-    let _hitLocPatchNum  = null;
-    let _hitLocPatchTeam = '';
-    let _hitLocPatchMode = '';
+    let _hitLocPatchTs           = null;
+    let _hitLocPatchNum          = null;
+    let _hitLocPatchTeam         = '';
+    let _hitLocPatchMode         = '';
+    let _hitLocPatchSelectedZone = null;
 
     function openHitLocPatch(ts, number, teamStr, mode) {
-        _hitLocPatchTs   = ts;
-        _hitLocPatchNum  = number;
-        _hitLocPatchTeam = teamStr || '';
-        _hitLocPatchMode = mode || '';
+        _hitLocPatchTs           = ts;
+        _hitLocPatchNum          = number;
+        _hitLocPatchTeam         = teamStr || '';
+        _hitLocPatchMode         = mode || '';
+        _hitLocPatchSelectedZone = null;
 
         // Modal 掛在 body 層，不會因 DOM 重建而消失
         let modal = document.getElementById('hitLocPatchModal');
@@ -16685,23 +16687,33 @@
             modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
                 <div style="font-size:15px;font-weight:800;color:#003d79;margin-bottom:12px;">📍 點選落點位置</div>
                 <div id="hitLocPatchSVGWrap"></div>
-                <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-                  <button onclick="cancelHitLocPatch()" style="padding:8px 18px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;color:#374151;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">取消</button>
+                <div id="hitLocPatchSelected" style="margin-top:10px;font-size:13px;color:#9ca3af;min-height:20px;">尚未選取，請點擊球場區域</div>
+                <div style="margin-top:12px;display:flex;gap:8px;">
+                  <button onclick="cancelHitLocPatch()"
+                    style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;color:#374151;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">取消</button>
+                  <button id="hitLocPatchSaveBtn" onclick="confirmHitLocPatch()" disabled
+                    style="flex:2;padding:10px;border-radius:8px;border:none;background:#003d79;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;opacity:0.35;">✅ 儲存落點</button>
                 </div>
             </div>`;
             document.body.appendChild(modal);
         }
 
+        // 每次開啟重置選取狀態
+        const indEl = document.getElementById('hitLocPatchSelected');
+        if (indEl) { indEl.textContent = '尚未選取，請點擊球場區域'; indEl.style.color = '#9ca3af'; indEl.style.fontWeight = '400'; }
+        const saveBtn = document.getElementById('hitLocPatchSaveBtn');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.35'; }
+
         const wrap = document.getElementById('hitLocPatchSVGWrap');
         if (!wrap) return;
-        // 建互動式球場 SVG（點擊區域後呼叫 _onHitLocPatchZone）
+        // 建互動式球場 SVG
         wrap.innerHTML = buildFieldSVG('', true, true, '');
         const svg = wrap.querySelector('svg');
         if (svg) {
             svg.querySelectorAll('[data-zone]').forEach(el => {
                 el.style.cursor = 'pointer';
                 el.style.touchAction = 'manipulation';
-                const _h = function(e) { e.preventDefault(); _onHitLocPatchZone(el.dataset.zone); };
+                const _h = function(e) { e.preventDefault(); _selectHitLocPatchZone(el.dataset.zone, svg); };
                 el.addEventListener('click', _h);
                 el.addEventListener('touchend', _h);
             });
@@ -16710,8 +16722,22 @@
     }
     window.openHitLocPatch = openHitLocPatch;
 
-    function _onHitLocPatchZone(zone) {
-        if (_hitLocPatchTs === null) return;
+    // 點擊球場區域：只高亮 + 更新提示，不儲存
+    function _selectHitLocPatchZone(zone, svg) {
+        _hitLocPatchSelectedZone = zone;
+        const svgEl = svg || document.getElementById('hitLocPatchSVGWrap')?.querySelector('svg');
+        if (svgEl) _zoneHighlight(svgEl.querySelector(`[data-zone="${zone}"]`), svgEl);
+        const indEl = document.getElementById('hitLocPatchSelected');
+        if (indEl) { indEl.textContent = `已選：${zone}　← 確認後按「儲存落點」`; indEl.style.color = '#b45309'; indEl.style.fontWeight = '700'; }
+        const saveBtn = document.getElementById('hitLocPatchSaveBtn');
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+    }
+    window._selectHitLocPatchZone = _selectHitLocPatchZone;
+
+    // 儲存按鈕：真正寫入資料並刷新落點圖
+    function confirmHitLocPatch() {
+        const zone = _hitLocPatchSelectedZone;
+        if (!zone || _hitLocPatchTs === null) return;
         const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
         const loc = { zone, x: c.x / 300, y: c.y / 280 };
         if (_hitLocPatchMode === 'pitch') {
@@ -16737,12 +16763,19 @@
         const team = _hitLocPatchTeam;
         cancelHitLocPatch();
         showBmBatterDetail(num, team);
+        // 儲存後捲到落點圖（showBmBatterDetail 重繪後稍等）
+        setTimeout(() => {
+            const chartEl = document.getElementById('bmDetailFieldWrap');
+            if (chartEl) chartEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 250);
     }
+    window.confirmHitLocPatch = confirmHitLocPatch;
 
     function cancelHitLocPatch() {
         const modal = document.getElementById('hitLocPatchModal');
         if (modal) modal.style.display = 'none';
-        _hitLocPatchTs = null;
+        _hitLocPatchTs           = null;
+        _hitLocPatchSelectedZone = null;
     }
     window.cancelHitLocPatch = cancelHitLocPatch;
 
