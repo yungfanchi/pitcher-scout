@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v476';
+﻿    const APP_VERSION = 'v477';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14746,10 +14746,6 @@
         const numEl   = document.getElementById('bmCurBatterNum');
         const nameEl  = document.getElementById('bmCurBatterName');
         const handEl  = document.getElementById('bmCurHand');
-        // 隊名：進攻方的實際球隊名稱
-        const { nameA, nameB } = _getBmTeamNames();
-        const _curTeamName = attackingTeam === 'A' ? nameA : nameB;
-        if (orderEl) orderEl.textContent = orderTxt + ' · ' + _curTeamName;
         if (numEl)   numEl.textContent   = numTxt;
         if (nameEl)  nameEl.textContent  = nameTxt;
         if (handEl)  handEl.textContent  = handTxt;
@@ -14779,6 +14775,9 @@
         // ── 雙槽位卡（聯動模式）──
         const isA = attackingTeam === 'A';
         const { nameA, nameB } = _getBmTeamNames();
+
+        // 棒次欄加上隊名（進攻方）
+        if (orderEl) orderEl.textContent = orderTxt + ' · ' + (isA ? nameA : nameB);
 
         // 更新隊名標籤（有球隊名稱時加上先攻/後攻括號）
         const ta = document.getElementById('bmSlotTeamA');
