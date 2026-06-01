@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v474';
+﻿    const APP_VERSION = 'v475';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -909,8 +909,8 @@
             const bHandMap={};
             pitches.forEach(p=>{const h=p.batterHand||'右打';bHandMap[h]=(bHandMap[h]||0)+1;});
             const bHand = Object.entries(bHandMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'右打';
-            const inZ  = bHand==='右打'?new Set(['1','4','7']):new Set(['3','6','9']);
-            const outZ = bHand==='右打'?new Set(['3','6','9']):new Set(['1','4','7']);
+            const inZ  = bHand==='右打'?new Set(['3','6','9']):new Set(['1','4','7']);
+            const outZ = bHand==='右打'?new Set(['1','4','7']):new Set(['3','6','9']);
             const midZ = new Set(['2','5','8']);
             const fpSwStr = fpSwings.filter(p=>/^[1-9]$/.test(String(p.zone)));
             const fpSIn  = fpSwStr.filter(p=>inZ.has(String(p.zone))).length;
@@ -957,7 +957,7 @@
             tsKPitches.forEach(p=>{if(p.type)tsKTypes[p.type]=(tsKTypes[p.type]||0)+1;});
             const tsKTopType = Object.entries(tsKTypes).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
             const bHand2 = (()=>{const m={};tsPA.forEach(p=>{const h=p.batterHand||'右打';m[h]=(m[h]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1])[0]?.[0]||'右打';})();
-            const hSide2 = z=>{const s=String(z);const inn=bHand2==='右打'?['1','4','7']:['3','6','9'];const out=bHand2==='右打'?['3','6','9']:['1','4','7'];return inn.includes(s)?'內角':out.includes(s)?'外角':'中間';};
+            const hSide2 = z=>{const s=String(z);const inn=bHand2==='右打'?['3','6','9']:['1','4','7'];const out=bHand2==='右打'?['1','4','7']:['3','6','9'];return inn.includes(s)?'內角':out.includes(s)?'外角':'中間';};
             const vSide2 = z=>{const s=String(z);return ['1','2','3'].includes(s)?'高':['7','8','9'].includes(s)?'低':'';};
             const descZ  = z=>{const h=hSide2(z);const v=vSide2(z);if(h==='中間'&&!v)return '中間';if(h==='中間')return v;return h+(v||'');};
             const kCombo={};
@@ -2082,13 +2082,13 @@
             const rhb = allPitches.filter(p => p.batterHand === '右打');
             const lhb = allPitches.filter(p => p.batterHand === '左打');
             innerOuterHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                ${buildInnerOuterHtml(lhb, ['3','6','9'], ['1','4','7'], '👈 對左打 (LHB)')}
-                ${buildInnerOuterHtml(rhb, ['1','4','7'], ['3','6','9'], '👉 對右打 (RHB)')}
+                ${buildInnerOuterHtml(lhb, ['1','4','7'], ['3','6','9'], '👈 對左打 (LHB)')}
+                ${buildInnerOuterHtml(rhb, ['3','6','9'], ['1','4','7'], '👉 對右打 (RHB)')}
             </div>
             <p style="font-size:11px;color:#9ca3af;margin-top:6px;">內角定義：對RHB為1/4/7區，對LHB為3/6/9區。</p>`;
         } else {
-            const innerZones = handFilter === 'left' ? ['3','6','9'] : ['1','4','7'];
-            const outerZones = handFilter === 'left' ? ['1','4','7'] : ['3','6','9'];
+            const innerZones = handFilter === 'left' ? ['1','4','7'] : ['3','6','9'];
+            const outerZones = handFilter === 'left' ? ['3','6','9'] : ['1','4','7'];
             const ioLabel = handFilter === 'left' ? '👈 對左打 (LHB)' : '👉 對右打 (RHB)';
             innerOuterHtml = buildInnerOuterHtml(allPitches, innerZones, outerZones, ioLabel);
         }
@@ -6818,8 +6818,8 @@
         if (innerOuterLHBChartInstance) { innerOuterLHBChartInstance.destroy(); innerOuterLHBChartInstance = null; }
         if (pitches.length === 0) { div.innerHTML = '<p style="color:#9ca3af;padding:10px;">尚無資料</p>'; return; }
 
-        const innerZonesRHB = ['1','4','7'], outerZonesRHB = ['3','6','9'];
-        const innerZonesLHB = ['3','6','9'], outerZonesLHB = ['1','4','7'];
+        const innerZonesRHB = ['3','6','9'], outerZonesRHB = ['1','4','7'];
+        const innerZonesLHB = ['1','4','7'], outerZonesLHB = ['3','6','9'];
 
         const buildSideStats = (ps, innerZones, outerZones) => {
             const total = ps.length;
@@ -11761,10 +11761,10 @@
                 const ZONE_GROUPS = [
                     { label:'低球',   zones:['7','8','9'] },
                     { label:'高球',   zones:['1','2','3'] },
-                    { label:'外角',   zones: isRHH ? ['3','6','9'] : ['1','4','7'] },
-                    { label:'內角',   zones: isRHH ? ['1','4','7'] : ['3','6','9'] },
-                    { label:'外角低', zones: isRHH ? ['9']         : ['7']         },
-                    { label:'內角高', zones: isRHH ? ['1']         : ['3']         },
+                    { label:'外角',   zones: isRHH ? ['1','4','7'] : ['3','6','9'] },
+                    { label:'內角',   zones: isRHH ? ['3','6','9'] : ['1','4','7'] },
+                    { label:'外角低', zones: isRHH ? ['7']         : ['9']         },
+                    { label:'內角高', zones: isRHH ? ['3']         : ['1']         },
                 ];
                 let bestZone = null, bestZoneRate = 0;
                 ZONE_GROUPS.forEach(({ label, zones }) => {
@@ -12430,8 +12430,8 @@
         const _bHandMap={};
         pitches.forEach(p=>{const h=p.batterHand||'右打';_bHandMap[h]=(_bHandMap[h]||0)+1;});
         const _bHand = Object.entries(_bHandMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'右打';
-        const _inZ  = _bHand==='右打'?new Set(['1','4','7']):new Set(['3','6','9']);
-        const _outZ = _bHand==='右打'?new Set(['3','6','9']):new Set(['1','4','7']);
+        const _inZ  = _bHand==='右打'?new Set(['3','6','9']):new Set(['1','4','7']);
+        const _outZ = _bHand==='右打'?new Set(['1','4','7']):new Set(['3','6','9']);
         const _midZ = new Set(['2','5','8']);
         const _fpSwStr  = _fpSwings.filter(p=>/^[1-9]$/.test(String(p.zone)));
         const _fpSIn    = _fpSwStr.filter(p=>_inZ.has(String(p.zone))).length;
@@ -12586,7 +12586,7 @@
         // 兩好球出局落點：內外角 × 高低球 九象限分析
         const _bHand2 = (() => { const m={}; _tsPA.forEach(p=>{const h=p.batterHand||'右打';m[h]=(m[h]||0)+1;}); return Object.entries(m).sort((a,b)=>b[1]-a[1])[0]?.[0]||'右打'; })();
         // 水平判斷（依打者慣用手）：RHB 內=1,4,7 外=3,6,9  LHB 相反
-        const _hSide = z => { const s=String(z); const inner=_bHand2==='右打'?['1','4','7']:['3','6','9']; const outer=_bHand2==='右打'?['3','6','9']:['1','4','7']; return inner.includes(s)?'內角':outer.includes(s)?'外角':'中間'; };
+        const _hSide = z => { const s=String(z); const inner=_bHand2==='右打'?['3','6','9']:['1','4','7']; const outer=_bHand2==='右打'?['1','4','7']:['3','6','9']; return inner.includes(s)?'內角':outer.includes(s)?'外角':'中間'; };
         // 垂直判斷：高=1,2,3  低=7,8,9  中間行無標籤
         const _vSide = z => { const s=String(z); return ['1','2','3'].includes(s)?'高':['7','8','9'].includes(s)?'低':''; };
         // 統計出局打席各象限
@@ -14662,12 +14662,20 @@
     function selectBmOutcome(outcome, btn) {
         _bmState.selectedOutcome = outcome;
         _bmState.hitType = null;
+        _bmState.hitLoc = null;
         document.querySelectorAll('#bmOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
         if (btn) btn.classList.add('bm-on');
         // 切換結果時清除型態選取
         document.querySelectorAll('#bmHitTypeBtns .hit-type-btn').forEach(b => b.classList.remove('selected'));
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; }
+        // BIP 結果：提示點選落點
+        const isBip = BM_BALL_IN_PLAY.includes(outcome);
+        const lbl = document.getElementById('bmHitZoneLabel');
+        if (lbl) lbl.textContent = isBip ? '⬆ 請點選落點' : '';
+        // 清除球場圖舊高亮
+        const svg = document.getElementById('fieldSVG_bm');
+        if (svg) _zoneHighlight(null, svg);
     }
     window.selectBmOutcome = selectBmOutcome;
 
@@ -15084,6 +15092,10 @@
 
     function confirmBmLinkedAtBat() {
         if (!_bmState.selectedOutcome) return;
+        // 防呆：BIP 結果但未選落點，提示確認
+        if (BM_BALL_IN_PLAY.includes(_bmState.selectedOutcome) && !_bmState.hitLoc) {
+            if (!confirm('⚠️ 尚未選擇打擊落點\n\n確定要記錄嗎？\n（點「取消」可先點選落點圖再確認）')) return;
+        }
         _initBmData();
         const order = _bmState.currentOrder;
         const bmAttackingTeam = allData.bm.attackingTeam || 'B';
@@ -15353,7 +15365,7 @@
                 <!-- 球場落點圖（進場球才顯示） -->
                 <div id="spHitMapSection" style="display:none;margin-bottom:12px;">
                     <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">
-                        🗺️ 打擊落點（可選）<span id="spHitZoneLabel" style="color:#003d79;font-weight:900;margin-left:4px;"></span>
+                        🗺️ 打擊落點（建議填寫）<span id="spHitZoneLabel" style="color:#003d79;font-weight:900;margin-left:4px;"></span>
                     </div>
                     <div id="spHitMapWrap" style="max-width:280px;margin:0 auto;"></div>
                 </div>
@@ -15406,6 +15418,10 @@
     function confirmSpAtBat() {
         const outcome = _bmState.spSelectedOutcome;
         if (!outcome) return;
+        // 防呆：BIP 結果但未選落點，提示確認
+        if (BM_BALL_IN_PLAY.includes(outcome) && !_bmState.spHitLoc) {
+            if (!confirm('⚠️ 尚未選擇打擊落點\n\n確定要記錄嗎？\n（點「取消」可先點選落點圖再確認）')) return;
+        }
         const overlay = document.getElementById('spOutcomeOverlay');
         if (overlay) overlay.remove();
 
