@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v460';
+﻿    const APP_VERSION = 'v461';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14164,10 +14164,10 @@
         _bmState.isPinch = !_bmState.isPinch;
         const btn = document.getElementById('bmPinchBtn');
         if (btn) {
-            btn.style.background    = _bmState.isPinch ? 'var(--ct-gold)' : '#fff3cd';
-            btn.style.color         = _bmState.isPinch ? '#000' : 'var(--ct-blue-dark)';
-            btn.style.borderColor   = 'var(--ct-gold)';
-            btn.textContent         = _bmState.isPinch ? '✅ 代打' : '代打';
+            btn.style.background  = _bmState.isPinch ? 'var(--ct-gold)' : '#fff';
+            btn.style.color       = _bmState.isPinch ? '#000' : '#b45309';
+            btn.style.borderColor = _bmState.isPinch ? 'var(--ct-gold)' : '#b45309';
+            btn.textContent       = _bmState.isPinch ? '✅ 代打' : '代打';
         }
     }
     window.toggleBmPinch = toggleBmPinch;
