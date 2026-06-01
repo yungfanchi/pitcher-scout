@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v459';
+﻿    const APP_VERSION = 'v460';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11643,11 +11643,13 @@
         </div>`;
 
         // ── 3. 打擊落點圖 + 方向/型態分析 ──
-        // ★ 合併 bm.hitLocations 直接補錄的落點（與統計頁同步）
-        const _profileNum = entry._bmNum || (entry.nameKey?.startsWith('#') ? entry.nameKey.slice(1) : '');
+        // ★ 合併 bm.hitLocations 直接補錄的落點（依背號 + 隊名嚴格過濾，防止同號跨隊混用）
+        const _profileNum  = entry._bmNum || (entry.nameKey?.startsWith('#') ? entry.nameKey.slice(1) : '');
+        const _profileTeam = entry.teamName || '';
         const _profileDirect = _profileNum
             ? (allData.bm?.hitLocations||[])
-                .filter(l => String(l.number) === String(_profileNum))
+                .filter(l => String(l.number) === String(_profileNum)
+                          && (_profileTeam ? l.team === _profileTeam : true))
                 .map(l => ({ hitLocation:{zone:l.zone, x:l.x, y:l.y}, outcomes:[l.outcome||''], _directPatch:true }))
             : [];
         const locs = [
