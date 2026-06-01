@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v475';
+﻿    const APP_VERSION = 'v476';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4203,6 +4203,32 @@
             }
             contentEl.innerHTML = '<span class="pitcher-slot-empty">點選左側投手選擇</span>';
         });
+
+        // ── 正在記錄橫幅：顯示目前 activeSlot 的投手資訊 ──
+        const banner = document.getElementById('pitcherRecordBanner');
+        if (banner) {
+            const aSlot = activeSlot === 'A' ? slotA : slotB;
+            const hasPitcher = aSlot.team !== null && aSlot.pitcher !== null && allData.teams[aSlot.team];
+            if (hasPitcher) {
+                const _team    = allData.teams[aSlot.team];
+                const _pitcher = _team.pitchers[aSlot.pitcher];
+                if (_pitcher) {
+                    const _side    = _pitcher.pitchingTeam || (activeSlot === 'A' ? 'A' : 'B');
+                    const _tName   = _side === 'A' ? (_team.name || '先攻') : (_team.opponent || _team.name || '後攻');
+                    const _count   = _pitcher.pitches.length;
+                    const _isSlotA = activeSlot === 'A';
+                    banner.style.display    = 'flex';
+                    banner.style.background = _isSlotA ? '#e8f0fb' : '#f3f4f6';
+                    banner.style.border     = _isSlotA ? '1.5px solid #93b4e8' : '1.5px solid #d1d5db';
+                    banner.style.color      = _isSlotA ? '#003d79' : '#374151';
+                    banner.innerHTML = `<span style="background:${_isSlotA?'#003d79':'#374151'};color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;letter-spacing:1px;flex-shrink:0;">SLOT ${activeSlot}</span>`
+                        + `<span style="flex-shrink:0;">▶ 正在記錄</span>`
+                        + `<span style="font-size:14px;font-weight:900;flex-shrink:0;">${escapeHtml(_pitcher.name)}${_pitcher.number ? ' #'+escapeHtml(_pitcher.number) : ''}</span>`
+                        + `<span style="color:#6b7280;flex-shrink:0;">· ${escapeHtml(_tName)}</span>`
+                        + `<span style="margin-left:auto;flex-shrink:0;color:#6b7280;font-size:11px;">${_count} 球記錄</span>`;
+                } else { banner.style.display = 'none'; }
+            } else { banner.style.display = 'none'; }
+        }
 
         // 互換按鈕：兩槽都有資料且指向同一場賽事時顯示
         const swapWrap = document.getElementById('slotSwapWrap');
@@ -14720,7 +14746,10 @@
         const numEl   = document.getElementById('bmCurBatterNum');
         const nameEl  = document.getElementById('bmCurBatterName');
         const handEl  = document.getElementById('bmCurHand');
-        if (orderEl) orderEl.textContent = orderTxt;
+        // 隊名：進攻方的實際球隊名稱
+        const { nameA, nameB } = _getBmTeamNames();
+        const _curTeamName = attackingTeam === 'A' ? nameA : nameB;
+        if (orderEl) orderEl.textContent = orderTxt + ' · ' + _curTeamName;
         if (numEl)   numEl.textContent   = numTxt;
         if (nameEl)  nameEl.textContent  = nameTxt;
         if (handEl)  handEl.textContent  = handTxt;
