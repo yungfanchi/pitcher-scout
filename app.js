@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v497';
+﻿    const APP_VERSION = 'v498';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -870,13 +870,17 @@
 
             // ── 落點圖 ──
             const locPitches = pitches.filter(p => p.hitLocation && oc(p).some(o => BIP.includes(o)));
-            const linesHTML = locPitches.map(p => {
+            const linesHTML = locPitches.filter(p=>!oc(p).includes('全壘打')).map(p => {
                 const sx = (p.hitLocation.x*300).toFixed(1), sy = (p.hitLocation.y*280).toFixed(1);
                 const col = oc(p).some(o=>HIT.includes(o)) ? '#ef4444' : '#3b82f6';
-                return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="3" opacity="0.85" stroke-linecap="round"/>`;
+                return _makeHitLine(sx, sy, col, oc(p).includes('平飛球出局'), 3, 0.85);
+            }).join('');
+            const hrLinesHTML = locPitches.filter(p=>oc(p).includes('全壘打')).map(p => {
+                const sx = (p.hitLocation.x*300).toFixed(1), sy = (p.hitLocation.y*280).toFixed(1);
+                return _makeHitLine(sx, sy, '#ffd700', false, 3, 0.9);
             }).join('');
             const hitCnt = locPitches.filter(p=>oc(p).some(o=>HIT.includes(o))).length;
-            const svgHTML = buildFieldSVG(linesHTML, false, true, '');
+            const svgHTML = buildFieldSVG(linesHTML, false, true, hrLinesHTML);
 
             // ── 方向/型態分析 ──
             const leftL  = locPitches.filter(p=>p.hitLocation.x<0.43);
@@ -11335,6 +11339,23 @@
         if (cb) cb(null);
     }
 
+    // ── 落點線 SVG helper ──
+    // color: '#ef4444'安打 | '#ffd700'全壘打 | '#3b82f6'非安打
+    // isLineDrive: 平飛球時加垂直橫槓在線條 75% 處
+    function _makeHitLine(x2, y2, color, isLineDrive, sw, op) {
+        sw = sw || 2.5; op = op === undefined ? 0.85 : op;
+        const ex = parseFloat(x2), ey = parseFloat(y2);
+        const dx = ex - 150, dy = ey - 272;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        let s = `<line x1="150" y1="272" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
+        if (isLineDrive) {
+            const mx = (150 + dx * 0.75).toFixed(1), my = (272 + dy * 0.75).toFixed(1);
+            const px = (-dy / len * 7).toFixed(1), py = (dx / len * 7).toFixed(1);
+            s += `<line x1="${(+mx - +px).toFixed(1)}" y1="${(+my - +py).toFixed(1)}" x2="${(+mx + +px).toFixed(1)}" y2="${(+my + +py).toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
+        }
+        return s;
+    }
+
     // ── 建立球場 SVG（真實扇形球場，本壘板在底部） ──
     // viewBox 300x280，本壘板 (150,272)
     // interactive: false=靜態  true=彈窗  'bm'=聯動內嵌  'sp'=獨立內嵌  'edit'=打席編輯modal
@@ -12367,8 +12388,9 @@
         const _isHR = p => (p.outcomes||[]).includes('全壘打');
         function _makeLine(p) {
             const sx = (p.hitLocation.x * 300).toFixed(1), sy = (p.hitLocation.y * 280).toFixed(1);
-            const col = (p.outcomes||[]).some(o => HIT.includes(o)) ? '#ef4444' : '#3b82f6';
-            return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="2.5" opacity="0.85" stroke-linecap="round" style="pointer-events:none;"/>`;
+            const outcomes = p.outcomes || [];
+            const col = _isHR(p) ? '#ffd700' : outcomes.some(o => HIT.includes(o)) ? '#ef4444' : '#3b82f6';
+            return _makeHitLine(sx, sy, col, outcomes.includes('平飛球出局'), 2.5, 0.85);
         }
         const linesHTML   = locs.filter(p => !_isHR(p)).map(_makeLine).join('');
         const hrLinesHTML = locs.filter(p =>  _isHR(p)).map(_makeLine).join('');
@@ -12402,6 +12424,7 @@
             else                            _adv = `打擊方向均衡，全場防守皆需注意。`;
         }
         const _hitCnt = _dH(locs);
+        const _hrCnt  = locs.filter(_isHR).length;
 
         // 從打線查找自訂備註（trait）
         const _bmNum = entry._bmNum ? String(entry._bmNum) : '';
@@ -12443,9 +12466,11 @@
             <!-- 落點圖 左側 -->
             <div style="min-width:0;">
               ${buildFieldSVG(linesHTML, false, true, hrLinesHTML)}
-              <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;color:#374151;flex-wrap:wrap;align-items:center;">
-                <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/></svg>安打（${_hitCnt}）</span>
+              <div style="display:flex;gap:10px;margin-top:8px;font-size:12px;color:#374151;flex-wrap:wrap;align-items:center;">
+                <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/></svg>安打（${_hitCnt - _hrCnt}）</span>
+                <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round"/></svg>全壘打（${_hrCnt}）</span>
                 <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/></svg>非安打（${locs.length - _hitCnt}）</span>
+                <span><svg width="26" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="26" y2="6" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="2" x2="19" y2="10" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/></svg>平飛球</span>
                 <span style="margin-left:auto;color:#9ca3af;">共 ${locs.length} 筆</span>
               </div>
             </div>
@@ -12991,11 +13016,12 @@
             if (l.isHit) zoneCounts[l.zone].hits++;
         });
 
-        // 線條：從本壘板 (150,272) 畫到落點，紅=安打，藍=非安打，重疊自然加深
+        // 線條：從本壘板 (150,272) 畫到落點，紅=安打，金=全壘打，藍=非安打，橫槓=平飛球
         const dotsHTML = locs.map(l => {
             const sx = (l.x * 300).toFixed(1), sy = (l.y * 280).toFixed(1);
-            const color = l.isHit ? '#ef4444' : '#3b82f6';
-            return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${color}" stroke-width="2" opacity="0.7" stroke-linecap="round" style="pointer-events:none;"/>`;
+            const isHR = l.outcome === '全壘打';
+            const color = isHR ? '#ffd700' : l.isHit ? '#ef4444' : '#3b82f6';
+            return _makeHitLine(sx, sy, color, l.outcome === '平飛球出局', 2, 0.7);
         }).join('');
 
         const zoneRows = Object.entries(zoneCounts).sort((a,b) => b[1].total - a[1].total)
@@ -13005,9 +13031,11 @@
 
         container.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
           <div style="flex:0 0 auto;">${buildFieldSVG(dotsHTML)}
-            <div style="display:flex;gap:14px;margin-top:8px;justify-content:center;font-size:12px;">
+            <div style="display:flex;gap:10px;margin-top:8px;justify-content:center;font-size:12px;flex-wrap:wrap;">
               <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>安打</span>
+              <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>全壘打</span>
               <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>非安打</span>
+              <span><svg width="26" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="26" y2="6" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="2" x2="19" y2="10" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/></svg>平飛球</span>
             </div>
           </div>
           ${locs.length === 0 ? `<div style="color:#9ca3af;font-size:13px;padding:16px 0;">
