@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v499';
+﻿    const APP_VERSION = 'v500';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1076,9 +1076,21 @@
       </div>
     </div>
   </div>` : `
-  <div style="background:#fffbeb;border-radius:12px;padding:14px;margin-bottom:14px;border:1px solid #fde68a;">
-    <div style="font-size:13px;font-weight:900;color:#003d79;margin-bottom:8px;">📝 情蒐備註</div>
-    <div style="font-size:12px;color:#374151;line-height:1.7;white-space:pre-wrap;">${trait||'（尚無備註）'}</div>
+  <div style="background:#fffdf5;border-radius:12px;padding:14px;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:10px;">🗺️ 打擊落點圖</div>
+    <div style="display:grid;grid-template-columns:320px 1fr 200px;gap:14px;align-items:start;">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:220px;background:#f8fafc;border-radius:10px;border:2px dashed #d1d5db;">
+        <div style="font-size:32px;margin-bottom:8px;opacity:0.35;">🗺️</div>
+        <div style="font-size:12px;color:#9ca3af;font-weight:700;">尚無落點資料</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="color:#9ca3af;font-size:12px;padding:8px 0;">尚無打擊落點，無法分析方向與型態。</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:10px;padding:12px;border:1px solid #fde68a;">
+        <div style="font-size:12px;font-weight:900;color:#003d79;margin-bottom:8px;">📝 情蒐備註</div>
+        <div style="font-size:12px;color:#374151;line-height:1.7;white-space:pre-wrap;">${trait||'（尚無備註）'}</div>
+      </div>
+    </div>
   </div>`}
 
   <!-- ①②③④ 四欄 2×2 -->
