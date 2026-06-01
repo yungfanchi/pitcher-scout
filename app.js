@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v471';
+﻿    const APP_VERSION = 'v472';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -525,7 +525,7 @@
             await new Promise(r => setTimeout(r, 300));
 
             const REPORT_W = 1100;
-            const captureH = Math.max(tabEl.scrollHeight, tabEl.offsetHeight);
+            const captureH = Math.max(tabEl.scrollHeight, tabEl.offsetHeight, 300);
 
             const canvas = await html2canvas(tabEl, {
                 scale: 2, useCORS: true, allowTaint: true,
@@ -569,13 +569,16 @@
         if (!captures.length) return;
         const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
         if (!JSPDF) { alert('PDF 套件未載入，請重新整理頁面'); return; }
+        // 過濾掉高度無效的截圖（防止 jsPDF.scale 錯誤）
+        const valid = captures.filter(c => c && c.canvas && c.imgHeightMm > 0 && isFinite(c.imgHeightMm));
+        if (!valid.length) { alert('PDF 產生失敗：截圖高度異常，請重試'); return; }
         const pageW = 210;
         if (setProg) setProg('組合 PDF...');
-        const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, captures[0].imgHeightMm] });
-        pdf.addImage(captures[0].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, captures[0].imgHeightMm);
-        for (let i = 1; i < captures.length; i++) {
-            pdf.addPage([pageW, captures[i].imgHeightMm]);
-            pdf.addImage(captures[i].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, captures[i].imgHeightMm);
+        const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, valid[0].imgHeightMm] });
+        pdf.addImage(valid[0].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, valid[0].imgHeightMm);
+        for (let i = 1; i < valid.length; i++) {
+            pdf.addPage([pageW, valid[i].imgHeightMm]);
+            pdf.addImage(valid[i].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, valid[i].imgHeightMm);
         }
         if (setProg) setProg('儲存中...');
         await new Promise(r => setTimeout(r, 200));
@@ -1188,13 +1191,14 @@
   </div>
 </div>`;
 
-            // 渲染成 canvas（fixed 定位於畫面外，與 tab 截圖同寬 1100px 確保對齊）
+            // 渲染成 canvas
+            // 用 left:-1110px 將元素推到視口左側，top:0 確保瀏覽器正確計算高度
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'position:fixed;top:-99999px;left:0;width:1100px;background:white;overflow:visible;';
+            wrapper.style.cssText = 'position:fixed;top:0;left:-1110px;width:1100px;background:white;overflow:visible;';
             wrapper.innerHTML = html;
             document.body.appendChild(wrapper);
-            await new Promise(r => setTimeout(r, 600));
-            const fullH = Math.max(wrapper.scrollHeight, wrapper.offsetHeight);
+            await new Promise(r => setTimeout(r, 700));
+            const fullH = Math.max(wrapper.scrollHeight, wrapper.offsetHeight, 500);
 
             const canvas = await html2canvas(wrapper, {
                 scale: 2, useCORS: true, backgroundColor: 'white',
