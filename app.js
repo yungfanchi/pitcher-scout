@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v463';
+﻿    const APP_VERSION = 'v464';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11649,6 +11649,21 @@
         _bmUpdateNavBtns();
 
         renderBmBatterProfile(entry.pitches, entry, stats);
+
+        // ★ 手機同步較晚時，bm.hitLocations 可能尚未到達 → 500ms 後重繪落點圖（不動資料，只重繪）
+        if (USER_TEAM_REF && window.matchMedia && window.matchMedia('(max-width:768px)').matches) {
+            setTimeout(() => {
+                USER_TEAM_REF.child('bm').once('value').then(snap => {
+                    const val = snap.val();
+                    if (!val || typeof val !== 'object') return;
+                    if (!allData.bm) allData.bm = {};
+                    Object.assign(allData.bm, val);
+                    if (!Array.isArray(allData.bm.hitLocations)) allData.bm.hitLocations = Object.values(allData.bm.hitLocations || {});
+                    // 重繪落點圖（僅更新圖，不重載整個 profile）
+                    renderBmBatterProfile(entry.pitches, entry, stats);
+                }).catch(() => {});
+            }, 600);
+        }
     }
 
     let _bmTeamRoster = [];

@@ -1214,6 +1214,35 @@
 }
 @media (max-width: 480px) {
     .bm-dual-match { grid-template-columns: 1fr; }
+
+    /* ── 手機直立：打者記錄列換行成兩排 ── */
+    .bm-record-bar {
+        flex-wrap: wrap;
+        gap: 6px 4px;
+    }
+    /* 第一排：局數+上下半（左）+ 壘包出局（右）─ 同一行 */
+    .bm-record-bar > div:first-child {
+        /* 局數+上下半：壓縮字體 */
+        gap: 3px !important;
+    }
+    .bm-record-bar > div:first-child button {
+        padding: 5px 7px !important;
+        font-size: 12px !important;
+    }
+    /* 壘包出局區：移到第一排右側 */
+    .bm-bases-row {
+        margin-left: auto;
+        gap: 3px !important;
+    }
+    .bm-bases-row button {
+        padding: 5px 6px !important;
+        font-size: 12px !important;
+    }
+    /* 第二排：打者資訊 + 代打按鈕 ─ 佔滿寬度 */
+    .bm-record-bar > div:nth-child(2) {
+        width: 100%;
+        order: 3;
+    }
 }
 
 /* ─── 打者情蒐槽位（仿 dual-pitcher-section）─── */

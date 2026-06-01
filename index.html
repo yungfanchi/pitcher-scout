@@ -1379,7 +1379,7 @@
             <div id="bmLinkedRecord">
                 <!-- ─ 比賽狀態卡（單列） ─ -->
                 <div class="bm-card bm-batter-card" style="margin-top:10px;">
-                    <div style="display:flex;gap:4px;align-items:center;">
+                    <div class="bm-record-bar" style="display:flex;gap:4px;align-items:center;">
                         <!-- 左：局數 + 上半/下半 -->
                         <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
                             <span style="font-size:15px;font-weight:700;color:#374151;">第</span>
@@ -1416,7 +1416,7 @@
                             </button>
                         </div>
                         <!-- 右：壘包 + 出局 -->
-                        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+                        <div class="bm-bases-row" style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
                             <button class="bm-base-btn" id="bmBase1" onclick="toggleBmBase(0)" style="padding:6px 9px;font-size:14px;">一壘</button>
                             <button class="bm-base-btn" id="bmBase2" onclick="toggleBmBase(1)" style="padding:6px 9px;font-size:14px;">二壘</button>
                             <button class="bm-base-btn" id="bmBase3" onclick="toggleBmBase(2)" style="padding:6px 9px;font-size:14px;">三壘</button>
