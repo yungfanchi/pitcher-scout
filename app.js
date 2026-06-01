@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v487';
+﻿    const APP_VERSION = 'v488';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16336,16 +16336,6 @@
                     ${typeStatsHTML}
                 </div>
             </div>
-            <!-- 補落點用球場 Modal -->
-            <div id="hitLocPatchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
-              <div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
-                <div style="font-size:15px;font-weight:800;color:#003d79;margin-bottom:12px;">📍 點選落點位置</div>
-                <div id="hitLocPatchSVGWrap"></div>
-                <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
-                  <button onclick="cancelHitLocPatch()" style="padding:8px 18px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;color:#374151;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">取消</button>
-                </div>
-              </div>
-            </div>
             ${pitchBreakdown}
             <h3 style="margin-top:16px;">📋 打席記錄</h3>
             <button onclick="_showAddHitLocInline('${String(number).replace(/'/g,"\\'")}','${teamStr.replace(/'/g,"\\'")}',this)"
@@ -16570,11 +16560,27 @@
         _hitLocPatchNum  = number;
         _hitLocPatchTeam = teamStr || '';
         _hitLocPatchMode = mode || '';
+
+        // Modal 掛在 body 層，不會因 DOM 重建而消失
+        let modal = document.getElementById('hitLocPatchModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'hitLocPatchModal';
+            modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;';
+            modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.35);">
+                <div style="font-size:15px;font-weight:800;color:#003d79;margin-bottom:12px;">📍 點選落點位置</div>
+                <div id="hitLocPatchSVGWrap"></div>
+                <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+                  <button onclick="cancelHitLocPatch()" style="padding:8px 18px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;color:#374151;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">取消</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
         const wrap = document.getElementById('hitLocPatchSVGWrap');
         if (!wrap) return;
         // 建互動式球場 SVG（點擊區域後呼叫 _onHitLocPatchZone）
         wrap.innerHTML = buildFieldSVG('', true, true, '');
-        // 覆蓋球場 SVG 上的 zone onclick，讓它呼叫補錄函式
         const svg = wrap.querySelector('svg');
         if (svg) {
             svg.querySelectorAll('[data-zone]').forEach(el => {
@@ -16585,8 +16591,7 @@
                 el.addEventListener('touchend', _h);
             });
         }
-        const modal = document.getElementById('hitLocPatchModal');
-        if (modal) modal.style.display = 'flex';
+        modal.style.display = 'flex';
     }
     window.openHitLocPatch = openHitLocPatch;
 
