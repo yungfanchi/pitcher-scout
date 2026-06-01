@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v496';
+﻿    const APP_VERSION = 'v497';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -10985,6 +10985,7 @@
     let _batterTeamFilter = null;  // null = 全部；string = 選定隊名
     let _currentBatterView = null; // { name, source, idx, teamName }
     let _bmBatterCardMap = {};     // mapKey → { entry, stats } — 供 showBmBatterCard() 使用
+    let _bmCurrentCardKey = null;  // 目前顯示的打者卡 mapKey
     let _batterSortKey = 'threat'; // default sort by threat
     let _batterSortDir = 'desc';   // 'asc' | 'desc'
 
@@ -12193,6 +12194,7 @@
 
     // ── 打者卡片點擊 → 詳細分析頁 ──
     function showBmBatterCard(mapKey) {
+        _bmCurrentCardKey = mapKey;
         const data = _bmBatterCardMap && _bmBatterCardMap[mapKey];
         if (!data) return;
         const { entry, stats } = data;
@@ -12420,9 +12422,16 @@
             >${_traitSafe}</textarea>
         </div>`;
 
+        const _profNumEsc  = String(_profileNum  || '').replace(/'/g,"\\'");
+        const _profTeamEsc = String(_profileTeam || '').replace(/'/g,"\\'");
         const sec2 = `
         <div style="background:#fffdf5;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-          <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:12px;">🗺️ 打擊落點圖</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="font-size:14px;font-weight:900;color:#003d79;">🗺️ 打擊落點圖</span>
+            ${_profileNum ? `<button onclick="_showAddHitLocInline('${_profNumEsc}','${_profTeamEsc}',this,'statsHitLocInlineBox')"
+              style="padding:4px 12px;border-radius:7px;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+              📍 新增落點</button>` : ''}
+          </div>
           ${locs.length === 0
             ? `<div style="display:grid;grid-template-columns:55% 1fr;gap:16px;align-items:stretch;">
             <div style="min-width:0;">
@@ -12482,6 +12491,7 @@
             <!-- 情蒐備註 右側 -->
             <div style="min-width:0;">${secNotes}</div>
           </div>`}
+          <div id="statsHitLocInlineBox"></div>
         </div>`;
 
         // ══════════════════════════════════════════════
@@ -16556,8 +16566,9 @@
     // ── 直接補錄落點（不依附 atBat，存入 bm.hitLocations）──
     let _dhlPendingZone = null; // 暫存選取的區域，等按儲存才真正寫入
 
-    function _showAddHitLocInline(number, teamName, btn) {
-        const box = document.getElementById('addHitLocInlineBox');
+    function _showAddHitLocInline(number, teamName, btn, boxId) {
+        const _boxId = boxId || 'addHitLocInlineBox';
+        const box = document.getElementById(_boxId);
         if (!box) return;
         if (box.innerHTML) { box.innerHTML = ''; if (btn) btn.textContent = '📍 新增落點'; return; }
         if (btn) btn.textContent = '▲ 收起';
@@ -16586,7 +16597,7 @@
           <div id="dhlSvgWrap"></div>
           <div id="dhlSelected" style="margin-top:8px;font-size:13px;color:#6b7280;min-height:20px;">尚未選取區域</div>
           <div style="display:flex;gap:8px;margin-top:12px;">
-            <button id="dhlSaveBtn" onclick="_saveDirectHitLoc('${String(number).replace(/'/g,"\\'")}','${String(teamName||'').replace(/'/g,"\\'")}' )" disabled
+            <button id="dhlSaveBtn" onclick="_saveDirectHitLoc('${String(number).replace(/'/g,"\\'")}','${String(teamName||'').replace(/'/g,"\\'")}','${_boxId}' )" disabled
               style="flex:1;padding:12px;border-radius:9px;border:none;background:#003d79;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;opacity:0.4;">
               ✅ 儲存此落點
             </button>
@@ -16639,7 +16650,7 @@
     }
     window._clearDirectHitLocSelection = _clearDirectHitLocSelection;
 
-    function _saveDirectHitLoc(number, contextTeam) {
+    function _saveDirectHitLoc(number, contextTeam, boxId) {
         const zone = _dhlPendingZone;
         if (!zone) return;
         _initBmData();
@@ -16651,19 +16662,25 @@
         saveToLocalStorage();
         saveBmToFirebase();
         _dhlPendingZone = null;
-        // ★ 重新渲染整個打者詳情（落點圖立即更新），保持隊名篩選
-        showBmBatterDetail(number, contextTeam || team);
-        // 稍後顯示「已儲存」提示
-        setTimeout(() => {
-            const detailEl = document.getElementById('bmBatterDetailSection');
-            if (!detailEl) return;
-            const saved = (allData.bm.hitLocations||[]).filter(l =>
-                String(l.number) === String(number) && (!team || !l.team || l.team === team));
-            const appendDiv = document.createElement('div');
-            appendDiv.style.cssText = 'margin-top:12px;padding:12px 16px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;font-size:13px;color:#15803d;';
-            appendDiv.innerHTML = `✅ 已儲存 ${saved.length} 筆落點。`;
-            detailEl.appendChild(appendDiv);
-        }, 100);
+        const _boxId = boxId || 'addHitLocInlineBox';
+        // 從統計分頁呼叫（statsHitLocInlineBox）→ 重新渲染統計頁落點圖
+        if (_boxId === 'statsHitLocInlineBox') {
+            if (_bmCurrentCardKey) showBmBatterCard(_bmCurrentCardKey);
+        } else {
+            // ★ 重新渲染整個打者詳情（落點圖立即更新），保持隊名篩選
+            showBmBatterDetail(number, contextTeam || team);
+            // 稍後顯示「已儲存」提示
+            setTimeout(() => {
+                const detailEl = document.getElementById('bmBatterDetailSection');
+                if (!detailEl) return;
+                const saved = (allData.bm.hitLocations||[]).filter(l =>
+                    String(l.number) === String(number) && (!team || !l.team || l.team === team));
+                const appendDiv = document.createElement('div');
+                appendDiv.style.cssText = 'margin-top:12px;padding:12px 16px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;font-size:13px;color:#15803d;';
+                appendDiv.innerHTML = `✅ 已儲存 ${saved.length} 筆落點。`;
+                detailEl.appendChild(appendDiv);
+            }, 100);
+        }
     }
     window._saveDirectHitLoc = _saveDirectHitLoc;
 
