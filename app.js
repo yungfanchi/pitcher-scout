@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v468';
+﻿    const APP_VERSION = 'v469';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1484,7 +1484,7 @@
                 if (pitchKeys.length) {
                     setProg('生成打者成績報告...');
                     const cap = await _generateBatterReportCapture(pitchKeys, teamName, gameIndex);
-                    if (cap) allCaptures.push(cap);
+                    if (cap) allCaptures.push(...cap);
                 }
 
                 // 打者模式：截圖 bmStatsTab（過濾至勾選打者）
