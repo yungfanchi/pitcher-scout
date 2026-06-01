@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v486';
+﻿    const APP_VERSION = 'v487';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16379,10 +16379,17 @@
                                background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
                                cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除落點">🗑️</button>`
                     : '';
-                return `<div class="bm-log-row" style="display:flex;align-items:center;gap:4px;">
+                // ✕ 刪除整筆打席（只有 bm.atBats 的 linked/standalone 才能刪）
+                const delAbBtn = (a.mode === 'linked' || a.mode === 'standalone') && a.ts
+                    ? `<button onclick="if(confirm('確定刪除這筆打席記錄？'))deleteBmAtBat(${a.ts})"
+                        style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid #fecaca;
+                               background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
+                               cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除打席">✕ 刪除</button>`
+                    : '';
+                return `<div class="bm-log-row" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                     <span style="color:#6b7280;flex-shrink:0;">${i+1}. ${modeIcon} ${a.pitcherHand||''}</span>
                     <span class="bm-log-outcome ${cls}">${a.outcome||'-'}${zone}${ht}${pinchTag}</span>
-                    ${patchBtn}${delBtn}
+                    ${patchBtn}${delBtn}${delAbBtn}
                 </div>`;
             }).join('')}</div>
             ${_directLocs.length > 0 ? `
