@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v472';
+﻿    const APP_VERSION = 'v473';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -494,15 +494,15 @@
         const pageW = 210;
         const allTabs = [
             { id: 'statsTab',        label: '投手統計', upd: () => updateStats(),
-              show: (el) => { document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
+              show: (el) => { el.style.display = ''; document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
             { id: 'analysisTab',     label: '投手分析', upd: () => updateStats(),
-              show: (el) => { document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
+              show: (el) => { el.style.display = ''; document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
             { id: 'compareTab',      label: '投手對比', upd: () => updateCompare(),
-              show: (el) => { document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
+              show: (el) => { el.style.display = ''; document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); } },
             { id: 'bmStatsTab',      label: '打者統計', upd: () => { if (typeof _renderBmStats === 'function') _renderBmStats(); },
-              show: (el) => { el.style.display = ''; el.classList.add('active'); } },
+              show: (el) => { const bw=document.getElementById('batterModeWrapper'); if(bw) bw.style.display=''; el.style.display = ''; el.classList.add('active'); } },
             { id: 'bmBatterDataTab', label: '打者分析', upd: () => { if (typeof refreshBatterList === 'function') refreshBatterList(); },
-              show: (el) => { el.style.display = ''; el.classList.add('active'); } },
+              show: (el) => { const bw=document.getElementById('batterModeWrapper'); if(bw) bw.style.display=''; el.style.display = ''; el.classList.add('active'); } },
         ];
         const tabs = allTabs.filter(t => tabIds.includes(t.id));
         const captures = [];
@@ -534,11 +534,14 @@
                 windowWidth: REPORT_W, windowHeight: captureH + 400,
                 logging: false, imageTimeout: 15000,
                 onclone: (_doc, clonedEl) => {
+                    clonedEl.style.setProperty('display', 'block', 'important');
                     clonedEl.style.setProperty('width', REPORT_W + 'px', 'important');
                     clonedEl.style.setProperty('max-width', 'none', 'important');
                     clonedEl.style.setProperty('height', 'auto', 'important');
                     clonedEl.style.setProperty('overflow', 'visible', 'important');
                     clonedEl.style.setProperty('max-height', 'none', 'important');
+                    const clonedBw = _doc.getElementById('batterModeWrapper');
+                    if (clonedBw) clonedBw.style.setProperty('display', 'block', 'important');
                     const clonedMain = _doc.querySelector('.main-content');
                     if (clonedMain) {
                         clonedMain.style.setProperty('width', REPORT_W + 'px', 'important');
@@ -1625,10 +1628,30 @@
             currentTeam = origCurrentTeam; currentPitcher = origCurrentPitcher;
             if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            ['bmStatsTab','bmBatterDataTab'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) { el.style.display = 'none'; el.classList.remove('active'); }
-            });
+            // 依目前模式還原各 tab 的 display 狀態
+            if (userMode === 'batter') {
+                // 打者模式：投手 tab 需恢復 display:none，batterModeWrapper 保持可見
+                ['statsTab','analysisTab','compareTab','recordTab','rosterTab','pitcherDataMgmt'].forEach(id => {
+                    const el = document.getElementById(id); if (el) el.style.display = 'none';
+                });
+                const bw = document.getElementById('batterModeWrapper');
+                if (bw) bw.style.display = '';
+                ['bmStatsTab','bmBatterDataTab'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) { el.style.display = 'none'; el.classList.remove('active'); }
+                });
+            } else {
+                // 投手模式：投手 tab 恢復正常，batterModeWrapper 隱藏
+                ['statsTab','analysisTab','compareTab','recordTab','rosterTab','pitcherDataMgmt'].forEach(id => {
+                    const el = document.getElementById(id); if (el) el.style.display = '';
+                });
+                const bw = document.getElementById('batterModeWrapper');
+                if (bw) bw.style.display = 'none';
+                ['bmStatsTab','bmBatterDataTab'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) { el.style.display = 'none'; el.classList.remove('active'); }
+                });
+            }
             document.getElementById(origTabId)?.classList.add('active');
             if (origTabId === 'statsTab' || origTabId === 'analysisTab') updateStats();
             else if (origTabId === 'compareTab') updateCompare();
