@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v461';
+﻿    const APP_VERSION = 'v462';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -13005,7 +13005,156 @@
         if (!('spDate'      in allData.bm)) allData.bm.spDate      = '';
         if (!allData.bm.vsPhA) allData.bm.vsPhA = { name:'', number:'', hand:'右投' };
         if (!allData.bm.vsPhB) allData.bm.vsPhB = { name:'', number:'', hand:'右投' };
+        // ★ 代打/再上場歷史（不動 lineupA/B，只是覆蓋層）
+        if (!allData.bm.substitutions) allData.bm.substitutions = { A:{}, B:{} };
+        if (!allData.bm.substitutions.A) allData.bm.substitutions.A = {};
+        if (!allData.bm.substitutions.B) allData.bm.substitutions.B = {};
     }
+
+    // ── 代打：取得目前上場球員（優先從 substitutions 取，否則用原始打線）──
+    function _getActiveBatter(team, orderIdx) {
+        const sub = allData.bm?.substitutions?.[team]?.[String(orderIdx)];
+        if (sub?.current) return { ...sub.current, _isSub: true };
+        const lineup = _getLineup(team);
+        return lineup[orderIdx] || { number:'', name:'', hand:'右打', trait:'' };
+    }
+    window._getActiveBatter = _getActiveBatter;
+
+    // ── 代打 Modal 全域狀態 ──
+    let _bmSubState = { order: -1, team: 'A', hand: '右打' };
+
+    function openBmSubModal() {
+        _initBmData();
+        const team = allData.bm.attackingTeam || 'A';
+        const order = _bmState.currentOrder;
+        _bmSubState = { order, team, hand: '右打' };
+
+        // 標題：顯示目前棒次 + 原始球員
+        const originalBatter = _getLineup(team)[order] || {};
+        const { nameA, nameB } = _getBmTeamNames();
+        const teamName = team === 'A' ? nameA : nameB;
+        const lbl = document.getElementById('bmSubTeamLabel');
+        if (lbl) lbl.textContent = `${teamName} · 第${order+1}棒 ` +
+            (originalBatter.number ? `#${originalBatter.number} ${originalBatter.name||''} 換下` : '代打');
+
+        // 重置輸入
+        const numEl = document.getElementById('bmSubNum');
+        const nameEl = document.getElementById('bmSubName');
+        const msgEl  = document.getElementById('bmSubMsg');
+        if (numEl)  { numEl.value = ''; }
+        if (nameEl) nameEl.textContent = '';
+        if (msgEl)  msgEl.textContent = '';
+        _bmSubSetHand('右打');
+
+        const modal = document.getElementById('bmSubModal');
+        if (modal) { modal.style.display = 'flex'; setTimeout(()=>numEl?.focus(), 80); }
+    }
+    window.openBmSubModal = openBmSubModal;
+
+    function _bmSubAutoFill() {
+        const num = (document.getElementById('bmSubNum')?.value || '').trim();
+        const nameEl = document.getElementById('bmSubName');
+        const msgEl  = document.getElementById('bmSubMsg');
+        if (!num) { if(nameEl) nameEl.textContent=''; if(msgEl) msgEl.textContent=''; return; }
+
+        // 從對應打線自動找
+        const lineup = _getLineup(_bmSubState.team);
+        const fromLineup = lineup.find(b => String(b.number||'') === num);
+        if (fromLineup) {
+            if (nameEl) nameEl.textContent = fromLineup.name || '';
+            _bmSubSetHand(fromLineup.hand || '右打');
+            if (msgEl) msgEl.textContent = '✅ 從打線帶入';
+            return;
+        }
+        // 從球員名冊找
+        const { nameA, nameB } = _getBmTeamNames();
+        const teamName = _bmSubState.team === 'A' ? nameA : nameB;
+        const fromReg = (allData.playerRegistry||[]).find(p =>
+            (p.numbers||[]).includes(num) && (!teamName || p.team === teamName));
+        if (fromReg) {
+            if (nameEl) nameEl.textContent = fromReg.name || '';
+            _bmSubSetHand(fromReg.hand || '右打');
+            if (msgEl) msgEl.textContent = '✅ 從名冊帶入';
+            return;
+        }
+        if (nameEl) nameEl.textContent = '';
+        if (msgEl) msgEl.textContent = '未找到，請直接輸入姓名（選填）';
+    }
+    window._bmSubAutoFill = _bmSubAutoFill;
+
+    function _bmSubSetHand(hand) {
+        _bmSubState.hand = hand;
+        const rBtn = document.getElementById('bmSubHandR');
+        const lBtn = document.getElementById('bmSubHandL');
+        if (rBtn) { rBtn.style.background = hand==='右打'?'#003d79':'#fff'; rBtn.style.color = hand==='右打'?'#fff':'#374151'; rBtn.style.borderColor = hand==='右打'?'#003d79':'#d1d5db'; }
+        if (lBtn) { lBtn.style.background = hand==='左打'?'#003d79':'#fff'; lBtn.style.color = hand==='左打'?'#fff':'#374151'; lBtn.style.borderColor = hand==='左打'?'#003d79':'#d1d5db'; }
+    }
+    window._bmSubSetHand = _bmSubSetHand;
+
+    function cancelBmSub() {
+        const modal = document.getElementById('bmSubModal');
+        if (modal) modal.style.display = 'none';
+        _bmSubState = { order:-1, team:'A', hand:'右打' };
+    }
+    window.cancelBmSub = cancelBmSub;
+
+    function confirmBmSub() {
+        const num  = (document.getElementById('bmSubNum')?.value  || '').trim();
+        const name = (document.getElementById('bmSubName')?.textContent || '').trim();
+        if (!num) { const m=document.getElementById('bmSubMsg'); if(m) m.textContent='請輸入代打球員背號'; return; }
+
+        _initBmData();
+        const { order, team, hand } = _bmSubState;
+        const subPlayer = { number: num, name, hand };
+        const subs = allData.bm.substitutions;
+        const key = String(order);
+
+        const inning = gameState?.inning || allData.bm.spInning || 1;
+        const half   = gameState?.half   || allData.bm.spHalf   || '上';
+
+        if (!subs[team][key]) {
+            // 第一次代打：記錄原始球員
+            const original = { ...(_getLineup(team)[order] || {}), trait: undefined };
+            subs[team][key] = {
+                original: { number: original.number||'', name: original.name||'', hand: original.hand||'右打' },
+                history: [],
+                current: null,
+                reEntryUsed: false
+            };
+        }
+        subs[team][key].history.push({ player: subPlayer, inning, half, isReEntry: false });
+        subs[team][key].current = subPlayer;
+
+        // 啟用 isPinch，讓後續 confirm 記到打席
+        _bmState.isPinch = true;
+
+        saveToLocalStorage();
+        saveBmToFirebase();
+        cancelBmSub();
+        _renderBmBatterDisplay();
+    }
+    window.confirmBmSub = confirmBmSub;
+
+    function bmDoReEntry() {
+        _initBmData();
+        const team  = allData.bm.attackingTeam || 'A';
+        const order = _bmState.currentOrder;
+        const key   = String(order);
+        const sub   = allData.bm.substitutions?.[team]?.[key];
+        if (!sub || sub.reEntryUsed) return;
+
+        const inning = gameState?.inning || 1;
+        const half   = gameState?.half   || '上';
+        sub.history.push({ player: { ...sub.original }, inning, half, isReEntry: true });
+        sub.current = { ...sub.original };
+        sub.reEntryUsed = true;
+        _bmState.isPinch = false;
+
+        saveToLocalStorage();
+        saveBmToFirebase();
+        _renderBmBatterDisplay();
+    }
+    window.bmDoReEntry = bmDoReEntry;
 
     // ── 打線管理 ──
     function _getLineup(team) {
@@ -13912,8 +14061,8 @@
         _initBmData();
         const order = _bmState.currentOrder;
         const attackingTeam = allData.bm.attackingTeam || 'A';
-        const activeLineup = _getLineup(attackingTeam);
-        const batter = activeLineup[order] || {number:'',name:'',hand:'右打',trait:''};
+        const batter = _getActiveBatter(attackingTeam, order);
+        const sub = allData.bm?.substitutions?.[attackingTeam]?.[String(order)];
         const orderTxt = `第 ${order + 1} 棒`;
         const numTxt   = batter.number ? `#${batter.number}` : '#--';
         const nameTxt  = batter.name  || '（未填姓名）';
@@ -13928,6 +14077,28 @@
         if (numEl)   numEl.textContent   = numTxt;
         if (nameEl)  nameEl.textContent  = nameTxt;
         if (handEl)  handEl.textContent  = handTxt;
+
+        // ── 代打狀態顯示 ──
+        const subInfoEl    = document.getElementById('bmSubInfo');
+        const reEntryBtnEl = document.getElementById('bmReEntryBtn');
+        const pinchBtn     = document.getElementById('bmPinchBtn');
+        if (sub?.current) {
+            // 目前是代打球員上場
+            const orig = sub.original;
+            if (subInfoEl) { subInfoEl.style.display=''; subInfoEl.textContent=`代 #${orig.number||''} ${orig.name||''}`; }
+            if (reEntryBtnEl) {
+                // 再上場按鈕：原始球員還有資格再上場（未用過）才顯示
+                const showReEntry = !sub.reEntryUsed && sub.original.number;
+                reEntryBtnEl.style.display = showReEntry ? '' : 'none';
+                if (showReEntry) reEntryBtnEl.textContent = `🔄 #${orig.number} 再上場`;
+            }
+            // 代打按鈕顯示已啟用
+            if (pinchBtn) { pinchBtn.style.background='var(--ct-gold)'; pinchBtn.style.color='#000'; pinchBtn.style.borderColor='var(--ct-gold)'; pinchBtn.textContent='⇄ 換代打'; }
+        } else {
+            if (subInfoEl)    subInfoEl.style.display = 'none';
+            if (reEntryBtnEl) reEntryBtnEl.style.display = 'none';
+            if (pinchBtn) { pinchBtn.style.background='#fff'; pinchBtn.style.color='#b45309'; pinchBtn.style.borderColor='#b45309'; pinchBtn.textContent='代打'; }
+        }
 
         // ── 雙槽位卡（聯動模式）──
         const isA = attackingTeam === 'A';
@@ -14010,8 +14181,7 @@
         _bmState.isPinch = false;
         _bmState.hitLoc = null;
         _bmState.tactics = [];
-        const bmPinchBtn = document.getElementById('bmPinchBtn');
-        if (bmPinchBtn) { bmPinchBtn.style.background='#fff3cd'; bmPinchBtn.style.color='var(--ct-blue-dark)'; bmPinchBtn.textContent='代打'; }
+        // 代打按鈕外觀由 _renderBmBatterDisplay 統一管理（不在這裡重置，避免覆蓋代打狀態）
         const confirmBtn = document.getElementById('bmConfirmBtn');
         if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.style.opacity = '0.4'; }
         document.querySelectorAll('#bmOutcomeBtns .bm-outcome-btn').forEach(b => b.classList.remove('bm-on'));
@@ -14161,6 +14331,12 @@
     }
 
     function toggleBmPinch() {
+        // 連動模式：開代打 Modal 輸入代打球員資訊
+        if (_bmState.recMode !== 'standalone') {
+            openBmSubModal();
+            return;
+        }
+        // 獨立模式：維持原本 toggle 行為
         _bmState.isPinch = !_bmState.isPinch;
         const btn = document.getElementById('bmPinchBtn');
         if (btn) {
@@ -14272,12 +14448,13 @@
         _initBmData();
         const order = _bmState.currentOrder;
         const bmAttackingTeam = allData.bm.attackingTeam || 'B';
-        const batter = _getLineup(bmAttackingTeam)[order] || {number:'',name:'',hand:'右打',trait:''};
+        const batter = _getActiveBatter(bmAttackingTeam, order);
 
         // 讀取打者特性輸入框（可能有即時修改）
         const traitEl = document.getElementById('bmTraitPatch');
         if (traitEl && traitEl.value.trim()) {
-            _getLineup(bmAttackingTeam)[order].trait = traitEl.value.trim();
+            const _lineupEntry = _getLineup(bmAttackingTeam)[order];
+            if (_lineupEntry) _lineupEntry.trait = traitEl.value.trim();
         }
         const _gi = allData.bm.gameIdx;
         const _game = (_gi >= 0 && allData.teams[_gi]) ? allData.teams[_gi] : null;
@@ -15421,6 +15598,7 @@
                 const teamEsc = teamStr.replace(/'/g,"\\'");
                 const isDirect = a.mode === 'direct';
                 const modeIcon = isDirect ? '📍' : (a.mode==='pitch'?'⚾':(a.mode==='linked'?'🔗':'📝'));
+                const pinchTag = a.isPinch ? `<span style="font-size:10px;font-weight:800;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:3px;padding:1px 4px;margin-left:3px;">代打</span>` : '';
                 // 📍/✏️ 補錄/修改落點按鈕（BIP 結果才顯示）
                 const patchBtn = isBIP
                     ? `<button onclick="openHitLocPatch(${a.ts||i},'${numEsc}','${teamEsc}','${a.mode||''}')"
@@ -15438,7 +15616,7 @@
                     : '';
                 return `<div class="bm-log-row" style="display:flex;align-items:center;gap:4px;">
                     <span style="color:#6b7280;flex-shrink:0;">${i+1}. ${modeIcon} ${a.pitcherHand||''}</span>
-                    <span class="bm-log-outcome ${cls}">${a.outcome||'-'}${zone}${ht}</span>
+                    <span class="bm-log-outcome ${cls}">${a.outcome||'-'}${zone}${ht}${pinchTag}</span>
                     ${patchBtn}${delBtn}
                 </div>`;
             }).join('')}</div>
