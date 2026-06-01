@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v494';
+﻿    const APP_VERSION = 'v495';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16442,9 +16442,11 @@
                 const modeIcon = isDirect ? '📍' : (a.mode==='pitch'?'⚾':(a.mode==='linked'?'🔗':'📝'));
                 const pinchTag = a.isPinch ? `<span style="font-size:10px;font-weight:800;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:3px;padding:1px 4px;margin-left:3px;">代打</span>` : '';
                 // 📍/✏️ 補錄/修改落點按鈕（BIP 結果才顯示）— 改用 data 屬性，避免 inline onclick 在部分裝置失效
+                // data-bmidx：bm.atBats 的真實索引，比 ts 比對更可靠（ts 可能重複或遺失）
+                const _bmRealIdx = (a.mode !== 'pitch') ? allData.bm.atBats.indexOf(a) : -1;
                 const patchBtn = isBIP
                     ? `<button class="bm-patch-btn"
-                          data-ts="${a.ts||i}" data-mode="${a.mode||''}"
+                          data-ts="${a.ts||i}" data-mode="${a.mode||''}" data-bmidx="${_bmRealIdx}"
                           style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid ${hasloc?'#d1d5db':'#f59e0b'};
                                  background:${hasloc?'#f9fafb':'#fffbeb'};color:${hasloc?'#9ca3af':'#b45309'};
                                  font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;"
@@ -16498,9 +16500,10 @@
             `;
         // ── 綁定互動按鈕（用 addEventListener 取代 inline onclick，確保在所有裝置正常觸發）──
         detailEl.querySelectorAll('.bm-patch-btn').forEach(btn => {
-            const ts   = Number(btn.dataset.ts);
-            const mode = btn.dataset.mode || '';
-            const _h = (e) => { e.stopPropagation(); openHitLocPatch(ts, numStr, teamStr, mode); };
+            const ts    = Number(btn.dataset.ts);
+            const mode  = btn.dataset.mode || '';
+            const bmIdx = parseInt(btn.dataset.bmidx, 10); // bm.atBats 真實索引
+            const _h = (e) => { e.stopPropagation(); openHitLocPatch(ts, numStr, teamStr, mode, bmIdx); };
             btn.addEventListener('click', _h);
             btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
         });
@@ -16670,13 +16673,15 @@
     let _hitLocPatchTeam         = '';
     let _hitLocPatchMode         = '';
     let _hitLocPatchSelectedZone = null;
+    let _hitLocPatchBmIdx        = -1; // bm.atBats 真實索引（非 pitch 模式用）
 
-    function openHitLocPatch(ts, number, teamStr, mode) {
+    function openHitLocPatch(ts, number, teamStr, mode, bmIdx) {
         _hitLocPatchTs           = ts;
         _hitLocPatchNum          = number;
         _hitLocPatchTeam         = teamStr || '';
         _hitLocPatchMode         = mode || '';
         _hitLocPatchSelectedZone = null;
+        _hitLocPatchBmIdx        = (typeof bmIdx === 'number' && !isNaN(bmIdx)) ? bmIdx : -1;
 
         // Modal 掛在 body 層，不會因 DOM 重建而消失
         let modal = document.getElementById('hitLocPatchModal');
@@ -16752,9 +16757,11 @@
             });
             if (found) saveToFirebase();
         } else {
-            // bm.atBats：找到對應 atBat 寫入 hitLocation
-            const idx = (allData.bm.atBats||[]).findIndex(a => a.ts === _hitLocPatchTs);
-            if (idx === -1) { cancelHitLocPatch(); return; }
+            // bm.atBats：優先用真實索引（data-bmidx），再降回 ts 比對
+            let idx = (_hitLocPatchBmIdx >= 0 && _hitLocPatchBmIdx < (allData.bm.atBats||[]).length)
+                ? _hitLocPatchBmIdx
+                : (allData.bm.atBats||[]).findIndex(a => a.ts === _hitLocPatchTs);
+            if (idx < 0) { cancelHitLocPatch(); return; }
             allData.bm.atBats[idx].hitLocation = loc;
             saveBmToFirebase();
         }
@@ -16776,6 +16783,7 @@
         if (modal) modal.style.display = 'none';
         _hitLocPatchTs           = null;
         _hitLocPatchSelectedZone = null;
+        _hitLocPatchBmIdx        = -1;
     }
     window.cancelHitLocPatch = cancelHitLocPatch;
 
