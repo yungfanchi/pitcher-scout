@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v484';
+﻿    const APP_VERSION = 'v485';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15732,10 +15732,31 @@
         const container = document.getElementById('bmStatsContent');
         if (!container) return;
         _initBmData();
-        // 掃全部場次累積打席（不限於目前選的場次），再合入獨立打席資料
+        // 掃全部場次累積打席（不限於目前選的場次）
         const _allPitchAbs = [];
         allData.teams.forEach((_, ti) => _allPitchAbs.push(..._deriveBmAtBatsFromPitches(ti)));
-        const _bmOnlyAbs = (allData.bm?.atBats || []).filter(ab => ab.mode !== 'pitch');
+
+        // 有球路記錄的場次索引（這些場次的打席已由 pitch records 算過，不再加 linked bm.atBats 避免重複）
+        const _PA_END_CHECK = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','內野安打',
+            '一壘安打','二壘安打','三壘安打','全壘打','保送','觸身球','故意四壞','犧牲觸擊',
+            '高飛犧牲打','雙殺','野選','失誤','捕逸'];
+        const _gamesWithPitches = new Set();
+        allData.teams.forEach((t, ti) => {
+            const hasPaRecord = (t.pitchers||[]).some(p =>
+                (p.pitches||[]).some(pit => (pit.outcomes||[]).some(o => _PA_END_CHECK.includes(o))));
+            if (hasPaRecord) _gamesWithPitches.add(ti);
+        });
+
+        // 只補入無球路記錄場次的 linked 打席，以及所有獨立模式打席
+        const _bmOnlyAbs = (allData.bm?.atBats || []).filter(ab => {
+            if (ab.mode === 'standalone') return true;
+            if (ab.mode === 'linked') {
+                if (ab.gameIdx < 0 || ab.gameIdx >= allData.teams.length) return false; // 場次已刪除
+                if (_gamesWithPitches.has(ab.gameIdx)) return false; // pitch records 已覆蓋，不重複
+                return true;
+            }
+            return false;
+        });
         const atBats = [..._allPitchAbs, ..._bmOnlyAbs];
         if (atBats.length === 0) {
             container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無打席記錄<br><span style="font-size:12px;">請先在側欄選取一場賽事</span><br><br><button onclick="injectDemoData();switchBmTab(\'stats\')" style="margin-top:8px;padding:8px 20px;background:#003d79;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">注入測試資料</button></div>';
@@ -16053,8 +16074,24 @@
         // ★ 依隊名嚴格隔離
         const _matchTeam = a => teamStr ? a.teamName === teamStr : true;
         const _bmAbs = (allData.bm.atBats||[]).filter(a => _resolveAbNum(a) === numStr && _matchTeam(a));
-        // 合併，避免重複（pitch 記錄已有的不再加）
-        _bmAbs.forEach(a => { if (a.mode !== 'pitch') atBats.push(a); });
+        // 只補入無球路記錄場次的 linked 打席，以及獨立模式打席（避免與 pitch records 重複計算）
+        const _PA_END_DET = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','內野安打',
+            '一壘安打','二壘安打','三壘安打','全壘打','保送','觸身球','故意四壞','犧牲觸擊',
+            '高飛犧牲打','雙殺','野選','失誤','捕逸'];
+        const _gamesWithPitchesDet = new Set();
+        allData.teams.forEach((t, ti) => {
+            const hasPa = (t.pitchers||[]).some(p =>
+                (p.pitches||[]).some(pit => (pit.outcomes||[]).some(o => _PA_END_DET.includes(o))));
+            if (hasPa) _gamesWithPitchesDet.add(ti);
+        });
+        _bmAbs.forEach(a => {
+            if (a.mode === 'standalone') { atBats.push(a); return; }
+            if (a.mode === 'linked') {
+                if (a.gameIdx < 0 || a.gameIdx >= allData.teams.length) return; // 場次已刪除
+                if (_gamesWithPitchesDet.has(a.gameIdx)) return; // pitch records 已覆蓋
+                atBats.push(a);
+            }
+        });
 
         // ── Step 2：掃所有賽事打線找棒次，比對 bm.atBats（不強求 gameIdx 吻合）──
         if (atBats.length === 0) {
