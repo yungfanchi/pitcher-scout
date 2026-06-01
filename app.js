@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v491';
+﻿    const APP_VERSION = 'v492';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15646,18 +15646,26 @@
     }
     window.mergeLinkedHitLocs = mergeLinkedHitLocs;
 
-    // ── 打者最近記錄：編輯 ──
-    let _bmAtBatEditState = { ts: null, outcome: null, hitLoc: null };
+    // ── 打者最近記錄：編輯 / 新增 ──
+    let _bmAtBatEditState = { ts: null, outcome: null, hitLoc: null, _createConf: null };
 
-    function openBmAtBatEdit(ts) {
+    // ts=null + _createConf={number,teamName} → 新增模式；ts=數字 → 編輯模式
+    function openBmAtBatEdit(ts, _createConf) {
         _initBmData();
-        const rec = (allData.bm.atBats || []).find(a => a.ts === ts);
-        if (!rec) return;
-        _bmAtBatEditState = {
-            ts,
-            outcome: rec.outcome || null,
-            hitLoc: rec.hitLocation ? { ...rec.hitLocation } : null
-        };
+        let rec;
+        if (_createConf) {
+            rec = { number: _createConf.number, name: '', teamName: _createConf.teamName, outcome: null, hitLocation: null };
+            _bmAtBatEditState = { ts: null, outcome: null, hitLoc: null, _createConf };
+        } else {
+            rec = (allData.bm.atBats || []).find(a => a.ts === ts);
+            if (!rec) return;
+            _bmAtBatEditState = {
+                ts,
+                outcome: rec.outcome || null,
+                hitLoc: rec.hitLocation ? { ...rec.hitLocation } : null,
+                _createConf: null
+            };
+        }
 
         let modal = document.getElementById('bmAtBatEditModal');
         if (!modal) {
@@ -15670,18 +15678,22 @@
 
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
         const BB  = ['保送','觸身球','故意四壞','捕逸'];
+        const isCreate = !!_createConf;
         const titleCls = HIT.includes(rec.outcome) ? '#16a34a' : BB.includes(rec.outcome) ? '#7c3aed' : '#dc2626';
         const zone = rec.hitLocation ? ` → ${rec.hitLocation.zone}` : '';
         const inningInfo = rec.inning ? `${rec.inning}局${rec.half||''}` : '';
+        const titleText = isCreate ? '＋ 新增打席記錄' : '✏️ 編輯打席記錄';
+        const subText = isCreate
+            ? `#${rec.number||'?'} ${escapeHtml(rec.teamName||'')}`
+            : `#${rec.number||'?'} ${escapeHtml(rec.name||'')}${inningInfo?' · '+inningInfo:''} · <span style="color:${titleCls};font-weight:700;">${escapeHtml(rec.outcome||'--')}${zone}</span>`;
+        const confirmLabel = isCreate ? '確認新增' : '確認修改';
 
         modal.innerHTML = `
             <div style="background:white;border-radius:16px 16px 0 0;padding:16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-sizing:border-box;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
                     <div>
-                        <div style="font-size:14px;font-weight:900;color:#111;">✏️ 編輯打席記錄</div>
-                        <div style="font-size:12px;color:#6b7280;margin-top:2px;">
-                            #${rec.number||'?'} ${escapeHtml(rec.name||'')}${inningInfo?' · '+inningInfo:''} · <span style="color:${titleCls};font-weight:700;">${escapeHtml(rec.outcome||'--')}${zone}</span>
-                        </div>
+                        <div style="font-size:14px;font-weight:900;color:#111;">${titleText}</div>
+                        <div style="font-size:12px;color:#6b7280;margin-top:2px;">${subText}</div>
                     </div>
                     <button onclick="closeBmAtBatEdit()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;padding:4px;line-height:1;">✕</button>
                 </div>
@@ -15694,7 +15706,7 @@
                 <div id="bmEditHitMapWrap" style="max-width:260px;"></div>
                 <div style="display:flex;gap:8px;margin-top:16px;">
                     <button onclick="closeBmAtBatEdit()" style="flex:1;padding:13px;background:#f3f4f6;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;color:#374151;touch-action:manipulation;">取消</button>
-                    <button onclick="confirmBmAtBatEdit()" style="flex:2;padding:13px;background:#003d79;color:white;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;touch-action:manipulation;">確認修改</button>
+                    <button onclick="confirmBmAtBatEdit()" style="flex:2;padding:13px;background:#003d79;color:white;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;touch-action:manipulation;">${confirmLabel}</button>
                 </div>
             </div>`;
         modal.style.display = 'flex';
@@ -15764,10 +15776,25 @@
     function confirmBmAtBatEdit() {
         if (!_bmAtBatEditState.outcome) { alert('請選擇打席結果'); return; }
         _initBmData();
-        const idx = (allData.bm.atBats || []).findIndex(a => a.ts === _bmAtBatEditState.ts);
-        if (idx < 0) { closeBmAtBatEdit(); return; }
-        allData.bm.atBats[idx].outcome    = _bmAtBatEditState.outcome;
-        allData.bm.atBats[idx].hitLocation = _bmAtBatEditState.hitLoc || null;
+        if (_bmAtBatEditState._createConf) {
+            // 新增模式
+            if (!allData.bm.atBats) allData.bm.atBats = [];
+            allData.bm.atBats.push({
+                ts:          Date.now(),
+                number:      _bmAtBatEditState._createConf.number,
+                teamName:    _bmAtBatEditState._createConf.teamName,
+                outcome:     _bmAtBatEditState.outcome,
+                hitLocation: _bmAtBatEditState.hitLoc || null,
+                mode:        'standalone',
+                hand:        '',
+            });
+        } else {
+            // 編輯模式
+            const idx = (allData.bm.atBats || []).findIndex(a => a.ts === _bmAtBatEditState.ts);
+            if (idx < 0) { closeBmAtBatEdit(); return; }
+            allData.bm.atBats[idx].outcome    = _bmAtBatEditState.outcome;
+            allData.bm.atBats[idx].hitLocation = _bmAtBatEditState.hitLoc || null;
+        }
         saveToLocalStorage();
         saveBmToFirebase();
         closeBmAtBatEdit();
@@ -16388,10 +16415,16 @@
             </div>
             ${pitchBreakdown}
             <h3 style="margin-top:16px;">📋 打席記錄</h3>
-            <button onclick="_showAddHitLocInline('${String(number).replace(/'/g,"\\'")}','${teamStr.replace(/'/g,"\\'")}',this)"
-              style="margin-bottom:10px;padding:6px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
-              📍 新增落點
-            </button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <button onclick="_showAddHitLocInline('${String(number).replace(/'/g,"\\'")}','${teamStr.replace(/'/g,"\\'")}',this)"
+                style="padding:6px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                📍 新增落點
+              </button>
+              <button id="bmDetailAddAbBtn"
+                style="padding:6px 16px;border-radius:8px;border:1.5px solid #0051a5;background:#eff6ff;color:#0051a5;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                ＋ 新增打席
+              </button>
+            </div>
             <div id="addHitLocInlineBox"></div>
             <div>${atBats.map((a,i)=>{
                 const cls = HIT.includes(a.outcome)?'bm-log-hit':BB.includes(a.outcome)?'bm-log-bb':'bm-log-out';
@@ -16404,14 +16437,14 @@
                 const isDirect = a.mode === 'direct';
                 const modeIcon = isDirect ? '📍' : (a.mode==='pitch'?'⚾':(a.mode==='linked'?'🔗':'📝'));
                 const pinchTag = a.isPinch ? `<span style="font-size:10px;font-weight:800;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:3px;padding:1px 4px;margin-left:3px;">代打</span>` : '';
-                // 📍/✏️ 補錄/修改落點按鈕（BIP 結果才顯示）
-                const _patchCall = `openHitLocPatch(${a.ts||i},'${numEsc}','${teamEsc}','${a.mode||''}')`;
+                // 📍/✏️ 補錄/修改落點按鈕（BIP 結果才顯示）— 改用 data 屬性，避免 inline onclick 在部分裝置失效
                 const patchBtn = isBIP
-                    ? `<button onclick="${_patchCall}" ontouchend="event.preventDefault();${_patchCall}"
-                        style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid ${hasloc?'#d1d5db':'#f59e0b'};
-                               background:${hasloc?'#f9fafb':'#fffbeb'};color:${hasloc?'#9ca3af':'#b45309'};
-                               font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;"
-                        title="${hasloc?'修改落點':'補錄落點'}">${hasloc?'✏️':'📍'}</button>`
+                    ? `<button class="bm-patch-btn"
+                          data-ts="${a.ts||i}" data-mode="${a.mode||''}"
+                          style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid ${hasloc?'#d1d5db':'#f59e0b'};
+                                 background:${hasloc?'#f9fafb':'#fffbeb'};color:${hasloc?'#9ca3af':'#b45309'};
+                                 font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;"
+                          title="${hasloc?'修改落點':'補錄落點'}">${hasloc?'✏️':'📍'}</button>`
                     : '';
                 // 🗑️ 刪除落點（有落點才顯示）
                 const delBtn = hasloc
@@ -16419,6 +16452,13 @@
                         style="margin-left:2px;padding:2px 7px;border-radius:6px;border:1px solid #fecaca;
                                background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
                                cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除落點">🗑️</button>`
+                    : '';
+                // ✏️ 編輯打席（只有 bm.atBats 的 linked/standalone 才能編輯）— 同用 data 屬性
+                const editAbBtn = (a.mode === 'linked' || a.mode === 'standalone') && a.ts
+                    ? `<button class="bm-edit-ab-btn" data-ts="${a.ts}"
+                          style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid #bfdbfe;
+                                 background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:700;
+                                 cursor:pointer;font-family:inherit;touch-action:manipulation;" title="編輯打席">✏️</button>`
                     : '';
                 // ✕ 刪除整筆打席（只有 bm.atBats 的 linked/standalone 才能刪）
                 const delAbBtn = (a.mode === 'linked' || a.mode === 'standalone') && a.ts
@@ -16430,7 +16470,7 @@
                 return `<div class="bm-log-row" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                     <span style="color:#6b7280;flex-shrink:0;">${i+1}. ${modeIcon} ${a.pitcherHand||''}</span>
                     <span class="bm-log-outcome ${cls}">${a.outcome||'-'}${zone}${ht}${pinchTag}</span>
-                    ${patchBtn}${delBtn}${delAbBtn}
+                    ${patchBtn}${delBtn}${editAbBtn}${delAbBtn}
                 </div>`;
             }).join('')}</div>
             ${_directLocs.length > 0 ? `
@@ -16452,6 +16492,26 @@
               }).join('')}
             </div>` : ''}
             `;
+        // ── 綁定互動按鈕（用 addEventListener 取代 inline onclick，確保在所有裝置正常觸發）──
+        detailEl.querySelectorAll('.bm-patch-btn').forEach(btn => {
+            const ts   = Number(btn.dataset.ts);
+            const mode = btn.dataset.mode || '';
+            const _h = (e) => { e.stopPropagation(); openHitLocPatch(ts, numStr, teamStr, mode); };
+            btn.addEventListener('click', _h);
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
+        });
+        detailEl.querySelectorAll('.bm-edit-ab-btn').forEach(btn => {
+            const ts = Number(btn.dataset.ts);
+            const _h = (e) => { e.stopPropagation(); openBmAtBatEdit(ts); };
+            btn.addEventListener('click', _h);
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
+        });
+        const addAbBtnEl = detailEl.querySelector('#bmDetailAddAbBtn');
+        if (addAbBtnEl) {
+            const _h = (e) => { e.stopPropagation(); openBmAtBatEdit(null, { number: numStr, teamName: teamStr }); };
+            addAbBtnEl.addEventListener('click', _h);
+            addAbBtnEl.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
+        }
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
