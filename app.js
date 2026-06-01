@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v498';
+﻿    const APP_VERSION = 'v499';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12816,10 +12816,35 @@
         const _tStls=(allData.bm?.steals||[]).filter(s=>entry._bmNum&&String(s.runnerNumber||'')===String(entry._bmNum));
         const _tTopCnt=arr=>{const m={};arr.forEach(p=>{const k=`${p.balls||0}B ${p.strikes||0}S`;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}（${t[1]}次）`:'—';};
         const _tTopBase=arr=>{const m={};arr.forEach(p=>{const r=p.runnersOn?'有跑者':'空壘';m[r]=(m[r]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:'—';};
-        const _tHasAny=_tBunt.length+_tHR.length+_tStls.length>0;
+
+        // 手動新增的戰術記錄（依背號比對）
+        const _manualTactics=(allData.bm?.manualTactics||[]).filter(mt=>String(mt.batterNum||'')===String(entry._bmNum||''));
+        const _manualByType={};
+        _manualTactics.forEach(mt=>{(_manualByType[mt.tacticType]||(_manualByType[mt.tacticType]=[])).push(mt);});
+        const _tstyMap={'打帶跑':{bg:'#f5f3ff',bd:'#7c3aed',col:'#7c3aed',ic:'🏃'},'強迫短打':{bg:'#fff7ed',bd:'#f97316',col:'#f97316',ic:'💪'},'犧牲觸擊':{bg:'#fdf4ff',bd:'#ec4899',col:'#ec4899',ic:'📦'},'盜壘':{bg:'#f0fdf4',bd:'#10b981',col:'#10b981',ic:'⚡'},'雙盜壘':{bg:'#ecfdf5',bd:'#059669',col:'#059669',ic:'🔥'}};
+        const _manualGroupedHTML=Object.entries(_manualByType).map(([type,entries])=>{
+            const st=_tstyMap[type]||{bg:'#f9fafb',bd:'#6b7280',col:'#374151',ic:'📋'};
+            return `<div style="padding:10px 12px;background:${st.bg};border-radius:8px;border-left:3px solid ${st.bd};">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <span style="font-size:13px;font-weight:800;color:${st.col};">${st.ic} ${type}</span>
+                    <span style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:${st.col};">${entries.length}次</span>
+                </div>
+                ${entries.map(mt=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px;color:#374151;border-top:1px solid ${st.bd}22;">
+                    <span>${mt.inning}局${mt.half}｜${mt.balls}球${mt.strikes}好</span>
+                    <button onclick="deleteManualTactic('${mt.id}')" style="background:none;border:none;color:#dc2626;font-size:12px;cursor:pointer;padding:0 4px;font-weight:700;">✕</button>
+                </div>`).join('')}
+            </div>`;
+        }).join('');
+
+        const _tHasAny=_tBunt.length+_tHR.length+_tStls.length+_manualTactics.length>0;
+        const _entryNumJson=JSON.stringify(entry._bmNum||'');
+        const _entryNameJson=JSON.stringify(entry.name||'');
 
         const secD = `<div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);break-inside:avoid;">
-            <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:14px;border-left:4px solid #003d79;padding-left:8px;">④ 戰術時機</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div style="font-size:14px;font-weight:900;color:#003d79;border-left:4px solid #003d79;padding-left:8px;">④ 戰術時機</div>
+                <button onclick="showManualTacticModal(${_entryNumJson},${_entryNameJson})" style="background:#003d79;color:white;border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">+ 新增</button>
+            </div>
             ${!_tHasAny?`<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0;">尚無戰術記錄<br><span style="font-size:11px;">（犧牲觸擊、打帶跑、盜壘出現時顯示）</span></div>`:`
             <div style="display:flex;flex-direction:column;gap:10px;">
                 ${_tBunt.length>0?`<div style="padding:12px;background:#fdf4ff;border-radius:8px;border-left:3px solid #ec4899;">
@@ -12847,6 +12872,7 @@
                     </div>
                     <div style="font-size:12px;color:#374151;">成功 ${_tStls.filter(s=>s.success).length} 次（${Math.round(_tStls.filter(s=>s.success).length/_tStls.length*100)}% 成功率）</div>
                 </div>`:''}
+                ${_manualGroupedHTML}
             </div>`}
         </div>`;
 
@@ -12856,6 +12882,175 @@
         </div>`;
         container.scrollTop = 0;
     }
+
+    // ── 戰術時機：手動新增 ──
+    let _mtBatterNum = '';
+    let _mtBatterName = '';
+    let _mtInning = 1;
+    let _mtHalf = '上';
+    let _mtBalls = 0;
+    let _mtStrikes = 0;
+    let _mtTacticType = null;
+
+    function showManualTacticModal(batterNum, batterName) {
+        _mtBatterNum = String(batterNum || '');
+        _mtBatterName = String(batterName || '');
+        _mtInning = 1;
+        _mtHalf = '上';
+        _mtBalls = 0;
+        _mtStrikes = 0;
+        _mtTacticType = null;
+        let overlay = document.getElementById('manualTacticOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'manualTacticOverlay';
+            document.body.appendChild(overlay);
+        }
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        _renderMtModal(overlay);
+    }
+
+    function _renderMtModal(overlay) {
+        const TACTIC_TYPES = ['打帶跑', '強迫短打', '犧牲觸擊', '盜壘', '雙盜壘'];
+        const TACTIC_COLORS = {'打帶跑':'#7c3aed','強迫短打':'#f97316','犧牲觸擊':'#ec4899','盜壘':'#10b981','雙盜壘':'#059669'};
+        overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:24px;width:320px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="font-size:16px;font-weight:900;color:#003d79;margin-bottom:18px;text-align:center;">
+                📋 新增戰術記錄
+                ${_mtBatterName ? `<div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">${_mtBatterName}${_mtBatterNum ? ' #' + _mtBatterNum : ''}</div>` : ''}
+            </div>
+
+            <!-- 局數 + 上下局 -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">局數</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <button onclick="adjustMtInning(-1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #d1d5db;background:white;font-size:16px;font-weight:700;cursor:pointer;color:#374151;">−</button>
+                        <div id="mtInningDisplay" style="width:40px;text-align:center;font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${_mtInning}</div>
+                        <button onclick="adjustMtInning(1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #d1d5db;background:white;font-size:16px;font-weight:700;cursor:pointer;color:#374151;">＋</button>
+                    </div>
+                    <span style="font-size:14px;color:#374151;">局</span>
+                    <div style="display:flex;gap:4px;margin-left:auto;">
+                        <button onclick="setMtHalf('上')" style="padding:6px 16px;border-radius:8px;border:2px solid ${_mtHalf==='上'?'#003d79':'#d1d5db'};background:${_mtHalf==='上'?'#003d79':'white'};color:${_mtHalf==='上'?'white':'#374151'};font-size:13px;font-weight:700;cursor:pointer;">上</button>
+                        <button onclick="setMtHalf('下')" style="padding:6px 16px;border-radius:8px;border:2px solid ${_mtHalf==='下'?'#003d79':'#d1d5db'};background:${_mtHalf==='下'?'#003d79':'white'};color:${_mtHalf==='下'?'white':'#374151'};font-size:13px;font-weight:700;cursor:pointer;">下</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 球數 -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">球數</div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <div>
+                        <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;text-align:center;">壞球 B</div>
+                        <div style="display:flex;gap:4px;">
+                            ${[0,1,2,3].map(n=>`<button onclick="setMtBalls(${n})" style="width:36px;height:36px;border-radius:8px;border:2px solid ${_mtBalls===n?'#dc2626':'#d1d5db'};background:${_mtBalls===n?'#dc2626':'white'};color:${_mtBalls===n?'white':'#374151'};font-size:15px;font-weight:700;cursor:pointer;">${n}</button>`).join('')}
+                        </div>
+                    </div>
+                    <div style="font-size:18px;color:#d1d5db;padding-top:14px;">|</div>
+                    <div>
+                        <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;text-align:center;">好球 S</div>
+                        <div style="display:flex;gap:4px;">
+                            ${[0,1,2].map(n=>`<button onclick="setMtStrikes(${n})" style="width:36px;height:36px;border-radius:8px;border:2px solid ${_mtStrikes===n?'#f97316':'#d1d5db'};background:${_mtStrikes===n?'#f97316':'white'};color:${_mtStrikes===n?'white':'#374151'};font-size:15px;font-weight:700;cursor:pointer;">${n}</button>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 戰術種類 -->
+            <div style="margin-bottom:20px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:8px;">戰術種類</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    ${TACTIC_TYPES.map(t => {
+                        const col = TACTIC_COLORS[t] || '#374151';
+                        const sel = _mtTacticType === t;
+                        return `<button onclick="setMtTacticType('${t}')" style="padding:10px 14px;border-radius:10px;border:2px solid ${sel?col:'#e5e7eb'};background:${sel?col+'18':'white'};color:${sel?col:'#374151'};font-size:13px;font-weight:${sel?'800':'600'};cursor:pointer;text-align:left;">${t}</button>`;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div style="display:flex;gap:8px;">
+                <button onclick="closeManualTacticModal()" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #d1d5db;background:white;color:#374151;font-size:14px;font-weight:700;cursor:pointer;">取消</button>
+                <button onclick="saveManualTactic()" style="flex:2;padding:12px;border-radius:10px;border:none;background:#003d79;color:white;font-size:14px;font-weight:800;cursor:pointer;">確認新增</button>
+            </div>
+        </div>`;
+    }
+
+    function adjustMtInning(delta) {
+        _mtInning = Math.max(1, Math.min(15, _mtInning + delta));
+        const el = document.getElementById('mtInningDisplay');
+        if (el) el.textContent = _mtInning;
+    }
+
+    function setMtHalf(half) {
+        _mtHalf = half;
+        const overlay = document.getElementById('manualTacticOverlay');
+        if (overlay) _renderMtModal(overlay);
+    }
+
+    function setMtBalls(n) {
+        _mtBalls = n;
+        const overlay = document.getElementById('manualTacticOverlay');
+        if (overlay) _renderMtModal(overlay);
+    }
+
+    function setMtStrikes(n) {
+        _mtStrikes = n;
+        const overlay = document.getElementById('manualTacticOverlay');
+        if (overlay) _renderMtModal(overlay);
+    }
+
+    function setMtTacticType(type) {
+        _mtTacticType = type;
+        const overlay = document.getElementById('manualTacticOverlay');
+        if (overlay) _renderMtModal(overlay);
+    }
+
+    function closeManualTacticModal() {
+        const overlay = document.getElementById('manualTacticOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    function saveManualTactic() {
+        if (!_mtTacticType) { alert('請選擇戰術種類'); return; }
+        if (!allData.bm) allData.bm = {};
+        if (!Array.isArray(allData.bm.manualTactics)) allData.bm.manualTactics = [];
+        allData.bm.manualTactics.push({
+            id: String(Date.now()),
+            batterNum: _mtBatterNum,
+            batterName: _mtBatterName,
+            inning: _mtInning,
+            half: _mtHalf,
+            balls: _mtBalls,
+            strikes: _mtStrikes,
+            tacticType: _mtTacticType
+        });
+        closeManualTacticModal();
+        saveToLocalStorage();
+        saveToFirebase();
+        if (_bmCurrentCardKey) showBmBatterCard(_bmCurrentCardKey);
+    }
+
+    function deleteManualTactic(id) {
+        if (!allData.bm?.manualTactics) return;
+        const idx = allData.bm.manualTactics.findIndex(mt => mt.id === id);
+        if (idx < 0) return;
+        allData.bm.manualTactics.splice(idx, 1);
+        saveToLocalStorage();
+        saveToFirebase();
+        if (_bmCurrentCardKey) showBmBatterCard(_bmCurrentCardKey);
+    }
+
+    window.showManualTacticModal = showManualTacticModal;
+    window.closeManualTacticModal = closeManualTacticModal;
+    window.adjustMtInning = adjustMtInning;
+    window.setMtHalf = setMtHalf;
+    window.setMtBalls = setMtBalls;
+    window.setMtStrikes = setMtStrikes;
+    window.setMtTacticType = setMtTacticType;
+    window.saveManualTactic = saveManualTactic;
+    window.deleteManualTactic = deleteManualTactic;
 
     function showBatterDetail(name, source, thirdArg) {
         // pitcher source: thirdArg = teamName (string)
