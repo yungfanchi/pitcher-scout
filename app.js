@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v477';
+﻿    const APP_VERSION = 'v478';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11590,9 +11590,8 @@
         // ── 聚合打者（投手記錄 + bm.atBats）──
         const batterMap = new Map();
 
-        // 從投手記錄
+        // 從投手記錄（掃全部場次，依球隊+背號累積）
         allData.teams.forEach((team, ti) => {
-            if (currentTeam !== null && ti !== currentTeam) return;
             const _lineupNumMap9 = _buildNumToTeamFromLineups(team);
             (team.pitchers || []).forEach(pitcher => {
                 (pitcher.pitches || []).forEach(pitch => {
