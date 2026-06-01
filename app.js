@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v470';
+﻿    const APP_VERSION = 'v471';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -521,15 +521,17 @@
             tabEl.style.setProperty('height', 'auto', 'important');
             tabEl.style.setProperty('overflow', 'visible', 'important');
             tabEl.style.setProperty('max-height', 'none', 'important');
+            // 等待瀏覽器 reflow 後再量測完整高度
+            await new Promise(r => setTimeout(r, 300));
 
-            const REPORT_W = 900;
-            const captureH = tabEl.scrollHeight;
+            const REPORT_W = 1100;
+            const captureH = Math.max(tabEl.scrollHeight, tabEl.offsetHeight);
 
             const canvas = await html2canvas(tabEl, {
                 scale: 2, useCORS: true, allowTaint: true,
                 backgroundColor: '#f8f9fa', scrollX: 0, scrollY: 0,
                 width: REPORT_W, height: captureH,
-                windowWidth: REPORT_W, windowHeight: captureH + 200,
+                windowWidth: REPORT_W, windowHeight: captureH + 400,
                 logging: false, imageTimeout: 15000,
                 onclone: (_doc, clonedEl) => {
                     clonedEl.style.setProperty('width', REPORT_W + 'px', 'important');
@@ -962,7 +964,7 @@
             const opsFmt = PA>=3 ? ops.toFixed(3) : '---';
 
             const html = `
-<div style="width:860px;padding:24px 24px 32px;background:white;font-family:'Noto Sans TC',Arial,sans-serif;color:#1e3a5f;font-size:13px;">
+<div style="width:1052px;padding:24px 24px 32px;background:white;font-family:'Noto Sans TC',Arial,sans-serif;color:#1e3a5f;font-size:13px;">
 
   <!-- 頂部 header -->
   <div style="background:linear-gradient(135deg,#003d79,#0051a5);padding:18px;border-radius:12px;color:white;margin-bottom:16px;">
@@ -990,7 +992,7 @@
   ${locPitches.length>0 ? `
   <div style="background:#fffdf5;border-radius:12px;padding:14px;margin-bottom:14px;">
     <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:10px;">🗺️ 打擊落點圖</div>
-    <div style="display:grid;grid-template-columns:300px 1fr 180px;gap:14px;align-items:start;">
+    <div style="display:grid;grid-template-columns:320px 1fr 200px;gap:14px;align-items:start;">
       <div>
         ${svgHTML}
         <div style="display:flex;gap:10px;margin-top:6px;font-size:11px;">
@@ -1186,19 +1188,18 @@
   </div>
 </div>`;
 
-            // 渲染成 canvas（用 absolute 定位確保完整高度截圖）
+            // 渲染成 canvas（fixed 定位於畫面外，與 tab 截圖同寬 1100px 確保對齊）
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'position:absolute;left:-9999px;top:0;width:908px;background:white;overflow:visible;';
+            wrapper.style.cssText = 'position:fixed;top:-99999px;left:0;width:1100px;background:white;overflow:visible;';
             wrapper.innerHTML = html;
             document.body.appendChild(wrapper);
             await new Promise(r => setTimeout(r, 600));
-            const fullH = Math.max(wrapper.scrollHeight, wrapper.offsetHeight, wrapper.getBoundingClientRect().height);
+            const fullH = Math.max(wrapper.scrollHeight, wrapper.offsetHeight);
 
             const canvas = await html2canvas(wrapper, {
                 scale: 2, useCORS: true, backgroundColor: 'white',
-                width: 908, height: fullH,
-                windowWidth: 1200, windowHeight: fullH + 400, logging: false,
-                x: 0, y: 0
+                width: 1100, height: fullH,
+                windowWidth: 1100, windowHeight: fullH + 400, logging: false
             });
             document.body.removeChild(wrapper);
 
