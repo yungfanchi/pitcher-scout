@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v483';
+﻿    const APP_VERSION = 'v484';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15566,6 +15566,37 @@
     }
     window.deleteBmAtBat = deleteBmAtBat;
 
+    function cleanupInvalidAtBats() {
+        if (!allData.bm || !Array.isArray(allData.bm.atBats) || allData.bm.atBats.length === 0) {
+            alert('目前沒有打席記錄'); return;
+        }
+        const before = allData.bm.atBats.length;
+        allData.bm.atBats = allData.bm.atBats.filter(ab => {
+            // 獨立模式（gameIdx = -1）永遠有效
+            if (ab.mode === 'standalone' || ab.gameIdx === -1 || ab.gameIdx === undefined) return true;
+            // 連動模式：gameIdx 必須在有效範圍內
+            if (typeof ab.gameIdx !== 'number' || ab.gameIdx < 0 || ab.gameIdx >= allData.teams.length) return false;
+            const game = allData.teams[ab.gameIdx];
+            if (!game) return false;
+            // 若打席記錄有 gameName，比對確認場次沒有漂移
+            if (ab.gameName && game.gameName && ab.gameName !== game.gameName) return false;
+            // 若有 teamName，確認該場次確實有這支球隊
+            if (ab.teamName) {
+                const matched = (game.name && game.name === ab.teamName) ||
+                                (game.opponent && game.opponent === ab.teamName);
+                if (!matched) return false;
+            }
+            return true;
+        });
+        const removed = before - allData.bm.atBats.length;
+        if (removed === 0) { alert('✅ 沒有找到無效打席記錄，資料正常'); return; }
+        saveToLocalStorage();
+        saveBmToFirebase();
+        alert(`✅ 已清除 ${removed} 筆無效打席記錄`);
+        _renderBmStats();
+    }
+    window.cleanupInvalidAtBats = cleanupInvalidAtBats;
+
     // ── 打者最近記錄：編輯 ──
     let _bmAtBatEditState = { ts: null, outcome: null, hitLoc: null };
 
@@ -15932,6 +15963,10 @@
               <button onclick="uploadBmToFirebase(this)"
                 style="padding:5px 14px;border-radius:8px;border:1.5px solid #dc0000;background:#fff;color:#dc0000;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
                 ☁️ 上傳落點資料
+              </button>
+              <button onclick="cleanupInvalidAtBats()"
+                style="padding:5px 14px;border-radius:8px;border:1.5px solid #6b7280;background:#fff;color:#6b7280;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                🧹 清除無效打席
               </button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start;margin-bottom:16px;">
