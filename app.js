@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v464';
+﻿    const APP_VERSION = 'v465';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -651,21 +651,27 @@
     function _deriveBattersFromPitches(teamName) {
         const map = {};
         allData.teams.forEach(team => {
-            // teamName 是對手（投手所屬隊），只處理對戰該隊的場次
-            if (team.opponent !== teamName) return;
-            const battingTeam = team.name || '';
-            // ★ 打線查詢表（最可靠的隊伍歸屬來源）
+            // ★ 只要此場次有 teamName 參與（先攻 team.name 或 後攻 team.opponent）就納入
+            if (team.opponent !== teamName && team.name !== teamName) return;
+            // 打線查詢表：teamA → team.name，teamB → team.opponent
             const lineupNumMap = _buildNumToTeamFromLineups(team);
             const lineupA = team.lineups?.teamA || [];
             const lineupB = team.lineups?.teamB || [];
+            // 若無法從打線查到隊名，fallback 依上下半局判斷
+            const _fallbackTeam = (pitch) => {
+                if (pitch.half === '上') return team.name || '';
+                if (pitch.half === '下') return team.opponent || '';
+                return team.name || '';
+            };
             (team.pitchers || []).forEach(p => {
                 (p.pitches || []).forEach(pitch => {
                     const num = pitch.batterNumber != null ? String(pitch.batterNumber) : null;
                     const ord = pitch.batterOrder  != null ? String(pitch.batterOrder)  : null;
                     if (!num && !ord) return;
-                    // 從打線查詢此背號的隊名
                     const lineupInfo = num ? lineupNumMap[num] : null;
-                    const resolvedTeam = lineupInfo?.team || pitch.batterTeam || battingTeam;
+                    const resolvedTeam = lineupInfo?.team || pitch.batterTeam || _fallbackTeam(pitch);
+                    // ★ 只保留屬於 teamName 的打者（過濾掉對手打者）
+                    if (resolvedTeam !== teamName) return;
                     const key = `P|${resolvedTeam}|${num || 'ord' + ord}`;
                     if (!map[key]) {
                         let name = lineupInfo?.name || '';
@@ -678,8 +684,8 @@
                     }
                     if (!map[key].hand && pitch.batterHand) map[key].hand = pitch.batterHand;
                     if (!map[key].name) {
-                        const name2 = lineupInfo?.name || '';
-                        if (name2) { map[key].name = name2; }
+                        const n2 = lineupInfo?.name || '';
+                        if (n2) { map[key].name = n2; }
                         else {
                             const oi = parseInt(ord);
                             if (!isNaN(oi)) map[key].name = lineupB[oi]?.name || lineupA[oi]?.name || '';
@@ -712,8 +718,8 @@
         const pitches = [];
         allData.teams.forEach((team, ti) => {
             if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
-            // 只計算對戰該對手的場次，避免把其他對手的數據混入
-            if (teamName && team.opponent !== teamName) return;
+            // ★ 只計算有 teamName 參與的場次（先攻或後攻都算）
+            if (teamName && team.opponent !== teamName && team.name !== teamName) return;
             const lineupNumMap = battingTeamFilter ? _buildNumToTeamFromLineups(team) : null;
             (team.pitchers || []).forEach(p => {
                 (p.pitches || []).forEach(pitch => {
