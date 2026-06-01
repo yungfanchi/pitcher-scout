@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v481';
+﻿    const APP_VERSION = 'v482';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8875,7 +8875,10 @@
         }).catch(() => _startGamesListener(gRef));
     }
 
+    let _gamesListenerStarted = false;
     function _startGamesListener(gRef) {
+        if (_gamesListenerStarted) return; // 防止重複註冊
+        _gamesListenerStarted = true;
         activeFirebaseRef = gRef;
         let _firstEvent = true;
 
@@ -8918,6 +8921,14 @@
             const localIds = new Set(allData.teams.map(t => t.gameId).filter(Boolean));
             remoteGames.forEach(rg => {
                 if (!localIds.has(rg.gameId)) allData.teams.push(rg);
+            });
+
+            // 防護：強制去除 gameId 重複的場次（保留第一筆）
+            const _seenIds = new Set();
+            allData.teams = allData.teams.filter(t => {
+                if (!t.gameId || _seenIds.has(t.gameId)) return false;
+                _seenIds.add(t.gameId);
+                return true;
             });
 
             rebuildPitcherDB();
