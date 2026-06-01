@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v462';
+﻿    const APP_VERSION = 'v463';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4321,7 +4321,7 @@
     window.updateBatterTracker = updateBatterTracker;
 
     function togglePinchHitter() {
-        const cb = document.getElementById('isPinchHitter');
+        const cb  = document.getElementById('isPinchHitter');
         const btn = document.getElementById('pinchHitterBtn');
         cb.checked = !cb.checked;
         if (cb.checked) {
@@ -4329,6 +4329,9 @@
             btn.style.color = 'white';
             btn.style.borderColor = 'var(--ct-gold)';
             btn.textContent = '✅ 代打上場';
+
+            // ★ 記錄代打資料（投手模式代打追蹤）
+            _pmRecordSub();
         } else {
             btn.style.background = '#fff3cd';
             btn.style.color = 'var(--ct-blue-dark)';
@@ -4336,6 +4339,118 @@
             btn.textContent = '代打上場';
         }
     }
+
+    // ── 投手模式代打追蹤：記錄一筆代打 ──
+    function _pmGetSubs() {
+        if (currentTeam === null || !allData.teams[currentTeam]) return null;
+        const t = allData.teams[currentTeam];
+        if (!t._pmSubs) t._pmSubs = { teamA:{}, teamB:{} };
+        return t._pmSubs;
+    }
+
+    function _pmRecordSub() {
+        const subs  = _pmGetSubs(); if (!subs) return;
+        const order = parseInt(document.getElementById('batterOrder')?.value) || 0;
+        if (!order) return;
+        const battingTeamKey = gameState.half === '上' ? 'teamA' : 'teamB';
+        const key = String(order);
+
+        // 取代打球員（目前輸入框的值）
+        const subNum  = document.getElementById('batterNumber')?.value?.trim() || '';
+        const subName = document.getElementById('batterName')?.value?.trim()   || '';
+        const subHand = currentPitch.batterHand || '右打';
+        const subPlayer = { number: subNum, name: subName, hand: subHand };
+
+        if (!subs[battingTeamKey][key]) {
+            // 第一次代打：從打線/歷史找原始球員
+            const orig = _pmGetOriginalBatter(battingTeamKey, order);
+            subs[battingTeamKey][key] = {
+                original: orig,
+                history: [],
+                current: null,
+                reEntryUsed: false
+            };
+        }
+        subs[battingTeamKey][key].history.push({
+            player: subPlayer,
+            inning: gameState.inning || 1,
+            half:   gameState.half   || '上',
+            isReEntry: false
+        });
+        subs[battingTeamKey][key].current = subPlayer;
+        saveToFirebase(currentTeam);
+        _pmUpdateSubInfoRow(battingTeamKey, order);
+    }
+
+    function _pmGetOriginalBatter(battingTeamKey, order) {
+        // 從打線找
+        const lineupSide = battingTeamKey === 'teamA' ? 'teamA' : 'teamB';
+        const gameLineup = allData.teams[currentTeam]?.lineups?.[lineupSide];
+        const lArr = _lineupToArray ? _lineupToArray(gameLineup) : (Array.isArray(gameLineup) ? gameLineup : Object.values(gameLineup || {}));
+        const fromLineup = lArr[order - 1];
+        if (fromLineup?.number || fromLineup?.name) return { number: fromLineup.number||'', name: fromLineup.name||'', hand: fromLineup.hand||'右打' };
+        // 從投球記錄找最後一次此棒次（非代打的）
+        if (currentPitcher !== null) {
+            const pitches = allData.teams[currentTeam].pitchers[currentPitcher]?.pitches || [];
+            for (let i = pitches.length - 1; i >= 0; i--) {
+                const p = pitches[i];
+                if (String(p.batterOrder) === String(order) && p.batterNumber && !p.isPinch) {
+                    return { number: p.batterNumber, name: p.batterName||'', hand: p.batterHand||'右打' };
+                }
+            }
+        }
+        return { number:'', name:'', hand:'右打' };
+    }
+
+    function _pmUpdateSubInfoRow(battingTeamKey, order) {
+        const subs = _pmGetSubs();
+        const row   = document.getElementById('pmSubInfoRow');
+        const txt   = document.getElementById('pmSubInfoText');
+        const reBtn = document.getElementById('pmReEntryBtn');
+        if (!row) return;
+        const sub = subs?.[battingTeamKey]?.[String(order)];
+        if (sub?.current) {
+            row.style.display = 'flex';
+            const orig = sub.original;
+            if (txt) txt.textContent = `代 #${orig.number||'?'} ${orig.name||''}`;
+            if (reBtn) reBtn.style.display = (!sub.reEntryUsed && orig.number) ? '' : 'none';
+        } else {
+            row.style.display = 'none';
+            if (reBtn) reBtn.style.display = 'none';
+        }
+    }
+
+    function doReEntryPitcher() {
+        const subs = _pmGetSubs(); if (!subs) return;
+        const order = parseInt(document.getElementById('batterOrder')?.value) || 0;
+        if (!order) return;
+        const battingTeamKey = gameState.half === '上' ? 'teamA' : 'teamB';
+        const key = String(order);
+        const sub = subs[battingTeamKey]?.[key];
+        if (!sub || sub.reEntryUsed) return;
+
+        sub.history.push({ player:{...sub.original}, inning: gameState.inning||1, half: gameState.half||'上', isReEntry:true });
+        sub.current = { ...sub.original };
+        sub.reEntryUsed = true;
+
+        // 填回原始球員
+        const orig = sub.original;
+        if (document.getElementById('batterNumber')) document.getElementById('batterNumber').value = orig.number || '';
+        if (document.getElementById('batterName'))   document.getElementById('batterName').value   = orig.name   || '';
+        const hand = orig.hand || '右打';
+        document.querySelectorAll('.hand-btn').forEach(b => b.classList.toggle('active', b.dataset.hand === hand));
+        currentPitch.batterHand = hand;
+
+        // 關掉代打標記
+        const cb  = document.getElementById('isPinchHitter');
+        const btn = document.getElementById('pinchHitterBtn');
+        if (cb)  cb.checked = false;
+        if (btn) { btn.style.background='#fff3cd'; btn.style.color='var(--ct-blue-dark)'; btn.textContent='代打上場'; }
+
+        saveToFirebase(currentTeam);
+        _pmUpdateSubInfoRow(battingTeamKey, order);
+    }
+    window.doReEntryPitcher = doReEntryPitcher;
 
     function resetTacticalFlags() {
         const cb = document.getElementById('isPinchHitter');
@@ -4910,6 +5025,21 @@
     }
 
     function autoFillBatterFromOrder(order) {
+        // Priority 0：投手模式代打追蹤（若此棒次有代打記錄，優先帶入代打球員資料）
+        const battingTeamKey0 = gameState.half === '上' ? 'teamA' : 'teamB';
+        const subs0 = _pmGetSubs();
+        const sub0  = subs0?.[battingTeamKey0]?.[String(order)];
+        _pmUpdateSubInfoRow(battingTeamKey0, order); // 更新代打狀態列
+        if (sub0?.current) {
+            const p = sub0.current;
+            document.getElementById('batterNumber').value = p.number || '';
+            document.getElementById('batterName').value   = p.name   || '';
+            const hand0 = p.hand || '右打';
+            document.querySelectorAll('.hand-btn').forEach(b => b.classList.toggle('active', b.dataset.hand === hand0));
+            currentPitch.batterHand = hand0;
+            return;
+        }
+
         // Priority 1: pitcher mode lineup
         const lp = lineup[order];
         if (lp && (lp.number || lp.name)) {
