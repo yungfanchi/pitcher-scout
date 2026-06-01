@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v490';
+﻿    const APP_VERSION = 'v491';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2361,6 +2361,8 @@
         // 重置後載入本帳號的本機快取（帳號標記不符時 loadFromLocalStorage 會跳過資料段）
         // 不清除 localStorage：各帳號資料由 _teamCode 標記隔離，Firebase 為最終依據
         allData = { teams: [], pitcherDB: {}, playerRegistry: [] };
+        expandedTeams = new Set();
+        expandedGames = new Set();
         loadFromLocalStorage();
         // 管理員：顯示後台面板；買家：確保隱藏
         const adminPanel = document.getElementById('adminPanel');
@@ -2446,6 +2448,8 @@
         slotA = { team: null, pitcher: null };
         slotB = { team: null, pitcher: null };
         activeSlot = 'B';
+        expandedTeams = new Set();
+        expandedGames = new Set();
         // Hide view-only banner
         document.getElementById('viewOnlyBanner').style.display = 'none';
         document.body.style.paddingTop = '';
