@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v466';
+﻿    const APP_VERSION = 'v467';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -890,27 +890,49 @@
             if (team.opponent !== teamName && team.name !== teamName) return;
             const lineupA = _lineupToArray ? _lineupToArray(team.lineups?.teamA) : (Array.isArray(team.lineups?.teamA) ? team.lineups.teamA : Object.values(team.lineups?.teamA || {}));
             const lineupB = _lineupToArray ? _lineupToArray(team.lineups?.teamB) : (Array.isArray(team.lineups?.teamB) ? team.lineups.teamB : Object.values(team.lineups?.teamB || {}));
+            const lineupANums = new Set(lineupA.filter(x=>x?.number).map(x=>String(x.number)));
+            const lineupBNums = new Set(lineupB.filter(x=>x?.number).map(x=>String(x.number)));
             (team.pitchers || []).forEach(p => {
                 if (!p.name) return;
-                // 判斷此投手屬於哪一隊
                 const numStr = String(p.number || '');
                 let pitcherTeam = '';
-                if (numStr) {
-                    if (lineupA.some(x => x?.number && String(x.number) === numStr)) {
-                        pitcherTeam = team.name || '';   // 在先攻打線 → team.name
-                    } else if (lineupB.some(x => x?.number && String(x.number) === numStr)) {
-                        pitcherTeam = team.opponent || ''; // 在後攻打線 → team.opponent
-                    }
+
+                // ① 投手名稱直接就是球隊名 → 最直接的依據
+                if (p.name === team.name) pitcherTeam = team.name || '';
+                else if (p.name === team.opponent) pitcherTeam = team.opponent || '';
+
+                // ② 投手背號在打線裡
+                if (!pitcherTeam && numStr) {
+                    if (lineupANums.has(numStr)) pitcherTeam = team.name || '';
+                    else if (lineupBNums.has(numStr)) pitcherTeam = team.opponent || '';
                 }
+
+                // ③ 看對戰的打者屬於哪隊（投手面對 lineupA 打者 → 屬於 team.opponent；面對 lineupB → team.name）
                 if (!pitcherTeam) {
-                    // fallback：多數球在下半局 = 先攻投手(team.name)；上半局 = 後攻投手(team.opponent)
+                    let facesA = 0, facesB = 0;
+                    (p.pitches || []).forEach(pitch => {
+                        const bn = String(pitch.batterNumber || '');
+                        if (bn && lineupANums.has(bn)) facesA++;
+                        if (bn && lineupBNums.has(bn)) facesB++;
+                    });
+                    if (facesA > facesB) pitcherTeam = team.opponent || '';
+                    else if (facesB > facesA) pitcherTeam = team.name || '';
+                }
+
+                // ④ 依多數投球在上半(後攻投)或下半(先攻投)判斷
+                if (!pitcherTeam) {
                     const pitches = p.pitches || [];
                     const upper = pitches.filter(x => x.half === '上').length;
                     const lower = pitches.filter(x => x.half === '下').length;
-                    pitcherTeam = (lower > upper) ? (team.name || '') : (team.opponent || '');
+                    if (upper > 0 || lower > 0) {
+                        pitcherTeam = (lower > upper) ? (team.name || '') : (team.opponent || '');
+                    }
                 }
-                if (!pitcherTeam) pitcherTeam = team.opponent || ''; // 最後 fallback
-                if (pitcherTeam !== teamName) return; // ★ 只保留屬於 teamName 的投手
+
+                // ⑤ 完全無法判斷：預設 team.opponent（傳統假設：所有投手都是對手）
+                if (!pitcherTeam) pitcherTeam = team.opponent || '';
+
+                if (pitcherTeam !== teamName) return;
                 const key = getPitcherKey(p.name, p.number);
                 if (!pitcherMap[key]) pitcherMap[key] = { name: p.name, number: p.number };
             });
