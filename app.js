@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v458';
+﻿    const APP_VERSION = 'v459';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15416,26 +15416,19 @@
                 const isBIP = BIP_PATCH.includes(a.outcome || '');
                 const hasloc = !!a.hitLocation;
                 const numEsc = String(number).replace(/'/g,"\\'");
+                const teamEsc = teamStr.replace(/'/g,"\\'");
                 const isDirect = a.mode === 'direct';
-                // 📍/✏️ 補錄/修改按鈕
-                const patchBtn = (isBIP || isDirect)
-                    ? `<button onclick="openHitLocPatch(${a.ts||i},'${numEsc}')"
+                const modeIcon = isDirect ? '📍' : (a.mode==='pitch'?'⚾':(a.mode==='linked'?'🔗':'📝'));
+                // 📍/✏️ 補錄/修改落點按鈕（BIP 結果才顯示）
+                const patchBtn = isBIP
+                    ? `<button onclick="openHitLocPatch(${a.ts||i},'${numEsc}','${teamEsc}','${a.mode||''}')"
                         style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid ${hasloc?'#d1d5db':'#f59e0b'};
                                background:${hasloc?'#f9fafb':'#fffbeb'};color:${hasloc?'#9ca3af':'#b45309'};
                                font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;"
                         title="${hasloc?'修改落點':'補錄落點'}">${hasloc?'✏️':'📍'}</button>`
                     : '';
-                // 🗑️ 刪除按鈕：有落點才顯示
+                // 🗑️ 刪除落點（有落點才顯示）
                 const delBtn = hasloc
-                    ? `<button onclick="deleteHitLoc(${a.ts||'null'},${isDirect},'${numEsc}')"
-                        style="margin-left:2px;padding:2px 7px;border-radius:6px;border:1px solid #fecaca;
-                               background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
-                               cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除落點">🗑️</button>`
-                    : '';
-                const modeIcon = isDirect ? '📍' : (a.mode==='pitch'?'⚾':(a.mode==='linked'?'🔗':'📝'));
-                const teamEsc  = teamStr.replace(/'/g,"\\'");
-                // 🗑️ 刪除按鈕（有落點時顯示，對所有來源都有效）
-                const delBtn2 = hasloc
                     ? `<button onclick="deleteHitLoc(${a.ts||'null'},${isDirect},'${numEsc}','${teamEsc}','${a.mode||''}')"
                         style="margin-left:2px;padding:2px 7px;border-radius:6px;border:1px solid #fecaca;
                                background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
@@ -15444,9 +15437,28 @@
                 return `<div class="bm-log-row" style="display:flex;align-items:center;gap:4px;">
                     <span style="color:#6b7280;flex-shrink:0;">${i+1}. ${modeIcon} ${a.pitcherHand||''}</span>
                     <span class="bm-log-outcome ${cls}">${a.outcome||'-'}${zone}${ht}</span>
-                    ${patchBtn}${delBtn2}
+                    ${patchBtn}${delBtn}
                 </div>`;
-            }).join('')}</div>`;
+            }).join('')}</div>
+            ${_directLocs.length > 0 ? `
+            <div style="margin-top:10px;padding:10px 12px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;">
+              <div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:6px;">📍 手動補錄落點（${_directLocs.length} 筆）</div>
+              ${_directLocs.map((l,i)=>{
+                const numEsc2 = String(number).replace(/'/g,"\\'");
+                const teamEsc2 = teamStr.replace(/'/g,"\\'");
+                const HIT2 = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+                const cls2 = HIT2.includes(l.outcomes?.[0]||'')?'color:#16a34a;font-weight:800;':'color:#374151;';
+                return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;">
+                  <span style="color:#9ca3af;">補${i+1}. 📍</span>
+                  <span style="${cls2}">${l.outcomes?.[0]||'—'} → ${l.hitLocation?.zone||''}</span>
+                  <button onclick="deleteHitLoc(${l.ts||'null'},true,'${numEsc2}','${teamEsc2}','direct')"
+                    style="margin-left:auto;padding:1px 7px;border-radius:5px;border:1px solid #fecaca;
+                           background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
+                           cursor:pointer;font-family:inherit;" title="刪除此補錄落點">🗑️</button>
+                </div>`;
+              }).join('')}
+            </div>` : ''}
+            `;
         detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -15596,12 +15608,16 @@
     window._saveDirectHitLoc = _saveDirectHitLoc;
 
     // ── 補錄落點：全域狀態 ──
-    let _hitLocPatchTs = null;
-    let _hitLocPatchNum = null;
+    let _hitLocPatchTs   = null;
+    let _hitLocPatchNum  = null;
+    let _hitLocPatchTeam = '';
+    let _hitLocPatchMode = '';
 
-    function openHitLocPatch(ts, number) {
-        _hitLocPatchTs  = ts;
-        _hitLocPatchNum = number;
+    function openHitLocPatch(ts, number, teamStr, mode) {
+        _hitLocPatchTs   = ts;
+        _hitLocPatchNum  = number;
+        _hitLocPatchTeam = teamStr || '';
+        _hitLocPatchMode = mode || '';
         const wrap = document.getElementById('hitLocPatchSVGWrap');
         if (!wrap) return;
         // 建互動式球場 SVG（點擊區域後呼叫 _onHitLocPatchZone）
@@ -15624,17 +15640,31 @@
 
     function _onHitLocPatchZone(zone) {
         if (_hitLocPatchTs === null) return;
-        const idx = allData.bm.atBats.findIndex(a => a.ts === _hitLocPatchTs);
-        if (idx === -1) return;
         const c = ZONE_SVG_COORDS[zone] || { x: 150, y: 200 };
-        // ★ 只寫 hitLocation，完全不動其他欄位
-        allData.bm.atBats[idx].hitLocation = { zone, x: c.x / 300, y: c.y / 280 };
+        const loc = { zone, x: c.x / 300, y: c.y / 280 };
+        if (_hitLocPatchMode === 'pitch') {
+            // 投球記錄：找到對應 pitch 寫入 hitLocation
+            let found = false;
+            allData.teams.forEach(team => {
+                (team.pitchers || []).forEach(pitcher => {
+                    (pitcher.pitches || []).forEach(pitch => {
+                        if (pitch.timestamp === _hitLocPatchTs) { pitch.hitLocation = loc; found = true; }
+                    });
+                });
+            });
+            if (found) saveToFirebase();
+        } else {
+            // bm.atBats：找到對應 atBat 寫入 hitLocation
+            const idx = (allData.bm.atBats||[]).findIndex(a => a.ts === _hitLocPatchTs);
+            if (idx === -1) { cancelHitLocPatch(); return; }
+            allData.bm.atBats[idx].hitLocation = loc;
+            saveBmToFirebase();
+        }
         saveToLocalStorage();
-        saveBmToFirebase();
-        const num = _hitLocPatchNum;
+        const num  = _hitLocPatchNum;
+        const team = _hitLocPatchTeam;
         cancelHitLocPatch();
-        // 立即重繪
-        showBmBatterDetail(num);
+        showBmBatterDetail(num, team);
     }
 
     function cancelHitLocPatch() {
