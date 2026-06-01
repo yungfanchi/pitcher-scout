@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v480';
+﻿    const APP_VERSION = 'v481';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -15914,6 +15914,11 @@
               ${groupsHTML}
             </div>
             <div id="bmBatterDetailSection"></div>`;
+
+        // 若有打者詳細頁正在顯示，重建後自動刷新落點圖
+        if (_openBatterDetail) {
+            showBmBatterDetail(_openBatterDetail.number, _openBatterDetail.teamName);
+        }
     }
 
     // 從打席記錄推算打球型態（滾地球/平飛球/高飛球）
