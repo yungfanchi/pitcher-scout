@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v478';
+﻿    const APP_VERSION = 'v479';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12147,6 +12147,16 @@
               <div style="font-size:11px;color:#9ca3af;text-align:center;margin-top:8px;padding-bottom:4px;">點擊列查看詳情 · 點擊欄位標題排序</div>`;
 
         }
+
+        // 若有打者詳細頁正在顯示，自動刷新（讓落點圖即時連動）
+        if (_openBatterDetail) {
+            const detailEl = document.getElementById('bmBatterDetailSection');
+            if (detailEl && detailEl.children.length > 0) {
+                showBmBatterDetail(_openBatterDetail.number, _openBatterDetail.teamName);
+            } else {
+                _openBatterDetail = null; // 詳細頁已關閉，清除追蹤
+            }
+        }
     } // end refreshBatterList
 
     // ── 打者卡片點擊 → 詳細分析頁 ──
@@ -13348,6 +13358,7 @@
     let _bmAnalysisBatterFilter = null; // null = 整隊；string = 打者 key
     let _bmSortKey = 'order'; // default sort: batting order
     let _bmSortDir = 'asc';   // 'asc' | 'desc'
+    let _openBatterDetail = null; // 目前打開的打者詳細頁 {number, teamName}
 
     let _bmState = {
         recMode: 'linked',     // 'linked'|'standalone'
@@ -15924,6 +15935,7 @@
         _initBmData();
         const numStr = String(number);
         const teamStr = teamName ? String(teamName) : '';
+        _openBatterDetail = { number: numStr, teamName: teamStr };
 
         const PA_END_D = ['三振','不死三振','滾地球出局','飛球出局','平飛球出局',
             '內野安打','一壘安打','二壘安打','三壘安打','全壘打',
