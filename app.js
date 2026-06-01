@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v467';
+﻿    const APP_VERSION = 'v468';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -757,64 +757,354 @@
         return { PA, AB, H, H2, H3, HR, K, BB, HBP, AVG, locMap, totalPitches: pitches.length };
     }
 
-    // ── 生成打者成績報告（off-screen HTML → canvas）──
+    // ── 取得指定打者的完整投球記錄（供打者 PDF 報告使用）──
+    function _getBatterPitchesForReport(numKey, teamName, gameIndex) {
+        let rawKey = numKey.startsWith('P|') ? numKey.slice(2) : numKey;
+        let battingTeamFilter = null;
+        const pipeIdx = rawKey.indexOf('|');
+        if (pipeIdx !== -1) { battingTeamFilter = rawKey.slice(0, pipeIdx); rawKey = rawKey.slice(pipeIdx + 1); }
+        const isOrd = rawKey.startsWith('ord');
+        const val   = isOrd ? rawKey.slice(3) : rawKey;
+        const pitches = [];
+        allData.teams.forEach((team, ti) => {
+            if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
+            if (teamName && team.opponent !== teamName && team.name !== teamName) return;
+            const lineupNumMap = _buildNumToTeamFromLineups(team);
+            (team.pitchers || []).forEach(p => {
+                (p.pitches || []).forEach(pitch => {
+                    const num = pitch.batterNumber != null ? String(pitch.batterNumber) : null;
+                    const ord = pitch.batterOrder  != null ? String(pitch.batterOrder)  : null;
+                    const match = isOrd ? ord === val : num === val;
+                    if (!match) return;
+                    if (battingTeamFilter !== null) {
+                        const lineupInfo = lineupNumMap && num ? lineupNumMap[num] : null;
+                        const resolvedTeam = lineupInfo?.team || pitch.batterTeam || team.name || '';
+                        if (resolvedTeam !== battingTeamFilter) return;
+                    }
+                    pitches.push(pitch);
+                });
+            });
+        });
+        return pitches;
+    }
+
+    // ── 生成打者成績報告（off-screen HTML → canvas，每位打者獨立一頁）──
     async function _generateBatterReportCapture(pitchKeys, teamName, gameIndex) {
         const batters = _deriveBattersFromPitches(teamName);
-        const pageW   = 210;
+        const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const BIP = [...HIT,'飛球出局','滾地球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
+        const PA_ENDS = [...HIT,'保送','觸身球','故意四壞','捕逸','三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
+        const TACTICS_SET = new Set(['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗']);
+        function fmtAvg(n) { return n > 0 ? '.' + String(Math.round(n * 1000)).padStart(3,'0') : '.000'; }
 
-        const div = document.createElement('div');
-        div.style.cssText = 'position:fixed;top:-99999px;left:0;width:900px;padding:24px 24px 16px;background:#f8f9fa;font-family:"Noto Sans TC",Arial,sans-serif;color:#1e3a5f;font-size:13px;';
+        const captures = [];
 
-        const scopeLabel = gameIndex === 'all' ? '全部場次' : '單場';
-        let html = `<h1 style="font-size:22px;font-weight:900;color:#003d79;border-bottom:4px solid #d4af37;padding-bottom:8px;margin-bottom:16px;">🏃 打者成績 — vs ${teamName}（${scopeLabel}）</h1>`;
-
-        let hasData = false;
         for (const key of pitchKeys) {
             const b = batters.find(x => x.key === key);
             if (!b) continue;
-            const st = _calcBatterStatsFromPitches(key, teamName, gameIndex);
-            if (!st.PA && !st.totalPitches) continue;
-            hasData = true;
-            const displayName = b.name || (b.number ? `#${b.number}` : `打序${b.order}`);
-            const topLocs = Object.entries(st.locMap).sort((a,z) => z[1]-a[1]).slice(0,5);
-            html += `<div style="background:white;border-radius:10px;padding:14px 18px;margin-bottom:14px;border:1px solid #e5e7eb;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-                    <div style="background:linear-gradient(135deg,#003d79,#0051a5);color:white;border-radius:8px;padding:5px 14px;font-size:17px;font-weight:900;">${displayName}</div>
-                    ${b.hand ? `<div style="background:#f0f4ff;border:1px solid #c7d7f0;border-radius:6px;padding:3px 10px;font-size:12px;color:#003d79;font-weight:700;">${b.hand}</div>` : ''}
-                    ${b.team ? `<div style="background:#f5f0ff;border:1px solid #c4b5fd;border-radius:6px;padding:3px 10px;font-size:12px;color:#7c3aed;font-weight:700;">${b.team}</div>` : ''}
-                </div>
-                <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:10px;">
-                    ${[['打席',st.PA],['打數',st.AB],['安打',st.H],['二壘打',st.H2],['三壘打',st.H3],['全壘打',st.HR],['三振',st.K],['保送',st.BB]].map(([l,v]) =>
-                        `<div style="text-align:center;background:#f0f4ff;border-radius:6px;padding:7px 2px;">
-                            <div style="font-size:17px;font-weight:900;color:#003d79;">${v}</div>
-                            <div style="font-size:9px;color:#6b7280;margin-top:1px;">${l}</div>
-                        </div>`).join('')}
-                </div>
-                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-                    <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:5px 14px;">
-                        <span style="font-size:10px;color:#92400e;">打擊率</span>
-                        <span style="font-size:20px;font-weight:900;color:#92400e;margin-left:6px;">${st.AVG}</span>
-                    </div>
-                    ${topLocs.length ? `<div style="font-size:11px;color:#6b7280;">落點分布：${topLocs.map(([z,n]) => `<strong style="color:#003d79;">${z}</strong>(${n})`).join('　')}</div>` : ''}
-                </div>
-            </div>`;
+            const pitches = _getBatterPitchesForReport(key, teamName, gameIndex);
+            if (!pitches.length) continue;
+
+            // ── 統計計算（與螢幕打者卡片相同公式）──
+            const oc = p => (p.outcomes && p.outcomes.length) ? p.outcomes : (p.outcome ? [p.outcome] : []);
+            const paPitches = pitches.filter(p => oc(p).some(o => PA_ENDS.includes(o)));
+            const PA  = paPitches.length;
+            const K   = paPitches.filter(p => oc(p).some(o => o==='三振'||o==='不死三振')).length;
+            const BB  = paPitches.filter(p => oc(p).some(o => o==='保送'||o==='故意四壞')).length;
+            const HBP = paPitches.filter(p => oc(p).some(o => o==='觸身球')).length;
+            const SF  = paPitches.filter(p => oc(p).some(o => o==='高飛犧牲打')).length;
+            const SH  = paPitches.filter(p => oc(p).some(o => o==='犧牲觸擊')).length;
+            const H   = paPitches.filter(p => oc(p).some(o => HIT.includes(o))).length;
+            const H2  = paPitches.filter(p => oc(p).some(o => o==='二壘安打')).length;
+            const H3  = paPitches.filter(p => oc(p).some(o => o==='三壘安打')).length;
+            const HR  = paPitches.filter(p => oc(p).some(o => o==='全壘打')).length;
+            const singles = H - H2 - H3 - HR;
+            const AB  = Math.max(0, PA - BB - HBP - SF - SH);
+            const tb  = singles + H2*2 + H3*3 + HR*4;
+            const avgNum = PA > 0 ? H / PA : 0;
+            const obp = (PA - SH) > 0 ? (H + BB + HBP) / (PA - SH) : 0;
+            const slg = AB > 0 ? tb / AB : 0;
+            const ops = obp + slg;
+            const kRate  = PA > 0 ? K / PA : 0;
+            const bbRate = PA > 0 ? BB / PA : 0;
+            const avgColor = avgNum>=0.3?'#4ade80':avgNum>=0.2?'#fbbf24':'#f87171';
+            const opsColor = ops>=0.8?'#4ade80':ops>=0.6?'#fbbf24':'#f87171';
+            const threat = avgNum*100 - kRate*25;
+            const tLevel = threat>=22?'high':threat>=11?'mid':'low';
+            const tCfg = {high:{bg:'#dcfce7',color:'#15803d',border:'#16a34a',label:'高威脅打者'},mid:{bg:'#f3f4f6',color:'#6b7280',border:'#9ca3af',label:'中威脅打者'},low:{bg:'#fee2e2',color:'#b91c1c',border:'#ef4444',label:'低威脅打者'}}[tLevel];
+
+            // ── 戰術標籤 ──
+            const tacticsSeen = [...new Set(pitches.flatMap(p => oc(p).filter(o => TACTICS_SET.has(o))))];
+            const tacticsTags = tacticsSeen.map(t => `<span style="padding:3px 10px;border-radius:10px;font-size:13px;font-weight:700;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.5);">${t}</span>`).join(' ');
+
+            // ── 棒次 ──
+            const orderNums = pitches.map(p=>parseInt(p.batterOrder)).filter(n=>n>=1&&n<=9);
+            const orderNum = orderNums.length>0 ? [...orderNums.reduce((m,n)=>m.set(n,(m.get(n)||0)+1),new Map())].sort((a,b)=>b[1]-a[1])[0][0] : null;
+            const orderPfx = orderNum ? `${orderNum}棒 · ` : '';
+
+            // ── 落點圖 ──
+            const locPitches = pitches.filter(p => p.hitLocation && oc(p).some(o => BIP.includes(o)));
+            const linesHTML = locPitches.map(p => {
+                const sx = (p.hitLocation.x*300).toFixed(1), sy = (p.hitLocation.y*280).toFixed(1);
+                const col = oc(p).some(o=>HIT.includes(o)) ? '#ef4444' : '#3b82f6';
+                return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="3" opacity="0.85" stroke-linecap="round"/>`;
+            }).join('');
+            const hitCnt = locPitches.filter(p=>oc(p).some(o=>HIT.includes(o))).length;
+            const svgHTML = buildFieldSVG(linesHTML, false, true, '');
+
+            // ── 方向/型態分析 ──
+            const leftL  = locPitches.filter(p=>p.hitLocation.x<0.43);
+            const centL  = locPitches.filter(p=>p.hitLocation.x>=0.43&&p.hitLocation.x<=0.57);
+            const rightL = locPitches.filter(p=>p.hitLocation.x>0.57);
+            const flyL   = locPitches.filter(p=>p.hitLocation.y<0.62);
+            const gndL   = locPitches.filter(p=>p.hitLocation.y>=0.62);
+            const locTotal = locPitches.length || 1;
+            const lPct=Math.round(leftL.length/locTotal*100), cPct=Math.round(centL.length/locTotal*100), rPct=100-lPct-cPct;
+            const fPct=Math.round(flyL.length/locTotal*100), gPct=100-fPct;
+            const _dAvg = arr => arr.length>=2 ? (arr.filter(p=>oc(p).some(o=>HIT.includes(o))).length/arr.length) : null;
+            const lA=_dAvg(leftL), cA=_dAvg(centL), rA=_dAvg(rightL), fA=_dAvg(flyL), gA=_dAvg(gndL);
+            const aC = n => n>=0.3?'#dc2626':n>=0.2?'#374151':'#9ca3af';
+
+            // ── 情蒐備註 ──
+            const _bmNum = b.number ? String(b.number) : '';
+            let trait = '';
+            if (_bmNum) {
+                const lineup = [...(allData.bm?.lineupA||[]),...(allData.bm?.lineupB||[])];
+                const le = lineup.find(x=>String(x.number||'')===_bmNum);
+                if (le) trait = le.trait||'';
+            }
+
+            // ── ① 首球攻擊傾向（含位置分析）──
+            const fp = pitches.filter(p=>(p.balls||0)===0&&(p.strikes||0)===0);
+            const fpSwings = fp.filter(p=>p.swing||p.foul);
+            const fpSwPct = fp.length>0?Math.round(fpSwings.length/fp.length*100):0;
+            const fpLabel = fpSwPct>=45?'積極出手型':fpSwPct>=25?'中等積極':'耐心等球型';
+            const fpColor = fpSwPct>=45?'#dc2626':fpSwPct>=25?'#f59e0b':'#10b981';
+            const bHandMap={};
+            pitches.forEach(p=>{const h=p.batterHand||'右打';bHandMap[h]=(bHandMap[h]||0)+1;});
+            const bHand = Object.entries(bHandMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'右打';
+            const inZ  = bHand==='右打'?new Set(['1','4','7']):new Set(['3','6','9']);
+            const outZ = bHand==='右打'?new Set(['3','6','9']):new Set(['1','4','7']);
+            const midZ = new Set(['2','5','8']);
+            const fpSwStr = fpSwings.filter(p=>/^[1-9]$/.test(String(p.zone)));
+            const fpSIn  = fpSwStr.filter(p=>inZ.has(String(p.zone))).length;
+            const fpSOut = fpSwStr.filter(p=>outZ.has(String(p.zone))).length;
+            const fpSMid = fpSwStr.filter(p=>midZ.has(String(p.zone))).length;
+            const fpST   = fpSwStr.length||1;
+            const fpInP  = Math.round(fpSIn/fpST*100);
+            const fpOutP = Math.round(fpSOut/fpST*100);
+            const fpMidP = Math.max(0,100-fpInP-fpOutP);
+
+            // ── ② 弱點球路×位置（九宮格）──
+            const pzNm=['','左高','中高','右高','左中','中間','右中','左低','中低','右低'];
+            const pzFill = a => a===null?'#f3f4f6':a>=0.400?'#dc2626':a>=0.250?'#f59e0b':'#10b981';
+            const pzTC   = a => a===null?'#9ca3af':'white';
+            const pzSt={};
+            for(let pz=1;pz<=9;pz++){
+                const zP=paPitches.filter(p=>String(p.zone)===String(pz));
+                const zByType={};
+                zP.forEach(p=>{if(!p.type)return;if(!zByType[p.type])zByType[p.type]={n:0,k:0};zByType[p.type].n++;if(oc(p).some(o=>['三振','不死三振'].includes(o)))zByType[p.type].k++;});
+                const zHits=zP.filter(p=>oc(p).some(o=>HIT.includes(o))).length;
+                const zBestK=Object.entries(zByType).filter(([,v])=>v.n>=2).sort((a,b)=>b[1].k/b[1].n-a[1].k/a[1].n)[0];
+                pzSt[pz]={n:zP.length,hits:zHits,avg:zP.length>0?zHits/zP.length:null,best:zBestK?zBestK[0]:null};
+            }
+            const hasZD=Object.values(pzSt).some(z=>z.n>0);
+            const stratList=[1,2,3,4,5,6,7,8,9].filter(z=>pzSt[z].n>0).sort((a,b)=>(pzSt[a].avg||1)-(pzSt[b].avg||1));
+            const bestComboZ=stratList.find(z=>pzSt[z].n>=5&&pzSt[z].best)||null;
+
+            // ── 組合 HTML ──
+            const displayName = b.name||(b.number?`#${b.number}`:`打序${b.order||''}`);
+            const numPart = b.number?` #${b.number}`:'';
+            const gamesCount = new Set(pitches.map(p=>p._gameIdx||0)).size || 1;
+            const opsFmt = PA>=3 ? ops.toFixed(3) : '---';
+
+            const html = `
+<div style="width:860px;padding:24px 24px 32px;background:white;font-family:'Noto Sans TC',Arial,sans-serif;color:#1e3a5f;font-size:13px;">
+
+  <!-- 頂部 header -->
+  <div style="background:linear-gradient(135deg,#003d79,#0051a5);padding:18px;border-radius:12px;color:white;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;opacity:0.85;margin-bottom:4px;">${b.team||teamName}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div style="font-size:24px;font-weight:900;font-family:'Oswald',sans-serif;">${orderPfx}${displayName}${numPart}</div>
+          ${tacticsTags}
+        </div>
+        <div style="font-size:12px;opacity:0.7;margin-top:4px;">${b.hand||''} · ${gamesCount} 場出賽</div>
+      </div>
+      <span style="padding:5px 12px;border-radius:12px;font-size:12px;font-weight:800;background:${tCfg.bg};color:${tCfg.color};border:2px solid ${tCfg.border};">${tCfg.label}</span>
+    </div>
+    <div style="display:flex;gap:0;background:rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;">
+      ${[['打席',PA,'white'],['打擊率',fmtAvg(avgNum),avgColor],['OPS',opsFmt,opsColor],['三振率',PA>0?Math.round(kRate*100)+'%':'---',kRate>=0.35?'#fbbf24':'white'],['保送率',PA>0?Math.round(bbRate*100)+'%':'---','white']].map(([l,v,c],i)=>`
+      <div style="flex:1;text-align:center;padding:10px 6px;${i>0?'border-left:1px solid rgba(255,255,255,0.15);':''}">
+        <div style="font-size:9px;opacity:0.65;">${l}</div>
+        <div style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:${c};">${v}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- 落點圖 + 方向型態 + 備註 -->
+  ${locPitches.length>0 ? `
+  <div style="background:#fffdf5;border-radius:12px;padding:14px;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:900;color:#003d79;margin-bottom:10px;">🗺️ 打擊落點圖</div>
+    <div style="display:grid;grid-template-columns:300px 1fr 180px;gap:14px;align-items:start;">
+      <div>
+        ${svgHTML}
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:11px;">
+          <span style="color:#ef4444;">— 安打（${hitCnt}）</span>
+          <span style="color:#3b82f6;">— 非安打（${locPitches.length-hitCnt}）</span>
+          <span style="color:#9ca3af;margin-left:auto;">共 ${locPitches.length} 筆</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">方向分佈</div>
+          <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;margin-bottom:5px;">
+            <span style="color:#ef4444;">左 ${lPct}%</span><span style="color:#10b981;">中 ${cPct}%</span><span style="color:#3b82f6;">右 ${rPct}%</span>
+          </div>
+          <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;">
+            <div style="flex:${lPct||0.1};background:#ef4444;"></div>
+            <div style="flex:${cPct||0.1};background:#10b981;"></div>
+            <div style="flex:${rPct||0.1};background:#3b82f6;"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">打球型態</div>
+          <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;margin-bottom:5px;">
+            <span style="color:#8b5cf6;">飛球 ${fPct}%</span><span style="color:#f59e0b;">滾地 ${gPct}%</span>
+          </div>
+          <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;">
+            <div style="flex:${fPct||0.1};background:#8b5cf6;"></div>
+            <div style="flex:${gPct||0.1};background:#f59e0b;"></div>
+          </div>
+        </div>
+        ${(lA!==null||cA!==null||rA!==null)?`
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">各方向安打率</div>
+          ${[[' 左',lA],[' 中',cA],[' 右',rA]].filter(([,v])=>v!==null).map(([l,v])=>`
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0;">
+            <span style="color:#374151;">${l}</span>
+            <span style="font-weight:900;font-family:'Oswald';color:${aC(v)};">${fmtAvg(v)}</span>
+          </div>`).join('')}
+        </div>`:''}
+        ${(fA!==null||gA!==null)?`
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">型態安打率</div>
+          ${[[' 飛球',fA],[' 滾地',gA]].filter(([,v])=>v!==null).map(([l,v])=>`
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0;">
+            <span style="color:#374151;">${l}</span>
+            <span style="font-weight:900;font-family:'Oswald';color:${aC(v)};">${fmtAvg(v)}</span>
+          </div>`).join('')}
+        </div>`:''}
+      </div>
+      <div style="background:#fffbeb;border-radius:10px;padding:12px;border:1px solid #fde68a;">
+        <div style="font-size:12px;font-weight:900;color:#003d79;margin-bottom:8px;">📝 情蒐備註</div>
+        <div style="font-size:12px;color:#374151;line-height:1.7;white-space:pre-wrap;">${trait||'（尚無備註）'}</div>
+      </div>
+    </div>
+  </div>` : `
+  <div style="background:#fffbeb;border-radius:12px;padding:14px;margin-bottom:14px;border:1px solid #fde68a;">
+    <div style="font-size:13px;font-weight:900;color:#003d79;margin-bottom:8px;">📝 情蒐備註</div>
+    <div style="font-size:12px;color:#374151;line-height:1.7;white-space:pre-wrap;">${trait||'（尚無備註）'}</div>
+  </div>`}
+
+  <!-- ① ② 兩欄 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+    <!-- ① 首球攻擊傾向 -->
+    <div style="background:white;border-radius:12px;padding:14px;border:1px solid #e5e7eb;">
+      <div style="font-size:13px;font-weight:900;color:#003d79;margin-bottom:10px;border-left:4px solid #003d79;padding-left:8px;">① 首球攻擊傾向</div>
+      ${fp.length===0?'<div style="color:#9ca3af;font-size:12px;padding:8px 0;">尚無資料</div>':`
+      <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:12px;">
+        <div style="text-align:center;flex-shrink:0;">
+          <div style="font-size:44px;font-weight:900;font-family:'Oswald',sans-serif;color:${fpColor};line-height:1;">${fpSwPct}%</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:4px;">首球揮棒率<br><span style="color:#9ca3af;">${fp.length} 打席首球</span></div>
+          <div style="display:inline-block;margin-top:6px;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700;background:${fpColor}18;color:${fpColor};">${fpLabel}</div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;">首球揮棒位置偏好</div>
+          ${fpSwStr.length>0?`
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${[{l:'內角',p:fpInP,c:'#f59e0b'},{l:'中間',p:fpMidP,c:'#6b7280'},{l:'外角',p:fpOutP,c:'#3b82f6'}].map(r=>`
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="width:28px;font-size:11px;color:#374151;flex-shrink:0;">${r.l}</span>
+              <div style="flex:1;height:10px;background:#f3f4f6;border-radius:5px;overflow:hidden;"><div style="width:${r.p||0.5}%;height:100%;background:${r.c};border-radius:5px;"></div></div>
+              <span style="font-size:11px;font-weight:700;color:${r.c};width:30px;text-align:right;">${r.p}%</span>
+            </div>`).join('')}
+          </div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:6px;">揮棒好球帶球種 ${fpSwStr.length} 球</div>`:`
+          <div style="font-size:12px;color:#9ca3af;padding:8px 0;">揮棒球數不足</div>`}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div style="background:#fef2f2;border-radius:6px;padding:8px;text-align:center;"><div style="font-weight:800;color:#dc2626;font-size:18px;">${fpSwings.length}</div><div style="color:#6b7280;">首球揮棒次數</div></div>
+        <div style="background:#f0fdf4;border-radius:6px;padding:8px;text-align:center;"><div style="font-weight:800;color:#10b981;font-size:18px;">${fp.length-fpSwings.length}</div><div style="color:#6b7280;">首球未揮棒</div></div>
+      </div>`}
+    </div>
+
+    <!-- ② 弱點球路×位置 -->
+    <div style="background:white;border-radius:12px;padding:14px;border:1px solid #e5e7eb;">
+      <div style="font-size:13px;font-weight:900;color:#003d79;margin-bottom:10px;border-left:4px solid #003d79;padding-left:8px;">② 弱點球路 × 位置</div>
+      ${!hasZD?`<div style="color:#9ca3af;font-size:12px;text-align:center;padding:16px 0;">資料不足</div>`:`
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div style="flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:3px;">
+            <div style="font-size:10px;font-weight:700;color:#9ca3af;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:2px;">L</div>
+            <div style="border:2.5px solid #ffd700;border-radius:8px;overflow:hidden;background:#003d79;">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5px;background:#003d79;padding:1.5px;">
+                ${[1,2,3,4,5,6,7,8,9].map(pz=>{const zs=pzSt[pz];const a=zs.n>0?zs.avg:null;const bg=pzFill(a);const tc=pzTC(a);return `<div style="background:${bg};width:52px;height:56px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;padding:2px;"><div style="font-size:7px;color:${tc};opacity:0.8;line-height:1;">${pzNm[pz]}</div>${zs.best?`<div style="font-size:7px;font-weight:800;color:${tc};line-height:1.1;">${zs.best}</div>`:`<div style="height:9px;"></div>`}<div style="font-size:13px;font-weight:900;font-family:'Oswald',sans-serif;color:${tc};line-height:1.1;">${a!==null?fmtAvg(a):'—'}</div><div style="font-size:7px;color:${tc};opacity:0.75;">${zs.n}球</div></div>`;}).join('')}
+              </div>
+            </div>
+            <div style="font-size:10px;font-weight:700;color:#9ca3af;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:2px;">R</div>
+          </div>
+          <div style="display:flex;gap:5px;font-size:9px;margin-top:5px;flex-wrap:wrap;">
+            <span><span style="display:inline-block;width:7px;height:7px;background:#dc2626;border-radius:1px;vertical-align:middle;margin-right:2px;"></span>≥.400</span>
+            <span><span style="display:inline-block;width:7px;height:7px;background:#f59e0b;border-radius:1px;vertical-align:middle;margin-right:2px;"></span>≥.250</span>
+            <span><span style="display:inline-block;width:7px;height:7px;background:#10b981;border-radius:1px;vertical-align:middle;margin-right:2px;"></span>安全</span>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:6px;">建議投球策略</div>
+          <div style="display:grid;grid-template-columns:34px 1fr 42px 24px;gap:3px;font-size:10px;color:#9ca3af;font-weight:600;padding:0 2px 4px;">
+            <span>區域</span><span>球種</span><span style="text-align:center;">安打率</span><span style="text-align:right;">球數</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            ${stratList.slice(0,7).map(z=>{const zs=pzSt[z];const rowBg=zs.avg>=0.400?'#fff1f2':zs.avg>=0.250?'#fffbeb':'#f0fdf4';const avgC=zs.avg>=0.400?'#dc2626':zs.avg>=0.250?'#b45309':'#059669';return `<div style="display:grid;grid-template-columns:34px 1fr 42px 24px;gap:3px;align-items:center;padding:4px 4px;background:${rowBg};border-radius:5px;"><div style="font-size:10px;font-weight:700;color:#374151;">${pzNm[z]}</div><div style="font-size:10px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${zs.best||'—'}</div><div style="font-size:11px;font-weight:800;color:${avgC};text-align:center;">${fmtAvg(zs.avg)}</div><div style="font-size:10px;color:#9ca3af;text-align:right;">${zs.n}</div></div>`;}).join('')}
+          </div>
+          ${bestComboZ?`
+          <div style="margin-top:8px;padding:7px 9px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10b981;">
+            <div style="font-size:9px;color:#6b7280;margin-bottom:2px;">✅ 最佳組合（≥5球）</div>
+            <div style="font-size:13px;font-weight:900;color:#065f46;">${pzNm[bestComboZ]} × ${pzSt[bestComboZ].best}</div>
+            <div style="font-size:10px;color:#047857;margin-top:1px;">安打率 ${fmtAvg(pzSt[bestComboZ].avg)} · ${pzSt[bestComboZ].n}球</div>
+          </div>`:`
+          <div style="margin-top:8px;padding:7px;background:#f9fafb;border-radius:8px;font-size:11px;color:#9ca3af;text-align:center;">最佳組合需 ≥5 球樣本</div>`}
+        </div>
+      </div>`}
+    </div>
+
+  </div>
+</div>`;
+
+            // 渲染成 canvas（等待字體載入後截圖）
+            const div = document.createElement('div');
+            div.style.cssText = 'position:fixed;top:-99999px;left:0;width:908px;background:white;';
+            div.innerHTML = html;
+            document.body.appendChild(div);
+            await new Promise(r => setTimeout(r, 500));
+
+            const canvas = await html2canvas(div, {
+                scale: 2, useCORS: true, backgroundColor: 'white',
+                width: 908, height: div.scrollHeight,
+                windowWidth: 908, windowHeight: div.scrollHeight + 200, logging: false
+            });
+            document.body.removeChild(div);
+
+            const pageW = 210;
+            const pxPerMm = canvas.width / pageW;
+            captures.push({ canvas, imgHeightMm: canvas.height / pxPerMm });
         }
-        if (!hasData) return null;
 
-        div.innerHTML = html;
-        document.body.appendChild(div);
-        await new Promise(r => setTimeout(r, 500));
-
-        const canvas = await html2canvas(div, {
-            scale: 2, useCORS: true, backgroundColor: '#f8f9fa',
-            width: 900, height: div.scrollHeight,
-            windowWidth: 900, windowHeight: div.scrollHeight + 100, logging: false
-        });
-        document.body.removeChild(div);
-
-        const pxPerMm = canvas.width / pageW;
-        const imgHeightMm = canvas.height / pxPerMm;
-        return { canvas, imgHeightMm };
+        return captures.length ? captures : null;
     }
 
     // ====== PDF EXPORT MODAL ======
