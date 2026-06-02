@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v503';
+﻿    const APP_VERSION = 'v504';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -13007,12 +13007,12 @@
             </div>`}
         </div>`;
 
-        // 放大 ①②③④ 四大區塊（螢幕＋PDF 共用同一支渲染，兩端同步變大）
-        // 等比例放大區塊內所有 px（字體＋容器＋間距一起放大，維持版面比例不破版）
-        const _QUAD_ZOOM = 1.18;
+        // 放大 ①②③④ 四大區塊字體（螢幕＋PDF 共用同一支渲染，兩端同步變大）
+        // 只放大 font-size，容器/間距維持不動 → 不影響現有版面
+        const _QUAD_ZOOM = 1.25;
         const _zoomPx = (html) => html.replace(
-            /(font-size|width|height|min-width|max-width|gap|padding|padding-top|padding-bottom|padding-left|padding-right|margin|margin-top|margin-bottom|border-radius|line-height):\s*([\d.]+)px/g,
-            (m, prop, n) => `${prop}:${(parseFloat(n) * _QUAD_ZOOM).toFixed(1)}px`);
+            /font-size:\s*([\d.]+)px/g,
+            (m, n) => `font-size:${(parseFloat(n) * _QUAD_ZOOM).toFixed(1)}px`);
         const _quadHTML = _zoomPx(`${secA}${secB}${secC}${secD}`);
 
         container.innerHTML = sec0 + sec2 + `
