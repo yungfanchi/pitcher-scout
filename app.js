@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v506';
+﻿    const APP_VERSION = 'v507';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -13764,6 +13764,8 @@
     let _bmSortKey = 'order'; // default sort: batting order
     let _bmSortDir = 'asc';   // 'asc' | 'desc'
     let _openBatterDetail = null; // 目前打開的打者詳細頁 {number, teamName}
+    let _bmStatsCollapsed = new Set(); // 統計頁已收合的球隊名（跨重繪保留）
+    let _bmStatsToolsCollapsed = false; // 統計頁上方工具按鈕列是否收合
 
     let _bmState = {
         recMode: 'linked',     // 'linked'|'standalone'
@@ -16401,17 +16403,35 @@
               <div style="font-size:11px;color:#9ca3af;text-align:right;margin-bottom:4px;">點擊欄位標題排序 · 點擊列查看詳情</div>`;
         };
 
-        const groupsHTML = Object.entries(teamGroupMap).map(([tname, map]) => {
+        const groupsHTML = Object.entries(teamGroupMap).map(([tname, map], gi) => {
             const rows = buildRows(map);
+            const bodyId = `bmStatsTeamBody_${gi}`;
+            const safeT = tname.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            const collapsed = _bmStatsCollapsed.has(tname);
             return `<div style="min-width:0;">
-                <div style="font-size:13px;font-weight:900;color:#003d79;padding:6px 0 4px;border-bottom:2px solid #003d79;margin-bottom:8px;">${tname}</div>
-                ${tableHTML(rows, tname)}
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 0 4px;border-bottom:2px solid #003d79;margin-bottom:8px;">
+                  <div onclick="toggleBmStatsTeam('${bodyId}','${safeT}',this)" style="flex:1;min-width:0;font-size:13px;font-weight:900;color:#003d79;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;">
+                    <span class="bm-caret" style="font-size:11px;line-height:1;${collapsed?'transform:rotate(-90deg);':''}">▼</span>
+                    <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tname}</span>
+                  </div>
+                  <button onclick="exportBmStatsTeamPDF('${bodyId}','${safeT}',this)"
+                    style="flex-shrink:0;padding:4px 12px;border-radius:8px;border:1.5px solid #dc0000;background:#fff;color:#dc0000;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">📄 PDF</button>
+                </div>
+                <div id="${bodyId}"${collapsed?' style="display:none;"':''}>
+                  ${tableHTML(rows, tname)}
+                </div>
             </div>`;
         }).join('');
 
         container.innerHTML = `
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
               <h2 style="margin:0;">📊 打者成績一覽</h2>
+              <button onclick="toggleBmStatsTools(this)"
+                style="padding:5px 14px;border-radius:8px;border:1.5px solid #6b7280;background:#fff;color:#374151;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+                ${_bmStatsToolsCollapsed ? '⚙️ 展開工具' : '⚙️ 收合工具'}
+              </button>
+            </div>
+            <div id="bmStatsTools" style="display:${_bmStatsToolsCollapsed?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
               <button onclick="pullBmFromFirebase(this)"
                 style="padding:5px 14px;border-radius:8px;border:1.5px solid #0051a5;background:#fff;color:#0051a5;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
                 🔄 同步落點
@@ -16439,6 +16459,69 @@
             showBmBatterDetail(_openBatterDetail.number, _openBatterDetail.teamName);
         }
     }
+
+    // ── 統計頁：單支球隊收合切換（純 UI，不動資料）──
+    function toggleBmStatsTeam(bodyId, tname, headerEl) {
+        const body = document.getElementById(bodyId);
+        if (!body) return;
+        const hide = body.style.display !== 'none';
+        body.style.display = hide ? 'none' : '';
+        if (hide) _bmStatsCollapsed.add(tname); else _bmStatsCollapsed.delete(tname);
+        const caret = headerEl && headerEl.querySelector('.bm-caret');
+        if (caret) caret.style.transform = hide ? 'rotate(-90deg)' : '';
+    }
+    window.toggleBmStatsTeam = toggleBmStatsTeam;
+
+    // ── 統計頁：上方工具按鈕列收合切換 ──
+    function toggleBmStatsTools(btn) {
+        _bmStatsToolsCollapsed = !_bmStatsToolsCollapsed;
+        const tools = document.getElementById('bmStatsTools');
+        if (tools) tools.style.display = _bmStatsToolsCollapsed ? 'none' : 'flex';
+        if (btn) btn.textContent = _bmStatsToolsCollapsed ? '⚙️ 展開工具' : '⚙️ 收合工具';
+    }
+    window.toggleBmStatsTools = toggleBmStatsTools;
+
+    // ── 統計頁：匯出單支球隊成績（摘要卡＋表格）為 PDF（純截圖，不動資料）──
+    async function exportBmStatsTeamPDF(bodyId, tname, btn) {
+        if (typeof html2canvas === 'undefined') { alert('截圖套件未載入，請重新整理頁面'); return; }
+        const body = document.getElementById(bodyId);
+        if (!body) { alert('找不到該球隊統計區塊'); return; }
+        // 若該隊目前收合，先暫時展開以便截圖，截完還原
+        const wasHidden = body.style.display === 'none';
+        if (wasHidden) body.style.display = '';
+        const orig = btn ? btn.textContent : '';
+        if (btn) { btn.textContent = '⏳ 產生中...'; btn.disabled = true; }
+        try {
+            const REPORT_W = 1100, pageW = 210;
+            const captureH = Math.max(body.scrollHeight, body.offsetHeight, 300);
+            const canvas = await html2canvas(body, {
+                scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#f8f9fa',
+                scrollX: 0, scrollY: 0,
+                width: REPORT_W, height: captureH,
+                windowWidth: REPORT_W, windowHeight: captureH + 400,
+                logging: false, imageTimeout: 15000,
+                onclone: (_doc, cloned) => {
+                    cloned.style.setProperty('display', 'block', 'important');
+                    cloned.style.setProperty('width', REPORT_W + 'px', 'important');
+                    cloned.style.setProperty('max-width', 'none', 'important');
+                    cloned.style.setProperty('height', 'auto', 'important');
+                    cloned.style.setProperty('overflow', 'visible', 'important');
+                    // 隱藏「點擊欄位排序」等互動提示，純呈現用
+                    cloned.querySelectorAll('button').forEach(b => b.style.setProperty('display', 'none', 'important'));
+                }
+            });
+            const pxPerMm = canvas.width / pageW;
+            const cap = { canvas, imgHeightMm: canvas.height / pxPerMm };
+            const fn = `${tname}_打者成績_${new Date().toISOString().slice(0,10)}.pdf`;
+            await _buildPDFFromCaptures([cap], fn);
+        } catch (e) {
+            alert('PDF 產生失敗，請稍後再試');
+        } finally {
+            if (wasHidden) body.style.display = 'none';
+            if (btn) { btn.textContent = orig; btn.disabled = false; }
+        }
+    }
+    window.exportBmStatsTeamPDF = exportBmStatsTeamPDF;
 
     // 從打席記錄推算打球型態（滾地球/平飛球/高飛球）
     function _getHitTypeFromAtBat(ab) {
