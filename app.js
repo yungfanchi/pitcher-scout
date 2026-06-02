@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v501';
+﻿    const APP_VERSION = 'v502';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -653,6 +653,15 @@
                     const lv = _doc.getElementById('batterListView');    if (lv) lv.style.setProperty('display', 'none', 'important');
                     // 藏掉互動元素（📍新增落點等），純呈現用
                     cloned.querySelectorAll('button').forEach(b => b.style.setProperty('display', 'none', 'important'));
+                    // html2canvas 對 width:100% 的 SVG 量寬會出錯，導致落點圖溢出壓到右側文字
+                    // → 給落點圖 SVG 固定寬度（只影響截圖，不動螢幕）
+                    cloned.querySelectorAll('svg').forEach(svg => {
+                        const st = svg.getAttribute('style') || '';
+                        if (st.replace(/\s/g, '').includes('width:100%')) {
+                            svg.style.setProperty('width', '500px', 'important');
+                            svg.style.setProperty('max-width', '500px', 'important');
+                        }
+                    });
                 }
             });
             const pxPerMm = canvas.width / pageW;
