@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v511';
+﻿    const APP_VERSION = 'v512';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -489,6 +489,24 @@
         }
     }
 
+    // 蒐集「可安全分頁的位置」（canvas 像素 y）— 以 .container 卡片與其直接子區塊的上下緣為界，
+    // 讓 _buildPDFFromCaptures 在這些縫隙斷頁，避免把整塊圖表切成兩頁。
+    function _collectPdfBreaks(rootEl, scale) {
+        const rootTop = rootEl.getBoundingClientRect().top;
+        const set = new Set([0]);
+        const add = (el) => {
+            const r = el.getBoundingClientRect();
+            if (r.height < 4) return;
+            set.add(Math.max(0, Math.round((r.top    - rootTop) * scale)));
+            set.add(Math.max(0, Math.round((r.bottom - rootTop) * scale)));
+        };
+        rootEl.querySelectorAll('.container').forEach(c => {
+            add(c);
+            Array.from(c.children).forEach(add);
+        });
+        return [...set].sort((a, b) => a - b);
+    }
+
     // ====== 截圖共用函式：只截圖，回傳 captures 陣列 ======
     async function _captureTabsToArray(tabIds, setProg) {
         const pageW = 210;
@@ -533,7 +551,15 @@
             await new Promise(r => setTimeout(r, 300));
 
             const REPORT_W = 1100;
+            // 先把實體元素設成輸出寬度，量到的高度與斷點才會與截圖一致（截完還原）
+            const _mainEl = document.querySelector('.main-content');
+            const _wRestore = [];
+            const _forceW = (el) => { if (!el) return; _wRestore.push([el, el.style.width, el.style.maxWidth]); el.style.setProperty('width', REPORT_W + 'px', 'important'); el.style.setProperty('max-width', 'none', 'important'); };
+            _forceW(_mainEl); _forceW(tabEl);
+            await new Promise(r => setTimeout(r, 250));
+
             const captureH = Math.max(tabEl.scrollHeight, tabEl.offsetHeight, 300);
+            const breaks = _collectPdfBreaks(tabEl, 2); // scale:2
 
             const canvas = await html2canvas(tabEl, {
                 scale: 2, useCORS: true, allowTaint: true,
@@ -575,10 +601,12 @@
             tabEl.style.removeProperty('height');
             tabEl.style.removeProperty('overflow');
             tabEl.style.removeProperty('max-height');
+            // 還原被強制的輸出寬度
+            _wRestore.forEach(([el, w, mw]) => { el.style.width = w; el.style.maxWidth = mw; });
 
             const pxPerMm = canvas.width / pageW;
             const imgHeightMm = canvas.height / pxPerMm;
-            captures.push({ canvas, imgHeightMm });
+            captures.push({ canvas, imgHeightMm, breaks });
 
             await new Promise(r => setTimeout(r, 150));
         }
@@ -607,11 +635,29 @@
 
         for (let i = 0; i < valid.length; i++) {
             const canvas = valid[i].canvas;
+            // 安全斷點（卡片縫隙）；無則退回硬切
+            const breaks = (valid[i].breaks && valid[i].breaks.length > 1) ? valid[i].breaks : null;
             // 影像滿版(contentW)時，一個 A4 內容區可容納的影像高度（換算回原始像素）
             const pageImgPx = Math.max(1, Math.floor(contentH * canvas.width / contentW));
             let offsetPx = 0;
             while (offsetPx < canvas.height) {
-                const slicePx = Math.min(pageImgPx, canvas.height - offsetPx);
+                const limitPx = Math.min(offsetPx + pageImgPx, canvas.height);
+                let sliceEnd;
+                if (limitPx >= canvas.height) {
+                    sliceEnd = canvas.height;            // 最後一頁
+                } else if (breaks) {
+                    // 取「offset < b <= limit」範圍內最大的斷點，在卡片縫隙斷頁
+                    let best = -1;
+                    for (let k = 0; k < breaks.length; k++) {
+                        const b = breaks[k];
+                        if (b > offsetPx && b <= limitPx) best = b;
+                        else if (b > limitPx) break;
+                    }
+                    sliceEnd = best > offsetPx ? best : limitPx; // 單一區塊高於整頁 → 硬切
+                } else {
+                    sliceEnd = limitPx;
+                }
+                const slicePx = sliceEnd - offsetPx;
                 // 切出本頁影像
                 const slice = document.createElement('canvas');
                 slice.width  = canvas.width;
