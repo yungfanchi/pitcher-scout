@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v510';
+﻿    const APP_VERSION = 'v511';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -585,21 +585,49 @@
         return captures;
     }
 
-    // ====== PDF 組合函式：從 captures 陣列建立並下載 PDF ======
+    // ====== PDF 組合函式：把每張截圖切成標準 A4 頁、滿版輸出 ======
+    // 舊版把整張長圖塞成一張「超長自訂尺寸頁」，印表機「縮放到頁面」時會被壓成窄條。
+    // 改為：每張截圖以 A4 寬度滿版鋪排，超過一頁高度就自動分頁，列印時不再縮小變窄。
     async function _buildPDFFromCaptures(captures, filename, setProg) {
         if (!captures.length) return;
         const JSPDF = window.jspdf?.jsPDF || window.jsPDF;
         if (!JSPDF) { alert('PDF 套件未載入，請重新整理頁面'); return; }
         // 過濾掉高度無效的截圖（防止 jsPDF.scale 錯誤）
-        const valid = captures.filter(c => c && c.canvas && c.imgHeightMm > 0 && isFinite(c.imgHeightMm));
+        const valid = captures.filter(c => c && c.canvas && c.canvas.width > 0 && c.canvas.height > 0);
         if (!valid.length) { alert('PDF 產生失敗：截圖高度異常，請重試'); return; }
-        const pageW = 210;
+
+        const pageW = 210, pageH = 297;        // A4 直式
+        const MARGIN = 7;                       // 邊界留白(mm)，避免印表機裁切
+        const contentW = pageW - MARGIN * 2;
+        const contentH = pageH - MARGIN * 2;
+
         if (setProg) setProg('組合 PDF...');
-        const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, valid[0].imgHeightMm] });
-        pdf.addImage(valid[0].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, valid[0].imgHeightMm);
-        for (let i = 1; i < valid.length; i++) {
-            pdf.addPage([pageW, valid[i].imgHeightMm]);
-            pdf.addImage(valid[i].canvas.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pageW, valid[i].imgHeightMm);
+        const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        let firstPage = true;
+
+        for (let i = 0; i < valid.length; i++) {
+            const canvas = valid[i].canvas;
+            // 影像滿版(contentW)時，一個 A4 內容區可容納的影像高度（換算回原始像素）
+            const pageImgPx = Math.max(1, Math.floor(contentH * canvas.width / contentW));
+            let offsetPx = 0;
+            while (offsetPx < canvas.height) {
+                const slicePx = Math.min(pageImgPx, canvas.height - offsetPx);
+                // 切出本頁影像
+                const slice = document.createElement('canvas');
+                slice.width  = canvas.width;
+                slice.height = slicePx;
+                const ctx = slice.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, slice.width, slice.height);
+                ctx.drawImage(canvas, 0, offsetPx, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+                const sliceHmm = slicePx * (contentW / canvas.width);
+
+                if (!firstPage) pdf.addPage();
+                firstPage = false;
+                // JPEG 0.92 + scale:2 原圖 → 約 280dpi，列印清晰
+                pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', MARGIN, MARGIN, contentW, sliceHmm);
+                offsetPx += slicePx;
+            }
         }
         if (setProg) setProg('儲存中...');
         await new Promise(r => setTimeout(r, 200));
@@ -16499,8 +16527,8 @@
                 if (el.getAttribute('data-bm-team') === teamName) target = el;
             });
             if (target) {
-                // 較窄的邏輯寬度 → 套到 A4 列印時整體字體放大；左右留白避免被印表機邊界裁切
-                const REPORT_W = 840, pageW = 210, PAD_X = 48, PAD_Y = 24;
+                // 較窄的邏輯寬度 → 套到 A4 列印時整體字體放大（A4 頁邊由 _buildPDFFromCaptures 統一處理）
+                const REPORT_W = 840, pageW = 210, PAD_X = 14, PAD_Y = 16;
                 // 先把實體元素設成輸出寬度＋留白＋縮小字距，量到正確高度（截完隨 innerHTML 還原）
                 target.style.boxSizing = 'border-box';
                 target.style.width = REPORT_W + 'px';
