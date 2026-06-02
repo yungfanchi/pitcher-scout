@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v508';
+﻿    const APP_VERSION = 'v509';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11676,7 +11676,6 @@
           <!-- 左中右標籤（cleanFan 模式顯示） -->
           ${cleanFan ? `
           <text x="38"  y="175" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左</text>
-          <text x="150" y="95"  text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-weight="700" font-family="sans-serif" style="pointer-events:none;">中</text>
           <text x="262" y="175" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右</text>
           ` : ''}
 
