@@ -1391,3 +1391,32 @@
 @media (max-width: 640px) {
     .bm-analysis-grid { grid-template-columns: 1fr; }
 }
+
+/* 打者落點圖區塊：落點圖 : 統計 : 情蒐備註（寬版＝桌面/PDF 維持三欄） */
+.bm-loc-grid {
+    display: grid;
+    grid-template-columns: 55% 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+}
+/* 中等寬度：情蒐備註收到下方整列，上方落點圖+統計兩欄，避免右側被擠扁變不對稱 */
+@media (max-width: 1024px) {
+    .bm-loc-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+    .bm-loc-grid > :nth-child(3) { grid-column: 1 / -1; }
+}
+/* 窄螢幕：全部單欄上下排 */
+@media (max-width: 640px) {
+    .bm-loc-grid { grid-template-columns: 1fr; }
+    .bm-loc-grid > :nth-child(3) { grid-column: auto; }
+}
+
+/* 無落點資料時：落點圖 : 情蒐備註（兩欄） */
+.bm-loc-grid-empty {
+    display: grid;
+    grid-template-columns: 55% 1fr;
+    gap: 16px;
+    align-items: stretch;
+}
+@media (max-width: 768px) {
+    .bm-loc-grid-empty { grid-template-columns: 1fr; }
+}

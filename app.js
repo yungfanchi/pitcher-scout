@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v504';
+﻿    const APP_VERSION = 'v505';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -653,6 +653,12 @@
                     const lv = _doc.getElementById('batterListView');    if (lv) lv.style.setProperty('display', 'none', 'important');
                     // 藏掉互動元素（📍新增落點等），純呈現用
                     cloned.querySelectorAll('button').forEach(b => b.style.setProperty('display', 'none', 'important'));
+                    // PDF 維持寬版三欄（不受螢幕響應式斷點影響）
+                    cloned.querySelectorAll('.bm-loc-grid').forEach(g => {
+                        g.style.setProperty('grid-template-columns', '55% 1fr 1fr', 'important');
+                        const third = g.children[2];
+                        if (third) third.style.setProperty('grid-column', 'auto', 'important');
+                    });
                     // html2canvas 對 width:100% 的 SVG 量寬會出錯，導致落點圖溢出壓到右側文字
                     // → 給落點圖 SVG 固定寬度（只影響截圖，不動螢幕）
                     cloned.querySelectorAll('svg').forEach(svg => {
@@ -12587,13 +12593,13 @@
               📍 新增落點</button>` : ''}
           </div>
           ${locs.length === 0
-            ? `<div style="display:grid;grid-template-columns:55% 1fr;gap:16px;align-items:stretch;">
+            ? `<div class="bm-loc-grid-empty">
             <div style="min-width:0;">
               ${buildFieldSVG('', false, true, '')}
               <div style="text-align:center;margin-top:6px;font-size:12px;color:#9ca3af;">尚無落點資料<br>記錄打席時點選球場圖即可建立</div>
             </div>
             <div style="min-width:0;">${secNotes}</div></div>`
-            : `<div style="display:grid;grid-template-columns:55% 1fr 1fr;gap:16px;align-items:stretch;">
+            : `<div class="bm-loc-grid">
             <!-- 落點圖 左側 -->
             <div style="min-width:0;">
               ${buildFieldSVG(linesHTML, false, true, hrLinesHTML)}
