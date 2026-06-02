@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v500';
+﻿    const APP_VERSION = 'v501';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -604,6 +604,89 @@
         if (setProg) setProg('儲存中...');
         await new Promise(r => setTimeout(r, 200));
         pdf.save(filename);
+    }
+
+    // ====== 打者 PDF：直接截「螢幕上的打者個人分析頁」(renderBmBatterProfile) ======
+    // 單一真相來源：PDF 與畫面共用同一支 renderBmBatterProfile，永遠一致（純呈現，不更動任何資料）。
+    // resolved: [{ entry, stats }]（來自 _bmBatterCardMap，與螢幕完全相同）
+    async function _captureBatterProfilesToArray(resolved, setProg) {
+        const pageW = 210, REPORT_W = 1100;
+        const captures = [];
+        const profileEl  = document.getElementById('bmBatterProfileContent');
+        const wrapper    = document.getElementById('batterModeWrapper');
+        const dataTab    = document.getElementById('bmBatterDataTab');
+        const listView   = document.getElementById('batterListView');
+        const detailView = document.getElementById('batterDetailView');
+        if (!profileEl || typeof renderBmBatterProfile !== 'function') return captures;
+
+        // 顯示打者詳細頁容器，讓 html2canvas 量得到完整高度
+        if (wrapper)    wrapper.style.display = 'block';
+        if (dataTab)  { dataTab.style.display = 'block'; dataTab.classList.add('active'); }
+        if (listView)   listView.style.display = 'none';
+        if (detailView) detailView.style.display = 'block';
+
+        for (let i = 0; i < resolved.length; i++) {
+            const { entry, stats } = resolved[i];
+            if (setProg) setProg(`截圖打者 ${entry.name || ''} (${i + 1}/${resolved.length})`);
+
+            // 用螢幕同一支函式渲染（不更動任何資料）
+            renderBmBatterProfile(entry.pitches, entry, stats);
+            await new Promise(r => setTimeout(r, 900));   // 等 SVG / reflow
+
+            const captureH = Math.max(profileEl.scrollHeight, profileEl.offsetHeight, 300);
+            const canvas = await html2canvas(profileEl, {
+                scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#f8f9fa',
+                scrollX: 0, scrollY: 0,
+                width: REPORT_W, height: captureH,
+                windowWidth: REPORT_W, windowHeight: captureH + 400,
+                logging: false, imageTimeout: 15000,
+                onclone: (_doc, cloned) => {
+                    cloned.style.setProperty('display', 'block', 'important');
+                    cloned.style.setProperty('width', REPORT_W + 'px', 'important');
+                    cloned.style.setProperty('max-width', 'none', 'important');
+                    cloned.style.setProperty('height', 'auto', 'important');
+                    cloned.style.setProperty('overflow', 'visible', 'important');
+                    // 容器在 clone 內也要可見
+                    const w  = _doc.getElementById('batterModeWrapper'); if (w)  w.style.setProperty('display', 'block', 'important');
+                    const dt = _doc.getElementById('bmBatterDataTab');   if (dt) { dt.style.setProperty('display', 'block', 'important'); dt.classList.add('active'); }
+                    const dv = _doc.getElementById('batterDetailView');  if (dv) dv.style.setProperty('display', 'block', 'important');
+                    const lv = _doc.getElementById('batterListView');    if (lv) lv.style.setProperty('display', 'none', 'important');
+                    // 藏掉互動元素（📍新增落點等），純呈現用
+                    cloned.querySelectorAll('button').forEach(b => b.style.setProperty('display', 'none', 'important'));
+                }
+            });
+            const pxPerMm = canvas.width / pageW;
+            captures.push({ canvas, imgHeightMm: canvas.height / pxPerMm });
+            await new Promise(r => setTimeout(r, 120));
+        }
+        return captures;
+    }
+
+    // 把 PDF 勾選的打者(cb.value: 'P|...' / 'BM|name') 對應到 _bmBatterCardMap 的 {entry,stats}
+    function _resolveBmCardEntry(cbValue, teamName) {
+        const rows = Object.values(_bmBatterCardMap || {});
+        if (cbValue.startsWith('P|')) {
+            // 'P|{battingTeam}|{numOr ordN}' 或舊格式 'P|{numOr ordN}'
+            const body = cbValue.slice(2);
+            const pipe = body.indexOf('|');
+            const bTeam  = pipe !== -1 ? body.slice(0, pipe) : (teamName || '');
+            const idPart = pipe !== -1 ? body.slice(pipe + 1) : body;
+            const num    = idPart.startsWith('ord') ? '' : idPart;
+            return rows.find(r => {
+                const e = r.entry;
+                if (bTeam && e.teamName !== bTeam) return false;
+                if (num) return String(e._bmNum || '') === num || e.nameKey === '#' + num;
+                return false;
+            }) || null;
+        }
+        if (cbValue.startsWith('BM|')) {
+            const name = cbValue.slice(3);
+            const byTeam = rows.find(r =>
+                (r.entry.name === name || r.entry.nameKey === name) &&
+                (!teamName || r.entry.teamName === teamName));
+            return byTeam || rows.find(r => r.entry.name === name || r.entry.nameKey === name) || null;
+        }
+        return null;
     }
 
     // ====== 截圖 PDF 共用助手（向後相容，generateScreenshotPDF 使用） ======
@@ -1620,22 +1703,49 @@
                 }
             }
 
-            // ====== 打者截圖：投手模式記錄（P|...）→ 自訂報告；打者模式（BM|...）→ bmStatsTab ======
+            // ====== 打者截圖：改為直接截「螢幕上的打者個人分析頁」(renderBmBatterProfile) ======
+            // 單一真相來源：與畫面共用同一支渲染函式，PDF 永遠跟畫面一致（純呈現，不更動任何資料）
             if (inclBatter && selBatterCbs.length) {
-                const pitchKeys = selBatterCbs.filter(cb => cb.value.startsWith('P|')).map(cb => cb.value);
-                const bmNames   = selBatterCbs.filter(cb => cb.value.startsWith('BM|')).map(cb => cb.value.slice(3));
+                setProg('整理打者資料...');
+                // 用螢幕的聚合邏輯建立 _bmBatterCardMap（合併投手記錄 + 打者模式）
+                const _savedBatterFilter = _batterTeamFilter;
+                const _savedProfileHTML  = document.getElementById('bmBatterProfileContent')?.innerHTML || '';
+                _batterTeamFilter = null;             // 取得全部球隊打者
+                _initBmData();
+                refreshBatterList();                  // 重建 _bmBatterCardMap
 
-                // 投手模式：生成打者成績自訂報告
-                if (pitchKeys.length) {
-                    setProg('生成打者成績報告...');
-                    const cap = await _generateBatterReportCapture(pitchKeys, teamName, gameIndex);
-                    if (cap) allCaptures.push(...cap);
+                const resolved            = [];
+                const unresolvedPitchKeys = [];
+                const unresolvedBmNames   = [];
+                selBatterCbs.forEach(cb => {
+                    const hit = _resolveBmCardEntry(cb.value, teamName);
+                    if (hit) resolved.push(hit);
+                    else if (cb.value.startsWith('P|'))  unresolvedPitchKeys.push(cb.value);
+                    else if (cb.value.startsWith('BM|')) unresolvedBmNames.push(cb.value.slice(3));
+                });
+
+                // 主路徑：截圖真實畫面（與螢幕完全相同）
+                if (resolved.length) {
+                    const caps = await _captureBatterProfilesToArray(resolved, setProg);
+                    allCaptures.push(...caps);
                 }
 
-                // 打者模式：截圖 bmStatsTab（過濾至勾選打者）
-                if (bmNames.length) {
+                // 還原螢幕狀態（filter + profile 內容 + 列表/詳細頁顯示）
+                _batterTeamFilter = _savedBatterFilter;
+                const _profEl = document.getElementById('bmBatterProfileContent');
+                if (_profEl) _profEl.innerHTML = _savedProfileHTML;
+                const _lv = document.getElementById('batterListView');  if (_lv) _lv.style.display = '';
+                const _dv = document.getElementById('batterDetailView'); if (_dv) _dv.style.display = 'none';
+
+                // 後備路徑：_bmBatterCardMap 找不到的（多為舊 batterData 資料），維持原本做法，確保不漏人
+                if (unresolvedPitchKeys.length) {
+                    setProg('生成打者成績報告...');
+                    const cap = await _generateBatterReportCapture(unresolvedPitchKeys, teamName, gameIndex);
+                    if (cap) allCaptures.push(...cap);
+                }
+                if (unresolvedBmNames.length) {
                     setProg('截圖打者模式數據...');
-                    const selNameSet = new Set(bmNames);
+                    const selNameSet = new Set(unresolvedBmNames);
                     allData.batterData = origBatterData.filter(b => selNameSet.has(b.name));
                     const captures = await _captureTabsToArray(['bmStatsTab', 'bmBatterDataTab'], setProg);
                     allCaptures.push(...captures);
