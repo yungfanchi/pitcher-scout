@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v509';
+﻿    const APP_VERSION = 'v510';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16499,7 +16499,15 @@
                 if (el.getAttribute('data-bm-team') === teamName) target = el;
             });
             if (target) {
-                const REPORT_W = 1100, pageW = 210;
+                // 較窄的邏輯寬度 → 套到 A4 列印時整體字體放大；左右留白避免被印表機邊界裁切
+                const REPORT_W = 840, pageW = 210, PAD_X = 48, PAD_Y = 24;
+                // 先把實體元素設成輸出寬度＋留白＋縮小字距，量到正確高度（截完隨 innerHTML 還原）
+                target.style.boxSizing = 'border-box';
+                target.style.width = REPORT_W + 'px';
+                target.style.padding = PAD_Y + 'px ' + PAD_X + 'px';
+                target.style.background = '#f8f9fa';
+                target.style.letterSpacing = '-0.02em';
+                await new Promise(r => setTimeout(r, 60));
                 const captureH = Math.max(target.scrollHeight, target.offsetHeight, 300);
                 const canvas = await html2canvas(target, {
                     scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#f8f9fa',
@@ -16509,10 +16517,14 @@
                     logging: false, imageTimeout: 15000,
                     onclone: (_doc, cloned) => {
                         cloned.style.setProperty('display', 'block', 'important');
+                        cloned.style.setProperty('box-sizing', 'border-box', 'important');
                         cloned.style.setProperty('width', REPORT_W + 'px', 'important');
                         cloned.style.setProperty('max-width', 'none', 'important');
                         cloned.style.setProperty('height', 'auto', 'important');
                         cloned.style.setProperty('overflow', 'visible', 'important');
+                        cloned.style.setProperty('padding', PAD_Y + 'px ' + PAD_X + 'px', 'important');
+                        cloned.style.setProperty('background', '#f8f9fa', 'important');
+                        cloned.style.setProperty('letter-spacing', '-0.02em', 'important');
                         cloned.querySelectorAll('button').forEach(b => b.style.setProperty('display', 'none', 'important'));
                     }
                 });
