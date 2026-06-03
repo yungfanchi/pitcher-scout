@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v516';
+﻿    const APP_VERSION = 'v517';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8484,6 +8484,28 @@
         }
     }
 
+    // 重連補傳離線資料時為 true，補傳成功後（onSuccess）跳一次「已上傳」提示
+    let _pendingOfflineFlush = false;
+
+    // 離線資料補傳成功的明確提示：讓使用者確定離線記錄已安全上雲
+    function _showOfflineSyncedToast() {
+        try {
+            const real = (allData.teams || []).filter(t => t && t.gameName !== '📄 PDF 報告');
+            const games = real.length;
+            const pitches = real.reduce((s, t) =>
+                s + (t.pitchers || []).reduce((a, p) => a + (p.pitches || []).length, 0), 0);
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:99999;background:#065f46;color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:700;font-family:"Noto Sans TC",sans-serif;box-shadow:0 6px 20px rgba(0,0,0,0.3);max-width:90%;text-align:center;line-height:1.5;';
+            toast.textContent = `✅ 已重新連線，本機資料已全部同步雲端（共 ${games} 場、${pitches} 球）`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.5s';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 4500);
+        } catch (e) {}
+    }
+
     // 監控連線狀態，重新連線時自動補傳
     db.ref('.info/connected').on('value', snap => {
         const connected = snap.val() === true;
@@ -8491,6 +8513,7 @@
         if (connected && pendingSync) {
             // 重新連線，自動補傳離線期間的資料
             pendingSync = false;
+            _pendingOfflineFlush = true;   // 補傳成功後顯示提示
             saveToFirebase();
         }
     });
@@ -8499,6 +8522,7 @@
     window.addEventListener('online', () => {
         if (pendingSync) {
             pendingSync = false;
+            _pendingOfflineFlush = true;   // 補傳成功後顯示提示
             saveToFirebase();
         }
     });
@@ -9249,6 +9273,11 @@
             setSyncStatus(true);
             pendingSync = false;
             try { localStorage.removeItem('_pendingSync'); } catch(e) {}
+            // 若這次寫入是「重連補傳離線資料」，跳一次明確提示
+            if (_pendingOfflineFlush) {
+                _pendingOfflineFlush = false;
+                _showOfflineSyncedToast();
+            }
         };
         const onFail = e => {
             console.warn('[Firebase] 寫入失敗:', e?.code || e);
