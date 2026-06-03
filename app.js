@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v512';
+﻿    const APP_VERSION = 'v513';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -489,21 +489,33 @@
         }
     }
 
-    // 蒐集「可安全分頁的位置」（canvas 像素 y）— 以 .container 卡片與其直接子區塊的上下緣為界，
+    // 蒐集「可安全分頁的位置」（canvas 像素 y）— 以 .container 卡片與其巢狀子區塊的上下緣為界，
     // 讓 _buildPDFFromCaptures 在這些縫隙斷頁，避免把整塊圖表切成兩頁。
+    // v513：改為「遞迴」蒐集斷點，提供更多細緻縫隙（子區塊、表格列…），
+    //       讓很高的卡片（如投手分析頁）能平均分成數頁輸出、不再裁切內容。
+    //       但圖表/九宮格/SVG 視為「原子元素」，只記外緣、不切內部，避免把整張圖切兩半。
     function _collectPdfBreaks(rootEl, scale) {
         const rootTop = rootEl.getBoundingClientRect().top;
         const set = new Set([0]);
+        // 原子元素：內部不可斷頁（圖表 / 九宮格落點圖 / SVG / 圖片）
+        const ATOMIC = '.strike-zone-extended, .strike-zone, .tendency-heatmap, .ball-tendency-heatmap, .heatmap, canvas, svg, img';
         const add = (el) => {
             const r = el.getBoundingClientRect();
             if (r.height < 4) return;
             set.add(Math.max(0, Math.round((r.top    - rootTop) * scale)));
             set.add(Math.max(0, Math.round((r.bottom - rootTop) * scale)));
         };
-        rootEl.querySelectorAll('.container').forEach(c => {
-            add(c);
-            Array.from(c.children).forEach(add);
-        });
+        // 遞迴：記下元素上下緣，非原子元素再深入子層找更細的縫隙
+        const walk = (el) => {
+            add(el);
+            if (el.matches && el.matches(ATOMIC)) return;   // 原子元素：不深入、不切內部
+            Array.from(el.children).forEach(child => {
+                const cr = child.getBoundingClientRect();
+                if (cr.height < 4) return;
+                walk(child);
+            });
+        };
+        rootEl.querySelectorAll('.container').forEach(walk);
         return [...set].sort((a, b) => a - b);
     }
 
