@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v517';
+﻿    const APP_VERSION = 'v518';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -534,8 +534,22 @@
         return breaks.sort((a, b) => a - b);
     }
 
+    // 從來源 canvas 垂直切出 [y0, y1) 區段，回傳新 canvas（底白）
+    function _sliceCanvasRegion(src, y0, y1) {
+        y0 = Math.max(0, Math.min(src.height, Math.round(y0)));
+        y1 = Math.max(y0 + 1, Math.min(src.height, Math.round(y1)));
+        const h = y1 - y0;
+        const c = document.createElement('canvas');
+        c.width = src.width; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, h);
+        ctx.drawImage(src, 0, y0, src.width, h, 0, 0, src.width, h);
+        return c;
+    }
+
     // ====== 截圖共用函式：只截圖，回傳 captures 陣列 ======
-    async function _captureTabsToArray(tabIds, setProg) {
+    // pageMode='pitcherFixed' 時，投手統計/分析頁改為「固定 4 頁」版型（見 _captureTabsToArray 內註解）
+    async function _captureTabsToArray(tabIds, setProg, pageMode) {
         const pageW = 210;
         const allTabs = [
             { id: 'statsTab',        label: '投手統計', upd: () => updateStats(),
@@ -625,15 +639,48 @@
                 }
             });
 
+            // ── pitcherFixed：固定 4 頁版型，趁強制寬度還在量子區塊 Y 邊界（canvas px, scale:2）──
+            // 第1頁=統計頁整頁；分析頁拆 3 頁：
+            //   [A] 熱區傾向 + 左右內外角（容器①前半）
+            //   [B] 首球習慣 + 兩好球決勝（容器①後半，切點在 #firstPitchAnalysis 區塊頂）
+            //   [C] 常用球種配球 + 壘上情境 + 領先落後 + 各球種效果（容器②③④⑤，切點在容器①底）
+            let _fixedGroups = null;   // 'whole' | [[y0,y1],...]
+            if (pageMode === 'pitcherFixed') {
+                if (tab.id === 'statsTab') {
+                    _fixedGroups = 'whole';
+                } else if (tab.id === 'analysisTab') {
+                    const tabTop = tabEl.getBoundingClientRect().top;
+                    const yOf = (el, edge) => Math.round((el.getBoundingClientRect()[edge] - tabTop) * 2);
+                    const fpWrap = document.getElementById('firstPitchAnalysis')?.parentElement;
+                    const c1 = document.getElementById('twoStrikeAnalysis')?.closest('.container');
+                    if (fpWrap && c1) {
+                        const cutA = yOf(fpWrap, 'top');
+                        const cutB = yOf(c1, 'bottom');
+                        if (cutA > 0 && cutB > cutA && cutB < canvas.height) {
+                            _fixedGroups = [[0, cutA], [cutA, cutB], [cutB, canvas.height]];
+                        }
+                    }
+                    if (!_fixedGroups) _fixedGroups = 'whole';   // 結構異常時退回整頁，至少不漏資料
+                }
+            }
+
             tabEl.style.removeProperty('height');
             tabEl.style.removeProperty('overflow');
             tabEl.style.removeProperty('max-height');
             // 還原被強制的輸出寬度
             _wRestore.forEach(([el, w, mw]) => { el.style.width = w; el.style.maxWidth = mw; });
 
-            const pxPerMm = canvas.width / pageW;
-            const imgHeightMm = canvas.height / pxPerMm;
-            captures.push({ canvas, imgHeightMm, breaks });
+            if (_fixedGroups === 'whole') {
+                captures.push({ canvas, fitPage: true });
+            } else if (Array.isArray(_fixedGroups)) {
+                _fixedGroups.forEach(([y0, y1]) => {
+                    captures.push({ canvas: _sliceCanvasRegion(canvas, y0, y1), fitPage: true });
+                });
+            } else {
+                const pxPerMm = canvas.width / pageW;
+                const imgHeightMm = canvas.height / pxPerMm;
+                captures.push({ canvas, imgHeightMm, breaks });
+            }
 
             await new Promise(r => setTimeout(r, 150));
         }
@@ -662,6 +709,19 @@
 
         for (let i = 0; i < valid.length; i++) {
             const canvas = valid[i].canvas;
+
+            // ── fitPage：整塊塞進「剛好一頁」，太高就等比例縮小、水平置中、頂端對齊 ──
+            if (valid[i].fitPage) {
+                if (!firstPage) pdf.addPage();
+                firstPage = false;
+                let wmm = contentW;
+                let hmm = canvas.height * (contentW / canvas.width);
+                if (hmm > contentH) { hmm = contentH; wmm = canvas.width * (contentH / canvas.height); }
+                const x = MARGIN + (contentW - wmm) / 2;
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, MARGIN, wmm, hmm);
+                continue;
+            }
+
             // 安全斷點（卡片縫隙）；無則退回硬切
             const breaks = (valid[i].breaks && valid[i].breaks.length > 1) ? valid[i].breaks : null;
             // 影像滿版(contentW)時，一個 A4 內容區可容納的影像高度（換算回原始像素）
@@ -1812,7 +1872,7 @@
                     if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
 
                     const captures = await _captureTabsToArray(['statsTab', 'analysisTab'],
-                        (msg) => setProg(`[${pitcherName}] ${msg}`));
+                        (msg) => setProg(`[${pitcherName}] ${msg}`), 'pitcherFixed');
                     allCaptures.push(...captures);
 
                     allData.teams.splice(tempIndex, 1);
