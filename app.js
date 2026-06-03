@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v519';
+﻿    const APP_VERSION = 'v520';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1508,7 +1508,8 @@
 
             const pageW = 210;
             const pxPerMm = canvas.width / pageW;
-            captures.push({ canvas, imgHeightMm: canvas.height / pxPerMm });
+            // 每位打者報告固定一頁：太高就等比例縮小塞進一張，不從區塊（如③兩好球應對）中間切開
+            captures.push({ canvas, imgHeightMm: canvas.height / pxPerMm, fitPage: true });
         }
 
         return captures.length ? captures : null;
