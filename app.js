@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v515';
+﻿    const APP_VERSION = 'v516';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -8918,7 +8918,6 @@
         firebaseListening = true;
 
         const gRef = getGamesRef();
-        const hasPendingSync = localStorage.getItem('_pendingSync') === '1';
 
         const bmRef = USER_TEAM_REF ? USER_TEAM_REF.child('bm') : null;
         const bdRef = USER_TEAM_REF ? USER_TEAM_REF.child('batterData') : null;
@@ -8994,6 +8993,12 @@
             bdRef ? bdRef.once('value') : Promise.resolve(null),
             prRef ? prRef.once('value') : Promise.resolve(null)
         ]).then(([newSnap, oldSnap, bmSnap, bdSnap, prSnap]) => {
+
+            // ── v516：在「合併當下」重新讀取 _pendingSync（不可用 listenFirebase 啟動時的舊值）──
+            // 冷啟動離線時，once('value') 會一直 pending 到重新連線才 resolve；這段期間使用者已離線
+            // 記錄並把 _pendingSync 設成 '1'。若沿用啟動時擷取的舊值（false），合併閘門會把本機
+            // 離線場次誤判為「雲端已刪除」而捨棄。改為此刻即時讀取，確保離線記錄一定被併回。
+            const hasPendingSync = localStorage.getItem('_pendingSync') === '1';
 
             // ── 收集所有候選賽事：永遠合併新舊兩條路徑 ──
             // 安全原則：寧可多讀，不可漏讀；舊路徑只在寫入新路徑成功後才刪除
