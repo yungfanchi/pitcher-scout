@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v513';
+﻿    const APP_VERSION = 'v514';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -493,12 +493,15 @@
     // 讓 _buildPDFFromCaptures 在這些縫隙斷頁，避免把整塊圖表切成兩頁。
     // v513：改為「遞迴」蒐集斷點，提供更多細緻縫隙（子區塊、表格列…），
     //       讓很高的卡片（如投手分析頁）能平均分成數頁輸出、不再裁切內容。
-    //       但圖表/九宮格/SVG 視為「原子元素」，只記外緣、不切內部，避免把整張圖切兩半。
+    // v514：斷點是一條「橫跨整頁寬」的水平線。圖表/九宮格與右側文字排名常並排，
+    //       右側文字列產生的斷點會「橫切」左邊的圖 → 整塊圖被切兩半。
+    //       因此最後一步要過濾掉「落在任何原子元素垂直範圍內」的斷點，保證斷線不穿過圖。
     function _collectPdfBreaks(rootEl, scale) {
         const rootTop = rootEl.getBoundingClientRect().top;
         const set = new Set([0]);
-        // 原子元素：內部不可斷頁（圖表 / 九宮格落點圖 / SVG / 圖片）
+        // 原子元素：內部不可斷頁（圖表 / 九宮格落點圖 / SVG / 圖片 / Chart.js 容器）
         const ATOMIC = '.strike-zone-extended, .strike-zone, .tendency-heatmap, .ball-tendency-heatmap, .heatmap, canvas, svg, img';
+        const atomicSpans = [];   // 原子元素的垂直範圍（canvas px），斷點不可落在其「內部」
         const add = (el) => {
             const r = el.getBoundingClientRect();
             if (r.height < 4) return;
@@ -508,7 +511,14 @@
         // 遞迴：記下元素上下緣，非原子元素再深入子層找更細的縫隙
         const walk = (el) => {
             add(el);
-            if (el.matches && el.matches(ATOMIC)) return;   // 原子元素：不深入、不切內部
+            if (el.matches && el.matches(ATOMIC)) {          // 原子元素：記外緣 + 登記範圍，不深入
+                const r = el.getBoundingClientRect();
+                atomicSpans.push([
+                    Math.round((r.top    - rootTop) * scale),
+                    Math.round((r.bottom - rootTop) * scale)
+                ]);
+                return;
+            }
             Array.from(el.children).forEach(child => {
                 const cr = child.getBoundingClientRect();
                 if (cr.height < 4) return;
@@ -516,7 +526,12 @@
             });
         };
         rootEl.querySelectorAll('.container').forEach(walk);
-        return [...set].sort((a, b) => a - b);
+        // 過濾：移除「嚴格落在某原子元素內部」的斷點（穿過圖的水平線），但保留圖的上下緣
+        const EPS = 2;
+        const breaks = [...set].filter(y =>
+            !atomicSpans.some(([t, b]) => y > t + EPS && y < b - EPS)
+        );
+        return breaks.sort((a, b) => a - b);
     }
 
     // ====== 截圖共用函式：只截圖，回傳 captures 陣列 ======
