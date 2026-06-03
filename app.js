@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v521';
+﻿    const APP_VERSION = 'v522';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1830,6 +1830,7 @@
         const origTabEl         = document.querySelector('.tab-content.active');
         const origTabId         = origTabEl?.id || 'recordTab';
         const origBatterData    = allData.batterData ? [...allData.batterData] : [];
+        const origStatsFilter   = statsFilter;   // 截投手統計時會暫改，finally 還原
 
         const allCaptures = [];
 
@@ -1854,6 +1855,7 @@
                             activeSlot = 'A';
                             currentTeam = _ti;
                             currentPitcher = _pIdx;
+                            statsFilter = getGameKey(_ti);   // 鎖定到所選單一場次（不重聚合成生涯）
                             if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
                             const captures = await _captureTabsToArray(['statsTab', 'analysisTab'],
                                 (msg) => setProg(`[${pitcherName}] ${msg}`), 'pitcherFixed');
@@ -1863,24 +1865,14 @@
                     }
 
                     let refPitcher = null;
-                    const _rawAgg = [];
+                    const aggregated = [];
                     allData.teams.forEach((team, ti) => {
                         if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
                         (team.pitchers || []).forEach(p => {
                             if (getPitcherKey(p.name, p.number) !== pitcherKey) return;
                             if (!refPitcher) refPitcher = p;
-                            (p.pitches || []).forEach(pitch => _rawAgg.push(pitch));
+                            (p.pitches || []).forEach(pitch => aggregated.push(pitch));
                         });
-                    });
-                    // 依 timestamp 去重：離線重連合併可能讓同一場投手記錄重複 entry，
-                    // 導致 PDF 聚合時同一顆球被算兩次（畫面看單一槽位正常）。
-                    // 同一顆球 timestamp 相同 → 只取一次；不同球（含跨場）timestamp 不同 → 保留；無 timestamp 的舊球全留。
-                    const aggregated = [];
-                    const _seenTs = new Set();
-                    _rawAgg.forEach(pitch => {
-                        const ts = pitch && pitch.timestamp;
-                        if (ts != null) { if (_seenTs.has(ts)) return; _seenTs.add(ts); }
-                        aggregated.push(pitch);
                     });
 
                     const filtered = handFilter === 'left'  ? aggregated.filter(p => p.batterHand === '左打') :
@@ -1903,6 +1895,9 @@
                     activeSlot = 'A';
                     currentTeam = tempIndex;
                     currentPitcher = 0;
+                    // ★ 關鍵：鎖定統計篩選到「這支合成隊」，否則 updateStats 在 'all' 模式會
+                    //   再依投手名字掃 allData.teams 重聚合，同時抓到合成隊＋真實隊 → 數據雙倍。
+                    statsFilter = getGameKey(tempIndex);
                     if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
 
                     const captures = await _captureTabsToArray(['statsTab', 'analysisTab'],
@@ -1983,6 +1978,7 @@
                 allData.teams.pop();
             }
             allData.batterData = origBatterData;
+            statsFilter = origStatsFilter;
             slotA = origSlotA; slotB = origSlotB; activeSlot = origActive;
             currentTeam = origCurrentTeam; currentPitcher = origCurrentPitcher;
             if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
