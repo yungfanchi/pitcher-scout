@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v520';
+﻿    const APP_VERSION = 'v521';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1842,15 +1842,45 @@
                     const pitcherName = pitcherKey.includes('#') ? pitcherKey.split('#')[0] : pitcherKey;
                     setProg(`整理 ${pitcherName} 資料 (${pi + 1}/${selPitcherCbs.length})`);
 
+                    // ★ 兩者結合：單一投手 + 單一場次 + 不分左右 → 直接把槽位指向「真實投手」截圖，
+                    //   完全不重撈資料（與螢幕同一份），徹底避免重複 entry 造成的數據雙倍。
+                    //   只有「多投手 / 全部場次 / 左右打篩選」這些畫面外的組合，才往下走重撈路徑（已 timestamp 去重）。
+                    if (selPitcherCbs.length === 1 && gameIndex !== 'all' && handFilter === 'all') {
+                        const _ti = parseInt(gameIndex);
+                        const _team = allData.teams[_ti];
+                        const _pIdx = (_team?.pitchers || []).findIndex(p => getPitcherKey(p.name, p.number) === pitcherKey);
+                        if (_team && _pIdx >= 0 && (_team.pitchers[_pIdx].pitches || []).length) {
+                            slotA = { team: _ti, pitcher: _pIdx };
+                            activeSlot = 'A';
+                            currentTeam = _ti;
+                            currentPitcher = _pIdx;
+                            if (typeof updateSlotDisplay === 'function') updateSlotDisplay();
+                            const captures = await _captureTabsToArray(['statsTab', 'analysisTab'],
+                                (msg) => setProg(`[${pitcherName}] ${msg}`), 'pitcherFixed');
+                            allCaptures.push(...captures);
+                            continue;   // 不建合成投手、不重撈
+                        }
+                    }
+
                     let refPitcher = null;
-                    const aggregated = [];
+                    const _rawAgg = [];
                     allData.teams.forEach((team, ti) => {
                         if (gameIndex !== 'all' && String(ti) !== String(gameIndex)) return;
                         (team.pitchers || []).forEach(p => {
                             if (getPitcherKey(p.name, p.number) !== pitcherKey) return;
                             if (!refPitcher) refPitcher = p;
-                            (p.pitches || []).forEach(pitch => aggregated.push(pitch));
+                            (p.pitches || []).forEach(pitch => _rawAgg.push(pitch));
                         });
+                    });
+                    // 依 timestamp 去重：離線重連合併可能讓同一場投手記錄重複 entry，
+                    // 導致 PDF 聚合時同一顆球被算兩次（畫面看單一槽位正常）。
+                    // 同一顆球 timestamp 相同 → 只取一次；不同球（含跨場）timestamp 不同 → 保留；無 timestamp 的舊球全留。
+                    const aggregated = [];
+                    const _seenTs = new Set();
+                    _rawAgg.forEach(pitch => {
+                        const ts = pitch && pitch.timestamp;
+                        if (ts != null) { if (_seenTs.has(ts)) return; _seenTs.add(ts); }
+                        aggregated.push(pitch);
                     });
 
                     const filtered = handFilter === 'left'  ? aggregated.filter(p => p.batterHand === '左打') :
