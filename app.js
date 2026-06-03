@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v518';
+﻿    const APP_VERSION = 'v519';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -591,7 +591,9 @@
             // 等待瀏覽器 reflow 後再量測完整高度
             await new Promise(r => setTimeout(r, 300));
 
-            const REPORT_W = 1100;
+            // pitcherFixed 的分析頁改用較窄寬度截圖：同內容會「往下長高、字變大」，更貼近直式 A4，
+            // 大幅減少塞滿一頁後的下方空白。維持 >768px 以避免觸發手機版排版。統計頁維持原寬。
+            const REPORT_W = (pageMode === 'pitcherFixed' && tab.id === 'analysisTab') ? 800 : 1100;
             // 先把實體元素設成輸出寬度，量到的高度與斷點才會與截圖一致（截完還原）
             const _mainEl = document.querySelector('.main-content');
             const _wRestore = [];
@@ -717,8 +719,9 @@
                 let wmm = contentW;
                 let hmm = canvas.height * (contentW / canvas.width);
                 if (hmm > contentH) { hmm = contentH; wmm = canvas.width * (contentH / canvas.height); }
-                const x = MARGIN + (contentW - wmm) / 2;
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, MARGIN, wmm, hmm);
+                const x = MARGIN + (contentW - wmm) / 2;   // 水平置中
+                const y = MARGIN + (contentH - hmm) / 2;   // 垂直置中：剩餘空白平均分配上下
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, wmm, hmm);
                 continue;
             }
 
