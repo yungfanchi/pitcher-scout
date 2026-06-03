@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v514';
+﻿    const APP_VERSION = 'v515';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -9214,6 +9214,16 @@
     function saveToFirebase(gameIdx) {
         lastSaveTime = Date.now();
         saveToLocalStorage();
+
+        // ── v515：離線寫入立即標記 _pendingSync ──
+        // 離線時 Firebase .set() 的 promise 會一直 pending（不 reject），onFail 不會觸發，
+        // 所以 _pendingSync 不會被設到。若使用者此時關閉 App 再重連，listenFirebase 的
+        // 合併閘門（hasPendingSync || !hasNewData）會把本機離線資料當成「雲端已刪除」而捨棄。
+        // → 只要當下偵測到離線就先標記，確保重連後本機離線資料會被正確併回（連線成功後 onSuccess 會清除）。
+        if (!navigator.onLine || isOnline === false) {
+            pendingSync = true;
+            try { localStorage.setItem('_pendingSync', '1'); } catch(e) {}
+        }
 
         // batterData + playerRegistry 寫入獨立節點（不受 gameIdx 影響）
         if (USER_TEAM_REF && allData.batterData) {
