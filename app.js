@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v522';
+﻿    const APP_VERSION = 'v523';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1139,7 +1139,7 @@
             }).join('');
             const hrLinesHTML = locPitches.filter(p=>oc(p).includes('全壘打')).map(p => {
                 const sx = (p.hitLocation.x*300).toFixed(1), sy = (p.hitLocation.y*280).toFixed(1);
-                return _makeHitLine(sx, sy, '#ffd700', false, 3, 0.9);
+                return _makeHitLine(sx, sy, '#dc2626', false, 3, 0.9);
             }).join('');
             const hitCnt = locPitches.filter(p=>oc(p).some(o=>HIT.includes(o))).length;
             const svgHTML = buildFieldSVG(linesHTML, false, true, hrLinesHTML);
@@ -11747,8 +11747,12 @@
 
         // 靜態模式（落點圖）：單色扇形，無區域色彩區分
         // 互動模式（選區）：保留完整色彩方便識別
-        const FAIR_S = '#5aad4a';  // 靜態-公平區（淺草地綠）
-        const FOUL_S = '#3d8a30';  // 靜態-界外區（稍深綠，與公平區區分）
+        // cleanFan 靜態落點圖（打者資訊 + PDF 報告共用）：球場改白底，
+        // 因原本邊線/壘線/壘包都是白色，白底會看不見 → 改用灰色標記。
+        const _whiteField = cleanFan && !isAny;
+        const FAIR_S = _whiteField ? '#ffffff' : '#5aad4a';  // 靜態-公平區（白底 / 淺草地綠）
+        const FOUL_S = '#3d8a30';  // 靜態-界外區（cleanFan 不繪界外區，維持原值）
+        const MK     = _whiteField ? '#9ca3af' : 'white';    // 邊線/外野牆/壘線/壘包顏色（白底用灰）
 
         const GR1 = isAny ? '#3a8428' : FAIR_S;  // 淺外野
         const GR3 = isAny ? '#2d6e20' : FAIR_S;  // 中外野（新增）
@@ -11843,7 +11847,7 @@
 
       // cleanFan 模式：透明背景、只顯示扇形、落點線 clip 到公平區
       const _vb  = cleanFan ? '-4 58 308 220' : '-20 55 340 250';
-      const _bg  = cleanFan ? '#fef9e7'      : '#162e12';
+      const _bg  = _whiteField ? '#ffffff' : cleanFan ? '#fef9e7' : '#162e12';
       const _clipId   = `${id}_fc`;
       const _hrClipId = `${id}_hrc`;
       return `<svg id="${id}" viewBox="${_vb}"
@@ -11889,10 +11893,10 @@
           ${san}${P}${yi}${catZone}
 
           <!-- 界外線 -->
-          <line x1="150" y1="272" x2="23" y2="145" stroke="white" stroke-width="1.5" opacity="0.6" style="pointer-events:none;"/>
-          <line x1="150" y1="272" x2="277" y2="145" stroke="white" stroke-width="1.5" opacity="0.6" style="pointer-events:none;"/>
+          <line x1="150" y1="272" x2="23" y2="145" stroke="${MK}" stroke-width="1.5" opacity="0.6" style="pointer-events:none;"/>
+          <line x1="150" y1="272" x2="277" y2="145" stroke="${MK}" stroke-width="1.5" opacity="0.6" style="pointer-events:none;"/>
           <!-- 外野牆弧線 -->
-          <path d="M 23 145 A 180 180 0 0 1 277 145" fill="none" stroke="white" stroke-width="1.5" opacity="0.45" style="pointer-events:none;"/>
+          <path d="M 23 145 A 180 180 0 0 1 277 145" fill="none" stroke="${MK}" stroke-width="1.5" opacity="0.45" style="pointer-events:none;"/>
           <!-- 捕手區分隔線（cleanFan 模式省略） -->
           ${cleanFan ? '' : `
           <line x1="105" y1="272" x2="105" y2="315" stroke="rgba(255,255,255,0.3)" stroke-width="1" style="pointer-events:none;"/>
@@ -11900,18 +11904,18 @@
 
           <!-- 壘包路徑（菱形） -->
           <polyline points="150,272 203,219 150,166 97,219 150,272"
-            fill="none" stroke="white" stroke-width="1.5" opacity="0.5" style="pointer-events:none;"/>
+            fill="none" stroke="${MK}" stroke-width="1.5" opacity="0.5" style="pointer-events:none;"/>
 
           <!-- 壘包 -->
-          <polygon points="150,265 155,272 150,279 145,272" fill="white" style="pointer-events:none;"/>
-          <rect x="200" y="216" width="7" height="7" fill="white" style="pointer-events:none;"/>
-          <rect x="147" y="163" width="7" height="7" fill="white" transform="rotate(45 150.5 166.5)" style="pointer-events:none;"/>
-          <rect x="94"  y="216" width="7" height="7" fill="white" style="pointer-events:none;"/>
+          <polygon points="150,265 155,272 150,279 145,272" fill="${MK}" style="pointer-events:none;"/>
+          <rect x="200" y="216" width="7" height="7" fill="${MK}" style="pointer-events:none;"/>
+          <rect x="147" y="163" width="7" height="7" fill="${MK}" transform="rotate(45 150.5 166.5)" style="pointer-events:none;"/>
+          <rect x="94"  y="216" width="7" height="7" fill="${MK}" style="pointer-events:none;"/>
 
           <!-- 左中右標籤（cleanFan 模式顯示） -->
           ${cleanFan ? `
-          <text x="38"  y="175" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左</text>
-          <text x="262" y="175" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右</text>
+          <text x="38"  y="175" text-anchor="middle" fill="${_whiteField ? '#6b7280' : 'rgba(255,255,255,0.7)'}" font-size="11" font-weight="700" font-family="sans-serif" style="pointer-events:none;">左</text>
+          <text x="262" y="175" text-anchor="middle" fill="${_whiteField ? '#6b7280' : 'rgba(255,255,255,0.7)'}" font-size="11" font-weight="700" font-family="sans-serif" style="pointer-events:none;">右</text>
           ` : ''}
 
           ${isAny ? `
@@ -12760,7 +12764,7 @@
         function _makeLine(p) {
             const sx = (p.hitLocation.x * 300).toFixed(1), sy = (p.hitLocation.y * 280).toFixed(1);
             const outcomes = p.outcomes || [];
-            const col = _isHR(p) ? '#ffd700' : outcomes.some(o => HIT.includes(o)) ? '#ef4444' : '#3b82f6';
+            const col = _isHR(p) ? '#dc2626' : outcomes.some(o => HIT.includes(o)) ? '#ef4444' : '#3b82f6';
             return _makeHitLine(sx, sy, col, outcomes.includes('平飛球出局'), 2.5, 0.85);
         }
         const linesHTML   = locs.filter(p => !_isHR(p)).map(_makeLine).join('');
@@ -12839,7 +12843,7 @@
               ${buildFieldSVG(linesHTML, false, true, hrLinesHTML)}
               <div style="display:flex;gap:10px;margin-top:8px;font-size:12px;color:#374151;flex-wrap:wrap;align-items:center;">
                 <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/></svg>安打（${_hitCnt - _hrCnt}）</span>
-                <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round"/></svg>全壘打（${_hrCnt}）</span>
+                <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round"/></svg>全壘打（${_hrCnt}）</span>
                 <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/></svg>非安打（${locs.length - _hitCnt}）</span>
                 <span><svg width="26" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="26" y2="6" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="2" x2="19" y2="10" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/></svg>平飛球</span>
                 <span style="margin-left:auto;color:#9ca3af;">共 ${locs.length} 筆</span>
