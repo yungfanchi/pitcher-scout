@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v536';
+﻿    const APP_VERSION = 'v537';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5130,39 +5130,29 @@
                 b.classList.toggle('active', b.dataset.hand === batterData.hand));
             currentPitch.batterHand = batterData.hand || '右打';
         } else {
-            // fallback 1.5：batter mode lineup（上半=lineupA 先攻, 下半=lineupB 後攻）
-            const bmLineup2 = battingTeam === 'teamA' ? allData.bm?.lineupA : allData.bm?.lineupB;
-            const bmBatter2 = bmLineup2 ? bmLineup2[batterOrder - 1] : null;
-            if (bmBatter2 && (bmBatter2.number || bmBatter2.name)) {
-                document.getElementById('batterNumber').value = bmBatter2.number || '';
-                document.getElementById('batterName').value   = bmBatter2.name   || '';
-                const hand = bmBatter2.hand || '右打';
-                document.querySelectorAll('.hand-btn').forEach(b =>
-                    b.classList.toggle('active', b.dataset.hand === hand));
-                currentPitch.batterHand = hand;
-            } else {
-                // fallback 2：從「正確 slot 的投手」pitch history 找打者
-                const ts = targetSlot === 'A' ? slotA : slotB;
-                let found = false;
-                if (ts.team !== null && ts.pitcher !== null) {
-                    const pitches = allData.teams[ts.team]?.pitchers[ts.pitcher]?.pitches || [];
-                    for (let i = pitches.length - 1; i >= 0; i--) {
-                        if (String(pitches[i].batterOrder) === String(batterOrder) && pitches[i].batterNumber) {
-                            document.getElementById('batterNumber').value = pitches[i].batterNumber || '';
-                            document.getElementById('batterName').value   = pitches[i].batterName  || '';
-                            const hand = pitches[i].batterHand || '右打';
-                            document.querySelectorAll('.hand-btn').forEach(b =>
-                                b.classList.toggle('active', b.dataset.hand === hand));
-                            currentPitch.batterHand = hand;
-                            found = true;
-                            break;
-                        }
+            // （v537 移除原 fallback 1.5：全域共用的打者模式打序 allData.bm.lineupA/B，
+            //  避免新場次自動帶入上一場/別隊打者。改為直接用本場、這位投手的投球記錄補帶。）
+            // fallback：從「正確 slot 的投手」本場投球記錄找同棒次打者
+            const ts = targetSlot === 'A' ? slotA : slotB;
+            let found = false;
+            if (ts.team !== null && ts.pitcher !== null) {
+                const pitches = allData.teams[ts.team]?.pitchers[ts.pitcher]?.pitches || [];
+                for (let i = pitches.length - 1; i >= 0; i--) {
+                    if (String(pitches[i].batterOrder) === String(batterOrder) && pitches[i].batterNumber) {
+                        document.getElementById('batterNumber').value = pitches[i].batterNumber || '';
+                        document.getElementById('batterName').value   = pitches[i].batterName  || '';
+                        const hand = pitches[i].batterHand || '右打';
+                        document.querySelectorAll('.hand-btn').forEach(b =>
+                            b.classList.toggle('active', b.dataset.hand === hand));
+                        currentPitch.batterHand = hand;
+                        found = true;
+                        break;
                     }
                 }
-                if (!found) {
-                    document.getElementById('batterNumber').value = '';
-                    document.getElementById('batterName').value   = '';
-                }
+            }
+            if (!found) {
+                document.getElementById('batterNumber').value = '';
+                document.getElementById('batterName').value   = '';
             }
         }
 
@@ -5973,17 +5963,8 @@
             applyLineupToUI(order);
             return;
         }
-        // Priority 1.5: batter mode lineup（上半局=BM lineupA 先攻, 下半局=BM lineupB 後攻）
-        const bmLineup = gameState.half === '上' ? allData.bm?.lineupA : allData.bm?.lineupB;
-        const bmBatter = bmLineup ? bmLineup[order - 1] : null;
-        if (bmBatter && (bmBatter.number || bmBatter.name)) {
-            document.getElementById('batterNumber').value = bmBatter.number || '';
-            document.getElementById('batterName').value   = bmBatter.name   || '';
-            const hand = bmBatter.hand || '右打';
-            document.querySelectorAll('.hand-btn').forEach(b => b.classList.toggle('active', b.dataset.hand === hand));
-            currentPitch.batterHand = hand;
-            return;
-        }
+        // （v537 移除 Priority 1.5：原本會 fallback 到全域共用的打者模式打序 allData.bm.lineupA/B，
+        //  導致新場次自動帶入上一場/別隊的打者。改為只用本場打序，沒有就往下用本場投球記錄。）
         // Priority 2: most recent pitch history for this order
         if (currentTeam === null || currentPitcher === null) return;
         const pitches = allData.teams[currentTeam].pitchers[currentPitcher].pitches;
