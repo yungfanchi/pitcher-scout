@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v528';
+﻿    const APP_VERSION = 'v529';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11772,6 +11772,7 @@
     // ── 落點圖共用常數（viewBox 300x280，本壘板 (150,272)）──
     const SPRAY_HX = 150, SPRAY_HY = 272;   // 本壘板座標
     const SPRAY_BUNT_R = 37.5;              // 短打區半徑：一般落點線改從此弧外緣出發
+    const SPRAY_INFIELD_R = 100;            // 內野半徑：落在此內的球(2B/SS等)整條線從本壘畫出（不從短打區外緣切）
 
     // ── 落點線 SVG helper ──
     // color: '#ef4444'安打 | '#ffd700'/'#dc2626'全壘打 | '#3b82f6'非安打
@@ -11782,7 +11783,8 @@
         const ex = parseFloat(x2), ey = parseFloat(y2);
         const dx = ex - SPRAY_HX, dy = ey - SPRAY_HY;
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        const startR = len > SPRAY_BUNT_R ? SPRAY_BUNT_R : 0;
+        // 外野球從短打區外緣出發（避免本壘附近擠成團）；內野球(距本壘較近)整條從本壘畫出，可達灰色內野線
+        const startR = len > SPRAY_INFIELD_R ? SPRAY_BUNT_R : 0;
         const x1 = SPRAY_HX + dx / len * startR, y1 = SPRAY_HY + dy / len * startR;
         const sdx = ex - x1, sdy = ey - y1, slen = Math.sqrt(sdx * sdx + sdy * sdy) || 1;
         let s = `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
@@ -11798,7 +11800,7 @@
     // 規則（純呈現，不動任何資料）：
     //  · 一般球：依端點分群，同位置的多筆線微錯開角度，且該位置越多筆顏色越深（越濃）
     //  · 全壘打：單獨一組線（cleanFan 時用較大半徑 clip，不被公平區裁掉）
-    //  · 短打（犧牲觸擊/觸擊安打）：不畫長線，改在「短打區」內依方向（三壘邊/中央/一壘邊）擺小圓點，群內錯開不重疊
+    //  · 短打（犧牲觸擊/觸擊安打）：在「短打區」內依方向（三壘邊/中央/一壘邊）畫短線（收在公平區內側、不貼邊線），群內錯開以區別重疊
     // locPitches: 每筆需有 hitLocation{x,y,zone}；oc(p) 回傳 outcomes 陣列；opts.hrColor 可指定全壘打色。
     function _buildSprayParts(locPitches, oc, opts) {
         opts = opts || {};
@@ -11842,26 +11844,30 @@
             return _makeHitLine(sx, sy, hrColor, false, 3, 0.9);
         }).join('');
 
-        // 短打：改用畫線呈現（短打安打上壘=紅線、犧牲觸擊出局=藍線），從本壘畫到落點（短打區內）；
-        // 同位置多筆微錯開避免重疊。
+        // 短打：畫線呈現。依方向（三壘邊/中央/一壘邊）從本壘畫短線，角度收在 ±26°（不貼界外邊線）；
+        // 線長在短打區內（較短）；同方向多筆微錯開以區別重疊；短打安打上壘=紅線、犧牲觸擊出局=藍線。
         let buntHTML = '';
         if (bunts.length) {
-            const bc = new Map();
-            bunts.forEach(p => {
-                const sx = p.hitLocation.x * 300, sy = p.hitLocation.y * 280;
-                const key = Math.round(sx / 12) + '_' + Math.round(sy / 12);
-                if (!bc.has(key)) bc.set(key, []);
-                bc.get(key).push({ sx, sy, hit: (oc(p) || []).some(o => _HITNOHR.includes(o)) });
-            });
-            bc.forEach(arr => {
-                const n = arr.length;
+            const dirOf = p => {
+                const z = p.hitLocation?.zone || '';
+                if (z.includes('三短') || z === '3B' || z === '左界外') return -1;
+                if (z.includes('一短') || z === '1B' || z === '右界外') return 1;
+                if (z) return 0;
+                const x = p.hitLocation?.x ?? 0.5;
+                return x < 0.43 ? -1 : x > 0.57 ? 1 : 0;
+            };
+            const groups = { '-1': [], '0': [], '1': [] };
+            bunts.forEach(p => groups[dirOf(p)].push({ hit: (oc(p) || []).some(o => _HITNOHR.includes(o)) }));
+            const baseAng = { '-1': -26, '0': 0, '1': 26 };   // 方向基準角（度，收在公平區內側）
+            const R = 26;                                      // 短打線長（短打區內，較落點線短約 25%）
+            ['-1', '0', '1'].forEach(d => {
+                const arr = groups[d], n = arr.length;
+                if (!n) return;
                 arr.forEach((m, i) => {
-                    let ang = 0;
-                    if (n > 1) { const step = Math.min(9, 28 / n); ang = (i - (n - 1) / 2) * step * Math.PI / 180; }
-                    const dx = m.sx - SPRAY_HX, dy = m.sy - SPRAY_HY;
-                    const rx = SPRAY_HX + dx * Math.cos(ang) - dy * Math.sin(ang);
-                    const ry = SPRAY_HY + dx * Math.sin(ang) + dy * Math.cos(ang);
-                    buntHTML += `<line x1="${SPRAY_HX}" y1="${SPRAY_HY}" x2="${rx.toFixed(1)}" y2="${ry.toFixed(1)}" stroke="${m.hit ? '#ef4444' : '#3b82f6'}" stroke-width="3" opacity="0.9" stroke-linecap="round" style="pointer-events:none;"/>`;
+                    const step = n > 1 ? Math.min(8, 22 / n) : 0;
+                    const a = (baseAng[d] + (i - (n - 1) / 2) * step) * Math.PI / 180;
+                    const ex = SPRAY_HX + R * Math.sin(a), ey = SPRAY_HY - R * Math.cos(a);
+                    buntHTML += `<line x1="${SPRAY_HX}" y1="${SPRAY_HY}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${m.hit ? '#ef4444' : '#3b82f6'}" stroke-width="3" opacity="0.9" stroke-linecap="round" style="pointer-events:none;"/>`;
                 });
             });
         }
