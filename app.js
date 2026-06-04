@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v532';
+﻿    const APP_VERSION = 'v533';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12996,6 +12996,9 @@
             ${_profileNum ? `<button onclick="_showAddHitLocInline('${_profNumEsc}','${_profTeamEsc}',this,'statsHitLocInlineBox')"
               style="padding:4px 12px;border-radius:7px;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
               📍 新增落點</button>` : ''}
+            ${(_profileNum && _profileDirect.length) ? `<button onclick="_showDelHitLocInline('${_profNumEsc}','${_profTeamEsc}',this)"
+              style="padding:4px 12px;border-radius:7px;border:1.5px solid #dc2626;background:#fff;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">
+              🗑️ 刪除手動落點（${_profileDirect.length}）</button>` : ''}
           </div>
           ${locs.length === 0
             ? `<div class="bm-loc-grid-empty">
@@ -17587,6 +17590,43 @@
         }
     }
     window._saveDirectHitLoc = _saveDirectHitLoc;
+
+    // ── 個人卡：列出並刪除「手動新增的落點」(bm.hitLocations)。只影響手動落點，不動正式打席數據 ──
+    function _showDelHitLocInline(number, teamName, btn) {
+        const box = document.getElementById('statsHitLocInlineBox');
+        if (!box) return;
+        if (box.getAttribute('data-mode') === 'del') {   // 再按一次收合
+            box.innerHTML = ''; box.removeAttribute('data-mode'); return;
+        }
+        const list = (allData.bm?.hitLocations || []).filter(l =>
+            String(l.number) === String(number) && (teamName ? l.team === teamName : true))
+            .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        const tnEsc = String(teamName || '').replace(/'/g, "\\'");
+        const numEsc = String(number || '').replace(/'/g, "\\'");
+        const rows = list.length ? list.map(l => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #fde68a;border-radius:8px;margin-bottom:6px;background:#fffbeb;">
+              <span style="flex:1;font-size:13px;color:#374151;"><b>${escapeHtml(l.zone || '?')}</b> · ${escapeHtml(l.outcome || '未填結果')}</span>
+              <button onclick="_delDirectHitLocCard(${l.ts || 'null'},'${numEsc}','${tnEsc}')"
+                style="padding:5px 12px;border-radius:7px;border:1.5px solid #dc2626;background:#fff;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ 刪除</button>
+            </div>`).join('')
+            : `<div style="font-size:13px;color:#9ca3af;">沒有可刪除的手動落點。</div>`;
+        box.innerHTML = `<div style="margin-top:12px;padding:12px;background:#fff;border:1.5px solid #fecaca;border-radius:10px;">
+            <div style="font-size:13px;font-weight:800;color:#b91c1c;margin-bottom:8px;">🗑️ 刪除手動落點（只移除你手動新增的落點，不影響正式打席與其他數據）</div>
+            ${rows}</div>`;
+        box.setAttribute('data-mode', 'del');
+    }
+    window._showDelHitLocInline = _showDelHitLocInline;
+
+    function _delDirectHitLocCard(ts, number, teamName) {
+        if (ts === null || ts === undefined || ts === 'null') return;
+        if (!confirm('確定刪除這筆手動新增的落點？（不影響其他數據）')) return;
+        _initBmData();
+        allData.bm.hitLocations = (allData.bm.hitLocations || []).filter(l => l.ts !== ts);
+        saveToLocalStorage();
+        saveBmToFirebase();
+        if (_bmCurrentCardKey) showBmBatterCard(_bmCurrentCardKey);   // 重繪個人卡（清單會自動更新/關閉）
+    }
+    window._delDirectHitLocCard = _delDirectHitLocCard;
 
     // ── 補錄落點：全域狀態 ──
     let _hitLocPatchTs           = null;
