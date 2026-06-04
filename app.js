@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v534';
+﻿    const APP_VERSION = 'v535';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16351,7 +16351,7 @@
     // ── 打者最近記錄：刪除 ──
     function deleteBmAtBat(ts) {
         if (!confirm('確定刪除這筆打席記錄？')) return;
-        const idx = (allData.bm && allData.bm.atBats || []).findIndex(a => a.ts === ts);
+        const idx = (allData.bm && allData.bm.atBats || []).findIndex(a => String(a.ts) === String(ts));
         if (idx < 0) return;
         allData.bm.atBats.splice(idx, 1);
         saveToLocalStorage();
@@ -17430,25 +17430,25 @@
             btn.addEventListener('click', _h);
             btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
         });
-        // 🗑️ 刪除落點（inline onclick 在部分裝置失效 → 改用事件綁定）
+        // 🗑️ 刪除落點（inline onclick 在部分裝置失效 → 改事件綁定；ts 保留字串，避免 ISO 時間被轉成 NaN）
         detailEl.querySelectorAll('.bm-del-loc-btn').forEach(btn => {
-            const ts       = btn.dataset.ts ? Number(btn.dataset.ts) : null;
+            const ts       = btn.dataset.ts || null;
             const isDirect = btn.dataset.isdirect === 'true';
             const mode     = btn.dataset.mode || '';
             const _h = (e) => { e.stopPropagation(); deleteHitLoc(ts, isDirect, numStr, teamStr, mode); };
             btn.addEventListener('click', _h);
             btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
         });
-        // ✕ 刪除整筆打席
+        // ✕ 刪除整筆打席（deleteBmAtBat 內已有確認，不重複 confirm）
         detailEl.querySelectorAll('.bm-del-ab-btn').forEach(btn => {
-            const ts = Number(btn.dataset.ts);
-            const _h = (e) => { e.stopPropagation(); if (confirm('確定刪除這筆打席記錄？')) deleteBmAtBat(ts); };
+            const ts = btn.dataset.ts || null;
+            const _h = (e) => { e.stopPropagation(); deleteBmAtBat(ts); };
             btn.addEventListener('click', _h);
             btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
         });
         // 🗑️ 刪除手動補錄落點
         detailEl.querySelectorAll('.bm-del-direct-btn').forEach(btn => {
-            const ts = btn.dataset.ts ? Number(btn.dataset.ts) : null;
+            const ts = btn.dataset.ts || null;
             const _h = (e) => { e.stopPropagation(); deleteHitLoc(ts, true, numStr, teamStr, 'direct'); };
             btn.addEventListener('click', _h);
             btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
@@ -17466,9 +17466,10 @@
     function deleteHitLoc(ts, isDirect, number, teamStr, mode) {
         if (!confirm('確定刪除這筆落點？')) return;
         _initBmData();
+        const eq = (a, b) => String(a) === String(b);   // timestamp 可能是數字或字串 ISO → 統一字串比對
         if (isDirect) {
             // 直接補錄記錄 → 從 bm.hitLocations 移除
-            allData.bm.hitLocations = allData.bm.hitLocations.filter(l => l.ts !== ts);
+            allData.bm.hitLocations = allData.bm.hitLocations.filter(l => !eq(l.ts, ts));
             saveBmToFirebase();
         } else if (mode === 'pitch') {
             // 投球記錄 → 清除對應 pitch 的 hitLocation
@@ -17477,16 +17478,15 @@
                 if (found) return;
                 (team.pitchers || []).forEach(pitcher => {
                     (pitcher.pitches || []).forEach(pitch => {
-                        if (pitch.timestamp === ts) { delete pitch.hitLocation; found = true; }
+                        if (!found && eq(pitch.timestamp, ts)) { delete pitch.hitLocation; found = true; }
                     });
                 });
             });
             if (found) saveToFirebase();
         } else {
             // bm.atBats → 只清除 hitLocation，保留打席其他數據
-            const idx = (allData.bm.atBats || []).findIndex(a => a.ts === ts);
-            if (idx >= 0) delete allData.bm.atBats[idx].hitLocation;
-            saveBmToFirebase();
+            const idx = (allData.bm.atBats || []).findIndex(a => eq(a.ts, ts));
+            if (idx >= 0) { delete allData.bm.atBats[idx].hitLocation; saveBmToFirebase(); }
         }
         saveToLocalStorage();
         showBmBatterDetail(number, teamStr);
