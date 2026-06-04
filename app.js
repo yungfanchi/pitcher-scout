@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v526';
+﻿    const APP_VERSION = 'v527';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1161,17 +1161,9 @@
 
             // ── 落點圖 ──
             const locPitches = pitches.filter(p => p.hitLocation && oc(p).some(o => BIP.includes(o)));
-            const linesHTML = locPitches.filter(p=>!oc(p).includes('全壘打')).map(p => {
-                const sx = (p.hitLocation.x*300).toFixed(1), sy = (p.hitLocation.y*280).toFixed(1);
-                const col = oc(p).some(o=>HIT.includes(o)) ? '#ef4444' : '#3b82f6';
-                return _makeHitLine(sx, sy, col, oc(p).includes('平飛球出局'), 3, 0.85);
-            }).join('');
-            const hrLinesHTML = locPitches.filter(p=>oc(p).includes('全壘打')).map(p => {
-                const sx = (p.hitLocation.x*300).toFixed(1), sy = (p.hitLocation.y*280).toFixed(1);
-                return _makeHitLine(sx, sy, '#dc2626', false, 3, 0.9);
-            }).join('');
-            const hitCnt = locPitches.filter(p=>oc(p).some(o=>HIT.includes(o))).length;
-            const svgHTML = buildFieldSVG(linesHTML, false, true, hrLinesHTML);
+            const _spray = _buildSprayParts(locPitches, oc);
+            const linesHTML = _spray.linesHTML, hrLinesHTML = _spray.hrLinesHTML, hitCnt = _spray.hitCnt;
+            const svgHTML = buildFieldSVG(linesHTML, false, true, hrLinesHTML, _spray.buntHTML);
 
             // ── 方向/型態分析 ──
             const leftL  = locPitches.filter(p=>p.hitLocation.x<0.43);
@@ -1314,9 +1306,10 @@
     <div style="display:grid;grid-template-columns:320px 1fr 200px;gap:14px;align-items:start;">
       <div>
         ${svgHTML}
-        <div style="display:flex;gap:10px;margin-top:6px;font-size:11px;">
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:11px;flex-wrap:wrap;align-items:center;">
           <span style="color:#ef4444;">— 安打（${hitCnt}）</span>
           <span style="color:#3b82f6;">— 非安打（${locPitches.length-hitCnt}）</span>
+          ${_spray.buntCnt>0?`<span style="color:#b45309;">● 短打（${_spray.buntCnt}）</span>`:''}
           <span style="color:#9ca3af;margin-left:auto;">共 ${locPitches.length} 筆</span>
         </div>
       </div>
@@ -11777,27 +11770,115 @@
         if (cb) cb(null);
     }
 
+    // ── 落點圖共用常數（viewBox 300x280，本壘板 (150,272)）──
+    const SPRAY_HX = 150, SPRAY_HY = 272;   // 本壘板座標
+    const SPRAY_BUNT_R = 50;                // 短打區半徑：一般落點線改從此弧外緣出發
+
     // ── 落點線 SVG helper ──
-    // color: '#ef4444'安打 | '#ffd700'全壘打 | '#3b82f6'非安打
+    // color: '#ef4444'安打 | '#ffd700'/'#dc2626'全壘打 | '#3b82f6'非安打
     // isLineDrive: 平飛球時加垂直橫槓在線條 75% 處
+    // 線起點改從「短打區外緣」沿落點方向出發（落點落在短打區內則退回本壘），讓本壘附近不再擠成一團。
     function _makeHitLine(x2, y2, color, isLineDrive, sw, op) {
         sw = sw || 2.5; op = op === undefined ? 0.85 : op;
         const ex = parseFloat(x2), ey = parseFloat(y2);
-        const dx = ex - 150, dy = ey - 272;
+        const dx = ex - SPRAY_HX, dy = ey - SPRAY_HY;
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        let s = `<line x1="150" y1="272" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
+        const startR = len > SPRAY_BUNT_R ? SPRAY_BUNT_R : 0;
+        const x1 = SPRAY_HX + dx / len * startR, y1 = SPRAY_HY + dy / len * startR;
+        const sdx = ex - x1, sdy = ey - y1, slen = Math.sqrt(sdx * sdx + sdy * sdy) || 1;
+        let s = `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
         if (isLineDrive) {
-            const mx = (150 + dx * 0.75).toFixed(1), my = (272 + dy * 0.75).toFixed(1);
-            const px = (-dy / len * 7).toFixed(1), py = (dx / len * 7).toFixed(1);
-            s += `<line x1="${(+mx - +px).toFixed(1)}" y1="${(+my - +py).toFixed(1)}" x2="${(+mx + +px).toFixed(1)}" y2="${(+my + +py).toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
+            const mx = x1 + sdx * 0.75, my = y1 + sdy * 0.75;
+            const px = -sdy / slen * 7, py = sdx / slen * 7;
+            s += `<line x1="${(mx - px).toFixed(1)}" y1="${(my - py).toFixed(1)}" x2="${(mx + px).toFixed(1)}" y2="${(my + py).toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
         }
         return s;
+    }
+
+    // ── 落點圖：把一組落點轉成「一般線 / 全壘打線 / 短打區記號」三部分 ──
+    // 規則（純呈現，不動任何資料）：
+    //  · 一般球：依端點分群，同位置的多筆線微錯開角度，且該位置越多筆顏色越深（越濃）
+    //  · 全壘打：單獨一組線（cleanFan 時用較大半徑 clip，不被公平區裁掉）
+    //  · 短打（犧牲觸擊/觸擊安打）：不畫長線，改在「短打區」內依方向（三壘邊/中央/一壘邊）擺小圓點，群內錯開不重疊
+    // locPitches: 每筆需有 hitLocation{x,y,zone}；oc(p) 回傳 outcomes 陣列；opts.hrColor 可指定全壘打色。
+    function _buildSprayParts(locPitches, oc, opts) {
+        opts = opts || {};
+        const hrColor = opts.hrColor || '#dc2626';
+        const _HIT     = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
+        const _HITNOHR = ['內野安打','一壘安打','二壘安打','三壘安打'];
+        const isBunt = p => !!p.isBunt || (oc(p) || []).includes('犧牲觸擊');
+        const isHR   = p => (oc(p) || []).includes('全壘打');
+        const isHit  = p => (oc(p) || []).some(o => _HIT.includes(o));
+        const isLD   = p => (oc(p) || []).includes('平飛球出局');
+
+        const bunts = locPitches.filter(isBunt);
+        const hrs   = locPitches.filter(p => !isBunt(p) && isHR(p));
+        const norm  = locPitches.filter(p => !isBunt(p) && !isHR(p));
+
+        // 一般線：依端點 16px 網格分群 → 群內微錯開角度、群越大顏色越深
+        const clusters = new Map();
+        norm.forEach(p => {
+            const sx = p.hitLocation.x * 300, sy = p.hitLocation.y * 280;
+            const key = Math.round(sx / 16) + '_' + Math.round(sy / 16);
+            if (!clusters.has(key)) clusters.set(key, []);
+            clusters.get(key).push({ sx, sy, hit: isHit(p), ld: isLD(p) });
+        });
+        let linesHTML = '';
+        clusters.forEach(arr => {
+            const n = arr.length;
+            const op = Math.min(0.95, 0.5 + 0.12 * (n - 1));   // 同位置越多筆 → 越深
+            const sw = n >= 3 ? 3.4 : 3;
+            arr.forEach((m, i) => {
+                let ang = 0;
+                if (n > 1) { const step = Math.min(7, 26 / n); ang = (i - (n - 1) / 2) * step * Math.PI / 180; }
+                const dx = m.sx - SPRAY_HX, dy = m.sy - SPRAY_HY;
+                const rx = SPRAY_HX + dx * Math.cos(ang) - dy * Math.sin(ang);
+                const ry = SPRAY_HY + dx * Math.sin(ang) + dy * Math.cos(ang);
+                linesHTML += _makeHitLine(rx.toFixed(1), ry.toFixed(1), m.hit ? '#ef4444' : '#3b82f6', m.ld, sw, op);
+            });
+        });
+
+        const hrLinesHTML = hrs.map(p => {
+            const sx = (p.hitLocation.x * 300).toFixed(1), sy = (p.hitLocation.y * 280).toFixed(1);
+            return _makeHitLine(sx, sy, hrColor, false, 3, 0.9);
+        }).join('');
+
+        // 短打：短打區內依方向擺小圓點（紅=安打 藍=非安打），群內錯開
+        let buntHTML = '';
+        if (bunts.length) {
+            const dirOf = p => {
+                const z = p.hitLocation?.zone || '';
+                if (z.includes('三短') || z === '3B' || z === '左界外') return -1;
+                if (z.includes('一短') || z === '1B' || z === '右界外') return 1;
+                if (z) return 0;
+                const x = p.hitLocation?.x ?? 0.5;
+                return x < 0.43 ? -1 : x > 0.57 ? 1 : 0;
+            };
+            const groups = { '-1': [], '0': [], '1': [] };
+            bunts.forEach(p => groups[dirOf(p)].push(p));
+            const baseAng = { '-1': -27, '0': 0, '1': 27 };
+            ['-1', '0', '1'].forEach(d => {
+                const arr = groups[d], n = arr.length;
+                if (!n) return;
+                arr.forEach((p, i) => {
+                    const step = n > 1 ? Math.min(10, 34 / n) : 0;
+                    const a = (baseAng[d] + (i - (n - 1) / 2) * step) * Math.PI / 180;
+                    const R = 36;
+                    const cx = SPRAY_HX + R * Math.sin(a), cy = SPRAY_HY - R * Math.cos(a);
+                    const hit = (oc(p) || []).some(o => _HITNOHR.includes(o));
+                    buntHTML += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.4" fill="${hit ? '#ef4444' : '#3b82f6'}" stroke="#fff" stroke-width="0.9" style="pointer-events:none;"/>`;
+                });
+            });
+        }
+
+        const hitCnt = locPitches.filter(isHit).length;
+        return { linesHTML, hrLinesHTML, buntHTML, hitCnt, total: locPitches.length, buntCnt: bunts.length };
     }
 
     // ── 建立球場 SVG（真實扇形球場，本壘板在底部） ──
     // viewBox 300x280，本壘板 (150,272)
     // interactive: false=靜態  true=彈窗  'bm'=聯動內嵌  'sp'=獨立內嵌  'edit'=打席編輯modal
-    function buildFieldSVG(dotsHTML = '', interactive = false, cleanFan = false, hrDotsHTML = '') {
+    function buildFieldSVG(dotsHTML = '', interactive = false, cleanFan = false, hrDotsHTML = '', buntHTML = '') {
         const isBm   = interactive === 'bm';
         const isSp   = interactive === 'sp';
         const isEdit = interactive === 'edit';
@@ -12027,9 +12108,15 @@
           <text x="150" y="288" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">捕手區</text>
           ` : ''}
 
+          ${!isAny ? `
+          <!-- 短打區（靜態落點圖專用，明顯獨立一塊） -->
+          <path d="M 150 272 L 114.6 236.6 A 50 50 0 0 1 185.4 236.6 Z"
+            fill="#f59e0b" fill-opacity="0.13" stroke="#f59e0b" stroke-width="1.1" stroke-opacity="0.75" style="pointer-events:none;"/>
+          <text x="150" y="261" text-anchor="middle" fill="#b45309" font-size="8" font-weight="700" font-family="sans-serif" style="pointer-events:none;">短打</text>
+          ` : ''}
           ${cleanFan
-            ? `<g clip-path="url(#${_clipId})">${dotsHTML}</g><g clip-path="url(#${_hrClipId})">${hrDotsHTML}</g>`
-            : dotsHTML}
+            ? `<g clip-path="url(#${_clipId})">${dotsHTML}</g><g clip-path="url(#${_hrClipId})">${hrDotsHTML}</g>${buntHTML}`
+            : dotsHTML + hrDotsHTML + buntHTML}
         </svg>`;
     }
 
@@ -12822,14 +12909,10 @@
             ..._profileDirect.filter(p => p.hitLocation)
         ];
         const _isHR = p => (p.outcomes||[]).includes('全壘打');
-        function _makeLine(p) {
-            const sx = (p.hitLocation.x * 300).toFixed(1), sy = (p.hitLocation.y * 280).toFixed(1);
-            const outcomes = p.outcomes || [];
-            const col = _isHR(p) ? '#dc2626' : outcomes.some(o => HIT.includes(o)) ? '#ef4444' : '#3b82f6';
-            return _makeHitLine(sx, sy, col, outcomes.includes('平飛球出局'), 2.5, 0.85);
-        }
-        const linesHTML   = locs.filter(p => !_isHR(p)).map(_makeLine).join('');
-        const hrLinesHTML = locs.filter(p =>  _isHR(p)).map(_makeLine).join('');
+        const _spray2     = _buildSprayParts(locs, p => p.outcomes || []);
+        const linesHTML   = _spray2.linesHTML;
+        const hrLinesHTML = _spray2.hrLinesHTML;
+        const buntHTML    = _spray2.buntHTML;
         // 方向分析（x：0=左場線, 1=右場線）
         const leftLocs   = locs.filter(p => p.hitLocation.x < 0.43);
         const centerLocs = locs.filter(p => p.hitLocation.x >= 0.43 && p.hitLocation.x <= 0.57);
@@ -12901,12 +12984,13 @@
             : `<div class="bm-loc-grid">
             <!-- 落點圖 左側 -->
             <div style="min-width:0;">
-              ${buildFieldSVG(linesHTML, false, true, hrLinesHTML)}
+              ${buildFieldSVG(linesHTML, false, true, hrLinesHTML, buntHTML)}
               <div style="display:flex;gap:10px;margin-top:8px;font-size:12px;color:#374151;flex-wrap:wrap;align-items:center;">
                 <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/></svg>安打（${_hitCnt - _hrCnt}）</span>
                 <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round"/></svg>全壘打（${_hrCnt}）</span>
                 <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/></svg>非安打（${locs.length - _hitCnt}）</span>
                 <span><svg width="26" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="26" y2="6" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/><line x1="19" y1="2" x2="19" y2="10" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/></svg>平飛球</span>
+                ${_spray2.buntCnt>0?`<span><svg width="14" height="12" style="vertical-align:middle;margin-right:3px;"><circle cx="7" cy="6" r="3.4" fill="#b45309"/></svg>短打（${_spray2.buntCnt}）</span>`:''}
                 <span style="margin-left:auto;color:#9ca3af;">共 ${locs.length} 筆</span>
               </div>
             </div>
@@ -13656,12 +13740,11 @@
         });
 
         // 線條：從本壘板 (150,272) 畫到落點，紅=安打，金=全壘打，藍=非安打，橫槓=平飛球
-        const dotsHTML = locs.map(l => {
-            const sx = (l.x * 300).toFixed(1), sy = (l.y * 280).toFixed(1);
-            const isHR = l.outcome === '全壘打';
-            const color = isHR ? '#ffd700' : l.isHit ? '#ef4444' : '#3b82f6';
-            return _makeHitLine(sx, sy, color, l.outcome === '平飛球出局', 2, 0.7);
-        }).join('');
+        const _spray3 = _buildSprayParts(
+            locs.map(l => ({ hitLocation:{x:l.x,y:l.y,zone:l.zone}, outcomes:[l.outcome||''], isBunt:l.isBunt })),
+            p => p.outcomes || [], { hrColor:'#ffd700' });
+        const dotsHTML = _spray3.linesHTML + _spray3.hrLinesHTML;
+        const _buntHTML3 = _spray3.buntHTML;
 
         const zoneRows = Object.entries(zoneCounts).sort((a,b) => b[1].total - a[1].total)
             .map(([zone, c]) => `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f3f4f6;font-size:12px;">
@@ -13669,7 +13752,7 @@
             </div>`).join('');
 
         container.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
-          <div style="flex:0 0 auto;">${buildFieldSVG(dotsHTML)}
+          <div style="flex:0 0 auto;">${buildFieldSVG(dotsHTML, false, false, '', _buntHTML3)}
             <div style="display:flex;gap:10px;margin-top:8px;justify-content:center;font-size:12px;flex-wrap:wrap;">
               <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>安打</span>
               <span><svg width="20" height="12" style="vertical-align:middle;margin-right:3px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ffd700" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>全壘打</span>
@@ -17136,12 +17219,11 @@
 
         const locs = [...atBats.filter(a=>a.hitLocation), ..._directLocs];
         // 線條：從本壘板 (150,272) 畫到落點，紅=安打，藍=非安打
-        const dotsHTML = locs.map(a => {
-            const sx = (a.hitLocation.x * 300).toFixed(1), sy = (a.hitLocation.y * 280).toFixed(1);
-            const isHit = HIT.includes(a.outcome);
-            const color = isHit ? '#ef4444' : '#3b82f6';
-            return `<line x1="150" y1="272" x2="${sx}" y2="${sy}" stroke="${color}" stroke-width="2" opacity="0.7" stroke-linecap="round" style="pointer-events:none;"/>`;
-        }).join('');
+        const _spray4 = _buildSprayParts(
+            locs.map(a => ({ hitLocation:a.hitLocation, outcomes:[a.outcome||''], isBunt:a.isBunt })),
+            p => p.outcomes || []);
+        const dotsHTML = _spray4.linesHTML + _spray4.hrLinesHTML;
+        const _buntHTML4 = _spray4.buntHTML;
 
         const standalonePitches = atBats.filter(a=>a.mode==='standalone').flatMap(a=>a.pitches||[]);
         let pitchBreakdown = '';
@@ -17217,7 +17299,7 @@
             <h2>#${b.number} ${b.name||'（未填姓名）'} · ${b.hand}</h2>
             <h3>🗺️ 打擊落點圖</h3>
             <div id="bmDetailFieldWrap" style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;">
-                <div>${buildFieldSVG(dotsHTML)}</div>
+                <div>${buildFieldSVG(dotsHTML, false, false, '', _buntHTML4)}</div>
                 <div style="flex:1;min-width:140px;font-size:12px;">
                     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
                       <span><svg width="20" height="12" style="vertical-align:middle;margin-right:4px;"><line x1="0" y1="6" x2="20" y2="6" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/></svg>安打</span>
