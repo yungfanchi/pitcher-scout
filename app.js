@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v525';
+﻿    const APP_VERSION = 'v526';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -547,6 +547,22 @@
         return c;
     }
 
+    // ── PDF 單頁區塊「自動填滿」：依內容比例挑一個較窄的截圖寬度，讓同樣內容往下長高、
+    //    字變大、更貼近直式 A4，大幅減少塞滿一頁後的空白。
+    //    安全保證：只會「縮窄」不會放寬；最終一律由 fitPage（contain）縮放到剛好一頁，
+    //    因此永遠不會溢出頁面、也不會多分一頁。
+    //    baseW：基準截圖寬度(px)；h0：在 baseW 下量到的內容像素高度；
+    //    pagesPerCanvas：此截圖會佔幾頁（投手分析頁切 3 段＝3）；minW：寬度下限(避免觸發≤768手機版/字過大)。
+    function _pdfPickFitWidth(baseW, h0, pagesPerCanvas = 1, minW = 780) {
+        if (!(h0 > 0) || !(baseW > 0)) return baseW;
+        const A4 = (297 - 14) / (210 - 14);            // A4 內容區「高/寬」≈ 1.444（上下左右各留 7mm）
+        const target = A4 * pagesPerCanvas;            // 想要達到的「高/寬」比例
+        const r0 = h0 / baseW;                         // 目前比例
+        if (r0 >= target * 0.95) return baseW;         // 已夠高（或偏高瘦）→ 維持原寬，不縮（免左右更空、字爆大）
+        const w1 = Math.round(baseW * (r0 / target));  // r ∝ 1/w 估算：縮到此寬度時比例最接近 target
+        return Math.max(minW, Math.min(baseW, w1));
+    }
+
     // ====== 截圖共用函式：只截圖，回傳 captures 陣列 ======
     // pageMode='pitcherFixed' 時，投手統計/分析頁改為「固定 4 頁」版型（見 _captureTabsToArray 內註解）
     async function _captureTabsToArray(tabIds, setProg, pageMode) {
@@ -593,13 +609,26 @@
 
             // pitcherFixed 的分析頁改用較窄寬度截圖：同內容會「往下長高、字變大」，更貼近直式 A4，
             // 大幅減少塞滿一頁後的下方空白。維持 >768px 以避免觸發手機版排版。統計頁維持原寬。
-            const REPORT_W = (pageMode === 'pitcherFixed' && tab.id === 'analysisTab') ? 800 : 1100;
+            let REPORT_W = (pageMode === 'pitcherFixed' && tab.id === 'analysisTab') ? 800 : 1100;
             // 先把實體元素設成輸出寬度，量到的高度與斷點才會與截圖一致（截完還原）
             const _mainEl = document.querySelector('.main-content');
             const _wRestore = [];
             const _forceW = (el) => { if (!el) return; _wRestore.push([el, el.style.width, el.style.maxWidth]); el.style.setProperty('width', REPORT_W + 'px', 'important'); el.style.setProperty('max-width', 'none', 'important'); };
             _forceW(_mainEl); _forceW(tabEl);
             await new Promise(r => setTimeout(r, 250));
+
+            // 自動填滿：量目前內容高度，挑一個較窄寬度讓單頁更貼近 A4（只縮窄；最終 contain 到一頁，不溢出/不分頁）
+            if (pageMode === 'pitcherFixed') {
+                const _h0    = Math.max(tabEl.scrollHeight, tabEl.offsetHeight, 300);
+                const _pages = (tab.id === 'analysisTab') ? 3 : 1;   // 分析頁會切 3 段，各佔一頁
+                const _newW  = _pdfPickFitWidth(REPORT_W, _h0, _pages);
+                if (_newW < REPORT_W) {
+                    REPORT_W = _newW;   // 直接覆寫已強制的寬度（原始寬度已存於 _wRestore，截完還原）
+                    if (_mainEl) { _mainEl.style.setProperty('width', REPORT_W + 'px', 'important'); }
+                    tabEl.style.setProperty('width', REPORT_W + 'px', 'important');
+                    await new Promise(r => setTimeout(r, 220));
+                }
+            }
 
             const captureH = Math.max(tabEl.scrollHeight, tabEl.offsetHeight, 300);
             const breaks = _collectPdfBreaks(tabEl, 2); // scale:2
@@ -16793,7 +16822,8 @@
             });
             if (target) {
                 // 較窄的邏輯寬度 → 套到 A4 列印時整體字體放大（A4 頁邊由 _buildPDFFromCaptures 統一處理）
-                const REPORT_W = 840, pageW = 210, PAD_X = 14, PAD_Y = 16;
+                let REPORT_W = 840;
+                const pageW = 210, PAD_X = 14, PAD_Y = 16;
                 // 先把實體元素設成輸出寬度＋留白＋縮小字距，量到正確高度（截完隨 innerHTML 還原）
                 target.style.boxSizing = 'border-box';
                 target.style.width = REPORT_W + 'px';
@@ -16801,6 +16831,14 @@
                 target.style.background = '#f8f9fa';
                 target.style.letterSpacing = '-0.02em';
                 await new Promise(r => setTimeout(r, 60));
+                // 自動填滿：依比例挑較窄寬度，讓全隊成績表更貼近 A4、字更大、下方空白更少
+                const _h0   = Math.max(target.scrollHeight, target.offsetHeight, 300);
+                const _newW = _pdfPickFitWidth(REPORT_W, _h0, 1);
+                if (_newW < REPORT_W) {
+                    REPORT_W = _newW;
+                    target.style.width = REPORT_W + 'px';
+                    await new Promise(r => setTimeout(r, 60));
+                }
                 const captureH = Math.max(target.scrollHeight, target.offsetHeight, 300);
                 const canvas = await html2canvas(target, {
                     scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#f8f9fa',
@@ -16821,8 +16859,8 @@
                         cloned.querySelectorAll('button').forEach(b => b.style.setProperty('display', 'none', 'important'));
                     }
                 });
-                const pxPerMm = canvas.width / pageW;
-                captures.push({ canvas, imgHeightMm: canvas.height / pxPerMm });
+                // fitPage：整塊縮放塞進剛好一頁（不分頁、不溢出），並由 _pdfPickFitWidth 盡量填滿
+                captures.push({ canvas, fitPage: true });
             }
         } catch (e) {
             console.error('[PDF] 全隊成績截圖失敗', e);
