@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v523';
+﻿    const APP_VERSION = 'v524';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4545,31 +4545,8 @@
             contentEl.innerHTML = '<span class="pitcher-slot-empty">點選左側投手選擇</span>';
         });
 
-        // ── 正在記錄橫幅：顯示目前 activeSlot 的投手資訊 ──
-        const banner = document.getElementById('pitcherRecordBanner');
-        if (banner) {
-            const aSlot = activeSlot === 'A' ? slotA : slotB;
-            const hasPitcher = aSlot.team !== null && aSlot.pitcher !== null && allData.teams[aSlot.team];
-            if (hasPitcher) {
-                const _team    = allData.teams[aSlot.team];
-                const _pitcher = _team.pitchers[aSlot.pitcher];
-                if (_pitcher) {
-                    const _side    = _pitcher.pitchingTeam || (activeSlot === 'A' ? 'A' : 'B');
-                    const _tName   = _side === 'A' ? (_team.name || '先攻') : (_team.opponent || _team.name || '後攻');
-                    const _count   = _pitcher.pitches.length;
-                    const _isSlotA = activeSlot === 'A';
-                    banner.style.display    = 'flex';
-                    banner.style.background = _isSlotA ? '#e8f0fb' : '#f3f4f6';
-                    banner.style.border     = _isSlotA ? '1.5px solid #93b4e8' : '1.5px solid #d1d5db';
-                    banner.style.color      = _isSlotA ? '#003d79' : '#374151';
-                    banner.innerHTML = `<span style="background:${_isSlotA?'#003d79':'#374151'};color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;letter-spacing:1px;flex-shrink:0;">SLOT ${activeSlot}</span>`
-                        + `<span style="flex-shrink:0;">▶ 正在記錄</span>`
-                        + `<span style="font-size:14px;font-weight:900;flex-shrink:0;">${escapeHtml(_pitcher.name)}${_pitcher.number ? ' #'+escapeHtml(_pitcher.number) : ''}</span>`
-                        + `<span style="color:#6b7280;flex-shrink:0;">· ${escapeHtml(_tName)}</span>`
-                        + `<span style="margin-left:auto;flex-shrink:0;color:#6b7280;font-size:11px;">${_count} 球記錄</span>`;
-                } else { banner.style.display = 'none'; }
-            } else { banner.style.display = 'none'; }
-        }
+        // ── 正在記錄橫幅：顯示目前 activeSlot 的投手 + 目前打者 ──
+        updateRecordBanner();
 
         // 互換按鈕：兩槽都有資料且指向同一場賽事時顯示
         const swapWrap = document.getElementById('slotSwapWrap');
@@ -4580,6 +4557,58 @@
             swapWrap.style.display = sameGame ? 'flex' : 'none';
         }
     }
+
+    // ── 正在記錄橫幅：投手 + 目前打者並排顯示 ──
+    // 只讀取現有 DOM / 狀態做顯示，不更動任何記錄資料。
+    function updateRecordBanner() {
+        const banner = document.getElementById('pitcherRecordBanner');
+        if (!banner) return;
+        const aSlot = activeSlot === 'A' ? slotA : slotB;
+        const hasPitcher = aSlot.team !== null && aSlot.pitcher !== null && allData.teams[aSlot.team];
+        if (!hasPitcher) { banner.style.display = 'none'; return; }
+        const _team    = allData.teams[aSlot.team];
+        const _pitcher = _team.pitchers[aSlot.pitcher];
+        if (!_pitcher) { banner.style.display = 'none'; return; }
+
+        const _side    = _pitcher.pitchingTeam || (activeSlot === 'A' ? 'A' : 'B');
+        const _tName   = _side === 'A' ? (_team.name || '先攻') : (_team.opponent || _team.name || '後攻');
+        const _count   = _pitcher.pitches.length;
+        const _isSlotA = activeSlot === 'A';
+
+        // 目前打者（讀取記錄頁已輸入的資料；背號與姓名皆空時不顯示打者區塊）
+        const _bNum  = (document.getElementById('batterNumber')?.value || '').trim();
+        const _bName = (document.getElementById('batterName')?.value || '').trim();
+        const _bHandBtn = document.querySelector('.hand-btn.active');
+        const _bHand = _bHandBtn ? _bHandBtn.dataset.hand : '';
+        // 打者所屬隊伍 = 投手對面那一隊
+        const _batTeamName = _side === 'A'
+            ? (_team.opponent || _team.name || '後攻')
+            : (_team.name || '先攻');
+
+        let _batterHTML = '';
+        if (_bNum || _bName) {
+            const parts = [];
+            parts.push(`<span style="background:#dc0000;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;letter-spacing:1px;flex-shrink:0;">打者</span>`);
+            parts.push(`<span style="color:#6b7280;flex-shrink:0;">${escapeHtml(_batTeamName)}</span>`);
+            const headline = `${_bNum ? '#'+escapeHtml(_bNum) : ''}${_bName ? ' '+escapeHtml(_bName) : ''}`.trim();
+            parts.push(`<span style="font-size:14px;font-weight:900;flex-shrink:0;color:#7c1d1d;">${headline}</span>`);
+            if (_bHand) parts.push(`<span style="color:#6b7280;flex-shrink:0;">${escapeHtml(_bHand)}</span>`);
+            _batterHTML = `<span style="flex-shrink:0;color:#9ca3af;">｜</span>` + parts.join('');
+        }
+
+        banner.style.display    = 'flex';
+        banner.style.flexWrap   = 'wrap';
+        banner.style.background = _isSlotA ? '#e8f0fb' : '#f3f4f6';
+        banner.style.border     = _isSlotA ? '1.5px solid #93b4e8' : '1.5px solid #d1d5db';
+        banner.style.color      = _isSlotA ? '#003d79' : '#374151';
+        banner.innerHTML = `<span style="background:${_isSlotA?'#003d79':'#374151'};color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;letter-spacing:1px;flex-shrink:0;">SLOT ${activeSlot}</span>`
+            + `<span style="flex-shrink:0;">▶ 正在記錄</span>`
+            + `<span style="font-size:14px;font-weight:900;flex-shrink:0;">${escapeHtml(_pitcher.name)}${_pitcher.number ? ' #'+escapeHtml(_pitcher.number) : ''}</span>`
+            + `<span style="color:#6b7280;flex-shrink:0;">· ${escapeHtml(_tName)}</span>`
+            + _batterHTML
+            + `<span style="margin-left:auto;flex-shrink:0;color:#6b7280;font-size:11px;">${_count} 球記錄</span>`;
+    }
+    window.updateRecordBanner = updateRecordBanner;
 
     function swapSlotPitches() {
         if (slotA.team === null || slotB.team === null || slotA.team !== slotB.team) return;
@@ -5128,6 +5157,7 @@
         const isEmpty = !el.value;
         el.style.borderColor  = isEmpty ? '#f97316' : '';
         el.style.background   = isEmpty ? '#fff7ed' : '';
+        if (typeof updateRecordBanner === 'function') updateRecordBanner();
     }
     window.updateBatterNumWarning = updateBatterNumWarning;
 
@@ -5344,6 +5374,7 @@
             lineup[order].hand = btn.dataset.hand;
         }
         _checkBatterHandMismatch();
+        if (typeof updateRecordBanner === 'function') updateRecordBanner();
     }
 
     function selectPitch(btn) {
@@ -5896,6 +5927,7 @@
         gameState.currentBatterIndex[battingTeam] = order - 1;
         autoFillBatterFromOrder(order);
         saveLiveState();
+        if (typeof updateRecordBanner === 'function') updateRecordBanner();
     }
 
     function autoFillBatterFromOrder(order) {

@@ -745,7 +745,7 @@
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">姓名</span>
-                            <input type="text" id="batterName" placeholder="選填" autocomplete="off" style="flex:1;padding:8px;" onkeydown="if(event.key==='Enter')this.blur()">
+                            <input type="text" id="batterName" placeholder="選填" autocomplete="off" style="flex:1;padding:8px;" oninput="if(typeof updateRecordBanner==='function')updateRecordBanner()" onkeydown="if(event.key==='Enter')this.blur()">
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:11px;font-weight:700;color:var(--ct-blue-dark);width:32px;flex-shrink:0;">慣用</span>
