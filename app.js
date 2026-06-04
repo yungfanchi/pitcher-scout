@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v530';
+﻿    const APP_VERSION = 'v531';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11824,7 +11824,9 @@
         const hrColor = opts.hrColor || '#dc2626';
         const _HIT     = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
         const _HITNOHR = ['內野安打','一壘安打','二壘安打','三壘安打'];
-        const isBunt = p => !!p.isBunt || (oc(p) || []).includes('犧牲觸擊');
+        // 短打判斷：有短打旗標、犧牲觸擊，或落點本身就在短打區（三短/一短/本壘前/P/捕手）→ 都視為短打
+        const _BUNT_ZONES = new Set(['三短','一短','本壘前','P','捕手']);
+        const isBunt = p => !!p.isBunt || (oc(p) || []).includes('犧牲觸擊') || _BUNT_ZONES.has(p.hitLocation?.zone);
         const isHR   = p => (oc(p) || []).includes('全壘打');
         const isHit  = p => (oc(p) || []).some(o => _HIT.includes(o));
         const isLD   = p => (oc(p) || []).includes('平飛球出局');
@@ -11876,7 +11878,7 @@
             };
             const groups = { '-1': [], '0': [], '1': [] };
             bunts.forEach(p => groups[dirOf(p)].push({ hit: (oc(p) || []).some(o => _HITNOHR.includes(o)) }));
-            const baseAng = { '-1': -26, '0': 0, '1': 26 };   // 方向基準角（度，收在公平區內側）
+            const baseAng = { '-1': -18, '0': 0, '1': 18 };   // 方向基準角（度，往中間收，不貼邊線）
             const R = 26;                                      // 短打線長（短打區內，較落點線短約 25%）
             ['-1', '0', '1'].forEach(d => {
                 const arr = groups[d], n = arr.length;
