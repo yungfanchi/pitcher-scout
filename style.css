@@ -1150,6 +1150,16 @@
 .bm-stats-table tr:hover td { background: #f0f7ff; }
 .bm-stats-table td:first-child { text-align: left; font-weight: 700; }
 .bm-stats-highlight { color: #dc0000; font-weight: 900; }
+
+/* 統計頁單隊成績表：窄螢幕壓縮欄距讓所有欄位盡量一次排下，不用橫滑 */
+@media (max-width: 768px) {
+  .bm-stats-table th, .bm-stats-table td { padding: 6px 3px; font-size: 11px; }
+  .bm-stats-table th { min-width: 0 !important; }
+  .bm-detail-hint { display: none; }
+}
+@media (max-width: 480px) {
+  .bm-stats-table th, .bm-stats-table td { padding: 5px 2px; font-size: 10px; }
+}
 /* 打者Tab active狀態 — 同投手模式反白效果 */
 .tab-btn.bm-tab.bm-tab-active { background: #003d79 !important; color: white !important; border-color: #003d79; box-shadow: 0 -2px 8px rgba(0,61,121,0.2); }
 /* 打席結果分組標題 */

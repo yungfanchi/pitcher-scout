@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v524';
+﻿    const APP_VERSION = 'v525';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -14039,7 +14039,8 @@
     let _bmSortKey = 'order'; // default sort: batting order
     let _bmSortDir = 'asc';   // 'asc' | 'desc'
     let _openBatterDetail = null; // 目前打開的打者詳細頁 {number, teamName}
-    let _bmStatsExpanded = new Set(); // 統計頁「已展開」的球隊名（預設全收合，跨重繪保留）
+    let _bmStatsExpanded = new Set(); // （保留相容）統計頁「已展開」的球隊名
+    let _bmStatsActiveTeam = null;    // 統計頁目前選取的單一球隊名（null = 尚未選，只顯示隊伍頁籤列）
 
     let _bmState = {
         recMode: 'linked',     // 'linked'|'standalone'
@@ -16662,7 +16663,7 @@
                         style="cursor:pointer;font-size:13px;transition:background 0.15s;">
                       <td style="padding:8px 8px;white-space:nowrap;">
                         <span style="font-weight:900;font-size:14px;">#${r.number} ${r.name||''}</span>
-                        <span style="font-size:10px;color:#0051a5;margin-left:4px;">▶ 詳情</span>
+                        <span class="bm-detail-hint" style="font-size:10px;color:#0051a5;margin-left:4px;">▶ 詳情</span>
                         <br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
                       <td style="padding:8px 5px;text-align:center;font-weight:700;">${r.pa}</td>
                       <td style="padding:8px 5px;text-align:center;font-weight:700;">${r.hits}</td>
@@ -16677,23 +16678,42 @@
               <div style="font-size:11px;color:#9ca3af;text-align:right;margin-bottom:4px;">點擊欄位標題排序 · 點擊列查看詳情</div>`;
         };
 
-        const groupsHTML = Object.entries(teamGroupMap).map(([tname, map], gi) => {
-            const rows = buildRows(map);
-            const bodyId = `bmStatsTeamBody_${gi}`;
-            const safeT = tname.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-            const expanded = _bmStatsExpanded.has(tname); // 預設未展開（收合）
-            return `<div style="min-width:0;">
-                <button onclick="toggleBmStatsTeam('${bodyId}','${safeT}',this)"
-                  style="width:100%;display:flex;align-items:center;gap:10px;padding:11px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#003d79,#0051a5);color:#fff;font-size:15px;font-weight:900;font-family:inherit;cursor:pointer;touch-action:manipulation;margin-bottom:8px;">
-                  <span class="bm-caret" style="font-size:12px;line-height:1;${expanded?'':'transform:rotate(-90deg);'}">▼</span>
-                  <span style="flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tname}</span>
-                  <span style="font-size:12px;font-weight:700;opacity:0.7;">${rows.length} 位打者</span>
-                </button>
-                <div id="${bodyId}" data-bm-team="${tname.replace(/"/g,'&quot;')}"${expanded?'':' style="display:none;"'}>
-                  ${tableHTML(rows, tname)}
-                </div>
-            </div>`;
+        // 隊伍清單（含人數）— 用於頂部頁籤列
+        const teamEntries = Object.entries(teamGroupMap).map(([tname, map]) => ({
+            tname, rows: buildRows(map),
+        }));
+
+        // 若已選的隊伍不在資料中（例如資料變動），重設為未選
+        if (_bmStatsActiveTeam && !teamGroupMap[_bmStatsActiveTeam]) _bmStatsActiveTeam = null;
+
+        // ── 頂部隊伍頁籤列（常駐，點一下切換單一球隊）──
+        const tabsHTML = teamEntries.map(({ tname, rows }) => {
+            const safeT  = tname.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            const active = _bmStatsActiveTeam === tname;
+            return `<button onclick="selectBmStatsTeam('${safeT}')"
+                style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;font-size:14px;font-weight:900;font-family:inherit;cursor:pointer;touch-action:manipulation;white-space:nowrap;transition:all 0.15s;
+                ${active
+                    ? 'border:2px solid #003d79;background:linear-gradient(135deg,#003d79,#0051a5);color:#fff;'
+                    : 'border:2px solid #cbd5e1;background:#fff;color:#0051a5;'}">
+                <span>${escapeHtml(tname)}</span>
+                <span style="font-size:11px;font-weight:700;opacity:${active?'0.8':'0.55'};">${rows.length} 位</span>
+            </button>`;
         }).join('');
+
+        // ── 下方內容：只渲染選中那一隊（全寬）；未選時顯示提示 ──
+        let detailHTML;
+        if (_bmStatsActiveTeam && teamGroupMap[_bmStatsActiveTeam]) {
+            const tname = _bmStatsActiveTeam;
+            const rows  = buildRows(teamGroupMap[tname]);
+            detailHTML = `<div data-bm-team="${tname.replace(/"/g,'&quot;')}">
+                  ${tableHTML(rows, tname)}
+                </div>`;
+        } else {
+            detailHTML = `<div style="text-align:center;color:#9ca3af;padding:48px 16px;font-size:14px;border:2px dashed #e2e8f0;border-radius:12px;">
+                👆 請從上方選擇一支球隊<br>
+                <span style="font-size:12px;">即可查看該隊完整打者成績</span>
+              </div>`;
+        }
 
         container.innerHTML = `
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
@@ -16715,8 +16735,11 @@
                 🔀 合併落點到球路記錄
               </button>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start;margin-bottom:16px;">
-              ${groupsHTML}
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+              ${tabsHTML}
+            </div>
+            <div style="margin-bottom:16px;">
+              ${detailHTML}
             </div>
             <div id="bmBatterDetailSection"></div>`;
 
@@ -16726,17 +16749,16 @@
         }
     }
 
-    // ── 統計頁：點隊名按鈕展開/收合該隊打者資料（純 UI，不動資料；預設收合）──
-    function toggleBmStatsTeam(bodyId, tname, btnEl) {
-        const body = document.getElementById(bodyId);
-        if (!body) return;
-        const show = body.style.display === 'none';
-        body.style.display = show ? '' : 'none';
-        if (show) _bmStatsExpanded.add(tname); else _bmStatsExpanded.delete(tname);
-        const caret = btnEl && btnEl.querySelector('.bm-caret');
-        if (caret) caret.style.transform = show ? '' : 'rotate(-90deg)';
+    // ── 統計頁：點頂部頁籤切換「目前檢視的單一球隊」（純 UI，不動資料）──
+    // 再次點同一隊 → 取消選取，回到隊伍清單。
+    function selectBmStatsTeam(tname) {
+        _bmStatsActiveTeam = (_bmStatsActiveTeam === tname) ? null : tname;
+        _openBatterDetail = null;            // 切換球隊時關閉先前打開的打者詳細頁
+        const det = document.getElementById('bmBatterDetailSection');
+        if (det) det.innerHTML = '';
+        _renderBmStats();
     }
-    window.toggleBmStatsTeam = toggleBmStatsTeam;
+    window.selectBmStatsTeam = selectBmStatsTeam;
 
     // ── PDF 報告用：截取統計頁「某一隊的全隊成績」（摘要卡＋成績表）為一頁 ──
     // 供 generatePDF 的打者區段呼叫；純呈現截圖，不更動任何資料。
@@ -16753,12 +16775,12 @@
         const savedWrapperDisp = wrapper  ? wrapper.style.display  : null;
         const savedStatsDisp   = statsTab ? statsTab.style.display : null;
         const savedStatsActive = statsTab ? statsTab.classList.contains('active') : false;
-        const savedExpanded    = new Set(_bmStatsExpanded);
+        const savedActiveTeam  = _bmStatsActiveTeam;
 
         try {
             if (setProg) setProg('整理全隊成績...');
-            // 暫時展開目標隊，並讓統計頁可見以利量測
-            _bmStatsExpanded.add(teamName);
+            // 暫時選取目標隊（單隊全寬渲染），並讓統計頁可見以利量測
+            _bmStatsActiveTeam = teamName;
             if (wrapper)  wrapper.style.display = 'block';
             if (statsTab) { statsTab.style.display = 'block'; statsTab.classList.add('active'); }
             _renderBmStats();
@@ -16812,7 +16834,7 @@
                 statsTab.style.display = savedStatsDisp;
                 if (!savedStatsActive) statsTab.classList.remove('active');
             }
-            _bmStatsExpanded = savedExpanded;
+            _bmStatsActiveTeam = savedActiveTeam;
         }
         return captures;
     }
