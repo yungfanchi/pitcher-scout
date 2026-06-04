@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v535';
+﻿    const APP_VERSION = 'v536';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16618,6 +16618,7 @@
         // 依球隊分組聚合
         const teamGroupMap = {}; // teamName → { number → batter }
         atBats.forEach(ab => {
+            if (ab.number === '' || ab.number === null || ab.number === undefined) return; // 無背號(含被清空打者標記的球)不列入
             const tname = ab.teamName || '未標記球隊';
             if (!teamGroupMap[tname]) teamGroupMap[tname] = {};
             const key = String(ab.number || '?');
@@ -16801,6 +16802,8 @@
                       <td style="padding:8px 8px;white-space:nowrap;">
                         <span style="font-weight:900;font-size:14px;">#${r.number} ${r.name||''}</span>
                         <span class="bm-detail-hint" style="font-size:10px;color:#0051a5;margin-left:4px;">▶ 詳情</span>
+                        <button class="bm-remove-batter-btn" data-num="${String(r.number).replace(/"/g,'&quot;')}" data-team="${tname.replace(/"/g,'&quot;')}"
+                          title="從此隊移除此打者" style="margin-left:6px;padding:1px 7px;border-radius:5px;border:1px solid #fecaca;background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️</button>
                         <br><span style="font-size:11px;color:#6b7280;">${r.hand}</span></td>
                       <td style="padding:8px 5px;text-align:center;font-weight:700;">${r.pa}</td>
                       <td style="padding:8px 5px;text-align:center;font-weight:700;">${r.hits}</td>
@@ -16880,11 +16883,67 @@
             </div>
             <div id="bmBatterDetailSection"></div>`;
 
+        // 🗑️ 從此隊移除打者（addEventListener 綁定，避免 inline onclick 在部分裝置失效；stopPropagation 不觸發整列詳情）
+        container.querySelectorAll('.bm-remove-batter-btn').forEach(btn => {
+            const _h = (e) => { e.stopPropagation(); removeBatterFromTeam(btn.dataset.num, btn.dataset.team); };
+            btn.addEventListener('click', _h);
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
+        });
+
         // 若有打者詳細頁正在顯示，重建後自動刷新落點圖
         if (_openBatterDetail) {
             showBmBatterDetail(_openBatterDetail.number, _openBatterDetail.teamName);
         }
     }
+
+    // ── 統計頁：從某隊移除一名打者 ──
+    // 清空「這隊、這背號」投球記錄上的打者標記（背號/姓名），並移除該背號在這隊的打者模式打席與手動落點。
+    // 投手的用球數等投球數據完全保留（球還在，只是不再掛在這名打者下）。不可復原。
+    function removeBatterFromTeam(number, teamName) {
+        const numStr = String(number == null ? '' : number);
+        const tName  = String(teamName == null ? '' : teamName);
+        if (!numStr) return;
+        if (!confirm(`確定從「${tName}」移除打者 #${numStr}？\n\n會清空這隊這名打者的投球記錄打者標記，並移除其打者模式打席與手動落點。\n投手用球數等投球數據不受影響。\n\n此操作無法復原。`)) return;
+        _initBmData();
+        const _numIn = (arr) => {
+            const list = Array.isArray(arr) ? arr : Object.values(arr || {});
+            return numStr && list.some(p => String(p?.number || '') === numStr);
+        };
+        let changed = false;
+        // 1) 投球記錄：清空「這隊這背號」那幾球的打者標記
+        (allData.teams || []).forEach(team => {
+            (team.pitchers || []).forEach(pitcher => {
+                (pitcher.pitches || []).forEach(pitch => {
+                    if (String(pitch.batterNumber || '') !== numStr) return;
+                    // 判定這球的打者隊別（與 _deriveBmAtBatsFromPitches 一致）
+                    let bTeam = '';
+                    if (pitch.half === '上') bTeam = team.name || '';
+                    else if (pitch.half === '下') bTeam = team.opponent || '';
+                    else if (_numIn(team.lineups?.teamA)) bTeam = team.name || '';
+                    else if (_numIn(team.lineups?.teamB)) bTeam = team.opponent || '';
+                    if (bTeam !== tName) return;
+                    delete pitch.batterNumber;
+                    delete pitch.batterName;
+                    changed = true;
+                });
+            });
+        });
+        // 2) 打者模式打席（這隊這背號）
+        const _ab0 = (allData.bm.atBats || []).length;
+        allData.bm.atBats = (allData.bm.atBats || []).filter(a =>
+            !(String(a.number || '') === numStr && (a.teamName || '') === tName));
+        if ((allData.bm.atBats || []).length !== _ab0) changed = true;
+        // 3) 手動補錄落點（這隊這背號）
+        const _hl0 = (allData.bm.hitLocations || []).length;
+        allData.bm.hitLocations = (allData.bm.hitLocations || []).filter(l =>
+            !(String(l.number || '') === numStr && (l.team || '') === tName));
+        if ((allData.bm.hitLocations || []).length !== _hl0) changed = true;
+
+        if (changed) { saveToLocalStorage(); saveToFirebase(); saveBmToFirebase(); }
+        _openBatterDetail = null;
+        _renderBmStats();
+    }
+    window.removeBatterFromTeam = removeBatterFromTeam;
 
     // ── 統計頁：點頂部頁籤切換「目前檢視的單一球隊」（純 UI，不動資料）──
     // 再次點同一隊 → 取消選取，回到隊伍清單。
