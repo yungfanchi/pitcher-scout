@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v531';
+﻿    const APP_VERSION = 'v532';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11798,6 +11798,7 @@
     // 沿「本壘→落點」方向延伸；只有落點仍在內野菱形內（壘線在落點之外）才延伸，外野球不動。純幾何，不改方向。
     function _extendToBaseLine(ex, ey) {
         const dx = ex - SPRAY_HX, dy = ey - SPRAY_HY;
+        if (dx * dx + dy * dy < 52 * 52) return { x: ex, y: ey };   // 太靠近本壘(短打區一帶)不延伸，避免被拉成長線
         const segs = [[97, 219, 150, 166], [150, 166, 203, 219]];   // 3B→2B、2B→1B
         let bestT = Infinity;
         for (const [ax, ay, bx, by] of segs) {
@@ -11824,8 +11825,9 @@
         const hrColor = opts.hrColor || '#dc2626';
         const _HIT     = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
         const _HITNOHR = ['內野安打','一壘安打','二壘安打','三壘安打'];
-        // 短打判斷：有短打旗標、犧牲觸擊，或落點本身就在短打區（三短/一短/本壘前/P/捕手）→ 都視為短打
-        const _BUNT_ZONES = new Set(['三短','一短','本壘前','P','捕手']);
+        // 短打判斷：有短打旗標、犧牲觸擊，或落點在「明確短打位置」（三短/一短/本壘前）→ 視為短打。
+        // P/捕手 可能是回投/捕逸等一般球，需有旗標或犧牲觸擊才算短打，避免把出局球誤畫進短打區。
+        const _BUNT_ZONES = new Set(['三短','一短','本壘前']);
         const isBunt = p => !!p.isBunt || (oc(p) || []).includes('犧牲觸擊') || _BUNT_ZONES.has(p.hitLocation?.zone);
         const isHR   = p => (oc(p) || []).includes('全壘打');
         const isHit  = p => (oc(p) || []).some(o => _HIT.includes(o));
