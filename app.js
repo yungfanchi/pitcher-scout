@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v529';
+﻿    const APP_VERSION = 'v530';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -11771,8 +11771,7 @@
 
     // ── 落點圖共用常數（viewBox 300x280，本壘板 (150,272)）──
     const SPRAY_HX = 150, SPRAY_HY = 272;   // 本壘板座標
-    const SPRAY_BUNT_R = 37.5;              // 短打區半徑：一般落點線改從此弧外緣出發
-    const SPRAY_INFIELD_R = 100;            // 內野半徑：落在此內的球(2B/SS等)整條線從本壘畫出（不從短打區外緣切）
+    const SPRAY_BUNT_R = 37.5;              // 短打區半徑：一般落點線一律從此弧外緣出發
 
     // ── 落點線 SVG helper ──
     // color: '#ef4444'安打 | '#ffd700'/'#dc2626'全壘打 | '#3b82f6'非安打
@@ -11783,8 +11782,7 @@
         const ex = parseFloat(x2), ey = parseFloat(y2);
         const dx = ex - SPRAY_HX, dy = ey - SPRAY_HY;
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        // 外野球從短打區外緣出發（避免本壘附近擠成團）；內野球(距本壘較近)整條從本壘畫出，可達灰色內野線
-        const startR = len > SPRAY_INFIELD_R ? SPRAY_BUNT_R : 0;
+        const startR = len > SPRAY_BUNT_R ? SPRAY_BUNT_R : 0;
         const x1 = SPRAY_HX + dx / len * startR, y1 = SPRAY_HY + dy / len * startR;
         const sdx = ex - x1, sdy = ey - y1, slen = Math.sqrt(sdx * sdx + sdy * sdy) || 1;
         let s = `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
@@ -11794,6 +11792,25 @@
             s += `<line x1="${(mx - px).toFixed(1)}" y1="${(my - py).toFixed(1)}" x2="${(mx + px).toFixed(1)}" y2="${(my + py).toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${op}" stroke-linecap="round" style="pointer-events:none;"/>`;
         }
         return s;
+    }
+
+    // ── 內野球末端延伸到「壘線」（後方兩條壘線 3B↔2B、2B↔1B）──
+    // 沿「本壘→落點」方向延伸；只有落點仍在內野菱形內（壘線在落點之外）才延伸，外野球不動。純幾何，不改方向。
+    function _extendToBaseLine(ex, ey) {
+        const dx = ex - SPRAY_HX, dy = ey - SPRAY_HY;
+        const segs = [[97, 219, 150, 166], [150, 166, 203, 219]];   // 3B→2B、2B→1B
+        let bestT = Infinity;
+        for (const [ax, ay, bx, by] of segs) {
+            const ux = bx - ax, uy = by - ay;
+            const det = ux * dy - dx * uy;
+            if (Math.abs(det) < 1e-6) continue;
+            const wx = ax - SPRAY_HX, wy = ay - SPRAY_HY;
+            const t = (ux * wy - uy * wx) / det;   // 射線參數（落點在 t=1）
+            const sgm = (dx * wy - dy * wx) / det;  // 線段參數
+            if (sgm >= -0.001 && sgm <= 1.001 && t > 1.001 && t < bestT) bestT = t;
+        }
+        if (bestT === Infinity) return { x: ex, y: ey };   // 落點已在壘線外（外野）→ 不延伸
+        return { x: SPRAY_HX + bestT * dx, y: SPRAY_HY + bestT * dy };
     }
 
     // ── 落點圖：把一組落點轉成「一般線 / 全壘打線 / 短打區記號」三部分 ──
@@ -11835,7 +11852,8 @@
                 const dx = m.sx - SPRAY_HX, dy = m.sy - SPRAY_HY;
                 const rx = SPRAY_HX + dx * Math.cos(ang) - dy * Math.sin(ang);
                 const ry = SPRAY_HY + dx * Math.sin(ang) + dy * Math.cos(ang);
-                linesHTML += _makeHitLine(rx.toFixed(1), ry.toFixed(1), m.hit ? '#ef4444' : '#3b82f6', m.ld, sw, op);
+                const ext = _extendToBaseLine(rx, ry);   // 內野球末端延伸到壘線
+                linesHTML += _makeHitLine(ext.x.toFixed(1), ext.y.toFixed(1), m.hit ? '#ef4444' : '#3b82f6', m.ld, sw, op);
             });
         });
 
