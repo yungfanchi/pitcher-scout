@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v533';
+﻿    const APP_VERSION = 'v534';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -17371,7 +17371,7 @@
                     : '';
                 // 🗑️ 刪除落點（有落點才顯示）
                 const delBtn = hasloc
-                    ? `<button onclick="deleteHitLoc(${a.ts||'null'},${isDirect},'${numEsc}','${teamEsc}','${a.mode||''}')"
+                    ? `<button class="bm-del-loc-btn" data-ts="${a.ts||''}" data-isdirect="${isDirect}" data-mode="${a.mode||''}"
                         style="margin-left:2px;padding:2px 7px;border-radius:6px;border:1px solid #fecaca;
                                background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
                                cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除落點">🗑️</button>`
@@ -17385,7 +17385,7 @@
                     : '';
                 // ✕ 刪除整筆打席（只有 bm.atBats 的 linked/standalone 才能刪）
                 const delAbBtn = (a.mode === 'linked' || a.mode === 'standalone') && a.ts
-                    ? `<button onclick="if(confirm('確定刪除這筆打席記錄？'))deleteBmAtBat(${a.ts})"
+                    ? `<button class="bm-del-ab-btn" data-ts="${a.ts}"
                         style="margin-left:4px;padding:2px 8px;border-radius:6px;border:1px solid #fecaca;
                                background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
                                cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除打席">✕ 刪除</button>`
@@ -17407,10 +17407,10 @@
                 return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;">
                   <span style="color:#9ca3af;">補${i+1}. 📍</span>
                   <span style="${cls2}">${l.outcomes?.[0]||'—'} → ${l.hitLocation?.zone||''}</span>
-                  <button onclick="deleteHitLoc(${l.ts||'null'},true,'${numEsc2}','${teamEsc2}','direct')"
+                  <button class="bm-del-direct-btn" data-ts="${l.ts||''}"
                     style="margin-left:auto;padding:1px 7px;border-radius:5px;border:1px solid #fecaca;
                            background:#fff5f5;color:#dc2626;font-size:11px;font-weight:700;
-                           cursor:pointer;font-family:inherit;" title="刪除此補錄落點">🗑️</button>
+                           cursor:pointer;font-family:inherit;touch-action:manipulation;" title="刪除此補錄落點">🗑️</button>
                 </div>`;
               }).join('')}
             </div>` : ''}
@@ -17427,6 +17427,29 @@
         detailEl.querySelectorAll('.bm-edit-ab-btn').forEach(btn => {
             const ts = Number(btn.dataset.ts);
             const _h = (e) => { e.stopPropagation(); openBmAtBatEdit(ts); };
+            btn.addEventListener('click', _h);
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
+        });
+        // 🗑️ 刪除落點（inline onclick 在部分裝置失效 → 改用事件綁定）
+        detailEl.querySelectorAll('.bm-del-loc-btn').forEach(btn => {
+            const ts       = btn.dataset.ts ? Number(btn.dataset.ts) : null;
+            const isDirect = btn.dataset.isdirect === 'true';
+            const mode     = btn.dataset.mode || '';
+            const _h = (e) => { e.stopPropagation(); deleteHitLoc(ts, isDirect, numStr, teamStr, mode); };
+            btn.addEventListener('click', _h);
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
+        });
+        // ✕ 刪除整筆打席
+        detailEl.querySelectorAll('.bm-del-ab-btn').forEach(btn => {
+            const ts = Number(btn.dataset.ts);
+            const _h = (e) => { e.stopPropagation(); if (confirm('確定刪除這筆打席記錄？')) deleteBmAtBat(ts); };
+            btn.addEventListener('click', _h);
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
+        });
+        // 🗑️ 刪除手動補錄落點
+        detailEl.querySelectorAll('.bm-del-direct-btn').forEach(btn => {
+            const ts = btn.dataset.ts ? Number(btn.dataset.ts) : null;
+            const _h = (e) => { e.stopPropagation(); deleteHitLoc(ts, true, numStr, teamStr, 'direct'); };
             btn.addEventListener('click', _h);
             btn.addEventListener('touchend', (e) => { e.preventDefault(); _h(e); });
         });
