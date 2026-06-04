@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v537';
+﻿    const APP_VERSION = 'v538';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4599,6 +4599,7 @@
         // 目前打者（讀取記錄頁已輸入的資料；背號與姓名皆空時不顯示打者區塊）
         const _bNum  = (document.getElementById('batterNumber')?.value || '').trim();
         const _bName = (document.getElementById('batterName')?.value || '').trim();
+        const _bOrder = (document.getElementById('batterOrder')?.value || '').trim();
         const _bHandBtn = document.querySelector('.hand-btn.active');
         const _bHand = _bHandBtn ? _bHandBtn.dataset.hand : '';
         // 打者所屬隊伍 = 投手對面那一隊
@@ -4611,6 +4612,7 @@
             const parts = [];
             parts.push(`<span style="background:#dc0000;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;letter-spacing:1px;flex-shrink:0;">打者</span>`);
             parts.push(`<span style="color:#6b7280;flex-shrink:0;">${escapeHtml(_batTeamName)}</span>`);
+            if (_bOrder) parts.push(`<span style="color:#7c1d1d;font-weight:700;flex-shrink:0;">${escapeHtml(_bOrder)}棒</span>`);
             const headline = `${_bNum ? '#'+escapeHtml(_bNum) : ''}${_bName ? ' '+escapeHtml(_bName) : ''}`.trim();
             parts.push(`<span style="font-size:14px;font-weight:900;flex-shrink:0;color:#7c1d1d;">${headline}</span>`);
             if (_bHand) parts.push(`<span style="color:#6b7280;flex-shrink:0;">${escapeHtml(_bHand)}</span>`);
