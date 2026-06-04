@@ -12,7 +12,7 @@
 - **架構**：單頁 PWA，拆分為 `index.html`（HTML 結構）、`style.css`（樣式）、`app.js`（邏輯）
 - **部署**：GitHub Pages（HTTPS），已可安裝到手機/平板桌面
 - **資料庫**：Firebase Realtime Database（雲端同步）+ localStorage（本機備份）
-- **目前版本**：v296（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
+- **目前版本**：v537（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
 
 ---
 
@@ -238,6 +238,14 @@ teams/{teamCode}/
 | `exportReportPDF()` | 開啟 PDF 報表篩選器 |
 | `updateGameStateFromPitch(pitch)` | 根據一球更新比賽狀態（壘包/球數/出局） |
 | `applyBaseRunning(bases, outcomes)` | 計算壘包推進與得分（返回 newBases + runsScored） |
+| `_renderBmStats()` | 重繪打者統計頁（頂部隊伍頁籤＋單隊全寬表） |
+| `removeBatterFromTeam(num, team)` | 從某隊移除誤掛打者（清打者標記，不動投手用球數） |
+| `_buildSprayParts(locPitches, oc, opts)` | 落點圖核心：產生一般線/全壘打線/短打線（重疊錯開、越多越深） |
+| `_extendToBaseLine(ex, ey)` | 內野球落點線末端延伸到壘線（純幾何） |
+| `buildFieldSVG(dots, interactive, cleanFan, hrDots, buntHTML)` | 球場 SVG；靜態模式畫短打區弧帶 |
+| `_pdfPickFitWidth(baseW, h0, pages, minW)` | PDF 單頁自動填滿：挑較窄截圖寬度放大字體 |
+| `renderBmBatterProfile(pitches, entry, stats)` | 打者個人卡（含落點圖、刪除手動落點按鈕） |
+| `_deriveBmAtBatsFromPitches(teamIdx)` | 從投球記錄推導打席（上半=name、下半=opponent 決定隊別） |
 
 ---
 
@@ -261,7 +269,15 @@ teams/{teamCode}/
 - [x] Firebase 寫入已有 300ms debounce（`_fbSaveTimer`，app.js ~6140 行）
 - [x] PDF 報表匯出已實作（`exportReportPDF` → `_buildAndOpenReport`）
 - [x] 打者資料庫已實作（`allData.batterData`，獨立 Firebase 節點）
-- [x] APP_VERSION 與 sw.js CACHE_NAME 同步（目前皆為 v296）
+- [x] APP_VERSION 與 sw.js CACHE_NAME 同步（目前皆為 v537）
+- [x] 統計頁打者成績改為「頂部隊伍頁籤 + 單隊全寬檢視」（取代多隊並排手風琴，避免橫滑；`_bmStatsActiveTeam`、`selectBmStatsTeam`）
+- [x] 統計頁每位打者可「🗑️ 從此隊移除」（`removeBatterFromTeam`，清空本場該背號投球記錄的打者標記＋移除 bm 打席/手動落點，不動投手用球數）
+- [x] 打者個人卡可「🗑️ 刪除手動落點」（`_showDelHitLocInline` / `_delDirectHitLocCard`，只刪 bm.hitLocations 手動落點）
+- [x] 落點圖重新設計（靜態圖）：獨立「短打區」弧帶、一般線從短打區外緣出發、內野球末端延伸到壘線、重疊微錯開＋越多越深、短打用方向式短線（`_buildSprayParts`、`_extendToBaseLine`、`SPRAY_*` 常數、`buildFieldSVG` 第 5 參數 buntHTML）
+- [x] PDF 單頁區塊「自動填滿」：依比例挑較窄截圖寬度放大字體、減少留白，只縮窄＋contain 不溢出不分頁（`_pdfPickFitWidth`）
+- [x] 正在記錄橫幅並排顯示目前打者（`updateRecordBanner`）
+- [x] 投球打者自動帶入移除全域打序 fallback（`allData.bm.lineupA/B`），根治「開新場次帶入上一場/別隊打者」（v537，改動 `autoFillBatterFromOrder`、`autoUpdateBatterInfoByInning`）
+- [x] 落點/打席刪除鍵改 addEventListener 綁定 + timestamp 字串比對（修正手機按無反應、按確定刪不掉）
 
 ---
 
@@ -284,7 +300,7 @@ teams/{teamCode}/
 ├── style.css       ← 所有 CSS 樣式（1,292 行）
 ├── app.js          ← 所有應用邏輯（12,673 行）
 ├── manifest.json   ← PWA manifest
-├── sw.js           ← Service Worker（87 行，CACHE_NAME = pitcher-scout-v296）
+├── sw.js           ← Service Worker（CACHE_NAME = pitcher-scout-v537）
 ├── icon-192.png    ← PWA 圖示
 └── icon-512.png    ← PWA 圖示
 ```
@@ -299,4 +315,4 @@ teams/{teamCode}/
 
 ---
 
-*最後更新：2026-05-24*
+*最後更新：2026-06-04*
