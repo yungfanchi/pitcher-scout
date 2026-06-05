@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v544';
+﻿    const APP_VERSION = 'v545';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1132,7 +1132,7 @@
         const HIT = ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'];
         const BIP = [...HIT,'飛球出局','滾地球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
         const PA_ENDS = [...HIT,'保送','觸身球','故意四壞','捕逸','三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺','野選','失誤'];
-        const TACTICS_SET = new Set(['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗']);
+        const TACTICS_SET = new Set(['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','強迫取分','戰術失敗']);
         function fmtAvg(n) { return n > 0 ? '.' + String(Math.round(n * 1000)).padStart(3,'0') : '.000'; }
 
         const captures = [];
@@ -1285,9 +1285,11 @@
             // ── ④ 戰術時機 ──
             const tBunt    = paPitches.filter(p=>oc(p).some(o=>o==='犧牲觸擊'));
             const tHR      = paPitches.filter(p=>oc(p).some(o=>o==='打帶跑'));
+            const tForce   = paPitches.filter(p=>oc(p).some(o=>o==='強迫取分'));
             const tTopCnt  = arr=>{const m={};arr.forEach(p=>{const k=`${p.balls||0}B ${p.strikes||0}S`;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}（${t[1]}次）`:'—';};
             const tTopBase = arr=>{const m={};arr.forEach(p=>{const r=p.runnersOn?'有跑者':'空壘';m[r]=(m[r]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:'—';};
-            const tHasAny  = tBunt.length+tHR.length>0;
+            const tTopInning = arr=>{const m={};arr.forEach(p=>{const k=p.inning;if(k==null||k==='')return;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}局（${t[1]}次）`:'—';};
+            const tHasAny  = tBunt.length+tHR.length+tForce.length>0;
 
             // ── 組合 HTML ──
             const displayName = b.name||(b.number?`#${b.number}`:`打序${b.order||''}`);
@@ -1514,7 +1516,7 @@
             <span style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#ec4899;">${tBunt.length}次</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:#374151;">
-            <div>球數：${tTopCnt(tBunt)}</div><div>壘況：${tTopBase(tBunt)}</div>
+            <div>球數：${tTopCnt(tBunt)}</div><div>壘況：${tTopBase(tBunt)}</div><div>局數：${tTopInning(tBunt)}</div>
           </div>
         </div>`:''}
         ${tHR.length>0?`<div style="padding:10px;background:#f5f3ff;border-radius:8px;border-left:3px solid #7c3aed;">
@@ -1523,7 +1525,16 @@
             <span style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#7c3aed;">${tHR.length}次</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:#374151;">
-            <div>球數：${tTopCnt(tHR)}</div><div>壘況：${tTopBase(tHR)}</div>
+            <div>球數：${tTopCnt(tHR)}</div><div>壘況：${tTopBase(tHR)}</div><div>局數：${tTopInning(tHR)}</div>
+          </div>
+        </div>`:''}
+        ${tForce.length>0?`<div style="padding:10px;background:#fff7ed;border-radius:8px;border-left:3px solid #f97316;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+            <span style="font-size:12px;font-weight:800;color:#f97316;">🎯 強迫取分</span>
+            <span style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#f97316;">${tForce.length}次</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:#374151;">
+            <div>球數：${tTopCnt(tForce)}</div><div>壘況：${tTopBase(tForce)}</div><div>局數：${tTopInning(tForce)}</div>
           </div>
         </div>`:''}
       </div>`}
@@ -5780,6 +5791,7 @@
         currentPitch.basesSnapshot = [...gameState.bases]; // [1b, 2b, 3b]
         currentPitch.runnersOn = gameState.bases.some(b => b);
         currentPitch.half = gameState.half; // 上/下，用於打者分頁判斷哪隊在打擊
+        currentPitch.inning = gameState.inning; // 第幾局（供戰術時機自動顯示局數；舊資料無此欄位顯示「—」）
         // ★ 記錄打者所屬隊伍（上半局 = teamA/team.name 打擊；下半局 = teamB/opponent 打擊）
         const _teamObj = allData.teams[currentTeam];
         currentPitch.batterTeam = _battingTeam === 'teamA'
@@ -6674,7 +6686,7 @@
             { label: '出局', cls: 'out-btn', items: ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'] },
             { label: '安打', cls: 'hit-btn', items: ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'] },
             { label: '上壘', cls: 'reach-btn', items: ['保送','觸身球','故意四壞','野選','失誤'] },
-            { label: '戰術標籤', cls: 'modifier', items: ['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗'] }
+            { label: '戰術標籤', cls: 'modifier', items: ['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','強迫取分','戰術失敗'] }
         ];
 
         document.getElementById('editPitchForm').innerHTML = `
@@ -12873,7 +12885,7 @@
         function fmtAvg(n) { return n > 0 ? '.' + String(Math.round(n * 1000)).padStart(3,'0') : '.000'; }
 
         // ── 1. 頂部 header ──
-        const TACTICS_SET = new Set(['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗']);
+        const TACTICS_SET = new Set(['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','強迫取分','戰術失敗']);
         const tacticsSeen = [...new Set(pitches.flatMap(p => (p.outcomes||[]).filter(o => TACTICS_SET.has(o))))];
         // 戰術標籤：放大、置於名字右側
         const tacticsInline = tacticsSeen.length === 0 ? '' :
@@ -13395,15 +13407,18 @@
         // ── ④ 戰術時機 ──
         const _tBunt=paPitches.filter(p=>(p.outcomes||[]).includes('犧牲觸擊'));
         const _tHR  =paPitches.filter(p=>(p.outcomes||[]).includes('打帶跑'));
+        const _tForce=paPitches.filter(p=>(p.outcomes||[]).includes('強迫取分'));
         const _tStls=(allData.bm?.steals||[]).filter(s=>entry._bmNum&&String(s.runnerNumber||'')===String(entry._bmNum));
         const _tTopCnt=arr=>{const m={};arr.forEach(p=>{const k=`${p.balls||0}B ${p.strikes||0}S`;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}（${t[1]}次）`:'—';};
         const _tTopBase=arr=>{const m={};arr.forEach(p=>{const r=p.runnersOn?'有跑者':'空壘';m[r]=(m[r]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:'—';};
+        // 最常局數：舊資料無 inning 欄位 → 略過，全無則顯示「—」
+        const _tTopInning=arr=>{const m={};arr.forEach(p=>{const k=p.inning;if(k==null||k==='')return;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}局（${t[1]}次）`:'—';};
 
         // 手動新增的戰術記錄（依背號比對）
         const _manualTactics=(allData.bm?.manualTactics||[]).filter(mt=>String(mt.batterNum||'')===String(entry._bmNum||''));
         const _manualByType={};
         _manualTactics.forEach(mt=>{(_manualByType[mt.tacticType]||(_manualByType[mt.tacticType]=[])).push(mt);});
-        const _tstyMap={'打帶跑':{bg:'#f5f3ff',bd:'#7c3aed',col:'#7c3aed',ic:'🏃'},'強迫短打':{bg:'#fff7ed',bd:'#f97316',col:'#f97316',ic:'💪'},'犧牲觸擊':{bg:'#fdf4ff',bd:'#ec4899',col:'#ec4899',ic:'📦'},'盜壘':{bg:'#f0fdf4',bd:'#10b981',col:'#10b981',ic:'⚡'},'雙盜壘':{bg:'#ecfdf5',bd:'#059669',col:'#059669',ic:'🔥'}};
+        const _tstyMap={'打帶跑':{bg:'#f5f3ff',bd:'#7c3aed',col:'#7c3aed',ic:'🏃'},'強迫短打':{bg:'#fff7ed',bd:'#f97316',col:'#f97316',ic:'💪'},'強迫取分':{bg:'#fff7ed',bd:'#f97316',col:'#f97316',ic:'🎯'},'犧牲觸擊':{bg:'#fdf4ff',bd:'#ec4899',col:'#ec4899',ic:'📦'},'盜壘':{bg:'#f0fdf4',bd:'#10b981',col:'#10b981',ic:'⚡'},'雙盜壘':{bg:'#ecfdf5',bd:'#059669',col:'#059669',ic:'🔥'}};
         const _manualGroupedHTML=Object.entries(_manualByType).map(([type,entries])=>{
             const st=_tstyMap[type]||{bg:'#f9fafb',bd:'#6b7280',col:'#374151',ic:'📋'};
             return `<div style="padding:10px 12px;background:${st.bg};border-radius:8px;border-left:3px solid ${st.bd};">
@@ -13411,14 +13426,17 @@
                     <span style="font-size:13px;font-weight:800;color:${st.col};">${st.ic} ${type}</span>
                     <span style="font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:${st.col};">${entries.length}次</span>
                 </div>
-                ${entries.map(mt=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px;color:#374151;border-top:1px solid ${st.bd}22;">
-                    <span>${mt.inning}局${mt.half}｜${mt.balls}球${mt.strikes}好</span>
-                    <button onclick="deleteManualTactic('${mt.id}')" style="background:none;border:none;color:#dc2626;font-size:12px;cursor:pointer;padding:0 4px;font-weight:700;">✕</button>
+                ${entries.map(mt=>`<div style="padding:3px 0;font-size:12px;color:#374151;border-top:1px solid ${st.bd}22;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>${mt.inning}局${mt.half}｜${mt.balls}球${mt.strikes}好${mt.baseState?'｜'+mt.baseState:''}</span>
+                        <button onclick="deleteManualTactic('${mt.id}')" style="background:none;border:none;color:#dc2626;font-size:12px;cursor:pointer;padding:0 4px;font-weight:700;">✕</button>
+                    </div>
+                    ${mt.note?`<div style="font-size:11px;color:#6b7280;margin-top:2px;">📝 ${escapeHtml(mt.note)}</div>`:''}
                 </div>`).join('')}
             </div>`;
         }).join('');
 
-        const _tHasAny=_tBunt.length+_tHR.length+_tStls.length+_manualTactics.length>0;
+        const _tHasAny=_tBunt.length+_tHR.length+_tForce.length+_tStls.length+_manualTactics.length>0;
         const _entryNumJson=JSON.stringify(entry._bmNum||'');
         const _entryNameJson=JSON.stringify(entry.name||'');
 
@@ -13435,7 +13453,7 @@
                         <span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#ec4899;">${_tBunt.length}次</span>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#374151;">
-                        <div>最常球數：${_tTopCnt(_tBunt)}</div><div>壘況：${_tTopBase(_tBunt)}</div>
+                        <div>最常球數：${_tTopCnt(_tBunt)}</div><div>壘況：${_tTopBase(_tBunt)}</div><div>最常局數：${_tTopInning(_tBunt)}</div>
                     </div>
                 </div>`:''}
                 ${_tHR.length>0?`<div style="padding:12px;background:#f5f3ff;border-radius:8px;border-left:3px solid #7c3aed;">
@@ -13444,7 +13462,16 @@
                         <span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#7c3aed;">${_tHR.length}次</span>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#374151;">
-                        <div>最常球數：${_tTopCnt(_tHR)}</div><div>壘況：${_tTopBase(_tHR)}</div>
+                        <div>最常球數：${_tTopCnt(_tHR)}</div><div>壘況：${_tTopBase(_tHR)}</div><div>最常局數：${_tTopInning(_tHR)}</div>
+                    </div>
+                </div>`:''}
+                ${_tForce.length>0?`<div style="padding:12px;background:#fff7ed;border-radius:8px;border-left:3px solid #f97316;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-size:13px;font-weight:800;color:#f97316;">🎯 強迫取分</span>
+                        <span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#f97316;">${_tForce.length}次</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#374151;">
+                        <div>最常球數：${_tTopCnt(_tForce)}</div><div>壘況：${_tTopBase(_tForce)}</div><div>最常局數：${_tTopInning(_tForce)}</div>
                     </div>
                 </div>`:''}
                 ${_tStls.length>0?`<div style="padding:12px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10b981;">
@@ -13452,7 +13479,9 @@
                         <span style="font-size:13px;font-weight:800;color:#10b981;">⚡ 盜壘</span>
                         <span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#10b981;">${_tStls.length}次</span>
                     </div>
-                    <div style="font-size:12px;color:#374151;">成功 ${_tStls.filter(s=>s.success).length} 次（${Math.round(_tStls.filter(s=>s.success).length/_tStls.length*100)}% 成功率）</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#374151;">
+                        <div>成功 ${_tStls.filter(s=>s.success).length} 次（${Math.round(_tStls.filter(s=>s.success).length/_tStls.length*100)}% 成功率）</div><div>最常局數：${_tTopInning(_tStls)}</div>
+                    </div>
                 </div>`:''}
                 ${_manualGroupedHTML}
             </div>`}
@@ -13481,6 +13510,8 @@
     let _mtBalls = 0;
     let _mtStrikes = 0;
     let _mtTacticType = null;
+    let _mtBaseState = '空壘';
+    let _mtNote = '';
 
     function showManualTacticModal(batterNum, batterName) {
         _mtBatterNum = String(batterNum || '');
@@ -13490,6 +13521,8 @@
         _mtBalls = 0;
         _mtStrikes = 0;
         _mtTacticType = null;
+        _mtBaseState = '空壘';
+        _mtNote = '';
         let overlay = document.getElementById('manualTacticOverlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -13501,8 +13534,8 @@
     }
 
     function _renderMtModal(overlay) {
-        const TACTIC_TYPES = ['打帶跑', '強迫短打', '犧牲觸擊', '盜壘', '雙盜壘'];
-        const TACTIC_COLORS = {'打帶跑':'#7c3aed','強迫短打':'#f97316','犧牲觸擊':'#ec4899','盜壘':'#10b981','雙盜壘':'#059669'};
+        const TACTIC_TYPES = ['打帶跑', '強迫短打', '強迫取分', '犧牲觸擊', '盜壘', '雙盜壘'];
+        const TACTIC_COLORS = {'打帶跑':'#7c3aed','強迫短打':'#f97316','強迫取分':'#f97316','犧牲觸擊':'#ec4899','盜壘':'#10b981','雙盜壘':'#059669'};
         overlay.innerHTML = `
         <div style="background:white;border-radius:16px;padding:24px;width:320px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="font-size:16px;font-weight:900;color:#003d79;margin-bottom:18px;text-align:center;">
@@ -13545,6 +13578,20 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- 壘況 -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">壘況</div>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                    ${['空壘','一壘','二壘','三壘','得點圈','滿壘'].map(bs=>`<button onclick="setMtBaseState('${bs}')" style="padding:6px 12px;border-radius:8px;border:2px solid ${_mtBaseState===bs?'#003d79':'#d1d5db'};background:${_mtBaseState===bs?'#003d79':'white'};color:${_mtBaseState===bs?'white':'#374151'};font-size:12px;font-weight:700;cursor:pointer;">${bs}</button>`).join('')}
+                </div>
+            </div>
+
+            <!-- 備註 -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">備註（特殊狀況）</div>
+                <input id="mtNoteInput" type="text" value="${(_mtNote||'').replace(/"/g,'&quot;')}" oninput="_setMtNote(this.value)" placeholder="例：落後一分時強迫取分、代打上來就觸擊" autocomplete="off" style="width:100%;padding:9px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit;">
             </div>
 
             <!-- 戰術種類 -->
@@ -13597,6 +13644,15 @@
         if (overlay) _renderMtModal(overlay);
     }
 
+    function setMtBaseState(bs) {
+        _mtBaseState = bs;
+        const overlay = document.getElementById('manualTacticOverlay');
+        if (overlay) _renderMtModal(overlay);
+    }
+
+    // 備註：只更新變數、不重繪（避免輸入中失焦）
+    function _setMtNote(v) { _mtNote = v; }
+
     function closeManualTacticModal() {
         const overlay = document.getElementById('manualTacticOverlay');
         if (overlay) overlay.style.display = 'none';
@@ -13606,6 +13662,9 @@
         if (!_mtTacticType) { alert('請選擇戰術種類'); return; }
         if (!allData.bm) allData.bm = {};
         if (!Array.isArray(allData.bm.manualTactics)) allData.bm.manualTactics = [];
+        // 存檔前同步最新備註（保險：直接讀輸入框現值）
+        const _noteEl = document.getElementById('mtNoteInput');
+        if (_noteEl) _mtNote = _noteEl.value;
         allData.bm.manualTactics.push({
             id: String(Date.now()),
             batterNum: _mtBatterNum,
@@ -13614,7 +13673,9 @@
             half: _mtHalf,
             balls: _mtBalls,
             strikes: _mtStrikes,
-            tacticType: _mtTacticType
+            tacticType: _mtTacticType,
+            baseState: _mtBaseState,
+            note: (_mtNote || '').trim()
         });
         closeManualTacticModal();
         saveToLocalStorage();
@@ -13639,6 +13700,8 @@
     window.setMtBalls = setMtBalls;
     window.setMtStrikes = setMtStrikes;
     window.setMtTacticType = setMtTacticType;
+    window.setMtBaseState = setMtBaseState;
+    window._setMtNote = _setMtNote;
     window.saveManualTactic = saveManualTactic;
     window.deleteManualTactic = deleteManualTactic;
 
@@ -14495,7 +14558,7 @@
                     teamName,
                     // 從投手記錄抽取戰術標籤（打帶跑、戰術失敗等）
                     tactics: (pitch.outcomes || []).filter(o =>
-                        ['打帶跑','戰術失敗','首球','跑打','偷點'].includes(o)),
+                        ['打帶跑','戰術失敗','首球','跑打','偷點','強迫取分'].includes(o)),
                     balls:   pitch.balls   || 0,
                     strikes: pitch.strikes || 0,
                     inning:  pitch.inning  || null,
@@ -15459,7 +15522,7 @@
         { label:'出局', color:'#dc0000', outcomes: ['三振','不死三振','滾地球出局','飛球出局','平飛球出局','犧牲觸擊','高飛犧牲打','雙殺'] },
         { label:'安打', color:'#16a34a', outcomes: ['內野安打','一壘安打','二壘安打','三壘安打','全壘打'] },
         { label:'上壘', color:'#0051a5', outcomes: ['保送','觸身球','故意四壞','野選','失誤'] },
-        { label:'戰術標籤', color:'#7c3aed', outcomes: ['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','戰術失敗'], type:'modifier' },
+        { label:'戰術標籤', color:'#7c3aed', outcomes: ['首球','跑打','偷點','收打','Push','違規打擊','打帶跑','強迫取分','戰術失敗'], type:'modifier' },
     ];
     // 各 outcome 對應的 cls（供 grouped 渲染使用）
     const BM_OUTCOME_CLS = {};
