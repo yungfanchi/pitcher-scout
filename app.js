@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v540';
+﻿    const APP_VERSION = 'v541';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1002,8 +1002,11 @@
                 (p.pitches || []).forEach(pitch => {
                     const num = pitch.batterNumber != null ? String(pitch.batterNumber) : null;
                     const ord = pitch.batterOrder  != null ? String(pitch.batterOrder)  : null;
-                    if (!num && !ord) return;
-                    const lineupInfo = num ? lineupNumMap[num] : null;
+                    // ★ 無背號打者不列入（與統計頁 _renderBmStats 的「ab.number===''→不列入」一致）。
+                    //   只有打序、查不到打線的「來路不明打者」(可能是別隊) 不應混進 PDF 清單，
+                    //   否則「全選」會把它們一起帶進 PDF（統計頁卻看不到）。純篩選，不動任何資料。
+                    if (!num) return;
+                    const lineupInfo = lineupNumMap[num] || null;
                     const resolvedTeam = lineupInfo?.team || pitch.batterTeam || _fallbackTeam(pitch);
                     // ★ 只保留屬於 teamName 的打者（過濾掉對手打者）
                     if (resolvedTeam !== teamName) return;
