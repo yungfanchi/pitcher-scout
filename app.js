@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v545';
+﻿    const APP_VERSION = 'v546';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -1285,7 +1285,7 @@
             // ── ④ 戰術時機 ──
             const tBunt    = paPitches.filter(p=>oc(p).some(o=>o==='犧牲觸擊'));
             const tHR      = paPitches.filter(p=>oc(p).some(o=>o==='打帶跑'));
-            const tForce   = paPitches.filter(p=>oc(p).some(o=>o==='強迫取分'));
+            const tForce   = pitches.filter(p=>oc(p).some(o=>o==='強迫取分'));
             const tTopCnt  = arr=>{const m={};arr.forEach(p=>{const k=`${p.balls||0}B ${p.strikes||0}S`;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}（${t[1]}次）`:'—';};
             const tTopBase = arr=>{const m={};arr.forEach(p=>{const r=p.runnersOn?'有跑者':'空壘';m[r]=(m[r]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:'—';};
             const tTopInning = arr=>{const m={};arr.forEach(p=>{const k=p.inning;if(k==null||k==='')return;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}局（${t[1]}次）`:'—';};
@@ -13407,7 +13407,8 @@
         // ── ④ 戰術時機 ──
         const _tBunt=paPitches.filter(p=>(p.outcomes||[]).includes('犧牲觸擊'));
         const _tHR  =paPitches.filter(p=>(p.outcomes||[]).includes('打帶跑'));
-        const _tForce=paPitches.filter(p=>(p.outcomes||[]).includes('強迫取分'));
+        // 強迫取分可能單獨標記、無打席結果 → 從全部球篩（不限 paPitches），確保戰術時機一定呈現
+        const _tForce=pitches.filter(p=>(p.outcomes||[]).includes('強迫取分'));
         const _tStls=(allData.bm?.steals||[]).filter(s=>entry._bmNum&&String(s.runnerNumber||'')===String(entry._bmNum));
         const _tTopCnt=arr=>{const m={};arr.forEach(p=>{const k=`${p.balls||0}B ${p.strikes||0}S`;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}（${t[1]}次）`:'—';};
         const _tTopBase=arr=>{const m={};arr.forEach(p=>{const r=p.runnersOn?'有跑者':'空壘';m[r]=(m[r]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:'—';};
@@ -13443,7 +13444,7 @@
         const secD = `<div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);break-inside:avoid;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                 <div style="font-size:14px;font-weight:900;color:#003d79;border-left:4px solid #003d79;padding-left:8px;">④ 戰術時機</div>
-                <button onclick="showManualTacticModal(${_entryNumJson},${_entryNameJson})" style="background:#003d79;color:white;border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">+ 新增</button>
+                <button onclick="showManualTacticModal(${escapeHtml(_entryNumJson)},${escapeHtml(_entryNameJson)})" style="background:#003d79;color:white;border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">+ 新增</button>
             </div>
             ${!_tHasAny?`<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0;">尚無戰術記錄<br><span style="font-size:11px;">（犧牲觸擊、打帶跑、盜壘出現時顯示）</span></div>`:`
             <div style="display:flex;flex-direction:column;gap:10px;">
