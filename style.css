@@ -263,7 +263,10 @@
         .btn-success { background:#10b981; color:white; box-shadow:0 2px 8px rgba(16,185,129,0.2); }
         .btn-danger { background:var(--ct-red); color:white; box-shadow:0 2px 8px rgba(220,0,0,0.2); }
         .btn-warning { background:var(--ct-gold); color:var(--ct-blue-dark); box-shadow:0 2px 8px rgba(255,215,0,0.3); }
-        .record-controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+        .record-controls { display:flex; gap:8px; flex-wrap:nowrap; margin-bottom:10px; }
+        .record-controls .btn { flex:1 1 0; min-width:0; white-space:nowrap; padding:10px 8px; }
+        .btn-lock { background:var(--ct-blue); color:#fff; box-shadow:0 2px 8px rgba(0,81,165,0.25); }
+        .btn-lock.locked { background:var(--ct-red); color:#fff; box-shadow:0 0 0 3px rgba(255,215,0,0.4); }
 
         /* ===== PITCH RECORD SECTION LAYOUT ===== */
         /* Zone + results side by side layout */

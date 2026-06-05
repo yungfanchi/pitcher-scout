@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v538';
+﻿    const APP_VERSION = 'v539';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3226,7 +3226,36 @@
     }
 
     // ====== SIDEBAR ======
+    // ====== 鎖定畫面（情蒐時防誤觸捲動／開側欄）======
+    let _scrollLocked = false;
+    let _lockScrollY = 0;
+    function toggleScrollLock() {
+        _scrollLocked = !_scrollLocked;
+        const btn = document.getElementById('scrollLockBtn');
+        const body = document.body;
+        if (_scrollLocked) {
+            _lockScrollY = window.scrollY || window.pageYOffset || 0;
+            body.style.position = 'fixed';
+            body.style.top = (-_lockScrollY) + 'px';
+            body.style.left = '0';
+            body.style.right = '0';
+            body.style.width = '100%';
+            body.classList.add('scroll-locked');
+            if (btn) { btn.textContent = '🔒 已鎖定'; btn.classList.add('locked'); }
+        } else {
+            body.style.position = '';
+            body.style.top = '';
+            body.style.left = '';
+            body.style.right = '';
+            body.style.width = '';
+            body.classList.remove('scroll-locked');
+            if (btn) { btn.textContent = '🔓 鎖定畫面'; btn.classList.remove('locked'); }
+            window.scrollTo(0, _lockScrollY);
+        }
+    }
+
     function toggleSidebar() {
+        if (_scrollLocked) return;   // 鎖定中：不開側邊欄，避免誤觸
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('mainContent');
         const toggleBtn = document.getElementById('toggleSidebar');
