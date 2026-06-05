@@ -12,7 +12,7 @@
 - **架構**：單頁 PWA，拆分為 `index.html`（HTML 結構）、`style.css`（樣式）、`app.js`（邏輯）
 - **部署**：GitHub Pages（HTTPS），已可安裝到手機/平板桌面
 - **資料庫**：Firebase Realtime Database（雲端同步）+ localStorage（本機備份）
-- **目前版本**：v537（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
+- **目前版本**：v549（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
 
 ---
 
