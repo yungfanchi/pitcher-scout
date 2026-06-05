@@ -267,6 +267,13 @@
         .record-controls .btn { flex:1 1 0; min-width:0; white-space:nowrap; padding:10px 8px; }
         .btn-lock { background:var(--ct-blue); color:#fff; box-shadow:0 2px 8px rgba(0,81,165,0.25); }
         .btn-lock.locked { background:var(--ct-red); color:#fff; box-shadow:0 0 0 3px rgba(255,215,0,0.4); }
+        /* 鎖定時把「確認紀錄」操作條釘在畫面最底，避免凍結捲動後點不到（脫離排版後上方內容會往下補，更多東西塞得進可視範圍） */
+        body.scroll-locked #recordActionBar {
+            position:fixed !important; margin:0 !important;
+            left:0; right:0; bottom:0; z-index:60;
+            padding:8px 12px; background:#fff;
+            box-shadow:0 -3px 12px rgba(0,0,0,0.18);
+        }
 
         /* ===== PITCH RECORD SECTION LAYOUT ===== */
         /* Zone + results side by side layout */

@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v541';
+﻿    const APP_VERSION = 'v542';
 
     function escapeHtml(str) {
         if (str == null) return '';
