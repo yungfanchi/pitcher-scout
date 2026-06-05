@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v547';
+﻿    const APP_VERSION = 'v548';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -6344,10 +6344,15 @@
                     if (le?.name) runnerName = le.name;
                 }
                 const toBase = leadIdx === 2 ? 'H' : leadIdx + 2;
+                // 跑者（進攻方）隊名：上半＝先攻＝game.name，下半＝後攻＝game.opponent（與打線 teamA/teamB 慣例一致）
+                // 供打者情蒐卡用「隊名＋背號」歸位，比賽中不知對手姓名也能正確分人
+                const _g = allData.teams[currentTeam] || {};
+                const _runnerTeam = gameState.half === '上' ? (_g.name || '') : (_g.opponent || '');
                 pitcher.steals.push({
                     number:   runner?.number || null,
                     order:    runner?.order  || null,
                     name:     runnerName,
+                    team:     _runnerTeam,
                     fromBase: leadIdx + 1,
                     toBase,
                     success,
@@ -13409,14 +13414,59 @@
         const _tHR  =paPitches.filter(p=>(p.outcomes||[]).includes('打帶跑'));
         // 強迫取分可能單獨標記、無打席結果 → 從全部球篩（不限 paPitches），確保戰術時機一定呈現
         const _tForce=pitches.filter(p=>(p.outcomes||[]).includes('強迫取分'));
-        const _tStls=(allData.bm?.steals||[]).filter(s=>entry._bmNum&&String(s.runnerNumber||'')===String(entry._bmNum));
+        // 盜壘：真實來源是投手模式記分板（stealBase → pitcher.steals），不是 bm.steals。
+        // 用「隊名＋背號」分人（比賽中常不知對手姓名，故不靠姓名）。
+        // 跑者（進攻方）隊名＝該場中「不是投手那隊」的另一隊：用 pitcherTeam 回推，無則用 pitchingTeam 回推。
+        const _entryTeam=String(entry.teamName||'').trim();
+        const _entryNumForStl=String(entry._bmNum||'').trim();
+        const _runnerTeamOf=(g,p)=>{
+            const nm=String(g.name||'').trim(), op=String(g.opponent||'').trim();
+            const pt=String(p.pitcherTeam||'').trim();
+            if(pt&&pt===op) return nm;
+            if(pt&&pt===nm) return op;
+            if(p.pitchingTeam==='A') return nm;   // A 投手屬 opponent → 跑者＝name
+            if(p.pitchingTeam==='B') return op;   // B 投手屬 name → 跑者＝opponent
+            return '';
+        };
+        const _tStls=[];
+        if(_entryTeam&&_entryNumForStl){
+            (allData.teams||[]).forEach(g=>{
+                (g.pitchers||[]).forEach(p=>{
+                    const runTeam=String(p.steals&&p.steals.length?_runnerTeamOf(g,p):'').trim();
+                    (p.steals||[]).forEach(s=>{
+                        if(String(s.number||'').trim()!==_entryNumForStl) return;
+                        const sTeam=String(s.team||runTeam||'').trim();
+                        if(sTeam&&sTeam!==_entryTeam) return;   // 有隊名才比隊名
+                        _tStls.push(s);
+                    });
+                });
+            });
+            // 相容：demo / 舊版獨立打者模式可能把盜壘存在 bm.steals（無隊名 → 僅靠背號）
+            (allData.bm?.steals||[]).forEach(s=>{
+                if(String(s.number||s.runnerNumber||'').trim()!==_entryNumForStl) return;
+                const sTeam=String(s.team||s.teamName||'').trim();
+                if(sTeam&&sTeam!==_entryTeam) return;
+                _tStls.push(s);
+            });
+        }
         const _tTopCnt=arr=>{const m={};arr.forEach(p=>{const k=`${p.balls||0}B ${p.strikes||0}S`;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}（${t[1]}次）`:'—';};
         const _tTopBase=arr=>{const m={};arr.forEach(p=>{const r=p.runnersOn?'有跑者':'空壘';m[r]=(m[r]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:'—';};
         // 最常局數：舊資料無 inning 欄位 → 略過，全無則顯示「—」
         const _tTopInning=arr=>{const m={};arr.forEach(p=>{const k=p.inning;if(k==null||k==='')return;m[k]=(m[k]||0)+1;});const t=Object.entries(m).sort((a,b)=>b[1]-a[1])[0];return t?`${t[0]}局（${t[1]}次）`:'—';};
 
-        // 手動新增的戰術記錄（依背號比對）
-        const _manualTactics=(allData.bm?.manualTactics||[]).filter(mt=>String(mt.batterNum||'')===String(entry._bmNum||''));
+        // 手動新增的戰術記錄：新記錄用「隊伍+身分」精確比對（batterKey）。
+        // 舊記錄無 batterKey → 先用背號、退而用姓名歸位；兩者皆空才不顯示（避免空背號舊資料污染到每位球員）。
+        const _bmCardKey = `${entry.teamName||''}||${entry.nameKey||''}`;
+        const _entryNumStr = String(entry._bmNum||'').trim();
+        const _entryNameStr = String(entry.name||'').trim();
+        const _manualTactics=(allData.bm?.manualTactics||[]).filter(mt=>{
+            if (mt.batterKey) return mt.batterKey === _bmCardKey;
+            const mtNum = String(mt.batterNum||'').trim();
+            const mtName = String(mt.batterName||'').trim();
+            if (mtNum && _entryNumStr) return mtNum === _entryNumStr;
+            if (mtName) return mtName === _entryNameStr;
+            return false;
+        });
         const _manualByType={};
         _manualTactics.forEach(mt=>{(_manualByType[mt.tacticType]||(_manualByType[mt.tacticType]=[])).push(mt);});
         const _tstyMap={'打帶跑':{bg:'#f5f3ff',bd:'#7c3aed',col:'#7c3aed',ic:'🏃'},'強迫短打':{bg:'#fff7ed',bd:'#f97316',col:'#f97316',ic:'💪'},'強迫取分':{bg:'#fff7ed',bd:'#f97316',col:'#f97316',ic:'🎯'},'犧牲觸擊':{bg:'#fdf4ff',bd:'#ec4899',col:'#ec4899',ic:'📦'},'盜壘':{bg:'#f0fdf4',bd:'#10b981',col:'#10b981',ic:'⚡'},'雙盜壘':{bg:'#ecfdf5',bd:'#059669',col:'#059669',ic:'🔥'}};
@@ -13440,11 +13490,13 @@
         const _tHasAny=_tBunt.length+_tHR.length+_tForce.length+_tStls.length+_manualTactics.length>0;
         const _entryNumJson=JSON.stringify(entry._bmNum||'');
         const _entryNameJson=JSON.stringify(entry.name||'');
+        const _entryKeyJson=JSON.stringify(_bmCardKey);
+        const _entryTeamJson=JSON.stringify(entry.teamName||'');
 
         const secD = `<div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);break-inside:avoid;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                 <div style="font-size:14px;font-weight:900;color:#003d79;border-left:4px solid #003d79;padding-left:8px;">④ 戰術時機</div>
-                <button onclick="showManualTacticModal(${escapeHtml(_entryNumJson)},${escapeHtml(_entryNameJson)})" style="background:#003d79;color:white;border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">+ 新增</button>
+                <button onclick="showManualTacticModal(${escapeHtml(_entryNumJson)},${escapeHtml(_entryNameJson)},${escapeHtml(_entryKeyJson)},${escapeHtml(_entryTeamJson)})" style="background:#003d79;color:white;border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">+ 新增</button>
             </div>
             ${!_tHasAny?`<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0;">尚無戰術記錄<br><span style="font-size:11px;">（犧牲觸擊、打帶跑、盜壘出現時顯示）</span></div>`:`
             <div style="display:flex;flex-direction:column;gap:10px;">
@@ -13506,6 +13558,8 @@
     // ── 戰術時機：手動新增 ──
     let _mtBatterNum = '';
     let _mtBatterName = '';
+    let _mtBatterKey = '';   // 隊伍+身分（teamName||nameKey）：精確歸位到單一打者卡
+    let _mtBatterTeam = '';
     let _mtInning = 1;
     let _mtHalf = '上';
     let _mtBalls = 0;
@@ -13514,9 +13568,11 @@
     let _mtBaseStates = [];   // 壘況可複選：['一壘','三壘'] 等；空陣列＝空壘
     let _mtNote = '';
 
-    function showManualTacticModal(batterNum, batterName) {
+    function showManualTacticModal(batterNum, batterName, batterKey, batterTeam) {
         _mtBatterNum = String(batterNum || '');
         _mtBatterName = String(batterName || '');
+        _mtBatterKey = String(batterKey || '');
+        _mtBatterTeam = String(batterTeam || '');
         _mtInning = 1;
         _mtHalf = '上';
         _mtBalls = 0;
@@ -13687,6 +13743,8 @@
             id: String(Date.now()),
             batterNum: _mtBatterNum,
             batterName: _mtBatterName,
+            batterKey: _mtBatterKey,    // 精確歸位：隊伍+身分，避免同背號/空背號跨人污染
+            batterTeam: _mtBatterTeam,
             inning: _mtInning,
             half: _mtHalf,
             balls: _mtBalls,
