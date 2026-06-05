@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v549';
+﻿    const APP_VERSION = 'v550';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -16908,7 +16908,39 @@
             const _buntCount    = _teamRaw.filter(ab => ab.outcome === '犧牲觸擊').length;
             const _hitRunCount  = _teamRaw.filter(ab => (ab.tactics || []).includes('打帶跑')).length;
             const _teamNums     = new Set(rows.map(r => String(r.number || '')).filter(Boolean));
-            const _stealCount   = (allData.bm?.steals || []).filter(s => _teamNums.has(String(s.runnerNumber || ''))).length;
+            // 盜壘真實來源是投手模式記分板（stealBase → pitcher.steals），用「隊名＋背號」歸位；
+            // 僅讀 bm.steals 會永遠為 0（那只有測試/舊獨立模式才寫入）。同時保留 bm.steals 相容。
+            const _stealRunnerTeamOf = (g, p) => {
+                const nm = String(g.name || '').trim(), op = String(g.opponent || '').trim();
+                const pt = String(p.pitcherTeam || '').trim();
+                if (pt && pt === op) return nm;
+                if (pt && pt === nm) return op;
+                if (p.pitchingTeam === 'A') return nm;   // A 投手屬 opponent → 跑者＝name
+                if (p.pitchingTeam === 'B') return op;   // B 投手屬 name → 跑者＝opponent
+                return '';
+            };
+            let _stealCount = 0;
+            (allData.teams || []).forEach(g => {
+                (g.pitchers || []).forEach(p => {
+                    if (!p.steals || !p.steals.length) return;
+                    const runTeam = String(_stealRunnerTeamOf(g, p)).trim();
+                    p.steals.forEach(s => {
+                        const num = String(s.number || '').trim();
+                        if (!num || !_teamNums.has(num)) return;
+                        const sTeam = String(s.team || runTeam || '').trim();
+                        if (sTeam && sTeam !== tname) return;   // 有隊名才比隊名
+                        _stealCount++;
+                    });
+                });
+            });
+            // 相容：demo / 舊版獨立打者模式可能把盜壘存在 bm.steals（欄位可能是 runnerNumber、無隊名）
+            (allData.bm?.steals || []).forEach(s => {
+                const num = String(s.number || s.runnerNumber || '').trim();
+                if (!num || !_teamNums.has(num)) return;
+                const sTeam = String(s.team || s.teamName || '').trim();
+                if (sTeam && sTeam !== tname) return;
+                _stealCount++;
+            });
             const _fmtRate = (n, d) => d > 0 ? (n / d * 100).toFixed(1) + '%' : '---';
             const _buntRate    = _fmtRate(_buntCount,   _roPACount);
             const _hitRunRate  = _fmtRate(_hitRunCount, _roPACount);
