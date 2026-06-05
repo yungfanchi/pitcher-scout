@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v546';
+﻿    const APP_VERSION = 'v547';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -13511,7 +13511,7 @@
     let _mtBalls = 0;
     let _mtStrikes = 0;
     let _mtTacticType = null;
-    let _mtBaseState = '空壘';
+    let _mtBaseStates = [];   // 壘況可複選：['一壘','三壘'] 等；空陣列＝空壘
     let _mtNote = '';
 
     function showManualTacticModal(batterNum, batterName) {
@@ -13522,7 +13522,7 @@
         _mtBalls = 0;
         _mtStrikes = 0;
         _mtTacticType = null;
-        _mtBaseState = '空壘';
+        _mtBaseStates = [];
         _mtNote = '';
         let overlay = document.getElementById('manualTacticOverlay');
         if (!overlay) {
@@ -13537,20 +13537,21 @@
     function _renderMtModal(overlay) {
         const TACTIC_TYPES = ['打帶跑', '強迫短打', '強迫取分', '犧牲觸擊', '盜壘', '雙盜壘'];
         const TACTIC_COLORS = {'打帶跑':'#7c3aed','強迫短打':'#f97316','強迫取分':'#f97316','犧牲觸擊':'#ec4899','盜壘':'#10b981','雙盜壘':'#059669'};
+        const _baseSel = bs => bs==='空壘' ? _mtBaseStates.length===0 : _mtBaseStates.includes(bs);
         overlay.innerHTML = `
-        <div style="background:white;border-radius:16px;padding:24px;width:320px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div style="font-size:16px;font-weight:900;color:#003d79;margin-bottom:18px;text-align:center;">
+        <div style="background:white;border-radius:16px;padding:18px;width:380px;max-width:94vw;max-height:94vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="font-size:16px;font-weight:900;color:#003d79;margin-bottom:12px;text-align:center;">
                 📋 新增戰術記錄
-                ${_mtBatterName ? `<div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">${_mtBatterName}${_mtBatterNum ? ' #' + _mtBatterNum : ''}</div>` : ''}
+                ${_mtBatterName ? `<div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:3px;">${_mtBatterName}${_mtBatterNum ? ' #' + _mtBatterNum : ''}</div>` : ''}
             </div>
 
             <!-- 局數 + 上下局 -->
-            <div style="margin-bottom:14px;">
-                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">局數</div>
+            <div style="margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:5px;">局數</div>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <div style="display:flex;align-items:center;gap:4px;">
                         <button onclick="adjustMtInning(-1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #d1d5db;background:white;font-size:16px;font-weight:700;cursor:pointer;color:#374151;">−</button>
-                        <div id="mtInningDisplay" style="width:40px;text-align:center;font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${_mtInning}</div>
+                        <div id="mtInningDisplay" style="width:38px;text-align:center;font-size:20px;font-weight:900;font-family:'Oswald',sans-serif;color:#003d79;">${_mtInning}</div>
                         <button onclick="adjustMtInning(1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #d1d5db;background:white;font-size:16px;font-weight:700;cursor:pointer;color:#374151;">＋</button>
                     </div>
                     <span style="font-size:14px;color:#374151;">局</span>
@@ -13562,47 +13563,47 @@
             </div>
 
             <!-- 球數 -->
-            <div style="margin-bottom:14px;">
-                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">球數</div>
+            <div style="margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:5px;">球數</div>
                 <div style="display:flex;gap:10px;align-items:center;">
                     <div>
                         <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;text-align:center;">壞球 B</div>
                         <div style="display:flex;gap:4px;">
-                            ${[0,1,2,3].map(n=>`<button onclick="setMtBalls(${n})" style="width:36px;height:36px;border-radius:8px;border:2px solid ${_mtBalls===n?'#dc2626':'#d1d5db'};background:${_mtBalls===n?'#dc2626':'white'};color:${_mtBalls===n?'white':'#374151'};font-size:15px;font-weight:700;cursor:pointer;">${n}</button>`).join('')}
+                            ${[0,1,2,3].map(n=>`<button onclick="setMtBalls(${n})" style="width:34px;height:34px;border-radius:8px;border:2px solid ${_mtBalls===n?'#dc2626':'#d1d5db'};background:${_mtBalls===n?'#dc2626':'white'};color:${_mtBalls===n?'white':'#374151'};font-size:15px;font-weight:700;cursor:pointer;">${n}</button>`).join('')}
                         </div>
                     </div>
                     <div style="font-size:18px;color:#d1d5db;padding-top:14px;">|</div>
                     <div>
                         <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;text-align:center;">好球 S</div>
                         <div style="display:flex;gap:4px;">
-                            ${[0,1,2].map(n=>`<button onclick="setMtStrikes(${n})" style="width:36px;height:36px;border-radius:8px;border:2px solid ${_mtStrikes===n?'#f97316':'#d1d5db'};background:${_mtStrikes===n?'#f97316':'white'};color:${_mtStrikes===n?'white':'#374151'};font-size:15px;font-weight:700;cursor:pointer;">${n}</button>`).join('')}
+                            ${[0,1,2].map(n=>`<button onclick="setMtStrikes(${n})" style="width:34px;height:34px;border-radius:8px;border:2px solid ${_mtStrikes===n?'#f97316':'#d1d5db'};background:${_mtStrikes===n?'#f97316':'white'};color:${_mtStrikes===n?'white':'#374151'};font-size:15px;font-weight:700;cursor:pointer;">${n}</button>`).join('')}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 壘況 -->
-            <div style="margin-bottom:14px;">
-                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">壘況</div>
-                <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                    ${['空壘','一壘','二壘','三壘','得點圈','滿壘'].map(bs=>`<button onclick="setMtBaseState('${bs}')" style="padding:6px 12px;border-radius:8px;border:2px solid ${_mtBaseState===bs?'#003d79':'#d1d5db'};background:${_mtBaseState===bs?'#003d79':'white'};color:${_mtBaseState===bs?'white':'#374151'};font-size:12px;font-weight:700;cursor:pointer;">${bs}</button>`).join('')}
+            <!-- 壘況（可複選；空壘＝清空，全選＝滿壘） -->
+            <div style="margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:5px;">壘況 <span style="font-weight:500;color:#9ca3af;">（壘上有人可複選）</span></div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
+                    ${['空壘','一壘','二壘','三壘'].map(bs=>{const sel=_baseSel(bs);return `<button onclick="setMtBaseState('${bs}')" style="padding:8px 4px;border-radius:8px;border:2px solid ${sel?'#003d79':'#d1d5db'};background:${sel?'#003d79':'white'};color:${sel?'white':'#374151'};font-size:13px;font-weight:700;cursor:pointer;">${bs}</button>`;}).join('')}
                 </div>
             </div>
 
             <!-- 備註 -->
-            <div style="margin-bottom:14px;">
-                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">備註（特殊狀況）</div>
+            <div style="margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:5px;">備註（特殊狀況）</div>
                 <input id="mtNoteInput" type="text" value="${(_mtNote||'').replace(/"/g,'&quot;')}" oninput="_setMtNote(this.value)" placeholder="例：落後一分時強迫取分、代打上來就觸擊" autocomplete="off" style="width:100%;padding:9px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box;font-family:inherit;">
             </div>
 
             <!-- 戰術種類 -->
-            <div style="margin-bottom:20px;">
-                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:8px;">戰術種類</div>
-                <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="margin-bottom:14px;">
+                <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:6px;">戰術種類</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
                     ${TACTIC_TYPES.map(t => {
                         const col = TACTIC_COLORS[t] || '#374151';
                         const sel = _mtTacticType === t;
-                        return `<button onclick="setMtTacticType('${t}')" style="padding:10px 14px;border-radius:10px;border:2px solid ${sel?col:'#e5e7eb'};background:${sel?col+'18':'white'};color:${sel?col:'#374151'};font-size:13px;font-weight:${sel?'800':'600'};cursor:pointer;text-align:left;">${t}</button>`;
+                        return `<button onclick="setMtTacticType('${t}')" style="padding:9px 4px;border-radius:9px;border:2px solid ${sel?col:'#e5e7eb'};background:${sel?col+'18':'white'};color:${sel?col:'#374151'};font-size:12.5px;font-weight:${sel?'800':'600'};cursor:pointer;text-align:center;">${t}</button>`;
                     }).join('')}
                 </div>
             </div>
@@ -13645,10 +13646,26 @@
         if (overlay) _renderMtModal(overlay);
     }
 
+    // 壘況複選：空壘＝清空；一/二/三壘可同時選（再點取消）
     function setMtBaseState(bs) {
-        _mtBaseState = bs;
+        if (bs === '空壘') {
+            _mtBaseStates = [];
+        } else {
+            const i = _mtBaseStates.indexOf(bs);
+            if (i >= 0) _mtBaseStates.splice(i, 1);
+            else _mtBaseStates.push(bs);
+        }
         const overlay = document.getElementById('manualTacticOverlay');
         if (overlay) _renderMtModal(overlay);
+    }
+
+    // 壘況陣列 → 顯示字串（空＝空壘、三壘皆有＝滿壘、其餘照壘序組合）
+    function _mtBaseLabel() {
+        const order = ['一壘','二壘','三壘'];
+        const sel = order.filter(b => _mtBaseStates.includes(b));
+        if (sel.length === 0) return '空壘';
+        if (sel.length === 3) return '滿壘';
+        return sel.join('・');
     }
 
     // 備註：只更新變數、不重繪（避免輸入中失焦）
@@ -13675,7 +13692,7 @@
             balls: _mtBalls,
             strikes: _mtStrikes,
             tacticType: _mtTacticType,
-            baseState: _mtBaseState,
+            baseState: _mtBaseLabel(),
             note: (_mtNote || '').trim()
         });
         closeManualTacticModal();
