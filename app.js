@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v539';
+﻿    const APP_VERSION = 'v540';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -803,7 +803,7 @@
     // 單一真相來源：PDF 與畫面共用同一支 renderBmBatterProfile，永遠一致（純呈現，不更動任何資料）。
     // resolved: [{ entry, stats }]（來自 _bmBatterCardMap，與螢幕完全相同）
     async function _captureBatterProfilesToArray(resolved, setProg) {
-        const pageW = 210, REPORT_W = 1100;
+        const pageW = 210, BASE_W = 1100;
         const captures = [];
         const profileEl  = document.getElementById('bmBatterProfileContent');
         const wrapper    = document.getElementById('batterModeWrapper');
@@ -825,6 +825,21 @@
             // 用螢幕同一支函式渲染（不更動任何資料）
             renderBmBatterProfile(entry.pitches, entry, stats);
             await new Promise(r => setTimeout(r, 900));   // 等 SVG / reflow
+
+            // 先在基準寬度量到高度，再用 _pdfPickFitWidth 挑一個較窄寬度 →
+            // 同內容往下長高、字變大、更貼近直式 A4，最終一律 fitPage（contain）縮到剛好一頁，
+            // 永不溢出、永不分頁（與全隊成績頁同一套單頁邏輯）。
+            profileEl.style.boxSizing = 'border-box';
+            profileEl.style.width = BASE_W + 'px';
+            await new Promise(r => setTimeout(r, 60));
+            const _h0 = Math.max(profileEl.scrollHeight, profileEl.offsetHeight, 300);
+            let REPORT_W = _pdfPickFitWidth(BASE_W, _h0, 1);
+            if (REPORT_W < BASE_W) {
+                profileEl.style.width = REPORT_W + 'px';
+                await new Promise(r => setTimeout(r, 60));
+            }
+            // 落點圖 SVG 寬度跟著輸出寬度等比例縮（佔 55% 欄的一半多一點），縮窄時也不會擠出欄外
+            const _svgW = Math.round(REPORT_W * 0.45);
 
             const captureH = Math.max(profileEl.scrollHeight, profileEl.offsetHeight, 300);
             const canvas = await html2canvas(profileEl, {
@@ -853,20 +868,23 @@
                         if (third) third.style.setProperty('grid-column', 'auto', 'important');
                     });
                     // html2canvas 對 width:100% 的 SVG 量寬會出錯，導致落點圖溢出壓到右側文字
-                    // → 給落點圖 SVG 固定寬度（只影響截圖，不動螢幕）
+                    // → 給落點圖 SVG 固定寬度（隨輸出寬度等比例，只影響截圖，不動螢幕）
                     cloned.querySelectorAll('svg').forEach(svg => {
                         const st = svg.getAttribute('style') || '';
                         if (st.replace(/\s/g, '').includes('width:100%')) {
-                            svg.style.setProperty('width', '500px', 'important');
-                            svg.style.setProperty('max-width', '500px', 'important');
+                            svg.style.setProperty('width', _svgW + 'px', 'important');
+                            svg.style.setProperty('max-width', _svgW + 'px', 'important');
                         }
                     });
                 }
             });
-            const pxPerMm = canvas.width / pageW;
-            captures.push({ canvas, imgHeightMm: canvas.height / pxPerMm });
+            // fitPage：整塊縮放塞進剛好一頁（不分頁、不溢出），保證單一打者所有數據都在同一頁
+            captures.push({ canvas, fitPage: true });
             await new Promise(r => setTimeout(r, 120));
         }
+        // 還原容器寬度（避免殘留 inline 寬度影響螢幕版面）
+        profileEl.style.width = '';
+        profileEl.style.boxSizing = '';
         return captures;
     }
 
