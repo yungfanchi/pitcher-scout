@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v542';
+﻿    const APP_VERSION = 'v543';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5163,6 +5163,10 @@
                 updateStats();
                 updateScoreboard();
             }
+            // 重繪兩槽卡片內容，讓「▶ 正在投球」標籤跟著黃框(active-slot)一起換隊。
+            // （三出局換局 toggleHalf / recompute 路徑原本只 toggle class、沒重繪 innerHTML，
+            //   導致標籤留在舊槽。純畫面重繪，不更動任何記錄資料。）
+            updateSlotDisplay();
         }
 
         // 將 lineup 參考指向當前打擊隊，讓打序 Modal 也連動
