@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v551';
+﻿    const APP_VERSION = 'v552';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -6330,6 +6330,164 @@
         autoUpdateBatterInfoByInning();
     }
 
+    // ── 記錄一筆盜壘事件到當前投手的 steals（單盜／雙盜共用）──
+    // baseIdx：跑者起始壘 0=一壘 1=二壘 2=三壘；isDouble：是否為雙盜壘（多存一個 double 旗標）。
+    // 必須在「移動壘包之前」呼叫，才讀得到 gameState.runners[baseIdx] 的跑者身分。
+    function _pushStealEvent(baseIdx, success, isDouble) {
+        if (currentTeam === null || currentPitcher === null) return;
+        const pitcher = allData.teams[currentTeam]?.pitchers[currentPitcher];
+        if (!pitcher) return;
+        if (!pitcher.steals) pitcher.steals = [];
+        const runner = gameState.runners[baseIdx];
+        // 嘗試從 lineup 補名字
+        let runnerName = runner?.name || null;
+        if (!runnerName && runner?.order) {
+            const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
+            const le = gameState.lineups[battingTeam]?.[runner.order];
+            if (le?.name) runnerName = le.name;
+        }
+        const toBase = baseIdx === 2 ? 'H' : baseIdx + 2;
+        // 跑者（進攻方）隊名：上半＝先攻＝game.name，下半＝後攻＝game.opponent（與打線慣例一致）
+        const _g = allData.teams[currentTeam] || {};
+        const _runnerTeam = gameState.half === '上' ? (_g.name || '') : (_g.opponent || '');
+        const ev = {
+            number:   runner?.number || null,
+            order:    runner?.order  || null,
+            name:     runnerName,
+            team:     _runnerTeam,
+            fromBase: baseIdx + 1,
+            toBase,
+            success,
+            inning:   gameState.inning,
+            half:     gameState.half,
+            outs:     gameState.outs,
+            balls:    gameState.balls,
+            strikes:  gameState.strikes,
+            ts:       Date.now()
+        };
+        if (isDouble) ev.double = true;
+        pitcher.steals.push(ev);
+    }
+
+    // ── 雙盜壘：選擇框狀態 ──
+    let _dsMode = 'success';                       // 'success' | 'fail'
+    let _dsRan  = { 0:true, 1:true, 2:true };      // 各壘跑者「有跑」
+    let _dsOut  = { 0:false, 1:false, 2:false };   // 各壘跑者「出局」（僅失敗模式）
+
+    function openDoubleStealModal(isSuccess) {
+        if (currentTeam === null || currentPitcher === null) { alert('請先選擇投手！'); return; }
+        const occupied = [0,1,2].filter(i => gameState.bases[i]);
+        if (occupied.length < 2) { alert('雙盜壘需要兩位以上跑者在壘上'); return; }
+        _dsMode = isSuccess ? 'success' : 'fail';
+        _dsRan  = { 0:true, 1:true, 2:true };       // 預設壘上跑者都有跑（可取消）
+        _dsOut  = { 0:false, 1:false, 2:false };
+        _renderDoubleStealModal();
+    }
+
+    function _renderDoubleStealModal() {
+        let overlay = document.getElementById('doubleStealOverlay');
+        if (!overlay) { overlay = document.createElement('div'); overlay.id = 'doubleStealOverlay'; document.body.appendChild(overlay); }
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+        const isFail = _dsMode === 'fail';
+        const baseNames = { 0:'一壘', 1:'二壘', 2:'三壘' };
+        const rows = [2,1,0].filter(i => gameState.bases[i]).map(i => {
+            const r = gameState.runners[i];
+            const who = `${baseNames[i]}${r && r.number ? (' #' + r.number) : ''}${r && r.name ? (' ' + r.name) : ''}`;
+            const ran = !!_dsRan[i];
+            const out = !!_dsOut[i];
+            return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1.5px solid #e5e7eb;border-radius:10px;margin-bottom:8px;">
+                <div style="flex:1;font-size:14px;font-weight:700;color:#003d79;">${escapeHtml(who)}</div>
+                <button onclick="_toggleDsRan(${i})" style="padding:6px 12px;border-radius:8px;border:2px solid ${ran?'#059669':'#d1d5db'};background:${ran?'#059669':'white'};color:${ran?'white':'#6b7280'};font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;">${ran?'✓ 有跑':'沒跑'}</button>
+                ${isFail ? `<button onclick="_toggleDsOut(${i})" style="padding:6px 12px;border-radius:8px;border:2px solid ${out&&ran?'#b91c1c':'#d1d5db'};background:${out&&ran?'#b91c1c':'white'};color:${out&&ran?'white':'#6b7280'};font-size:13px;font-weight:700;cursor:${ran?'pointer':'not-allowed'};opacity:${ran?1:0.5};touch-action:manipulation;">${out?'✗ 出局':'安全'}</button>` : ''}
+            </div>`;
+        }).join('');
+        overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:18px;width:360px;max-width:94vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="font-size:16px;font-weight:900;color:${isFail?'#b91c1c':'#059669'};margin-bottom:4px;text-align:center;">🔥 雙盜壘${isFail?'失敗':'成功'}</div>
+            <div style="font-size:11px;color:#6b7280;text-align:center;margin-bottom:12px;">${isFail?'勾選有跑的跑者，再標記哪幾位被刺殺出局':'勾選有跑的跑者，按確定後各前進一壘'}</div>
+            ${rows}
+            <div style="display:flex;gap:8px;margin-top:14px;">
+                <button onclick="closeDoubleStealModal()" style="flex:1;padding:11px;background:#f3f4f6;color:#374151;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;">取消</button>
+                <button onclick="confirmDoubleSteal()" style="flex:2;padding:11px;background:${isFail?'#b91c1c':'#059669'};color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;">✅ 確定</button>
+            </div>
+        </div>`;
+    }
+
+    function _toggleDsRan(i) { _dsRan[i] = !_dsRan[i]; if (!_dsRan[i]) _dsOut[i] = false; _renderDoubleStealModal(); }
+    function _toggleDsOut(i) { if (!_dsRan[i]) return; _dsOut[i] = !_dsOut[i]; _renderDoubleStealModal(); }
+    function closeDoubleStealModal() { const o = document.getElementById('doubleStealOverlay'); if (o) o.remove(); }
+
+    function confirmDoubleSteal() {
+        if (currentTeam === null || currentPitcher === null) { closeDoubleStealModal(); return; }
+        const isSuccessMode = _dsMode === 'success';
+        // 只取「壘上且有跑」的跑者
+        const ranIdxs = [0,1,2].filter(i => gameState.bases[i] && _dsRan[i]);
+        if (ranIdxs.length === 0) { alert('請至少選擇一位有跑的跑者'); return; }
+
+        // 1) 先記錄每位跑者的盜壘事件（移動壘包前，才讀得到跑者身分）
+        ranIdxs.forEach(i => {
+            const isOut = !isSuccessMode && _dsOut[i];
+            _pushStealEvent(i, !isOut, true);   // 標記為雙盜壘
+        });
+
+        // 2) 計分：安全且從三壘(idx2)盜回本壘 → 進攻方 +1（用換局前的 half）
+        let runs = 0;
+        ranIdxs.forEach(i => { const isOut = !isSuccessMode && _dsOut[i]; if (!isOut && i === 2) runs++; });
+        if (runs > 0 && currentTeam !== null) {
+            const sc = getTeamScore();
+            if (gameState.half === '上') sc.home = (sc.home || 0) + runs;
+            else sc.away = (sc.away || 0) + runs;
+        }
+
+        // 3) 出局數（失敗模式才有；支援最多兩位＝雙殺）
+        const outCount = isSuccessMode ? 0 : ranIdxs.filter(i => _dsOut[i]).length;
+
+        // 4) 移動壘包：由領先壘(三壘)往一壘，安全者前進一壘、出局者離壘
+        const newBases   = [...gameState.bases];
+        const newRunners = [...gameState.runners];
+        for (let i = 2; i >= 0; i--) {
+            if (!(gameState.bases[i] && _dsRan[i])) continue;
+            const isOut = !isSuccessMode && _dsOut[i];
+            const runnerObj = newRunners[i];
+            newBases[i] = false; newRunners[i] = null;
+            if (isOut) continue;                 // 出局：離壘
+            if (i === 2) continue;               // 安全盜回本壘：已計分，離壘
+            newBases[i + 1] = true; newRunners[i + 1] = runnerObj;  // 前進一壘
+        }
+
+        // 5) 套用出局數與換局（沿用 stealBase 失敗的換局邏輯）
+        gameState.outs += outCount;
+        if (gameState.outs >= 3) {
+            gameState.outs = 0;
+            gameState.bases   = [false, false, false];
+            gameState.runners = [null, null, null];
+            if (gameState.half === '上') { gameState.half = '下'; }
+            else { gameState.half = '上'; gameState.inning = Math.min(20, gameState.inning + 1); }
+            if (currentTeam !== null) {
+                const sc = getTeamScore();
+                sc.half = gameState.half;
+                sc.inning = gameState.inning;
+            }
+        } else {
+            gameState.bases   = newBases;
+            gameState.runners = newRunners;
+        }
+
+        // 6) 存檔與重繪
+        saveToLocalStorage();
+        saveToFirebase(currentTeam);
+        updateScoreboard();
+        renderBases();
+        renderCountLights();
+        closeDoubleStealModal();
+    }
+
+    window.openDoubleStealModal  = openDoubleStealModal;
+    window._toggleDsRan          = _toggleDsRan;
+    window._toggleDsOut          = _toggleDsOut;
+    window.closeDoubleStealModal = closeDoubleStealModal;
+    window.confirmDoubleSteal    = confirmDoubleSteal;
+
     function stealBase(success) {
         // 找出最前面的跑者（盜壘者）
         let leadIdx = -1;
@@ -6339,40 +6497,9 @@
 
         // ── 記錄盜壘事件 ──
         if (leadIdx >= 0 && currentTeam !== null && currentPitcher !== null) {
-            const pitcher = allData.teams[currentTeam]?.pitchers[currentPitcher];
-            if (pitcher) {
-                if (!pitcher.steals) pitcher.steals = [];
-                const runner = gameState.runners[leadIdx];
-                // 嘗試從 lineup 補名字
-                let runnerName = runner?.name || null;
-                if (!runnerName && runner?.order) {
-                    const battingTeam = gameState.half === '上' ? 'teamA' : 'teamB';
-                    const le = gameState.lineups[battingTeam]?.[runner.order];
-                    if (le?.name) runnerName = le.name;
-                }
-                const toBase = leadIdx === 2 ? 'H' : leadIdx + 2;
-                // 跑者（進攻方）隊名：上半＝先攻＝game.name，下半＝後攻＝game.opponent（與打線 teamA/teamB 慣例一致）
-                // 供打者情蒐卡用「隊名＋背號」歸位，比賽中不知對手姓名也能正確分人
-                const _g = allData.teams[currentTeam] || {};
-                const _runnerTeam = gameState.half === '上' ? (_g.name || '') : (_g.opponent || '');
-                pitcher.steals.push({
-                    number:   runner?.number || null,
-                    order:    runner?.order  || null,
-                    name:     runnerName,
-                    team:     _runnerTeam,
-                    fromBase: leadIdx + 1,
-                    toBase,
-                    success,
-                    inning:   gameState.inning,
-                    half:     gameState.half,
-                    outs:     gameState.outs,
-                    balls:    gameState.balls,    // 盜壘當下球數
-                    strikes:  gameState.strikes,  // 盜壘當下好球數
-                    ts:       Date.now()
-                });
-                saveToLocalStorage();
-                saveToFirebase(currentTeam);
-            }
+            _pushStealEvent(leadIdx, success, false);
+            saveToLocalStorage();
+            saveToFirebase(currentTeam);
         }
 
         // ── 移動壘包與 runners ──
@@ -6380,6 +6507,13 @@
             if (leadIdx === 2) {
                 gameState.bases[2] = false;
                 gameState.runners[2] = null;
+                // 盜回本壘成功 → 進攻方 +1 分（上半=先攻=home，下半=後攻=away，與 recordPitch 慣例一致）
+                if (currentTeam !== null) {
+                    const _sc = getTeamScore();
+                    if (gameState.half === '上') _sc.home = (_sc.home || 0) + 1;
+                    else _sc.away = (_sc.away || 0) + 1;
+                    updateScoreboard();
+                }
             } else if (leadIdx === 1) {
                 gameState.bases[1] = false; gameState.bases[2] = true;
                 gameState.runners[2] = gameState.runners[1]; gameState.runners[1] = null;
@@ -12297,10 +12431,11 @@
                         const lineupHand = num ? (_lineupNumMap9[num]?.hand || '') : '';
                         batterMap.set(mapKey, {
                             name: name || lineupName || (num ? `背號 ${num}` : nameKey), nameKey, teamName: bTeam,
-                            pitches: [], games: new Set(), hand: pitch.batterHand || lineupHand,
+                            pitches: [], games: new Set(), hand: pitch.batterHand || lineupHand, _bmNum: num,
                         });
                     }
                     const entry = batterMap.get(mapKey);
+                    if (!entry._bmNum && num) entry._bmNum = num;
                     entry.pitches.push({ ...pitch, _ti: ti });
                     const gk = [team.gameName, team.date].filter(Boolean).join(' ');
                     if (gk) entry.games.add(gk);
@@ -12583,9 +12718,10 @@
                         const bTeam = pitch.batterTeam || _inferBatterTeam(pitch, team) || '未分類';
                         const mapKey = `${bTeam}||${nameKey}`;
                         if (!batterMap.has(mapKey)) {
-                            batterMap.set(mapKey, { name: displayName, nameKey, teamName: bTeam, pitches: [], games: new Set(), hand: pitch.batterHand || '' });
+                            batterMap.set(mapKey, { name: displayName, nameKey, teamName: bTeam, pitches: [], games: new Set(), hand: pitch.batterHand || '', _bmNum: num });
                         }
                         const entry = batterMap.get(mapKey);
+                        if (!entry._bmNum && num) entry._bmNum = num;
                         entry.pitches.push({ ...pitch, _ti: ti });
                         const gk = [team.gameName, team.date].filter(Boolean).join(' ');
                         if (gk) entry.games.add(gk);
@@ -13494,6 +13630,9 @@
             </div>`;
         }).join('');
 
+        // 自動盜壘拆成「單盜」與「雙盜壘」（雙盜壘事件帶 double 旗標）分開呈現
+        const _tStlsSingle = _tStls.filter(s=>!s.double);
+        const _tStlsDouble = _tStls.filter(s=>s.double);
         const _tHasAny=_tBunt.length+_tHR.length+_tForce.length+_tStls.length+_manualTactics.length>0;
         const _entryNumJson=JSON.stringify(entry._bmNum||'');
         const _entryNameJson=JSON.stringify(entry.name||'');
@@ -13534,13 +13673,22 @@
                         <div>最常球數：${_tTopCnt(_tForce)}</div><div>壘況：${_tTopBase(_tForce)}</div><div>最常局數：${_tTopInning(_tForce)}</div>
                     </div>
                 </div>`:''}
-                ${_tStls.length>0?`<div style="padding:12px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10b981;">
+                ${_tStlsSingle.length>0?`<div style="padding:12px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10b981;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                         <span style="font-size:13px;font-weight:800;color:#10b981;">⚡ 盜壘</span>
-                        <span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#10b981;">${_tStls.length}次</span>
+                        <span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#10b981;">${_tStlsSingle.length}次</span>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#374151;">
-                        <div>成功 ${_tStls.filter(s=>s.success).length} 次（${Math.round(_tStls.filter(s=>s.success).length/_tStls.length*100)}% 成功率）</div><div>最常局數：${_tTopInning(_tStls)}</div>
+                        <div>成功 ${_tStlsSingle.filter(s=>s.success).length} 次（${Math.round(_tStlsSingle.filter(s=>s.success).length/_tStlsSingle.length*100)}% 成功率）</div><div>最常局數：${_tTopInning(_tStlsSingle)}</div>
+                    </div>
+                </div>`:''}
+                ${_tStlsDouble.length>0?`<div style="padding:12px;background:#ecfdf5;border-radius:8px;border-left:3px solid #059669;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-size:13px;font-weight:800;color:#059669;">🔥 雙盜壘</span>
+                        <span style="font-size:22px;font-weight:900;font-family:'Oswald',sans-serif;color:#059669;">${_tStlsDouble.length}次</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#374151;">
+                        <div>成功 ${_tStlsDouble.filter(s=>s.success).length} 次（${Math.round(_tStlsDouble.filter(s=>s.success).length/_tStlsDouble.length*100)}% 成功率）</div><div>最常局數：${_tTopInning(_tStlsDouble)}</div>
                     </div>
                 </div>`:''}
                 ${_manualGroupedHTML}
