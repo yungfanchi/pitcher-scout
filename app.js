@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v550';
+﻿    const APP_VERSION = 'v551';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3322,9 +3322,16 @@
         document.getElementById('newTeamDate').value = new Date().toISOString().split('T')[0];
         document.getElementById('twFlagHint').style.display = 'none';
         document.getElementById('twFlagText').style.display = 'none';
+        // 賽前先建賽事、投手尚未出現時，把新賽事設為「目前賽事但不選投手」，
+        // 讓名冊背號可以立刻存進這一場（_persistLineup 需要 currentTeam）。
+        // currentPitcher 保持 null → recordPitch 仍被擋住，不會記錯場。
+        const _newIndex = allData.teams.length - 1;
+        currentTeam = _newIndex;
+        currentPitcher = null;
+        _restoreLineupForTeam(_newIndex);
         updateTeamList();
         saveToLocalStorage();
-        saveToFirebase(allData.teams.length - 1);
+        saveToFirebase(_newIndex);
     }
 
     // ====== ADD PITCHER MODAL ======
