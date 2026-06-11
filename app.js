@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v555';
+﻿    const APP_VERSION = 'v556';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5574,6 +5574,15 @@
         currentPitch.speed = speed;
     }
 
+    // 界外/揮空 → 這球算好球，取消自動（或手動）勾起的「保送」
+    function _cancelAutoWalk() {
+        const bbBtn = document.querySelector('.outcome-btn[data-outcome="保送"]');
+        if (bbBtn && bbBtn.classList.contains('selected')) {
+            toggleOutcome(bbBtn);
+            bbBtn.style.boxShadow = '';
+        }
+    }
+
     function toggleFoul(btn) {
         currentPitch.foul = !currentPitch.foul;
         btn.classList.toggle('active');
@@ -5583,6 +5592,7 @@
             // Foul: allow zone selection freely (攻擊壞球也算界外)
             // result determined by 2-strike rule when recording
             currentPitch.result = '好球';
+            _cancelAutoWalk();
         } else {
             // Revert result based on zone
             if (currentPitch.zone) {
@@ -5602,6 +5612,7 @@
             currentPitch.foul = false;
             document.getElementById('foulBtn').classList.remove('active');
             currentPitch.result = '好球';
+            _cancelAutoWalk();
         }
         updateAutoResultDisplay();
     }
