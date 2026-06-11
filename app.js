@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v556';
+﻿    const APP_VERSION = 'v557';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -5536,6 +5536,13 @@
             }
         }
 
+        // ── 兩好球後再投好球帶（看見三振）→ 自動預選「三振」──
+        // 界外不算第三好球（打席繼續），故 !foul；揮空另由 toggleSwing 處理
+        if (gameState.strikes === 2 && currentPitch.result === '好球'
+                && !currentPitch.foul && !currentPitch.swing) {
+            _autoStrikeout();
+        }
+
         updateAutoResultDisplay();
         updateZoneCountDisplay();
     }
@@ -5583,6 +5590,25 @@
         }
     }
 
+    // 兩好球後第三好球（看見/揮空）→ 自動預選「三振」並閃金光提示（不死三振由使用者手動改）
+    function _autoStrikeout() {
+        const kBtn = document.querySelector('.outcome-btn[data-outcome="三振"]');
+        if (kBtn && !kBtn.classList.contains('selected')) {
+            toggleOutcome(kBtn);
+            kBtn.style.boxShadow = '0 0 0 3px #ffd700, 0 0 12px rgba(255,215,0,0.8)';
+            setTimeout(() => { kBtn.style.boxShadow = ''; }, 900);
+        }
+    }
+
+    // 界外 / 取消揮空 → 取消自動（或手動）勾起的「三振」
+    function _cancelAutoStrikeout() {
+        const kBtn = document.querySelector('.outcome-btn[data-outcome="三振"]');
+        if (kBtn && kBtn.classList.contains('selected')) {
+            toggleOutcome(kBtn);
+            kBtn.style.boxShadow = '';
+        }
+    }
+
     function toggleFoul(btn) {
         currentPitch.foul = !currentPitch.foul;
         btn.classList.toggle('active');
@@ -5593,12 +5619,18 @@
             // result determined by 2-strike rule when recording
             currentPitch.result = '好球';
             _cancelAutoWalk();
+            // 界外不算第三好球（打席繼續）→ 取消自動亮的三振
+            _cancelAutoStrikeout();
         } else {
             // Revert result based on zone
             if (currentPitch.zone) {
                 currentPitch.result = !String(currentPitch.zone).startsWith('B') ? '好球' : '壞球';
             } else {
                 currentPitch.result = null;
+            }
+            // 取消界外後若仍是兩好球 + 好球帶（看見三振）→ 補回自動三振
+            if (gameState.strikes === 2 && currentPitch.result === '好球' && !currentPitch.swing) {
+                _autoStrikeout();
             }
         }
         updateAutoResultDisplay();
@@ -5613,6 +5645,16 @@
             document.getElementById('foulBtn').classList.remove('active');
             currentPitch.result = '好球';
             _cancelAutoWalk();
+            // 兩好球揮空＝揮空三振 → 自動預選「三振」
+            if (gameState.strikes === 2) _autoStrikeout();
+        } else {
+            // 取消揮空：若這球落在好球帶（看見三振）則保留三振，否則取消（追打壞球落空已撤回）
+            if (gameState.strikes === 2 && currentPitch.zone
+                    && !String(currentPitch.zone).startsWith('B') && !currentPitch.foul) {
+                _autoStrikeout();
+            } else {
+                _cancelAutoStrikeout();
+            }
         }
         updateAutoResultDisplay();
     }
