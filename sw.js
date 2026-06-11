@@ -1,6 +1,6 @@
 // 投手情蒐系統 - Service Worker
 // 更新版本號可強制所有裝置重新快取
-const CACHE_NAME = 'pitcher-scout-v553';
+const CACHE_NAME = 'pitcher-scout-v554';
 
 // 同源核心資源（必快取，cache.add 可靠）
 const CORE_ASSETS = [

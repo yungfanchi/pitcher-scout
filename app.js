@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v553';
+﻿    const APP_VERSION = 'v554';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3003,6 +3003,13 @@
         // checkForUpdate 已在 SW 註冊時直接呼叫，此處不重複觸發
         updateFieldMapToggleBtn();
         listenForUpdateNotifications();
+
+        // 球速快捷鍵：按下時阻止按鈕取得 focus，避免瀏覽器把半露出的按鈕
+        // scroll-into-view，造成「按完球速畫面跳一下/捲動」。點擊(setSpeed)照常觸發。
+        document.addEventListener('mousedown', e => {
+            const t = e.target;
+            if (t && t.classList && t.classList.contains('speed-btn')) e.preventDefault();
+        }, true);
 
         // 從 SW 快取自動偵測實際版本號（防止 APP_VERSION 與 sw.js desync）
         if ('caches' in window) {
