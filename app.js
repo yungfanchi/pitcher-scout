@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v554';
+﻿    const APP_VERSION = 'v555';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -4995,7 +4995,12 @@
         _persistLineup();
         closeLineupModal();
         const order = parseInt(document.getElementById('batterOrder').value);
-        if (order >= 1 && order <= 9) applyLineupToUI(order);
+        // 改用 autoFillBatterFromOrder：它會先依當前半局重新指向打擊隊，避免「存完後攻打序後，
+        // 上半局的記錄頁誤顯示後攻打者」。同時補上橫幅同步。
+        if (order >= 1 && order <= 9) {
+            autoFillBatterFromOrder(order);
+            if (typeof updateRecordBanner === 'function') updateRecordBanner();
+        }
     }
 
     function toggleRosterSection(type) {
@@ -6011,6 +6016,8 @@
         gameState.currentBatterIndex[battingTeam] = clamped - 1;
         autoFillBatterFromOrder(clamped);
         saveLiveState();
+        // 方向鍵換棒也要同步橫幅（手打數字的 syncBatterOrderToState 已有，這裡補上）
+        if (typeof updateRecordBanner === 'function') updateRecordBanner();
     }
 
     function syncBatterOrderToState(val) {
@@ -6026,6 +6033,9 @@
     function autoFillBatterFromOrder(order) {
         // Priority 0：投手模式代打追蹤（若此棒次有代打記錄，優先帶入代打球員資料）
         const battingTeamKey0 = gameState.half === '上' ? 'teamA' : 'teamB';
+        // 依當前半局重新指向打擊隊名單，避免沿用打序 Modal 最後開啟的那一隊
+        // （修正「賽前先填先攻、再填後攻 → 回到記錄頁/按方向鍵帶到後攻名單」）
+        lineup = gameState.lineups[battingTeamKey0];
         const subs0 = _pmGetSubs();
         const sub0  = subs0?.[battingTeamKey0]?.[String(order)];
         _pmUpdateSubInfoRow(battingTeamKey0, order); // 更新代打狀態列
