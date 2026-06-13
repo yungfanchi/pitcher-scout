@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v557';
+﻿    const APP_VERSION = 'v558';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -12448,6 +12448,14 @@
         refreshBatterList();
     }
 
+    // 「有選結果」的手動落點 → 視為可計入統計的補登打席（沒選結果者只畫圖、不計數）
+    // 回傳 [{ number, team, outcome }, ...]，供 refreshBatterList / _renderBmStats 共用，確保兩處數字一致
+    function _bmStatLocs() {
+        return (allData.bm?.hitLocations || []).filter(l =>
+            l && l.outcome && String(l.number || '').trim()
+        ).map(l => ({ number: String(l.number).trim(), team: (l.team || '').trim(), outcome: l.outcome }));
+    }
+
     function refreshBatterList() {
         _initBmData();
         const listEl = document.getElementById('batterList');
@@ -12563,6 +12571,27 @@
             });
             const gk = ab.gameName || ab.teamName || '';
             if (gk) entry.games.add(gk);
+        });
+
+        // 從手動補登落點（有選結果者）→ 當作一筆補登打席計入統計（hitLocation 設 null，
+        // 避免與落點圖的 _profileDirect 重複畫線；圖仍由 _profileDirect 負責繪製）
+        _bmStatLocs().forEach(l => {
+            const num     = l.number;
+            const bTeam   = l.team || '未分類';
+            const nameKey = `#${num}`;
+            const mapKey  = `${bTeam}||${nameKey}`;
+            if (!batterMap.has(mapKey)) {
+                batterMap.set(mapKey, {
+                    name: `背號 ${num}`, nameKey, teamName: bTeam,
+                    pitches: [], games: new Set(), hand: '', _bmNum: num,
+                });
+            }
+            const entry = batterMap.get(mapKey);
+            if (!entry._bmNum) entry._bmNum = num;
+            entry.pitches.push({
+                outcomes: [l.outcome], hitLocation: null,
+                batterNumber: num, batterTeam: bTeam, _fromDirectLoc: true,
+            });
         });
 
         // ── 統計計算 ──
@@ -17007,7 +17036,11 @@
         const _allPitchAbs = [];
         allData.teams.forEach((_, ti) => _allPitchAbs.push(..._deriveBmAtBatsFromPitches(ti)));
         const _bmOnlyAbs = (allData.bm?.atBats || []).filter(ab => ab.mode !== 'pitch');
-        const atBats = [..._allPitchAbs, ..._bmOnlyAbs];
+        // 手動補登落點（有選結果者）→ 補登打席（不與既有 atBats 重複，hitLocations 為獨立節點）
+        const _bmLocAbs = _bmStatLocs().map(l => ({
+            number: l.number, teamName: l.team || '未標記球隊', outcome: l.outcome, _fromDirectLoc: true,
+        }));
+        const atBats = [..._allPitchAbs, ..._bmOnlyAbs, ..._bmLocAbs];
         if (atBats.length === 0) {
             container.innerHTML = '<div style="color:#9ca3af;text-align:center;padding:40px 0;font-size:14px;">尚無打席記錄<br><span style="font-size:12px;">請先在側欄選取一場賽事</span><br><br><button onclick="injectDemoData();switchBmTab(\'stats\')" style="margin-top:8px;padding:8px 20px;background:#003d79;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">注入測試資料</button></div>';
             return;
@@ -17674,8 +17707,8 @@
                         <select id="dhlTeam" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
                           <option value="">選球隊（選填）</option>${_teamOpts}
                         </select>
-                        <select id="dhlOutcome" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
-                          <option value="">打席結果（選填）</option>
+                        <select id="dhlOutcome" onchange="_updateDhlSaveState()" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
+                          <option value="">打席結果（必填）</option>
                           <option value="一壘安打">一壘安打</option><option value="二壘安打">二壘安打</option>
                           <option value="三壘安打">三壘安打</option><option value="全壘打">全壘打</option>
                           <option value="內野安打">內野安打</option><option value="滾地球出局">滾地球出局</option>
@@ -18005,8 +18038,8 @@
             <select id="dhlTeam" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
               <option value="">選球隊（選填）</option>${_teamOpts}
             </select>
-            <select id="dhlOutcome" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
-              <option value="">打席結果（選填）</option>
+            <select id="dhlOutcome" onchange="_updateDhlSaveState()" style="padding:6px 10px;border-radius:7px;border:1.5px solid #d1d5db;font-size:14px;font-family:inherit;">
+              <option value="">打席結果（必填）</option>
               <option value="一壘安打">一壘安打</option><option value="二壘安打">二壘安打</option>
               <option value="三壘安打">三壘安打</option><option value="全壘打">全壘打</option>
               <option value="內野安打">內野安打</option><option value="滾地球出局">滾地球出局</option>
@@ -18053,13 +18086,34 @@
         _dhlPendingZone = zone;
         // 高亮選取的區域
         if (svg) _zoneHighlight(svg.querySelector(`[data-zone="${zone}"]`), svg);
-        const lbl = document.getElementById('dhlSelected');
-        if (lbl) { lbl.textContent = `已選：${zone}　← 確認後按「儲存此落點」`; lbl.style.color = '#b45309'; lbl.style.fontWeight = '700'; }
-        // 啟用儲存按鈕
-        const btn = document.getElementById('dhlSaveBtn');
-        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        _updateDhlSaveState();
     }
     window._selectDirectHitLocZone = _selectDirectHitLocZone;
+
+    // 儲存鍵啟用條件：區域 + 打席結果都要選（結果改必填，才能計入打擊率/OPS）
+    function _updateDhlSaveState() {
+        const hasZone    = !!_dhlPendingZone;
+        const hasOutcome = !!document.getElementById('dhlOutcome')?.value;
+        const lbl = document.getElementById('dhlSelected');
+        if (lbl) {
+            if (hasZone && hasOutcome) {
+                lbl.textContent = `已選：${_dhlPendingZone}　← 按「儲存此落點」`;
+                lbl.style.color = '#b45309'; lbl.style.fontWeight = '700';
+            } else if (hasZone) {
+                lbl.textContent = `已選區域 ${_dhlPendingZone}，請先選「打席結果」`;
+                lbl.style.color = '#dc2626'; lbl.style.fontWeight = '700';
+            } else {
+                lbl.textContent = hasOutcome ? '請在球場圖上點選落點區域' : '尚未選取區域';
+                lbl.style.color = '#6b7280'; lbl.style.fontWeight = '400';
+            }
+        }
+        const btn = document.getElementById('dhlSaveBtn');
+        if (btn) {
+            const ok = hasZone && hasOutcome;
+            btn.disabled = !ok; btn.style.opacity = ok ? '1' : '0.4';
+        }
+    }
+    window._updateDhlSaveState = _updateDhlSaveState;
 
     function _clearDirectHitLocSelection() {
         _dhlPendingZone = null;
@@ -18080,13 +18134,16 @@
         // 優先用 dhlTeam 選單的值，沒選時用呼叫端傳入的 contextTeam
         const team    = document.getElementById('dhlTeam')?.value    || contextTeam || '';
         const outcome = document.getElementById('dhlOutcome')?.value || '';
+        // 結果為必填（才能計入打擊率/OPS）；防止繞過按鈕禁用狀態
+        if (!outcome) { alert('請先選擇「打席結果」，才能儲存並計入打擊率。'); return; }
         allData.bm.hitLocations.push({ number: String(number), team, zone, outcome, x: c.x/300, y: c.y/280, ts: Date.now() });
         saveToLocalStorage();
         saveBmToFirebase();
         _dhlPendingZone = null;
         const _boxId = boxId || 'addHitLocInlineBox';
-        // 從統計分頁呼叫（statsHitLocInlineBox）→ 重新渲染統計頁落點圖
+        // 從統計分頁呼叫（statsHitLocInlineBox）→ 先重建統計（打席/打擊率/OPS）再重繪卡片
         if (_boxId === 'statsHitLocInlineBox') {
+            if (typeof refreshBatterList === 'function') refreshBatterList();
             if (_bmCurrentCardKey) showBmBatterCard(_bmCurrentCardKey);
         } else {
             // ★ 重新渲染整個打者詳情（落點圖立即更新），保持隊名篩選
