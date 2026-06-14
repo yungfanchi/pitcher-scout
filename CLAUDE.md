@@ -12,7 +12,7 @@
 - **架構**：單頁 PWA，拆分為 `index.html`（HTML 結構）、`style.css`（樣式）、`app.js`（邏輯）
 - **部署**：GitHub Pages（HTTPS），已可安裝到手機/平板桌面
 - **資料庫**：Firebase Realtime Database（雲端同步）+ localStorage（本機備份）
-- **目前版本**：v550（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
+- **目前版本**：v560（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
 
 ---
 
@@ -225,7 +225,11 @@ teams/{teamCode}/
 |------|------|
 | `init()` | 初始化，載入 localStorage → Firebase |
 | `injectDemoData()` | 注入測試資料（console 手動呼叫，勿放進 init） |
-| `saveToFirebase(gameIdx?)` | 寫入 Firebase（內建 300ms debounce，gameIdx 可指定單場） |
+| `saveToFirebase(gameIdx?)` | 寫入 Firebase（內建 300ms debounce，gameIdx 可指定單場；指定單場時會蓋上 `updatedAt`） |
+| `mergeGameSets(cloud, local, deletedSet)` | 安全合併核心：同一場保留「球數較多／較新(`updatedAt`)」版本、本機獨有保留、tombstone 剔除。所有同步路徑都走它 |
+| `_gameUpdatedAt(g)` | 場次最後修改時間（優先 `updatedAt`，舊資料退回最大投球 timestamp） |
+| `getDeletedGamesRef()` | tombstone 節點 `teams/{teamCode}/deletedGames`（刪除防呆＋跨裝置同步刪除） |
+| `restorePrevSnapshot()` | 還原「上一版快照」（同步覆蓋前自動存的安全網，側欄 🛟 鈕） |
 | `saveToLocalStorage()` | 備份到 localStorage |
 | `updateTeamList()` | 重繪側邊欄球隊列表 |
 | `updateSlotDisplay()` | 更新 A/B 槽卡片顯示 |
@@ -269,7 +273,8 @@ teams/{teamCode}/
 - [x] Firebase 寫入已有 300ms debounce（`_fbSaveTimer`，app.js ~6140 行）
 - [x] PDF 報表匯出已實作（`exportReportPDF` → `_buildAndOpenReport`）
 - [x] 打者資料庫已實作（`allData.batterData`，獨立 Firebase 節點）
-- [x] APP_VERSION 與 sw.js CACHE_NAME 同步（目前皆為 v537）
+- [x] APP_VERSION 與 sw.js CACHE_NAME 同步（目前皆為 v560）
+- [x] **離線資料防遺失（v559/v560）**：根治「離線記的整場資料被雲端空/舊版本默默覆蓋」。所有同步路徑（初次合併、兩個即時監聽器、`refreshData` 重整、`pullFromFirebase` 雲端下載）一律改走 `mergeGameSets()` 安全合併 — 同一場保留球數較多／`updatedAt` 較新者、本機獨有場次一律保留、不再單靠易漏設的 `_pendingSync` 旗標。新增刪除防呆 tombstone（`deletedGames` 節點，跨裝置刪除生效且不復活）與「🛟 還原上一版」安全網（覆蓋前自動快照）
 - [x] 統計頁打者成績改為「頂部隊伍頁籤 + 單隊全寬檢視」（取代多隊並排手風琴，避免橫滑；`_bmStatsActiveTeam`、`selectBmStatsTeam`）
 - [x] 統計頁每位打者可「🗑️ 從此隊移除」（`removeBatterFromTeam`，清空本場該背號投球記錄的打者標記＋移除 bm 打席/手動落點，不動投手用球數）
 - [x] 打者個人卡可「🗑️ 刪除手動落點」（`_showDelHitLocInline` / `_delDirectHitLocCard`，只刪 bm.hitLocations 手動落點）
@@ -301,7 +306,7 @@ teams/{teamCode}/
 ├── style.css       ← 所有 CSS 樣式（1,292 行）
 ├── app.js          ← 所有應用邏輯（12,673 行）
 ├── manifest.json   ← PWA manifest
-├── sw.js           ← Service Worker（CACHE_NAME = pitcher-scout-v537）
+├── sw.js           ← Service Worker（CACHE_NAME = pitcher-scout-v560）
 ├── icon-192.png    ← PWA 圖示
 └── icon-512.png    ← PWA 圖示
 ```
@@ -316,4 +321,4 @@ teams/{teamCode}/
 
 ---
 
-*最後更新：2026-06-04*
+*最後更新：2026-06-15*
