@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v559';
+﻿    const APP_VERSION = 'v560';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -9218,6 +9218,16 @@
     function _gameFingerprint(g) {
         return [g.gameName||'', g.name||'', g.opponent||'', g.date||''].join('|');
     }
+    // 場次「最後修改時間」：優先用 updatedAt；舊資料無此欄位則退回最大投球 timestamp
+    function _gameUpdatedAt(g) {
+        if (!g) return 0;
+        if (typeof g.updatedAt === 'number') return g.updatedAt;
+        let mx = 0;
+        (g.pitchers || []).forEach(p => (p.pitches || []).forEach(pt => {
+            if (pt && typeof pt.timestamp === 'number' && pt.timestamp > mx) mx = pt.timestamp;
+        }));
+        return mx;
+    }
     function mergeGameSets(cloudTeams, localTeams, deletedSet) {
         deletedSet = deletedSet || _deletedGameIds || new Set();
         const fpMap = new Map();
@@ -9228,14 +9238,17 @@
             if (g.gameId && deletedSet.has(String(g.gameId))) return;  // 已刪除：剔除
             if (!fpMap.has(fp)) { fpMap.set(fp, g); return; }
             const cur = fpMap.get(fp);
-            // 同一場：保留球數較多者；平手保留先佔位者（雲端先放，是各裝置匯流點）
-            if (_gamePitchCount(g) > _gamePitchCount(cur)) {
+            // 同一場優先序：① 球數較多者勝 ② 球數相同則「最後修改時間」較新者勝
+            //               ③ 再平手保留先佔位者（雲端先放，是各裝置匯流點）
+            const gc = _gamePitchCount(g), cc = _gamePitchCount(cur);
+            const win = gc > cc || (gc === cc && _gameUpdatedAt(g) > _gameUpdatedAt(cur));
+            if (win) {
                 if (!g.gameId && cur.gameId) g.gameId = cur.gameId;    // 不遺失 gameId
                 fpMap.set(fp, g);
             }
         };
         (cloudTeams || []).forEach(accept);   // 雲端先佔位（建立基準）
-        (localTeams || []).forEach(accept);   // 本機補強：更多球才取代，獨有則保留
+        (localTeams || []).forEach(accept);   // 本機補強：更多球/較新才取代，獨有則保留
         return [...fpMap.values()];
     }
 
@@ -9707,12 +9720,15 @@
 
             const _pitchCount = pitchers => (pitchers || []).reduce((s, p) => s + (p.pitches || []).length, 0);
 
-            // 合併原則：本機球數 ≥ 遠端球數時，本機版本較新，跳過（不被覆蓋）
+            // 合併原則：本機球數較多 → 保留本機；球數相同則比「最後修改時間」，
+            //           本機較新就保留，否則採用遠端（讓別台的離線編輯也能同步進來）
             allData.teams.forEach((local, idx) => {
                 if (!local.gameId) return;
                 const remote = remoteById[local.gameId];
                 if (!remote) return;
-                if (_pitchCount(local.pitchers) >= _pitchCount(remote.pitchers)) return;
+                const lc = _pitchCount(local.pitchers), rc = _pitchCount(remote.pitchers);
+                if (lc > rc) return;
+                if (lc === rc && _gameUpdatedAt(local) >= _gameUpdatedAt(remote)) return;
                 allData.teams[idx] = remote;
             });
 
@@ -9749,6 +9765,10 @@
     // gameIdx: 指定只儲存哪場比賽（per-game write）；不傳則全量寫入所有賽事
     function saveToFirebase(gameIdx) {
         lastSaveTime = Date.now();
+        // 標記此場「最後修改時間」：供多裝置合併在球數相同時判斷誰較新（離線只改結果也能勝出）
+        if (gameIdx !== undefined && allData.teams && allData.teams[gameIdx]) {
+            allData.teams[gameIdx].updatedAt = Date.now();
+        }
         saveToLocalStorage();
 
         // ── v515：離線寫入立即標記 _pendingSync ──
