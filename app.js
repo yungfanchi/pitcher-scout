@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v558';
+﻿    const APP_VERSION = 'v559';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -2929,23 +2929,27 @@
         if (btn) { btn.textContent = '⏳ 更新中...'; btn.disabled = true; }
         const bdRefresh = USER_TEAM_REF ? USER_TEAM_REF.child('batterData') : null;
         const prRefresh = USER_TEAM_REF ? USER_TEAM_REF.child('playerRegistry') : null;
+        const delRefresh = USER_TEAM_REF ? USER_TEAM_REF.child('deletedGames') : null;
         Promise.all([
             getGamesRef().once('value'),
             bdRefresh ? bdRefresh.once('value') : Promise.resolve(null),
-            prRefresh ? prRefresh.once('value') : Promise.resolve(null)
-        ]).then(([snap, bdSnap, prSnap]) => {
+            prRefresh ? prRefresh.once('value') : Promise.resolve(null),
+            delRefresh ? delRefresh.once('value') : Promise.resolve(null)
+        ]).then(([snap, bdSnap, prSnap, delSnap]) => {
+                if (delSnap) { const dv = delSnap.val(); if (dv) _deletedGameIds = new Set(Object.keys(dv).map(String)); }
                 const newRaw = snap.val();
                 if (newRaw && typeof newRaw === 'object') {
-                    const teams = [];
+                    const cloud = [];
                     Object.entries(newRaw).forEach(([id, data]) => {
                         const g = _normalizeGameEntry(data);
-                        if (g) { if (!g.gameId) g.gameId = id; teams.push(g); }
+                        if (g) { if (!g.gameId) g.gameId = id; cloud.push(g); }
                     });
-                    if (teams.length > 0) {
-                        allData.teams = teams;
-                        allData.pitcherDB = {};
-                        rebuildPitcherDB();
-                    }
+                    // ★ 安全合併（不再直接覆蓋）：保留本機獨有/球數較多的場次，剔除已刪除場次
+                    _snapshotBeforeOverwrite('refreshData');
+                    const local = (allData.teams || []).map(t => { const c = JSON.parse(JSON.stringify(t)); if (!c.gameId) c.gameId = _makeGameId(); return c; });
+                    allData.teams = mergeGameSets(cloud, local, _deletedGameIds);
+                    allData.pitcherDB = {};
+                    rebuildPitcherDB();
                 }
                 if (bdSnap) {
                     const bdVal = bdSnap.val();
@@ -4817,6 +4821,17 @@
     // ====== PITCHER MANAGEMENT ======
     function deleteTeam(teamIndex) {
         if (!confirm('確定要刪除此球隊及所有投手資料嗎？')) return;
+
+        // ── 刪除防呆（tombstone）：記下 gameId，讓刪除在各裝置生效、且不會被合併復活 ──
+        const _delGame = allData.teams[teamIndex];
+        const _delId = _delGame && _delGame.gameId ? String(_delGame.gameId) : null;
+        if (_delId) {
+            _deletedGameIds.add(_delId);
+            try {
+                const _r = getDeletedGamesRef();
+                if (_r) _r.child(_delId).set(Date.now()).catch(() => {});
+            } catch (e) {}
+        }
 
         // 清除 bm.atBats 中屬於此場次的打席記錄，並修正後續場次的 gameIdx
         if (allData.bm && Array.isArray(allData.bm.atBats)) {
@@ -8877,6 +8892,7 @@
     let activeFirebaseRef = null; // 記錄目前監聽的 ref，供 logout 時正確移除
     let isOnline = navigator.onLine;
     let pendingSync = false; // 離線期間是否有未同步的資料
+    let _deletedGameIds = new Set(); // tombstone：已刪除場次的 gameId，合併時剔除、跨裝置同步刪除
 
     function setSyncStatus(online) {
         const dot = document.getElementById('syncDotCircle');
@@ -8960,6 +8976,14 @@
         return db.ref(`teams/${currentTeamCode}/games`);
     }
     function getGameRef(gameId) { return getGamesRef().child(String(gameId)); }
+
+    // tombstone 節點：teams/{teamCode}/deletedGames/{gameId} = 刪除時間
+    function getDeletedGamesRef() {
+        if (USER_TEAM_REF) return USER_TEAM_REF.child('deletedGames');
+        if (currentTeamCode === 'ADMIN') return db.ref('pitcherScoutDeletedGames');
+        if (currentTeamCode) return db.ref(`teams/${currentTeamCode}/deletedGames`);
+        return null;
+    }
 
     function getLiveStateRef(gameId) {
         if (USER_TEAM_REF) return USER_TEAM_REF.child('liveState').child(String(gameId));
@@ -9182,6 +9206,71 @@
         });
     }
 
+    // ── 安全合併核心：本機 + 雲端 → 永不遺失、永不縮水 ──
+    // 規則：
+    //  1) 同一場（內容指紋相同）保留「投球數較多」的版本；雲端較少/空版本不准覆蓋本機。
+    //  2) 只存在本機、雲端沒有的場次一律保留（離線記的資料絕不被默默丟棄）。
+    //  3) tombstone：gameId 在 deletedSet 內者一律剔除，確保刪除在各裝置生效、且不會被合併復活。
+    // 參數皆為已 normalize 的 teams 陣列；deletedSet 為 Set<gameId 字串>。
+    function _gamePitchCount(g) {
+        return ((g && g.pitchers) ? g.pitchers : []).reduce((s, p) => s + ((p && p.pitches ? p.pitches : []).length), 0);
+    }
+    function _gameFingerprint(g) {
+        return [g.gameName||'', g.name||'', g.opponent||'', g.date||''].join('|');
+    }
+    function mergeGameSets(cloudTeams, localTeams, deletedSet) {
+        deletedSet = deletedSet || _deletedGameIds || new Set();
+        const fpMap = new Map();
+        const accept = g => {
+            if (!g) return;
+            const fp = _gameFingerprint(g);
+            if (!fp.replace(/\|/g, '').trim()) return;                 // 空殼指紋跳過
+            if (g.gameId && deletedSet.has(String(g.gameId))) return;  // 已刪除：剔除
+            if (!fpMap.has(fp)) { fpMap.set(fp, g); return; }
+            const cur = fpMap.get(fp);
+            // 同一場：保留球數較多者；平手保留先佔位者（雲端先放，是各裝置匯流點）
+            if (_gamePitchCount(g) > _gamePitchCount(cur)) {
+                if (!g.gameId && cur.gameId) g.gameId = cur.gameId;    // 不遺失 gameId
+                fpMap.set(fp, g);
+            }
+        };
+        (cloudTeams || []).forEach(accept);   // 雲端先佔位（建立基準）
+        (localTeams || []).forEach(accept);   // 本機補強：更多球才取代，獨有則保留
+        return [...fpMap.values()];
+    }
+
+    // ── 安全網：覆蓋本機前先存一份「上一版快照」，可一鍵還原 ──
+    const _PREV_SNAP_KEY = 'chineseTaipeiPitcherData_prev';
+    function _snapshotBeforeOverwrite(reason) {
+        try {
+            const cur = localStorage.getItem('chineseTaipeiPitcherData');
+            if (!cur) return;
+            const meta = { savedAt: Date.now(), reason: reason || '', teamCode: currentTeamCode || '' };
+            localStorage.setItem(_PREV_SNAP_KEY, JSON.stringify({ meta, data: cur }));
+        } catch (e) {}
+    }
+    function restorePrevSnapshot() {
+        let snap;
+        try { snap = JSON.parse(localStorage.getItem(_PREV_SNAP_KEY) || 'null'); } catch (e) { snap = null; }
+        if (!snap || !snap.data) { alert('目前沒有可還原的上一版快照。'); return; }
+        const when = snap.meta && snap.meta.savedAt ? new Date(snap.meta.savedAt).toLocaleString() : '未知時間';
+        let parsed;
+        try { parsed = JSON.parse(snap.data); } catch (e) { alert('快照損毀，無法還原。'); return; }
+        const teamCnt = (parsed.teams || []).filter(t => t && t.gameName !== '📄 PDF 報告').length;
+        if (!confirm(`要還原到「上一版快照」嗎？\n\n快照時間：${when}\n內含 ${teamCnt} 場比賽。\n\n這會把目前的本機資料換成快照版本（會先把目前版本另存為新快照，可再次還原）。`)) return;
+        // 先把「現在」存成新快照，讓還原本身也可逆
+        _snapshotBeforeOverwrite('restore');
+        delete parsed._teamCode;
+        allData = parsed;
+        if (!allData.pitcherDB) allData.pitcherDB = {};
+        if (!allData.batterData) allData.batterData = [];
+        if (!allData.playerRegistry) allData.playerRegistry = [];
+        rebuildPitcherDB();
+        saveToLocalStorage();
+        updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+        alert('✅ 已還原到上一版。\n確認資料正確後，請按「☁️ 雲端備份」上傳，讓雲端也同步。');
+    }
+
     function restoreFromFirebaseData(data) {
         // Firebase Realtime DB converts arrays to objects ({0:{...},1:{...}})
         // Convert back to proper arrays at every level
@@ -9382,6 +9471,23 @@
             });
         }
 
+        // ★ deletedGames（tombstone）即時監聽：其他裝置刪除某場後，此裝置同步剔除，且不會被合併復活
+        const delRef = USER_TEAM_REF ? USER_TEAM_REF.child('deletedGames') : null;
+        if (delRef) {
+            delRef.on('value', snap => {
+                const val = snap.val() || {};
+                _deletedGameIds = new Set(Object.keys(val).map(String));
+                if (_deletedGameIds.size === 0) return;
+                const before = (allData.teams || []).length;
+                allData.teams = (allData.teams || []).filter(t => !(t.gameId && _deletedGameIds.has(String(t.gameId))));
+                if (allData.teams.length !== before) {
+                    rebuildPitcherDB();
+                    saveToLocalStorage();
+                    updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
+                }
+            });
+        }
+
         // ★ games 即時監聽：其他裝置記錄新投球（含打者結果/落點）後，此裝置自動同步 allData.teams
         let _gamesListenerActive = false;
         gRef.on('value', snap => {
@@ -9395,12 +9501,9 @@
                 if (g) { if (!g.gameId) g.gameId = id; incoming.push(g); }
             });
             if (incoming.length === 0) return;
-            // 以 gameId 合併，Firebase 版本優先
+            // 安全合併：同一場保留球數較多者、tombstone 剔除、本機獨有保留（不讓雲端空/舊版本覆蓋本機）
             const prev = JSON.stringify(allData.teams || []);
-            const mergedMap = {};
-            (allData.teams || []).forEach(t => { if (t.gameId) mergedMap[t.gameId] = t; });
-            incoming.forEach(t => { if (t.gameId) mergedMap[t.gameId] = t; });
-            allData.teams = Object.values(mergedMap);
+            allData.teams = mergeGameSets(incoming, allData.teams || [], _deletedGameIds);
             if (JSON.stringify(allData.teams) === prev) return; // 無變化不重繪
             rebuildPitcherDB();
             saveToLocalStorage();
@@ -9423,8 +9526,15 @@
             getDataRef().once('value'),   // 舊路徑 pitchers/
             bmRef ? bmRef.once('value') : Promise.resolve(null),
             bdRef ? bdRef.once('value') : Promise.resolve(null),
-            prRef ? prRef.once('value') : Promise.resolve(null)
-        ]).then(([newSnap, oldSnap, bmSnap, bdSnap, prSnap]) => {
+            prRef ? prRef.once('value') : Promise.resolve(null),
+            delRef ? delRef.once('value') : Promise.resolve(null)
+        ]).then(([newSnap, oldSnap, bmSnap, bdSnap, prSnap, delSnap]) => {
+
+            // ── 載入 tombstone（已刪除場次）：合併時剔除，且確保已刪除場次不被本機備份復活 ──
+            if (delSnap) {
+                const dv = delSnap.val();
+                if (dv) _deletedGameIds = new Set(Object.keys(dv).map(String));
+            }
 
             // ── v516：在「合併當下」重新讀取 _pendingSync（不可用 listenFirebase 啟動時的舊值）──
             // 冷啟動離線時，once('value') 會一直 pending 到重新連線才 resolve；這段期間使用者已離線
@@ -9432,61 +9542,45 @@
             // 離線場次誤判為「雲端已刪除」而捨棄。改為此刻即時讀取，確保離線記錄一定被併回。
             const hasPendingSync = localStorage.getItem('_pendingSync') === '1';
 
-            // ── 收集所有候選賽事：永遠合併新舊兩條路徑 ──
-            // 安全原則：寧可多讀，不可漏讀；舊路徑只在寫入新路徑成功後才刪除
-            const candidates = [];
+            // ── 收集雲端候選賽事：新路徑 games/ + 舊路徑 pitchers/（寧可多讀不可漏讀）──
+            const cloudCandidates = [];
             const newRaw = newSnap.val();
             const hasNewData = newRaw && typeof newRaw === 'object' && Object.keys(newRaw).length > 0;
-
             if (hasNewData) {
                 Object.entries(newRaw).forEach(([id, data]) => {
                     const g = _normalizeGameEntry(data);
-                    if (g) { if (!g.gameId) g.gameId = id; candidates.push(g); }
+                    if (g) { if (!g.gameId) g.gameId = id; cloudCandidates.push(g); }
                 });
             }
-
             // 始終讀舊路徑（pitchers/），確保任何時期存進去的資料都不會漏掉
             const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
-            oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); candidates.push(t); });
+            oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); cloudCandidates.push(t); });
 
-            // 只有在「有離線待補傳」或「Firebase 完全無資料」時，才把本機資料加入候選
-            // 否則 Firebase 是唯一權威，已刪除的場次不應被本機備份復原
-            if (hasPendingSync || !hasNewData) {
-                (allData.teams || []).forEach(t => {
-                    if (!t.gameId) t.gameId = _makeGameId();
-                    candidates.push(JSON.parse(JSON.stringify(t)));
-                });
-            }
-
-            // ── 以內容指紋去重：保留球數最多的版本 ──
-            const fpMap = new Map();
-            candidates.forEach(g => {
-                const fp = [g.gameName||'', g.name||'', g.opponent||'', g.date||''].join('|');
-                if (!fp.replace(/\|/g,'').trim()) return;
-                if (!fpMap.has(fp)) {
-                    fpMap.set(fp, g);
-                } else {
-                    const existing = fpMap.get(fp);
-                    const ec = (existing.pitchers||[]).reduce((s,p)=>s+(p.pitches||[]).length,0);
-                    const nc = (g.pitchers||[]).reduce((s,p)=>s+(p.pitches||[]).length,0);
-                    if (nc > ec) fpMap.set(fp, g);
-                }
+            // ── 安全合併：雲端 + 本機，同一場保留球數較多者、本機獨有一律保留、tombstone 剔除 ──
+            // ★ 不再單靠 _pendingSync 旗標決定是否納入本機；本機資料永遠參與合併，
+            //   杜絕「離線記的整場資料被雲端空/舊版本默默覆蓋」（旗標漏設也不會丟資料）。
+            const localSnapshot = (allData.teams || []).map(t => {
+                const c = JSON.parse(JSON.stringify(t));
+                if (!c.gameId) c.gameId = _makeGameId();
+                return c;
             });
+            const mergedArr = mergeGameSets(cloudCandidates, localSnapshot, _deletedGameIds);
 
-            const mergedArr = [...fpMap.values()];
-            const originalCount = newRaw && typeof newRaw === 'object' ? Object.keys(newRaw).length : 0;
-            const oldSnapVal = oldSnap.val();
-            const hasOldData = oldSnapVal !== null;
+            const originalCount = hasNewData ? Object.keys(newRaw).length : 0;
+            const hasOldData = oldSnap.val() !== null;
+            const cloudIdSet = new Set(hasNewData ? Object.keys(newRaw).map(String) : []);
+            const tombstonedInCloud = [...cloudIdSet].filter(id => _deletedGameIds.has(id)).length;
 
-            // 安全閘：合併結果不得少於 Firebase 現有筆數（防止資料縮水覆寫）
-            const safeToWrite = mergedArr.length >= originalCount;
+            // 安全閘：合併後筆數不得少於「雲端現有(扣除已刪除)」，防止程式 bug 把雲端清空
+            const safeToWrite = mergedArr.length >= (originalCount - tombstonedInCloud);
 
-            // 需要回寫：有新/舊路徑待合併、去重減少、離線補傳
+            // 需要回寫：本機獨有場次、新舊路徑待合併、去重變動、離線補傳、雲端尚有已刪除場次待移除
             const needWrite = safeToWrite && (
                 hasPendingSync
+                || hasOldData
                 || mergedArr.length !== originalCount
-                || mergedArr.some(g => !newRaw || !newRaw[g.gameId])
-                || hasOldData  // 舊路徑仍有資料，需要遷移到新路徑
+                || mergedArr.some(g => !cloudIdSet.has(String(g.gameId)))
+                || tombstonedInCloud > 0
             );
 
             // ── 還原打者模式狀態 ──
@@ -9636,6 +9730,11 @@
                 return true;
             });
 
+            // tombstone：剔除已刪除場次（避免遠端遺留或本機殘留被合併復活）
+            if (_deletedGameIds.size > 0) {
+                allData.teams = allData.teams.filter(t => !(t.gameId && _deletedGameIds.has(String(t.gameId))));
+            }
+
             rebuildPitcherDB();
             saveToLocalStorage();
             updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
@@ -9721,60 +9820,41 @@
     }
 
     function pullFromFirebase() {
-        // 若本機有未上傳的離線資料，先警告再詢問
-        const hasPending = localStorage.getItem('_pendingSync') === '1';
-        if (hasPending) {
-            const ok = confirm(
-                '⚠️ 你有本機離線記錄尚未上傳至雲端！\n\n' +
-                '若直接從雲端拉取，這些離線資料將永久遺失。\n\n' +
-                '建議：先按「上傳至雲端」再拉取。\n\n' +
-                '確定要放棄本機記錄並覆蓋嗎？'
-            );
-            if (!ok) return;
-        }
-        // 同時讀新路徑（games/）與舊路徑（pitchers/），確保遺漏場次也能找回
+        // 同時讀新路徑（games/）、舊路徑（pitchers/）、tombstone，確保遺漏場次也能找回
+        const _delRef = USER_TEAM_REF ? USER_TEAM_REF.child('deletedGames') : null;
         Promise.all([
             getGamesRef().once('value'),
-            getDataRef().once('value')
-        ]).then(([newSnap, oldSnap]) => {
-                const fpMap = new Map();
-                const addGame = g => {
-                    if (!g) return;
-                    const fp = [g.gameName||'', g.name||'', g.opponent||'', g.date||''].join('|');
-                    if (!fp.replace(/\|/g,'').trim()) return;
-                    if (!fpMap.has(fp)) {
-                        fpMap.set(fp, g);
-                    } else {
-                        const ec = (fpMap.get(fp).pitchers||[]).reduce((s,p)=>s+(p.pitches||[]).length,0);
-                        const nc = (g.pitchers||[]).reduce((s,p)=>s+(p.pitches||[]).length,0);
-                        if (nc > ec) fpMap.set(fp, g);
-                    }
-                };
-                // 讀新路徑
+            getDataRef().once('value'),
+            _delRef ? _delRef.once('value') : Promise.resolve(null)
+        ]).then(([newSnap, oldSnap, delSnap]) => {
+                if (delSnap) { const dv = delSnap.val(); if (dv) _deletedGameIds = new Set(Object.keys(dv).map(String)); }
+                const cloud = [];
                 const newRaw = newSnap.val();
                 if (newRaw && typeof newRaw === 'object') {
                     Object.entries(newRaw).forEach(([id, data]) => {
                         const g = _normalizeGameEntry(data);
-                        if (g) { if (!g.gameId) g.gameId = id; addGame(g); }
+                        if (g) { if (!g.gameId) g.gameId = id; cloud.push(g); }
                     });
                 }
                 // 讀舊路徑（pitchers/），撈回可能遺漏的場次
                 const oldTeams = normalizeTeamsData(oldSnap.val()) || [];
-                oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); addGame(t); });
+                oldTeams.forEach(t => { if (!t.gameId) t.gameId = _makeGameId(); cloud.push(t); });
 
-                const teams = [...fpMap.values()];
-                if (teams.length === 0) {
-                    alert('雲端目前無資料，請先按「☁️ 上傳至雲端」把本機數據上傳。');
+                if (cloud.length === 0 && (allData.teams || []).length === 0) {
+                    alert('雲端目前無資料，請先按「☁️ 雲端備份」把本機數據上傳。');
                     return;
                 }
-                if (!hasPending && !confirm(`雲端找到 ${teams.length} 筆球隊資料，要覆蓋本機嗎？`)) return;
-                allData.teams = teams;
+                // ★ 安全合併（不再直接覆蓋本機）：雲端 + 本機，保留本機獨有/球數較多者，剔除已刪除場次
+                const local = (allData.teams || []).map(t => { const c = JSON.parse(JSON.stringify(t)); if (!c.gameId) c.gameId = _makeGameId(); return c; });
+                const merged = mergeGameSets(cloud, local, _deletedGameIds);
+                if (!confirm(`雲端 ${cloud.length} 筆、合併後共 ${merged.length} 筆球隊資料。\n（本機若有雲端沒有的場次會一併保留，不會被覆蓋）\n\n要套用嗎？`)) return;
+                _snapshotBeforeOverwrite('pullFromFirebase');
+                allData.teams = merged;
                 allData.pitcherDB = {};
                 rebuildPitcherDB();
                 saveToLocalStorage();
-                try { localStorage.removeItem('_pendingSync'); } catch(e) {}
                 updateTeamList(); updateSlotDisplay(); updatePitchLog(); updateStats(); updateScoreboard();
-                alert('✅ 已從雲端拉取最新數據！');
+                alert('✅ 已從雲端拉取並安全合併！\n若本機有雲端沒有的場次，請按「☁️ 雲端備份」上傳同步。');
             })
             .catch(e => alert('拉取失敗：' + e.message));
     }
