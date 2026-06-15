@@ -12,7 +12,7 @@
 - **架構**：單頁 PWA，拆分為 `index.html`（HTML 結構）、`style.css`（樣式）、`app.js`（邏輯）
 - **部署**：GitHub Pages（HTTPS），已可安裝到手機/平板桌面
 - **資料庫**：Firebase Realtime Database（雲端同步）+ localStorage（本機備份）
-- **目前版本**：v560（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
+- **目前版本**：v561（`APP_VERSION` 常數 = `sw.js` 的 `CACHE_NAME`，兩者必須同步）
 
 ---
 
@@ -273,7 +273,8 @@ teams/{teamCode}/
 - [x] Firebase 寫入已有 300ms debounce（`_fbSaveTimer`，app.js ~6140 行）
 - [x] PDF 報表匯出已實作（`exportReportPDF` → `_buildAndOpenReport`）
 - [x] 打者資料庫已實作（`allData.batterData`，獨立 Firebase 節點）
-- [x] APP_VERSION 與 sw.js CACHE_NAME 同步（目前皆為 v560）
+- [x] APP_VERSION 與 sw.js CACHE_NAME 同步（目前皆為 v561）
+- [x] **場次下拉選單改用 optgroup 分組（v561）**：三個場次下拉（`modalTeamSelect` 對戰投手組合、`singleModalTeamSelect` 單一投手、`bmGameSelect` 打者模式）統一改走共用函式 `_populateGameSelectOptions()` — 依賽事名稱(gameName) optgroup 分組、群組內日期新到舊、群組之間依最新日期新到舊、預設選中目前場次(`currentTeam`)。`option.value` 維持原始 `allData.teams` 索引不變，下游 `parseInt(value)` 對應不受影響
 - [x] **離線資料防遺失（v559/v560）**：根治「離線記的整場資料被雲端空/舊版本默默覆蓋」。所有同步路徑（初次合併、兩個即時監聽器、`refreshData` 重整、`pullFromFirebase` 雲端下載）一律改走 `mergeGameSets()` 安全合併 — 同一場保留球數較多／`updatedAt` 較新者、本機獨有場次一律保留、不再單靠易漏設的 `_pendingSync` 旗標。新增刪除防呆 tombstone（`deletedGames` 節點，跨裝置刪除生效且不復活）與「🛟 還原上一版」安全網（覆蓋前自動快照）
 - [x] 統計頁打者成績改為「頂部隊伍頁籤 + 單隊全寬檢視」（取代多隊並排手風琴，避免橫滑；`_bmStatsActiveTeam`、`selectBmStatsTeam`）
 - [x] 統計頁每位打者可「🗑️ 從此隊移除」（`removeBatterFromTeam`，清空本場該背號投球記錄的打者標記＋移除 bm 打席/手動落點，不動投手用球數）
@@ -306,7 +307,7 @@ teams/{teamCode}/
 ├── style.css       ← 所有 CSS 樣式（1,292 行）
 ├── app.js          ← 所有應用邏輯（12,673 行）
 ├── manifest.json   ← PWA manifest
-├── sw.js           ← Service Worker（CACHE_NAME = pitcher-scout-v560）
+├── sw.js           ← Service Worker（CACHE_NAME = pitcher-scout-v561）
 ├── icon-192.png    ← PWA 圖示
 └── icon-512.png    ← PWA 圖示
 ```

@@ -1,4 +1,4 @@
-﻿    const APP_VERSION = 'v560';
+﻿    const APP_VERSION = 'v561';
 
     function escapeHtml(str) {
         if (str == null) return '';
@@ -3345,18 +3345,52 @@
         saveToFirebase(_newIndex);
     }
 
+    // ====== 共用：場次下拉選單填充 ======
+    // 依賽事名稱(gameName)用 optgroup 分組、群組內日期新到舊、群組之間依最新日期新到舊、預設選中指定場次。
+    // ★ option.value 一律維持「原始 allData.teams 索引」— 下游全部用 parseInt(value) 當索引，分組排序只改顯示順序，不動資料對應。
+    function _populateGameSelectOptions(selectEl, opts = {}) {
+        if (!selectEl) return;
+        const { preselect = null, leading = null, dark = false } = opts;
+        selectEl.innerHTML = '';
+        if (leading) {
+            const o = document.createElement('option');
+            o.value = leading.value;
+            o.textContent = leading.text;
+            if (dark) { o.style.background = '#003d79'; o.style.color = 'white'; }
+            selectEl.appendChild(o);
+        }
+        const teams = allData.teams || [];
+        const groups = new Map();
+        teams.forEach((t, i) => {
+            const key = t.gameName || '未分類';
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push({ t, i });
+        });
+        const _latest = arr => arr.reduce((m, x) => ((x.t.date || '') > m ? (x.t.date || '') : m), '');
+        const sortedKeys = [...groups.keys()].sort((a, b) => _latest(groups.get(b)).localeCompare(_latest(groups.get(a))));
+        sortedKeys.forEach(key => {
+            const items = groups.get(key).slice().sort((a, b) => (b.t.date || '').localeCompare(a.t.date || ''));
+            const og = document.createElement('optgroup');
+            og.label = key;
+            if (dark) og.style.color = '#ffd700';
+            items.forEach(({ t, i }) => {
+                const o = document.createElement('option');
+                o.value = i;
+                o.textContent = `${t.name || '?'}${t.opponent ? ' vs ' + t.opponent : ''}${t.date ? ' (' + t.date + ')' : ''}`;
+                if (dark) { o.style.background = '#003d79'; o.style.color = 'white'; }
+                og.appendChild(o);
+            });
+            selectEl.appendChild(og);
+        });
+        if (preselect != null && !isNaN(preselect)) selectEl.value = String(preselect);
+    }
+
     // ====== ADD PITCHER MODAL ======
     function showAddPitcherModal() {
         if (allData.teams.length === 0) { alert('請先新增球隊！'); return; }
         const modal = document.getElementById('addPitcherModal');
         const select = document.getElementById('modalTeamSelect');
-        select.innerHTML = '';
-        allData.teams.forEach((team, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = `${team.name}${team.opponent ? ' vs ' + team.opponent : ''} ${team.date ? '(' + team.date + ')' : ''}`;
-            select.appendChild(option);
-        });
+        _populateGameSelectOptions(select, { preselect: currentTeam });
         modal.style.display = 'block';
     }
 
@@ -3409,13 +3443,7 @@
     function showSinglePitcherModal() {
         if (allData.teams.length === 0) { alert('請先新增球隊！'); return; }
         const select = document.getElementById('singleModalTeamSelect');
-        select.innerHTML = '';
-        allData.teams.forEach((team, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = `${team.name}${team.opponent ? ' vs ' + team.opponent : ''} ${team.date || ''}`;
-            select.appendChild(option);
-        });
+        _populateGameSelectOptions(select, { preselect: currentTeam });
         _updateSinglePitcherTeamOpts();
         document.getElementById('singlePitcherModal').style.display = 'block';
     }
@@ -15639,17 +15667,12 @@
     function _populateBmGameSelect() {
         const sel = document.getElementById('bmGameSelect');
         if (!sel) return;
-        sel.innerHTML = '<option value="-1" style="background:#003d79;color:white;">— 不連動，純獨立記錄 —</option>';
-        (allData.teams||[]).forEach((t,i) => {
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.style.background = '#003d79';
-            opt.style.color = 'white';
-            opt.textContent = `${t.gameName||''}  ${t.name||''}  vs  ${t.opponent||''}  ${t.date||''}`;
-            sel.appendChild(opt);
-        });
         _initBmData();
-        sel.value = allData.bm.gameIdx;
+        _populateGameSelectOptions(sel, {
+            preselect: allData.bm.gameIdx,
+            leading: { value: -1, text: '— 不連動，純獨立記錄 —' },
+            dark: true
+        });
         const ta = document.getElementById('bmTeamABtn');
         const tb = document.getElementById('bmTeamBBtn');
         if (ta && tb) {
